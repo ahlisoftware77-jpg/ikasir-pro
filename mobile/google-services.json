@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "468553316772",
+    "project_id": "kasir-3d12b",
+    "storage_bucket": "kasir-3d12b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:468553316772:android:7cf07f8ba34919e36f6931",
+        "android_client_info": {
+          "package_name": "com.ikasirpro.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "468553316772-pn7av6hhdmmrj1e89v8bf9aidtc9m3p9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ikasirpro.mobile",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "468553316772-2e0gf3gou8u71tgi91r181kcugnojlto.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3uf-hWtBiRBfJwe5sSkKYDE82LL-v2j8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "468553316772-2e0gf3gou8u71tgi91r181kcugnojlto.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

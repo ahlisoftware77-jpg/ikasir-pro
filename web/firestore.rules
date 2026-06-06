@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fungsi pembantu untuk memvalidasi bahwa hanya field tanda tangan yang diubah
+    function isOnlySigning() {
+      // Mengizinkan perubahan pada field signatureBase64, updatedAt, dan isSignatureLinkActive (untuk mematikan link)
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signatureBase64', 'updatedAt', 'isSignatureLinkActive']);
+    }
+
+    // Aturan untuk Koleksi Transaksi
+    match /transactions/{transactionId} {
+      // Hanya izinkan baca/update jika admin telah mengaktifkan link (isSignatureLinkActive)
+      allow read: if resource.data.isSignatureLinkActive == true;
+      allow update: if resource.data.isSignatureLinkActive == true && isOnlySigning();
+      
+      // Untuk operasi lainnya (create/delete), diizinkan (arsitektur multi-project)
+      allow create, delete: if true; 
+    }
+
+    // Aturan untuk Koleksi Estimasi
+    match /estimations/{estimationId} {
+      allow read: if resource.data.isSignatureLinkActive == true;
+      allow update: if resource.data.isSignatureLinkActive == true && isOnlySigning();
+      allow create, delete: if true;
+    }
+
+    // Aturan default untuk koleksi lainnya (produk, settings, users, dll)
+    // Dibiarkan terbuka karena arsitektur Multi-Database (Tenant) 
+    // tidak membawa status request.auth dari project utama.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

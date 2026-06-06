@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "kasir-app": "kasir-3d12b",
+    "default": "kasir-3d12b"
+  },
+  "targets": {
+    "kasir-3d12b": {
+      "hosting": {
+        "kasirkuyk": [
+          "kasir-3d12b"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+:root {
+  /* Default Ocean Blue */
+  --app-bg: #020617;
+  --app-surface: #0f172a;
+  --app-accent: #3b82f6;
+  --app-accent-hover: #2563eb;
+  --app-border: #1e293b;
+  --app-text: #ffffff;
+  --app-text-muted: #94a3b8;
+}
+
+[data-theme='emerald'] {
+  --app-bg: #000000;
+  --app-surface: #121212;
+  --app-accent: #10b981;
+  --app-accent-hover: #059669;
+  --app-border: #27272a;
+  --app-text: #ffffff;
+  --app-text-muted: #a1a1aa;
+}
+
+[data-theme='purple'] {
+  --app-bg: #000000;
+  --app-surface: #141414;
+  --app-accent: #8b5cf6;
+  --app-accent-hover: #7c3aed;
+  --app-border: #262626;
+  --app-text: #ffffff;
+  --app-text-muted: #a3a3a3;
+}
+
+[data-theme='sunset'] {
+  --app-bg: #000000;
+  --app-surface: #181414;
+  --app-accent: #f43f5e;
+  --app-accent-hover: #e11d48;
+  --app-border: #292524;
+  --app-text: #ffffff;
+  --app-text-muted: #a8a29e;
+}
+
+[data-theme='light'] {
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-accent: #3b82f6;
+  --app-accent-hover: #1d4ed8;
+  --app-border: #e2e8f0;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+}
+
+[data-theme='light-emerald'] {
+  --app-bg: #f0fdf4;
+  --app-surface: #ffffff;
+  --app-accent: #10b981;
+  --app-accent-hover: #059669;
+  --app-border: #d1fae5;
+  --app-text: #064e3b;
+  --app-text-muted: #059669;
+}
+
+[data-theme='light-purple'] {
+  --app-bg: #f5f3ff;
+  --app-surface: #ffffff;
+  --app-accent: #8b5cf6;
+  --app-accent-hover: #7c3aed;
+  --app-border: #ddd6fe;
+  --app-text: #4c1d95;
+  --app-text-muted: #7c3aed;
+}
+
+[data-theme='light-sunset'] {
+  --app-bg: #fff1f2;
+  --app-surface: #ffffff;
+  --app-accent: #f43f5e;
+  --app-accent-hover: #e11d48;
+  --app-border: #fecdd3;
+  --app-text: #881337;
+  --app-text-muted: #e11d48;
+}
+
+@theme inline {
+  --color-background: var(--app-bg);
+  --color-foreground: var(--app-text);
+  --color-surface: var(--app-surface);
+  --color-accent: var(--app-accent);
+  --color-accent-hover: var(--app-accent-hover);
+  --color-app-border: var(--app-border);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-tr: var(--tr-color, #10b981);
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar for modern look */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--app-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-accent);
+}
+
+/* Focus and active states for desktop interaction */
+button, a, input, select {
+  transition: transform 0.1s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--app-bg), 0 0 0 4px var(--app-accent);
+}
