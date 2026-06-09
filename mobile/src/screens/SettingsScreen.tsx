@@ -839,10 +839,19 @@ export default function SettingsScreen({ navigation }: any) {
     }
     setIsSubmittingSubscription(true);
     try {
-      const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dtt1zow8f/image/upload', {
+      const infraSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+      let cloudName = 'dkcjfwbvc';
+      let uploadPreset = 'kasirpos';
+      if (infraSnap.exists()) {
+        const data = infraSnap.data();
+        if (data.cloudinary_cloud_name) cloudName = data.cloudinary_cloud_name;
+        if (data.cloudinary_upload_preset) uploadPreset = data.cloudinary_upload_preset;
+      }
+
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: 'kasirpos' }),
+        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: uploadPreset }),
       });
       const uploadResult = await uploadRes.json();
       

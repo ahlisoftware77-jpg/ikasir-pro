@@ -6,6 +6,7 @@ import { useBranding } from '@/context/BrandingContext';
 import { X, Check, Camera, Loader2, Info, MessageCircle } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { getInfraConfig } from '@/lib/infraConfig';
 import toast from 'react-hot-toast';
 
 export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -45,10 +46,14 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
     
     setIsSubmitting(true);
     try {
-      const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dtt1zow8f/image/upload', {
+      const config = await getInfraConfig();
+      const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+      const uploadPreset = config.cloudinary_upload_preset || 'kasirpos';
+
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: 'kasirpos' }),
+        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: uploadPreset }),
       });
       const uploadResult = await uploadRes.json();
       
