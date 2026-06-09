@@ -14,6 +14,7 @@ import NotificationCenter from '@/components/NotificationCenter';
 import { auth, db } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { handleExportJSON } from '@/lib/backupUtils';
+import SubscriptionModal from '@/components/SubscriptionModal';
 import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -27,6 +28,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBackuping, setIsBackuping] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const addInternalNotification = useNotificationStore(state => state.addNotification);
   const unreadCount = useNotificationStore(state => state.getUnreadCount());
 
@@ -541,14 +543,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                 <p className="text-xs text-app-text-muted mt-1 font-bold">Menu transaksi, estimasi, dan piutang telah diblokir. Perpanjang langganan untuk memulihkan akses.</p>
               </div>
             </div>
-            <a 
-              href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya."
-              target="_blank"
-              rel="noopener noreferrer"
+            <button 
+              onClick={() => setShowSubscriptionModal(true)}
               className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors text-center whitespace-nowrap shrink-0"
             >
-              Perpanjang via WhatsApp
-            </a>
+              Buka Menu Langganan
+            </button>
           </div>
         )}
         
@@ -564,6 +564,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             {children}
           </>
         )}
+        <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
       </main>
       <MobileBottomNav />
       <PWAInstallButton />

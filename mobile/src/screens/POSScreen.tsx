@@ -1159,13 +1159,6 @@ export default function POSScreen({ route, navigation }: any) {
             >
               <Text className="font-black text-xs uppercase tracking-widest text-white">Buka Menu Langganan</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={() => Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya.')}
-              className="w-full bg-emerald-500 py-4 rounded-2xl items-center justify-center flex-row gap-2 active:opacity-90"
-            >
-              <Text className="font-black text-xs uppercase tracking-widest text-white">Perpanjang via WhatsApp</Text>
-            </TouchableOpacity>
           </View>
         </View>
       )}

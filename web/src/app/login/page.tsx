@@ -105,14 +105,7 @@ export default function LoginPage() {
            return;
          }
 
-         const now = new Date();
-         const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
-         if (validUntil && now > validUntil) {
-           await auth.signOut();
-           setError('Masa aktif aplikasi telah habis. Silakan perpanjang langganan via WA: 083815862300');
-           setIsLoading(false);
-           return;
-         }
+
       }
 
       // Log Login
@@ -174,14 +167,7 @@ export default function LoginPage() {
           return;
         }
 
-        const now = new Date();
-        const validUntil = userData?.validUntil ? new Date(userData.validUntil) : null;
-        if (validUntil && now > validUntil) {
-          await auth.signOut();
-          setError('Masa aktif aplikasi telah habis. Silakan perpanjang langganan via WA: 083815862300');
-          setIsLoading(false);
-          return;
-        }
+
 
         if (userData?.storeId) {
           await logActivity({
@@ -303,17 +289,6 @@ export default function LoginPage() {
                   <Lock size={14} className="shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
-                {error.toLowerCase().includes('habis') && (
-                  <a 
-                    href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya." 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white p-3 rounded-xl transition-colors mt-2"
-                  >
-                    <MessageCircle size={16} />
-                    <span>Perpanjang via WhatsApp</span>
-                  </a>
-                )}
               </div>
             )}
 

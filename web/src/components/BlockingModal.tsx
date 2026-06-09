@@ -83,16 +83,6 @@ export default function BlockingModal() {
                      <span className="uppercase tracking-[0.2em] text-xs">Buka Menu Langganan</span>
                      <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
                   </button>
-                  <a 
-                    href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya." 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="w-full group relative overflow-hidden flex items-center justify-center gap-3 py-5 rounded-2xl font-black transition-all active:scale-95 shadow-2xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20"
-                  >
-                     <MessageCircle size={20} />
-                     <span className="uppercase tracking-[0.2em] text-xs">Perpanjang via WhatsApp</span>
-                     <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
-                  </a>
                 </>
               )}
               <button 

@@ -209,6 +209,7 @@ export default function SettingsScreen({ navigation }: any) {
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [subscriptionProofBase64, setSubscriptionProofBase64] = useState<string | null>(null);
   const [isSubmittingSubscription, setIsSubmittingSubscription] = useState(false);
+  const [isSubscriptionSuccess, setIsSubscriptionSuccess] = useState(false);
 
   const SUBSCRIPTION_PACKAGES = [
     { id: '1m', title: '1 Bulan', price: 30000, desc: 'Rp 30.000 / bln' },
@@ -857,10 +858,7 @@ export default function SettingsScreen({ navigation }: any) {
           status: 'pending',
           createdAt: serverTimestamp()
         });
-        Alert.alert('Sukses', 'Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin pusat.');
-        setActiveModal(null);
-        setSelectedPackage(null);
-        setSubscriptionProofBase64(null);
+        setIsSubscriptionSuccess(true);
       } else {
         Alert.alert('Error', 'Gagal mengunggah gambar ke server.');
       }
@@ -3771,13 +3769,38 @@ export default function SettingsScreen({ navigation }: any) {
                 <Text className="text-xl font-black" style={{ color: colors.text }}>Menu Langganan</Text>
                 <Text className="text-xs font-bold text-slate-400">Pilih paket untuk memperpanjang masa aktif</Text>
               </View>
-              <TouchableOpacity onPress={() => { setActiveModal(null); setSelectedPackage(null); }} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
+              <TouchableOpacity onPress={() => { setActiveModal(null); setSelectedPackage(null); setIsSubscriptionSuccess(false); }} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
                 <X color={colors.text} size={20} />
               </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-              {!selectedPackage ? (
+              {isSubscriptionSuccess ? (
+                <View className="space-y-6 pb-10 pt-4 items-center px-4">
+                  <View className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-2">
+                    <Check size={40} color="#10b981" strokeWidth={3} />
+                  </View>
+                  <Text className="text-2xl font-black text-center" style={{ color: colors.text }}>Bukti Terkirim!</Text>
+                  <Text className="text-sm font-bold text-slate-400 text-center leading-relaxed mb-6">
+                    Pembayaran Anda sedang kami proses. Untuk mempercepat verifikasi, silakan konfirmasi ke admin kami melalui WhatsApp.
+                  </Text>
+                  
+                  <TouchableOpacity 
+                    onPress={() => Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20sudah%20mengirim%20bukti%20pembayaran%20untuk%20perpanjangan%20langganan%20aplikasi%20saya.%20Mohon%20segera%20diverifikasi.')}
+                    className="w-full bg-emerald-500 py-4 rounded-2xl items-center justify-center flex-row gap-2 active:opacity-90 shadow-xl shadow-emerald-500/20 mb-3"
+                  >
+                    <MessageCircle size={20} color="#ffffff" />
+                    <Text className="font-black text-xs uppercase tracking-widest text-white">Konfirmasi via WhatsApp</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => { setIsSubscriptionSuccess(false); setActiveModal(null); setSelectedPackage(null); setSubscriptionProofBase64(null); }}
+                    className="py-4 rounded-2xl items-center justify-center flex-row gap-2"
+                  >
+                    <Text className="font-black text-[10px] text-slate-400 uppercase tracking-widest">Tutup</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : !selectedPackage ? (
                 <View className="space-y-4">
                   {SUBSCRIPTION_PACKAGES.map((pkg) => (
                     <TouchableOpacity

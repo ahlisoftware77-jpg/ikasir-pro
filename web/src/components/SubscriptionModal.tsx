@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
-import { X, Check, Camera, Loader2, Info } from 'lucide-react';
+import { X, Check, Camera, Loader2, Info, MessageCircle } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [subscriptionProofBase64, setSubscriptionProofBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const SUBSCRIPTION_PACKAGES = [
     { id: '1m', title: '1 Bulan', price: 30000, desc: 'Rp 30.000 / bln' },
@@ -64,9 +65,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
           createdAt: serverTimestamp()
         });
         toast.success('Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin pusat.');
-        onClose();
-        setSelectedPackage(null);
-        setSubscriptionProofBase64(null);
+        setIsSuccess(true);
       } else {
         toast.error('Gagal mengunggah gambar ke server.');
       }
@@ -89,7 +88,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
             <p className="text-xs text-app-text-muted font-bold">Pilih paket untuk memperpanjang masa aktif</p>
           </div>
           <button 
-            onClick={() => { onClose(); setSelectedPackage(null); }}
+            onClick={() => { onClose(); setSelectedPackage(null); setIsSuccess(false); }}
             className="w-10 h-10 rounded-xl bg-app-border/50 hover:bg-app-border flex items-center justify-center transition-colors"
           >
             <X size={20} className="text-foreground" />
@@ -98,7 +97,33 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
 
         {/* Content */}
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-          {!selectedPackage ? (
+          {isSuccess ? (
+            <div className="space-y-6 text-center">
+              <div className="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <Check size={40} strokeWidth={3} />
+              </div>
+              <h3 className="text-2xl font-black text-foreground">Bukti Terkirim!</h3>
+              <p className="text-sm font-bold text-app-text-muted">Pembayaran Anda sedang kami proses. Untuk mempercepat verifikasi, silakan konfirmasi ke admin kami melalui WhatsApp.</p>
+              
+              <a 
+                href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20sudah%20mengirim%20bukti%20pembayaran%20untuk%20perpanjangan%20langganan%20aplikasi%20saya.%20Mohon%20segera%20diverifikasi." 
+                target="_blank" 
+                rel="noreferrer"
+                className="w-full group relative overflow-hidden flex items-center justify-center gap-3 py-5 rounded-2xl font-black transition-all active:scale-95 shadow-2xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20 mt-4"
+              >
+                 <MessageCircle size={20} />
+                 <span className="uppercase tracking-[0.2em] text-xs">Konfirmasi via WhatsApp</span>
+                 <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 group-hover:animate-shine" />
+              </a>
+
+              <button 
+                onClick={() => { setIsSuccess(false); onClose(); setSelectedPackage(null); setSubscriptionProofBase64(null); }} 
+                className="w-full py-3 mt-4 items-center justify-center flex text-app-text-muted hover:text-foreground transition-colors"
+              >
+                <span className="text-[10px] font-black uppercase tracking-wider">Tutup</span>
+              </button>
+            </div>
+          ) : !selectedPackage ? (
             <div className="space-y-4">
               {SUBSCRIPTION_PACKAGES.map((pkg) => (
                 <button
