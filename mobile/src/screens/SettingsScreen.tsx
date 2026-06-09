@@ -848,10 +848,13 @@ export default function SettingsScreen({ navigation }: any) {
         if (data.cloudinary_upload_preset) uploadPreset = data.cloudinary_upload_preset;
       }
 
+      const uploadData = new FormData();
+      uploadData.append('file', subscriptionProofBase64);
+      uploadData.append('upload_preset', uploadPreset);
+
       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: uploadPreset }),
+        body: uploadData
       });
       const uploadResult = await uploadRes.json();
       

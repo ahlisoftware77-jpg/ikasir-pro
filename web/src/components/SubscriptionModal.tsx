@@ -50,10 +50,13 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
       const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
       const uploadPreset = config.cloudinary_upload_preset || 'kasirpos';
 
+      const uploadData = new FormData();
+      uploadData.append('file', subscriptionProofBase64);
+      uploadData.append('upload_preset', uploadPreset);
+
       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: uploadPreset }),
+        body: uploadData
       });
       const uploadResult = await uploadRes.json();
       
@@ -72,7 +75,8 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
         toast.success('Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin pusat.');
         setIsSuccess(true);
       } else {
-        toast.error('Gagal mengunggah gambar ke server.');
+        console.error("Cloudinary Error:", uploadResult);
+        toast.error('Gagal mengunggah gambar: ' + (uploadResult.error?.message || 'Server error'));
       }
     } catch (err: any) {
       console.error(err);
