@@ -657,6 +657,21 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleDeleteSubscription = async (reqId: string) => {
+    if (confirm('Yakin ingin menghapus riwayat langganan ini?')) {
+      setIsSaving(true);
+      try {
+        await deleteDoc(doc(db, 'subscription_requests', reqId));
+        alert('Riwayat langganan berhasil dihapus.');
+      } catch (error: any) {
+        console.error(error);
+        alert('Gagal menghapus riwayat: ' + error.message);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
   const filteredUsers = users.filter(u => 
     u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -1480,13 +1495,30 @@ export default function SuperAdminPage() {
                           <img src={req.proofUrl} alt="Bukti Transfer" className="w-full h-40 object-cover rounded-xl border border-app-border mb-4 cursor-pointer hover:opacity-80 transition-opacity bg-background/50" />
                        </a>
                     </div>
-                    {req.status === 'pending' && (
+                    {req.status === 'pending' ? (
+                       <div className="flex gap-2">
+                           <button 
+                             onClick={() => handleVerifySubscription(req)} 
+                             disabled={isSaving} 
+                             className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                           >
+                              <CheckCircle2 size={16} /> Validasi
+                           </button>
+                           <button 
+                             onClick={() => handleDeleteSubscription(req.id)} 
+                             disabled={isSaving} 
+                             className="py-3 px-4 bg-rose-500/10 text-rose-500 rounded-xl font-black hover:bg-rose-500 hover:text-white transition-colors flex justify-center items-center active:scale-95 disabled:opacity-50"
+                           >
+                              <Trash2 size={16} />
+                           </button>
+                       </div>
+                    ) : (
                        <button 
-                         onClick={() => handleVerifySubscription(req)} 
+                         onClick={() => handleDeleteSubscription(req.id)} 
                          disabled={isSaving} 
-                         className="w-full py-3 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                         className="w-full py-3 bg-rose-500/10 text-rose-500 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-colors flex justify-center items-center gap-2 active:scale-95 disabled:opacity-50 mt-2"
                        >
-                          <CheckCircle2 size={16} /> Verifikasi Valid
+                          <Trash2 size={16} /> Hapus Riwayat
                        </button>
                     )}
                  </div>

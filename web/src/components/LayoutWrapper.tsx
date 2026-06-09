@@ -68,10 +68,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             style: { border: '2px solid #10b981', padding: '16px', color: '#10b981', fontWeight: 'bold' }
           });
 
-          // Also show System Notification if backgrounded
-          if (document.visibilityState === 'hidden') {
-            showSystemNotification();
-          }
+          // Always show System Notification
+          showSystemNotification();
 
           // Add to internal notification store
           addInternalNotification({
@@ -87,10 +85,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
     const showSystemNotification = async () => {
       if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') {
+         await Notification.requestPermission();
+      }
       
       if (Notification.permission === 'granted') {
-        const registration = await navigator.serviceWorker.ready;
-        registration.showNotification('PESANAN BARU!', {
+        try {
+           const registration = await navigator.serviceWorker.ready;
+           registration.showNotification('PESANAN BARU!', {
           body: 'Ada pelanggan baru yang melakukan pemesanan online. Klik untuk memproses!',
           icon: logoUrl || '/icon-192.png',
           badge: '/icon-192.png',
@@ -99,6 +101,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           renotify: true,
           requireInteraction: true
         } as any);
+        } catch (err) {
+          console.error("Failed to show service worker notification:", err);
+          // Fallback to basic notification if SW fails
+          new Notification('PESANAN BARU!', {
+            body: 'Ada pelanggan baru yang melakukan pemesanan online. Klik untuk memproses!',
+            icon: logoUrl || '/icon-192.png'
+          });
+        }
       }
     };
 
