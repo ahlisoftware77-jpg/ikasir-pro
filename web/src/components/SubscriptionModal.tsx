@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
-import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet } from 'lucide-react';
+import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet, Download, ExternalLink } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getInfraConfig } from '@/lib/infraConfig';
@@ -202,6 +202,40 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
                         <p className="text-[10px] font-bold text-app-text-muted uppercase mb-3">Scan QRIS</p>
                         <div className="p-3 bg-white rounded-2xl border border-app-border shadow-sm inline-block w-48 h-48">
                           <img src={branding.subscriptionQrisUrl} alt="QRIS Langganan" className="w-full h-full object-contain" />
+                        </div>
+                        <div className="flex gap-2 mt-4 w-full max-w-xs justify-center">
+                          <button
+                            type="button"
+                            onClick={() => window.open(branding.subscriptionQrisUrl, '_blank')}
+                            className="flex-1 py-2 rounded-xl border border-app-border bg-background hover:bg-surface text-[10px] font-black text-foreground flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <ExternalLink size={12} />
+                            <span className="uppercase tracking-wider">Preview Jelas</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(branding.subscriptionQrisUrl);
+                                const blob = await response.blob();
+                                const blobUrl = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = blobUrl;
+                                link.download = 'qris_langganan_kasir_pro.png';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(blobUrl);
+                                toast.success('QRIS berhasil diunduh');
+                              } catch (error) {
+                                window.open(branding.subscriptionQrisUrl, '_blank');
+                              }
+                            }}
+                            className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-[10px] font-black text-white flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <Download size={12} />
+                            <span className="uppercase tracking-wider">Unduh QRIS</span>
+                          </button>
                         </div>
                       </>
                     ) : (

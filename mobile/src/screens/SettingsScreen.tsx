@@ -833,6 +833,32 @@ export default function SettingsScreen({ navigation }: any) {
     }
   };
 
+  const handleDownloadQris = async (url: string) => {
+    if (!url) return;
+    try {
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (!isSharingAvailable) {
+        Alert.alert('Info', 'Fitur sharing tidak tersedia di perangkat Anda.');
+        return;
+      }
+      const extension = url.split('.').pop()?.split('?')[0] || 'png';
+      const localUri = `${FileSystem.documentDirectory}qris_pembayaran.${extension}`;
+
+      const downloadResult = await FileSystem.downloadAsync(url, localUri);
+      if (downloadResult.status === 200) {
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+          dialogTitle: 'Unduh / Simpan QRIS',
+        });
+      } else {
+        Alert.alert('Gagal', 'Gagal mengunduh gambar QRIS.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      Linking.openURL(url);
+    }
+  };
+
   const handlePickSubscriptionProof = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -3940,6 +3966,24 @@ export default function SettingsScreen({ navigation }: any) {
                             >
                               <Image source={{ uri: brandingData.subscriptionQrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
                             </TouchableOpacity>
+
+                            <View className="flex-row gap-2 mt-4">
+                              <TouchableOpacity
+                                onPress={() => setPreviewImageUrl(brandingData.subscriptionQrisUrl)}
+                                className="px-3 py-2 rounded-xl border flex-row items-center gap-1.5"
+                                style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+                              >
+                                <Text className="text-[9px] font-black" style={{ color: colors.text }}>PREVIEW JELAS</Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                onPress={() => handleDownloadQris(brandingData.subscriptionQrisUrl)}
+                                className="px-3 py-2 rounded-xl flex-row items-center gap-1.5 bg-emerald-500"
+                              >
+                                <Download size={12} color="#ffffff" />
+                                <Text className="text-[9px] font-black text-white">UNDUH / SIMPAN</Text>
+                              </TouchableOpacity>
+                            </View>
                           </View>
                         ) : (
                           <Text className="text-[10px] font-bold text-center italic" style={{ color: colors.textMuted }}>Metode QRIS belum diset oleh admin pusat.</Text>
@@ -4089,6 +4133,17 @@ export default function SettingsScreen({ navigation }: any) {
         <Modal visible={!!previewImageUrl} transparent animationType="fade" onRequestClose={() => setPreviewImageUrl(null)}>
           <View className="flex-1 bg-black justify-center items-center relative">
             <Image source={{ uri: previewImageUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+            
+            {/* Download/Share Button on Top Left */}
+            <TouchableOpacity 
+              onPress={() => handleDownloadQris(previewImageUrl)} 
+              activeOpacity={0.8}
+              className="absolute top-12 left-6 px-4 h-12 rounded-full bg-black/40 items-center justify-center border border-white/10 flex-row gap-2"
+            >
+              <Download color="#ffffff" size={18} />
+              <Text className="text-white font-bold text-xs uppercase tracking-wider">Simpan / Bagikan</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity 
               onPress={() => setPreviewImageUrl(null)} 
               activeOpacity={0.8}
