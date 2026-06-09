@@ -118,6 +118,8 @@ export interface Customer {
   address?: string;
   totalOrders?: number;
   totalSpent?: number;
+  points?: number;
+  orders?: number;
   createdAt?: any;
 }
 

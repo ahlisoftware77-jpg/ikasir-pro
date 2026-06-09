@@ -111,7 +111,8 @@ export default function POSPage() {
     showReceiptCustomer: true,
     showReceiptCashier: true,
     showReceiptSubtotal: true,
-    qrisUrl: ''
+    qrisUrl: '',
+    bankInfo: ''
   });
   const [successTrx, setSuccessTrx] = useState<any>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -432,7 +433,8 @@ export default function POSPage() {
               showReceiptCustomer: data.showReceiptCustomer !== false,
               showReceiptCashier: data.showReceiptCashier !== false,
               showReceiptSubtotal: data.showReceiptSubtotal !== false,
-              qrisUrl: data.qrisUrl || ''
+              qrisUrl: data.qrisUrl || '',
+              bankInfo: data.bankInfo || ''
             });
         }
       } catch (err) {
