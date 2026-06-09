@@ -41,7 +41,7 @@ export default function RootLayout({
             <AuthProvider>
               <BlockingModal />
               <NavigationGuard />
-              <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+              <Toaster position="top-right" toastOptions={{ duration: 3000 }} containerStyle={{ zIndex: 99999 }} />
               <LayoutWrapper>
                 {children}
               </LayoutWrapper>
