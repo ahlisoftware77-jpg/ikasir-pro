@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History } from 'lucide-react';
 import { getInfraConfig } from '@/lib/infraConfig';
 import { doc, getDoc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -28,6 +28,19 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [signaturePadData, setSignaturePadData] = useState<string>('');
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
+
+  useEffect(() => {
+    if (storeId) {
+      import('firebase/firestore').then(({ collection, query, where, onSnapshot }) => {
+        const q = query(collection(db, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
+        const unsubscribe = onSnapshot(q, (snap) => {
+          setHasPendingSubscription(!snap.empty);
+        });
+        return unsubscribe;
+      });
+    }
+  }, [storeId]);
   
   const FONT_OPTIONS = [
     { id: 'sans', name: 'Modern (Sans)', family: "'Inter', sans-serif" },
@@ -702,12 +715,19 @@ export default function SettingsPage() {
             {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
           </p>
         </div>
-        <button 
-          onClick={() => setShowSubscriptionModal(true)}
-          className="bg-white px-6 py-3 rounded-2xl border border-white/20 shadow-lg text-xs font-black uppercase tracking-wider text-accent hover:scale-105 active:scale-95 transition-all"
-        >
-          Perpanjang Sekarang
-        </button>
+        {hasPendingSubscription ? (
+          <div className="bg-amber-500/20 px-6 py-3 rounded-2xl border border-amber-500/50 shadow-lg flex items-center gap-2">
+            <History size={16} className="text-amber-500 animate-spin-slow" />
+            <span className="text-xs font-black uppercase tracking-wider text-amber-500">Menunggu Verifikasi Pusat</span>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setShowSubscriptionModal(true)}
+            className="bg-white px-6 py-3 rounded-2xl border border-white/20 shadow-lg text-xs font-black uppercase tracking-wider text-accent hover:scale-105 active:scale-95 transition-all"
+          >
+            Perpanjang Sekarang
+          </button>
+        )}
       </div>
 
       <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />

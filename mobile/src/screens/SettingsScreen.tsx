@@ -56,6 +56,17 @@ export default function SettingsScreen({ navigation }: any) {
   const [editProfilePhoto, setEditProfilePhoto] = useState<string | null>(user?.photoURL || null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
+
+  useEffect(() => {
+    if (storeId) {
+      const q = query(collection(db, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
+      const unsub = onSnapshot(q, (snap) => {
+        setHasPendingSubscription(!snap.empty);
+      });
+      return () => unsub();
+    }
+  }, [storeId]);
 
   const handleSaveProfile = async () => {
     if (!user || !user.uid) return;
@@ -1585,10 +1596,13 @@ export default function SettingsScreen({ navigation }: any) {
         {/* Subscription Status Block */}
         <View className="px-6 mt-4">
           <TouchableOpacity 
-            onPress={() => setActiveModal('subscriptionMenu')}
-            activeOpacity={0.8}
+            onPress={() => hasPendingSubscription ? null : setActiveModal('subscriptionMenu')}
+            activeOpacity={hasPendingSubscription ? 1 : 0.8}
             className="w-full rounded-3xl p-5 border flex-row items-center overflow-hidden relative shadow-lg shadow-emerald-500/20"
-            style={{ backgroundColor: colors.accent, borderColor: colors.accent }}
+            style={{ 
+              backgroundColor: hasPendingSubscription ? '#f59e0b' : colors.accent, 
+              borderColor: hasPendingSubscription ? '#f59e0b' : colors.accent 
+            }}
           >
             <View className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full" />
             <View className="absolute -left-4 -top-4 w-16 h-16 bg-black/10 rounded-full" />
@@ -1601,8 +1615,8 @@ export default function SettingsScreen({ navigation }: any) {
               </Text>
             </View>
             <View className="bg-white px-3 py-2 rounded-xl border border-white/20">
-              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>
-                Perpanjang
+              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: hasPendingSubscription ? '#f59e0b' : colors.accent }}>
+                {hasPendingSubscription ? 'Menunggu Verifikasi' : 'Perpanjang'}
               </Text>
             </View>
           </TouchableOpacity>

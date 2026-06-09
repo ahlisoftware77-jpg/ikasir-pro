@@ -1,17 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { ShieldAlert, Hourglass, LogOut, ArrowRight, History, MessageCircle } from 'lucide-react';
 import SubscriptionModal from '@/components/SubscriptionModal';
 
 export default function BlockingModal() {
-  const { blockingDetails, setBlockingDetails, setUser, setRole } = useAuthStore();
+  const { blockingDetails, setBlockingDetails, setUser, setRole, storeId } = useAuthStore();
   const router = useRouter();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
+
+  useEffect(() => {
+    if (blockingDetails?.type === 'expired' && storeId) {
+      const q = query(collection(db, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
+      const unsubscribe = onSnapshot(q, (snap) => {
+        setHasPendingSubscription(!snap.empty);
+      });
+      return () => unsubscribe();
+    }
+  }, [blockingDetails, storeId]);
 
   if (!blockingDetails) return null;
 
