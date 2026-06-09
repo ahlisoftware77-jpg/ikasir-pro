@@ -29,8 +29,26 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBackuping, setIsBackuping] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
   const addInternalNotification = useNotificationStore(state => state.addNotification);
   const unreadCount = useNotificationStore(state => state.getUnreadCount());
+
+  // Listen to subscription requests for current store to check if pending
+  useEffect(() => {
+    if (!storeId || (role as string) === 'customer') return;
+
+    const q = query(
+      collection(db, 'subscription_requests'),
+      where('storeId', '==', storeId),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setHasPendingSubscription(!snapshot.empty);
+    });
+
+    return () => unsubscribe();
+  }, [storeId, role]);
 
   // Background New Order Listener
   useEffect(() => {
@@ -559,6 +577,28 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             >
               Buka Menu Langganan
             </button>
+          </div>
+        )}
+
+        {hasPendingSubscription && (
+          <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-amber-500 uppercase tracking-widest">Pembayaran Sedang Ditinjau</h3>
+                <p className="text-xs text-app-text-muted mt-1 font-bold">Bukti pembayaran Anda telah dikirim dan sedang dalam proses verifikasi oleh admin pusat. Akses akan dipulihkan secara otomatis setelah disetujui.</p>
+              </div>
+            </div>
+            <a 
+              href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20sudah%20mengirim%20bukti%20pembayaran%20untuk%20perpanjangan%20langganan%20aplikasi%20saya.%20Mohon%20segera%20diverifikasi."
+              target="_blank"
+              rel="noreferrer"
+              className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors text-center whitespace-nowrap shrink-0 flex items-center justify-center gap-1.5"
+            >
+              Hubungi Admin WA
+            </a>
           </div>
         )}
         

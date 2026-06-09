@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackgroundService from 'react-native-background-actions';
 import { onIdTokenChanged } from 'firebase/auth';
-import { doc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, arrayUnion, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
@@ -281,9 +281,60 @@ const orderListenerTask = async (_taskData?: { delay: number }) => {
 // ─── React Component ─────────────────────────────────────────────
 // Handles: foreground alerts, vibration, starting/stopping bg service
 export default function OrderNotificationListener() {
-  const { storeId } = useAuthStore();
+  const { storeId, role } = useAuthStore();
   const addNotification = useNotificationStore(state => state.addNotification);
   const appState = useRef(AppState.currentState);
+
+  // Listen to new subscription requests if user is a superadmin
+  useEffect(() => {
+    if (role !== 'superadmin' && role !== 'super-admin') return;
+
+    const q = query(
+      collection(db, 'subscription_requests'),
+      where('status', '==', 'pending')
+    );
+
+    let isInitial = true;
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          
+          if (!isInitial) {
+            // Trigger local/system push notification
+            try {
+              Notifications.scheduleNotificationAsync({
+                content: {
+                  title: '🚨 Pengajuan Langganan Baru!',
+                  body: `Toko ${data.ownerEmail || ''} mengajukan paket ${data.packageTitle || ''}.`,
+                  sound: 'default',
+                  priority: Notifications.AndroidNotificationPriority.MAX,
+                },
+                trigger: null,
+              });
+            } catch (err) {
+              console.error('[Notification] Error triggering local notification:', err);
+            }
+
+            // Add to notification store history
+            try {
+              addNotification({
+                title: '🚨 Pengajuan Langganan Baru!',
+                body: `Toko ${data.ownerEmail || ''} mengajukan paket ${data.packageTitle || ''}.`,
+              });
+            } catch (err) {
+              console.error('[Notification] Error adding to store:', err);
+            }
+          }
+        }
+      });
+      
+      isInitial = false;
+    });
+
+    return () => unsubscribe();
+  }, [role, addNotification]);
 
   // 1. Request notification permissions and listen to Firebase ID Token changes
   useEffect(() => {
