@@ -11,7 +11,7 @@ import {
   orderBy, limit, getDocs, getDoc, setDoc
 } from 'firebase/firestore';
 import { 
-  Plus, Search, Calculator, CreditCard, History, Package, Home, PlusCircle, 
+  Plus, Play, Search, Calculator, CreditCard, History, Package, Home, PlusCircle, 
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
@@ -24,7 +24,7 @@ import SwipeableItem from '../components/SwipeableItem';
 export default function FeatureScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { featureId, title } = route.params;
-  const { storeId, user } = useAuthStore();
+  const { storeId, user, role, isSubscriptionExpired } = useAuthStore();
 
   const [search, setSearch] = useState('');
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -132,6 +132,19 @@ export default function FeatureScreen({ route, navigation }: any) {
 
   // Estimasi States
   const [estimationFilter, setEstimationFilter] = useState<'active' | 'converted' | 'cancelled'>('active');
+
+  // Shift Management States (Specific to case 'shift')
+  const [activeShiftStats, setActiveShiftStats] = useState({
+    cashSales: 0,
+    nonCashSales: 0,
+    trxCount: 0
+  });
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
+  const [startingCash, setStartingCash] = useState('');
+  const [actualCash, setActualCash] = useState('');
+  const [closeNote, setCloseNote] = useState('');
+  const [isShiftProcessing, setIsShiftProcessing] = useState(false);
+  const [shiftTab, setShiftTab] = useState<'active' | 'history'>('active');
 
   // --- DATA STATES ---
   const [estimations, setEstimations] = useState<any[]>([]);
@@ -544,15 +557,18 @@ export default function FeatureScreen({ route, navigation }: any) {
           q = query(collection(db, 'shifts'), where('storeId', '==', storeId));
           unsubscribe = onSnapshot(q, (snapshot) => {
             const docs: any[] = [];
-            snapshot.forEach((doc) => {
-              const data = doc.data();
-              docs.push({
-                id: doc.id,
-                staff: data.staffName,
-                role: data.role,
-                time: data.time,
-                status: data.status
-              });
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              if (data.staffName === undefined) {
+                docs.push({ id: docSnap.id, ...data });
+              }
+            });
+            docs.sort((a, b) => {
+              if (a.status === 'open' && b.status === 'closed') return -1;
+              if (a.status === 'closed' && b.status === 'open') return 1;
+              const timeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+              const timeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+              return timeB - timeA;
             });
             setShifts(docs);
             setLoading(false);
@@ -619,6 +635,45 @@ export default function FeatureScreen({ route, navigation }: any) {
 
     return () => unsubscribe();
   }, [storeId, featureId]);
+
+  const myActiveShift = useMemo(() => {
+    return shifts.find(s => s.status === 'open' && s.userId === user?.uid);
+  }, [shifts, user]);
+
+  useEffect(() => {
+    if (featureId !== 'shift' || !myActiveShift || !storeId) {
+      setActiveShiftStats({ cashSales: 0, nonCashSales: 0, trxCount: 0 });
+      return;
+    }
+
+    const qTrx = query(
+      collection(db, 'transactions'),
+      where('storeId', '==', storeId),
+      where('cashierId', '==', myActiveShift.userId),
+      where('timestamp', '>=', myActiveShift.startTime)
+    );
+
+    const unsubscribeTrxStats = onSnapshot(qTrx, (snap) => {
+      let cash = 0;
+      let nonCash = 0;
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d.paymentStatus === 'paid') {
+          if (d.paymentMethod === 'cash') cash += d.total;
+          else nonCash += d.total;
+        }
+      });
+      setActiveShiftStats({
+        cashSales: cash,
+        nonCashSales: nonCash,
+        trxCount: snap.size
+      });
+    }, (err) => {
+      console.log("Error loading active stats in FeatureScreen:", err);
+    });
+
+    return () => unsubscribeTrxStats();
+  }, [myActiveShift, storeId, featureId]);
 
   // Derived Sales Summary Memo
   const salesSummary = useMemo(() => {
@@ -738,6 +793,87 @@ export default function FeatureScreen({ route, navigation }: any) {
       setTempSelectedProductIds([]);
     }
     setIsAddModalVisible(true);
+  };
+
+  const handleStartShiftMobile = async () => {
+    if (!startingCash) {
+      Alert.alert('Eror', 'Harap masukkan Modal Awal');
+      return;
+    }
+    setIsShiftProcessing(true);
+    try {
+      await addDoc(collection(db, 'shifts'), {
+        storeId,
+        userId: user?.uid,
+        userName: user?.displayName || user?.email?.split('@')[0] || 'Kasir',
+        userEmail: user?.email || '',
+        startTime: new Date().toISOString(),
+        startingCash: parseFloat(startingCash) || 0,
+        systemCalculatedCash: 0,
+        actualCash: 0,
+        status: 'open',
+        notes: ''
+      });
+      Alert.alert('Sukses', 'Shift Berhasil Dibuka! Selamat Bekerja.');
+      setStartingCash('');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal membuka shift.');
+    } finally {
+      setIsShiftProcessing(false);
+    }
+  };
+
+  const handleCloseShiftMobile = async () => {
+    if (!myActiveShift) return;
+    if (!actualCash) {
+      Alert.alert('Eror', 'Harap masukkan Uang Fisik');
+      return;
+    }
+    setIsShiftProcessing(true);
+    try {
+      const shiftRef = doc(db, 'shifts', myActiveShift.id);
+      const totalSystemCash = activeShiftStats.cashSales;
+      const actual = parseFloat(actualCash) || 0;
+      const diff = actual - (myActiveShift.startingCash + totalSystemCash);
+
+      await updateDoc(shiftRef, {
+        status: 'closed',
+        endTime: new Date().toISOString(),
+        actualCash: actual,
+        expectedCash: myActiveShift.startingCash + totalSystemCash,
+        difference: diff,
+        systemCalculatedCash: myActiveShift.startingCash + totalSystemCash,
+        totalSales: totalSystemCash,
+        cashierId: myActiveShift.userId,
+        cashierName: myActiveShift.userName,
+        notes: closeNote,
+      });
+
+      // Also add to cashier_sessions for backward compatibility/history screen
+      await addDoc(collection(db, 'cashier_sessions'), {
+        storeId: storeId,
+        expectedCash: myActiveShift.startingCash + totalSystemCash,
+        systemCalculatedCash: myActiveShift.startingCash + totalSystemCash,
+        actualCash: actual,
+        difference: diff,
+        closedBy: myActiveShift.userName,
+        cashierName: myActiveShift.userName,
+        closedAt: new Date().toISOString(),
+        timestamp: new Date(),
+        note: `Shift Closed: ${closeNote}`
+      });
+
+      setIsCloseShiftModalOpen(false);
+      setActualCash('');
+      setCloseNote('');
+      Alert.alert('Sukses', 'Shift berhasil ditutup.');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal menutup shift.');
+    } finally {
+      setIsShiftProcessing(false);
+    }
   };
 
   const handleDelete = async (id: string, colName: string) => {
@@ -3159,30 +3295,345 @@ export default function FeatureScreen({ route, navigation }: any) {
         );
 
       case 'shift':
+        const otherActiveShifts = shifts.filter(s => s.status === 'open' && s.userId !== user?.uid);
+        const closedShifts = shifts.filter(s => s.status === 'closed');
+        
         return (
-          <FlatList
-            data={shifts}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <View className="p-4 rounded-2xl border mb-3 flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                <View>
-                  <Text className="text-sm font-black" style={{ color: colors.text }}>{item.staff}</Text>
-                  <Text className="text-[10px] font-bold text-slate-400 mt-1">{item.role} • {item.time}</Text>
-                </View>
-                <View className={`px-2.5 py-1 rounded-xl border ${item.status === 'Aktif' ? 'bg-emerald-500/10 border-emerald-500/20' : item.status === 'Menunggu' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}>
-                  <Text className={`text-[8px] font-black uppercase ${item.status === 'Aktif' ? 'text-emerald-500' : item.status === 'Menunggu' ? 'text-amber-500' : 'text-slate-500'}`}>
-                    {item.status}
-                  </Text>
-                </View>
-              </View>
+          <View className="flex-1">
+            {/* Tab Selector */}
+            <View className="flex-row gap-2 mb-4 p-1 rounded-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              <TouchableOpacity
+                onPress={() => setShiftTab('active')}
+                activeOpacity={0.8}
+                className="flex-1 py-3 rounded-xl items-center justify-center"
+                style={{ backgroundColor: shiftTab === 'active' ? colors.accent : 'transparent' }}
+              >
+                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: shiftTab === 'active' ? '#ffffff' : colors.text }}>
+                  Sesi Aktif
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setShiftTab('history')}
+                activeOpacity={0.8}
+                className="flex-1 py-3 rounded-xl items-center justify-center"
+                style={{ backgroundColor: shiftTab === 'history' ? colors.accent : 'transparent' }}
+              >
+                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: shiftTab === 'history' ? '#ffffff' : colors.text }}>
+                  Riwayat Shift
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {shiftTab === 'active' ? (
+              <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {myActiveShift ? (
+                  <View className="p-5 rounded-3xl border mb-6" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                    <View className="flex-row justify-between items-center mb-4">
+                      <View className="flex-row items-center gap-2.5">
+                        <View className="w-8 h-8 rounded-full bg-emerald-500/10 items-center justify-center">
+                          <CheckCircle size={16} color="#10b981" />
+                        </View>
+                        <View>
+                          <Text className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Shift Anda Aktif</Text>
+                          <Text className="text-sm font-black mt-0.5" style={{ color: colors.text }}>{myActiveShift.userName}</Text>
+                        </View>
+                      </View>
+                      <View className="px-2 py-0.5 bg-emerald-500/10 rounded-md border border-emerald-500/20">
+                        <Text className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Running</Text>
+                      </View>
+                    </View>
+
+                    <Text className="text-[9px] font-bold text-slate-400 mb-4">
+                      Mulai sejak: {(() => {
+                        const startD = myActiveShift.startTime?.toDate ? myActiveShift.startTime.toDate() : (myActiveShift.startTime ? new Date(myActiveShift.startTime) : null);
+                        return startD ? startD.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + startD.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
+                      })()}
+                    </Text>
+
+                    {/* Stats grid */}
+                    <View className="flex-row flex-wrap mb-5">
+                      <View className="w-[48%] p-3.5 rounded-2xl bg-black/10 border border-black/5 mb-3 mr-[4%]">
+                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Modal Awal</Text>
+                        <Text className="text-sm font-black" style={{ color: colors.text }}>Rp {myActiveShift.startingCash.toLocaleString('id-ID')}</Text>
+                      </View>
+                      
+                      <View className="w-[48%] p-3.5 rounded-2xl bg-black/10 border border-black/5 mb-3">
+                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Penjualan Tunai</Text>
+                        <Text className="text-sm font-black" style={{ color: colors.text }}>Rp {activeShiftStats.cashSales.toLocaleString('id-ID')}</Text>
+                      </View>
+                      
+                      <View className="w-[48%] p-3.5 rounded-2xl bg-accent/10 border border-accent/20 mb-3 mr-[4%]">
+                        <Text className="text-[8px] font-black text-accent uppercase tracking-widest mb-1">Estimasi Laci</Text>
+                        <Text className="text-sm font-black" style={{ color: colors.accent }}>Rp {(myActiveShift.startingCash + activeShiftStats.cashSales).toLocaleString('id-ID')}</Text>
+                      </View>
+                      
+                      <View className="w-[48%] p-3.5 rounded-2xl bg-black/10 border border-black/5 mb-3">
+                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Order Terproses</Text>
+                        <Text className="text-sm font-black" style={{ color: colors.text }}>{activeShiftStats.trxCount} Order</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => setIsCloseShiftModalOpen(true)}
+                      activeOpacity={0.8}
+                      className="py-4 bg-rose-500 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg shadow-rose-500/20"
+                    >
+                      <Lock size={14} color="#ffffff" />
+                      <Text className="text-xs font-black text-white uppercase tracking-widest">TUTUP SHIFT SEKARANG</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View className="p-5 rounded-3xl border mb-6" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                    <View className="flex-row items-center gap-3 mb-4">
+                      <View className="w-10 h-10 rounded-2xl bg-amber-500/10 items-center justify-center">
+                        <Lock size={20} color="#f59e0b" />
+                      </View>
+                      <View>
+                        <Text className="text-sm font-black" style={{ color: colors.text }}>Shift Belum Dibuka</Text>
+                        <Text className="text-[10px] font-bold text-slate-400 mt-0.5">Buka shift untuk mengakses kasir</Text>
+                      </View>
+                    </View>
+
+                    <Text className="text-xs font-bold text-slate-400 mb-5 leading-relaxed">
+                      Sebelum memulai penjualan di menu POS/Kasir, silakan buka sesi kerja Anda dengan memasukkan Modal Awal (laci kas).
+                    </Text>
+
+                    <View className="space-y-1.5 mb-5">
+                      <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Modal Awal (Float Cash) Rp</Text>
+                      <TextInput
+                        placeholder="e.g. 100000"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        value={startingCash}
+                        onChangeText={setStartingCash}
+                        className="px-4 py-3 rounded-2xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={handleStartShiftMobile}
+                      disabled={isShiftProcessing}
+                      activeOpacity={0.8}
+                      className="py-4 bg-emerald-500 rounded-2xl items-center justify-center flex-row gap-2"
+                    >
+                      {isShiftProcessing ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <>
+                          <Play size={14} color="#ffffff" />
+                          <Text className="text-xs font-black text-white uppercase tracking-widest">BUKA SHIFT SEKARANG</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Other Active Shifts */}
+                {otherActiveShifts.length > 0 && (
+                  <View className="mb-6">
+                    <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Shift Aktif Karyawan Lain</Text>
+                    {otherActiveShifts.map(s => {
+                      const startD = s.startTime?.toDate ? s.startTime.toDate() : (s.startTime ? new Date(s.startTime) : null);
+                      const timeStr = startD ? startD.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
+                      return (
+                        <View key={s.id} className="p-4 rounded-2xl border mb-3 flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                          <View className="flex-1 pr-2">
+                            <Text className="text-xs font-black" style={{ color: colors.text }}>{s.userName}</Text>
+                            <Text className="text-[9px] font-bold text-slate-400 mt-1">Sejak {timeStr} • Modal Awal: Rp {s.startingCash?.toLocaleString('id-ID')}</Text>
+                          </View>
+                          <View className="px-2 py-0.5 bg-amber-500/10 rounded-md border border-amber-500/20">
+                            <Text className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Aktif</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </ScrollView>
+            ) : (
+              <FlatList
+                data={closedShifts}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => {
+                  const systemRequired = (item.startingCash || 0) + (item.systemCalculatedCash || 0);
+                  const actual = item.actualCash || 0;
+                  const diff = item.difference ?? (actual - systemRequired);
+                  const note = item.notes || item.note || '';
+
+                  const startD = item.startTime?.toDate ? item.startTime.toDate() : (item.startTime ? new Date(item.startTime) : null);
+                  const endD = item.endTime?.toDate ? item.endTime.toDate() : (item.endTime ? new Date(item.endTime) : null);
+
+                  const dateStr = startD ? startD.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+                  const timeRangeStr = (startD ? startD.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-') + ' → ' + (endD ? endD.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-');
+
+                  return (
+                    <View className="p-4 rounded-2xl border mb-3 flex flex-col gap-3.5" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <View className="flex-row justify-between items-start">
+                        <View className="flex-1 pr-2">
+                          <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{dateStr}</Text>
+                          <Text className="text-xs font-black" style={{ color: colors.text }}>Sesi Kasir: <Text style={{ color: colors.accent }}>{item.userName}</Text></Text>
+                          <Text className="text-[9px] font-bold text-slate-400 mt-1">{timeRangeStr}</Text>
+                        </View>
+                        <View className={`px-2 py-0.5 rounded border ${
+                          diff === 0 ? 'bg-emerald-500/10 border-emerald-500/20' :
+                          diff > 0 ? 'bg-blue-500/10 border-blue-500/20' :
+                          'bg-rose-500/10 border-rose-500/20'
+                        }`}>
+                          <Text className={`text-[8px] font-black uppercase ${
+                            diff === 0 ? 'text-emerald-500' :
+                            diff > 0 ? 'text-blue-500' :
+                            'text-rose-500'
+                          }`}>
+                            {diff === 0 ? 'Sesuai' : diff > 0 ? 'Surplus' : 'Selisih'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-row gap-2.5">
+                        <View className="flex-1 p-2.5 rounded-xl bg-black/10 border border-black/5">
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Saldo Sistem</Text>
+                          <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {systemRequired.toLocaleString('id-ID')}</Text>
+                        </View>
+                        <View className="flex-1 p-2.5 rounded-xl bg-black/10 border border-black/5">
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Uang Fisik</Text>
+                          <Text className="text-xs font-black text-emerald-400">Rp {actual.toLocaleString('id-ID')}</Text>
+                        </View>
+                      </View>
+
+                      {diff !== 0 && (
+                        <View className={`p-2.5 rounded-xl border flex-row items-center justify-between ${diff > 0 ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10'}`}>
+                          <Text className="text-[8px] font-black uppercase tracking-widest" style={{ color: diff > 0 ? '#10b981' : '#f43f5e' }}>{diff > 0 ? 'Kelebihan Uang' : 'Kekurangan Uang'}</Text>
+                          <Text className="text-xs font-black" style={{ color: diff > 0 ? '#10b981' : '#f43f5e' }}>Rp {Math.abs(diff).toLocaleString('id-ID')}</Text>
+                        </View>
+                      )}
+
+                      {note !== '' && (
+                        <View className="p-2.5 bg-black/5 rounded-xl">
+                          <Text className="text-[8px] font-black text-slate-400 uppercase mb-0.5">Catatan:</Text>
+                          <Text className="text-[10px] font-bold text-slate-400 italic">"{note}"</Text>
+                        </View>
+                      )}
+
+                      {/* Delete action for Admin */}
+                      {(role === 'admin' || role === 'superadmin' || role === 'super-admin') && (
+                        <View className="flex-row justify-end pt-1">
+                          <TouchableOpacity
+                            onPress={() => handleDelete(item.id, 'shift')}
+                            className="flex-row items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20"
+                          >
+                            <Trash2 size={12} color="#f43f5e" />
+                            <Text className="text-[8px] font-black uppercase text-rose-500 tracking-wider">Hapus Sesi</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View className="items-center py-20 opacity-30">
+                    <History color={colors.textMuted} size={48} />
+                    <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada riwayat shift selesai</Text>
+                  </View>
+                }
+              />
             )}
-            ListEmptyComponent={
-              <View className="items-center py-20 opacity-30">
-                <Clock color={colors.textMuted} size={48} />
-                <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada penugasan shift</Text>
-              </View>
-            }
-          />
+
+            {/* CLOSE SHIFT MODAL */}
+            {isCloseShiftModalOpen && myActiveShift && (
+              <Modal visible={isCloseShiftModalOpen} animationType="slide" transparent onRequestClose={() => setIsCloseShiftModalOpen(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+                  <View className="flex-1 bg-black/70 justify-end items-center">
+                    <View className="w-full rounded-t-[2.5rem] p-6 max-h-[90%]" style={{ backgroundColor: colors.surface }}>
+                      
+                      <View className="flex-row justify-between items-center mb-6">
+                        <View className="flex-row items-center gap-3">
+                          <View className="w-10 h-10 rounded-2xl bg-rose-500/10 items-center justify-center">
+                            <Lock size={20} color="#f43f5e" />
+                          </View>
+                          <View>
+                            <Text className="text-sm font-black" style={{ color: colors.text }}>Penutupan Sesi Kerja</Text>
+                            <Text className="text-[10px] font-bold text-slate-400 mt-0.5">Lakukan Rekonsiliasi Kas Laci</Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity onPress={() => setIsCloseShiftModalOpen(false)} className="p-2 bg-black/10 rounded-full">
+                          <X size={16} color={colors.text} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <ScrollView className="space-y-5" showsVerticalScrollIndicator={false}>
+                        <View className="p-4 bg-black/10 rounded-2xl border border-black/5 flex-row justify-between items-center">
+                          <View>
+                            <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Modal + Penjualan Tunai</Text>
+                            <Text className="text-base font-black mt-1" style={{ color: colors.accent }}>
+                              Rp {(myActiveShift.startingCash + activeShiftStats.cashSales).toLocaleString('id-ID')}
+                            </Text>
+                          </View>
+                          <View className="items-end">
+                            <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Status</Text>
+                            <Text className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">Berjalan</Text>
+                          </View>
+                        </View>
+
+                        <View className="space-y-1.5">
+                          <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Uang Fisik Di Laci Kas (Rp)</Text>
+                          <TextInput
+                            placeholder="0"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="numeric"
+                            value={actualCash}
+                            onChangeText={setActualCash}
+                            className="px-4 py-3.5 rounded-2xl border font-bold text-lg"
+                            style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                          />
+                          <Text className="text-[8px] text-slate-400 italic pl-1">*Hitung uang kertas & koin fisik secara teliti di laci.</Text>
+                        </View>
+
+                        <View className="space-y-1.5">
+                          <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Catatan Penutupan</Text>
+                          <TextInput
+                            placeholder="e.g. Setoran shift pagi aman..."
+                            placeholderTextColor={colors.textMuted}
+                            multiline
+                            numberOfLines={3}
+                            value={closeNote}
+                            onChangeText={setCloseNote}
+                            className="px-4 py-3 rounded-2xl border font-bold text-xs h-20 text-start"
+                            style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                          />
+                        </View>
+
+                        <View className="flex-row gap-3 pt-4">
+                          <TouchableOpacity
+                            onPress={() => setIsCloseShiftModalOpen(false)}
+                            className="flex-1 py-4 bg-black/10 rounded-2xl items-center justify-center"
+                          >
+                            <Text className="text-xs font-black text-slate-400 uppercase tracking-widest">Batal</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={handleCloseShiftMobile}
+                            disabled={isShiftProcessing}
+                            className="flex-[2] py-4 bg-rose-500 rounded-2xl items-center justify-center flex-row gap-2"
+                          >
+                            {isShiftProcessing ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <>
+                                <Lock size={14} color="#ffffff" />
+                                <Text className="text-xs font-black text-white uppercase tracking-widest">TUTUP SHIFT</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </ScrollView>
+                      
+                    </View>
+                  </View>
+                </KeyboardAvoidingView>
+              </Modal>
+            )}
+          </View>
         );
 
       case 'staff':
@@ -3281,7 +3732,7 @@ export default function FeatureScreen({ route, navigation }: any) {
 
   const showFloatingButton = [
     'estimasi', 'piutang', 'ekstra', 'diskon', 
-    'pelanggan', 'staff', 'shift', 'arus_kas', 'tutup_buku'
+    'pelanggan', 'staff', 'arus_kas', 'tutup_buku'
   ].includes(featureId);
 
   if (loading) {

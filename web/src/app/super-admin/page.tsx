@@ -35,7 +35,9 @@ import {
   ArrowRight,
   LogOut,
   Mail,
-  Receipt
+  Receipt,
+  Wallet,
+  Upload
 } from 'lucide-react';
 import { handleExportJSON, handleImportJSON } from '@/lib/backupUtils';
 
@@ -338,7 +340,10 @@ export default function SuperAdminPage() {
   const [brandingData, setBrandingData] = useState({ 
     appName: 'IKASIR PRO', 
     receiptWatermark: 'Powered by YadiApp',
-    showWatermark: true
+    showWatermark: true,
+    subscriptionQrisUrl: '',
+    subscriptionBankInfo: '',
+    subscriptionEwalletInfo: ''
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -359,7 +364,10 @@ export default function SuperAdminPage() {
         setBrandingData({
           appName: data.appName || 'IKASIR PRO',
           receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
-          showWatermark: data.showWatermark ?? true
+          showWatermark: data.showWatermark ?? true,
+          subscriptionQrisUrl: data.subscriptionQrisUrl || '',
+          subscriptionBankInfo: data.subscriptionBankInfo || '',
+          subscriptionEwalletInfo: data.subscriptionEwalletInfo || ''
         });
       }
     });
@@ -430,6 +438,64 @@ export default function SuperAdminPage() {
     } catch (err: any) {
       console.error(err);
       alert('Gagal update infrastruktur: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUploadQris = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!infraData.cloudinary_cloud_name || !infraData.cloudinary_upload_preset) {
+      alert('Error: Konfigurasi Cloudinary belum disetel di tab Infrastruktur.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        const formData = new FormData();
+        formData.append('file', base64);
+        formData.append('upload_preset', infraData.cloudinary_upload_preset);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${infraData.cloudinary_cloud_name}/image/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        if (data.secure_url) {
+          setBrandingData({ ...brandingData, subscriptionQrisUrl: data.secure_url });
+          alert('Gambar QRIS berhasil diunggah! Jangan lupa klik Simpan Pengaturan.');
+        } else {
+          alert('Gagal mengunggah gambar: ' + (data.error?.message || 'Unknown error'));
+        }
+        setIsSaving(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error: ' + err.message);
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateSubscriptionBranding = async () => {
+    setIsSaving(true);
+    try {
+      await setDoc(doc(db, 'system_settings', 'branding'), {
+        subscriptionQrisUrl: brandingData.subscriptionQrisUrl || '',
+        subscriptionBankInfo: brandingData.subscriptionBankInfo || '',
+        subscriptionEwalletInfo: brandingData.subscriptionEwalletInfo || '',
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+      alert('Pengaturan Metode Pembayaran berhasil diperbarui!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menyimpan: ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -1477,6 +1543,65 @@ export default function SuperAdminPage() {
         </div>
       ) : activeTab === 'subscriptions' ? (
         <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">
+           {/* PENGATURAN METODE PEMBAYARAN */}
+           <div className="bg-surface border border-app-border rounded-[2rem] p-6 shadow-xl mb-8">
+              <h3 className="text-lg font-black text-foreground flex items-center gap-2 mb-4">
+                 <Wallet className="text-emerald-500" /> Metode Pembayaran Langganan (Global)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {/* QRIS */}
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Gambar QRIS</label>
+                    <div className="relative group cursor-pointer border-2 border-dashed border-app-border hover:border-emerald-500/50 rounded-2xl h-40 flex items-center justify-center overflow-hidden transition-colors bg-background/50">
+                       {brandingData.subscriptionQrisUrl ? (
+                         <img src={brandingData.subscriptionQrisUrl} alt="QRIS" className="w-full h-full object-contain p-2" />
+                       ) : (
+                         <div className="text-center">
+                            <Upload className="mx-auto text-app-text-muted mb-2" size={20} />
+                            <span className="text-[10px] font-bold text-app-text-muted">Upload QRIS</span>
+                         </div>
+                       )}
+                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                          <span className="text-white text-xs font-bold uppercase tracking-widest">Ganti QRIS</span>
+                       </div>
+                       <input type="file" accept="image/*" onChange={handleUploadQris} className="absolute inset-0 opacity-0 cursor-pointer" />
+                    </div>
+                 </div>
+
+                 {/* TRANSFER BANK */}
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Info Transfer Bank (Teks)</label>
+                    <textarea 
+                      value={brandingData.subscriptionBankInfo || ''}
+                      onChange={e => setBrandingData({...brandingData, subscriptionBankInfo: e.target.value})}
+                      placeholder="BCA: 123456789 a/n IKASIR PRO"
+                      className="w-full h-40 p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all resize-none text-sm"
+                    />
+                 </div>
+
+                 {/* E-WALLET */}
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Info E-Wallet (Teks)</label>
+                    <textarea 
+                      value={brandingData.subscriptionEwalletInfo || ''}
+                      onChange={e => setBrandingData({...brandingData, subscriptionEwalletInfo: e.target.value})}
+                      placeholder="DANA: 08123456789 a/n IKASIR PRO"
+                      className="w-full h-40 p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all resize-none text-sm"
+                    />
+                 </div>
+              </div>
+              <div className="mt-6 flex justify-end">
+                 <button 
+                   onClick={handleUpdateSubscriptionBranding}
+                   disabled={isSaving}
+                   className="py-3 px-6 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-2 active:scale-95 text-xs uppercase tracking-widest"
+                 >
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Simpan Pengaturan
+                 </button>
+              </div>
+           </div>
+
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {subscriptionRequests.map(req => (
                  <div key={req.id} className="bg-surface border border-app-border p-6 rounded-[2rem] shadow-xl flex flex-col justify-between">
@@ -1486,6 +1611,7 @@ export default function SuperAdminPage() {
                              <p className="text-xs font-black text-foreground uppercase tracking-widest">{req.packageTitle}</p>
                              <p className="text-[10px] text-app-text-muted font-bold mt-1">{req.ownerEmail}</p>
                              <p className="text-[9px] text-emerald-500 font-bold">Harga: Rp {req.price?.toLocaleString('id-ID')}</p>
+                             <p className="text-[9px] text-app-text-muted font-bold mt-0.5">Metode: <span className="text-foreground uppercase font-black">{req.paymentMethod || 'qris'}</span></p>
                           </div>
                           <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider ${req.status === 'pending' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500'}`}>
                              {req.status}

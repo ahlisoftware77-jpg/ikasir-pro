@@ -18,7 +18,8 @@ import {
   LogOut, Check, X, Calculator, CreditCard, History, Package, Home, PlusCircle, 
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
-  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save
+  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save,
+  MessageCircle, QrCode, Landmark, Wallet
 } from 'lucide-react-native';
 import { db, auth, storage } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -47,7 +48,7 @@ export default function SettingsScreen({ navigation }: any) {
   const { colors, theme, setTheme } = useTheme();
   const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
-  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | null>(null);
+  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | 'superAdminSubscriptions' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
 
   // Profile States
@@ -213,7 +214,8 @@ export default function SettingsScreen({ navigation }: any) {
     receiptWatermark: 'Powered by YadiApp', 
     showWatermark: true,
     subscriptionQrisUrl: '',
-    subscriptionBankInfo: ''
+    subscriptionBankInfo: '',
+    subscriptionEwalletInfo: ''
   });
 
   // Subscription Menu States
@@ -221,6 +223,8 @@ export default function SettingsScreen({ navigation }: any) {
   const [subscriptionProofBase64, setSubscriptionProofBase64] = useState<string | null>(null);
   const [isSubmittingSubscription, setIsSubmittingSubscription] = useState(false);
   const [isSubscriptionSuccess, setIsSubscriptionSuccess] = useState(false);
+  const [subscriptionPaymentMethod, setSubscriptionPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const SUBSCRIPTION_PACKAGES = [
     { id: '1m', title: '1 Bulan', price: 30000, desc: '1 Bulan x Rp 30.000 = Rp 30.000' },
@@ -244,6 +248,23 @@ export default function SettingsScreen({ navigation }: any) {
   const [editingProject, setEditingProject] = useState<any>(null);
 
   useEffect(() => {
+    const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBrandingData({
+          appName: data.appName || 'IKASIR PRO',
+          receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
+          showWatermark: data.showWatermark ?? true,
+          subscriptionQrisUrl: data.subscriptionQrisUrl || '',
+          subscriptionBankInfo: data.subscriptionBankInfo || '',
+          subscriptionEwalletInfo: data.subscriptionEwalletInfo || ''
+        });
+      }
+    });
+    return () => unsubBranding();
+  }, []);
+
+  useEffect(() => {
     if (role === 'super-admin' || role === 'superadmin') {
       const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
         const usr: any[] = [];
@@ -255,19 +276,6 @@ export default function SettingsScreen({ navigation }: any) {
         const str: any[] = [];
         snapshot.forEach((d) => str.push({ id: d.id, ...d.data() }));
         setSuperAdminStores(str);
-      });
-
-      const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setBrandingData({
-            appName: data.appName || 'IKASIR PRO',
-            receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
-            showWatermark: data.showWatermark ?? true,
-            subscriptionQrisUrl: data.subscriptionQrisUrl || '',
-            subscriptionBankInfo: data.subscriptionBankInfo || ''
-          });
-        }
       });
 
       const unsubInfra = onSnapshot(doc(db, 'system_settings', 'infrastructure'), (docSnap) => {
@@ -290,7 +298,6 @@ export default function SettingsScreen({ navigation }: any) {
       return () => {
         unsubUsers();
         unsubStores();
-        unsubBranding();
         unsubInfra();
         unsubProjects();
         unsubSubscriptions();
@@ -877,6 +884,7 @@ export default function SettingsScreen({ navigation }: any) {
           packageId: selectedPackage.id,
           packageTitle: selectedPackage.title,
           price: selectedPackage.price,
+          paymentMethod: subscriptionPaymentMethod,
           proofUrl: uploadResult.secure_url,
           status: 'pending',
           createdAt: serverTimestamp()
@@ -1434,6 +1442,7 @@ export default function SettingsScreen({ navigation }: any) {
               a4InvoiceNote: data.a4InvoiceNote || '',
               a4EstimationNote: data.a4EstimationNote || '',
               a4DebtNote: data.a4DebtNote || '',
+              qrisUrl: data.qrisUrl || '',
             });
           }
         } catch (err) {
@@ -3419,6 +3428,21 @@ export default function SettingsScreen({ navigation }: any) {
                     />
                   </View>
 
+                  {/* subscriptionEwalletInfo */}
+                  <View className="space-y-1 mt-2">
+                    <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Info E-Wallet Pusat (Untuk Langganan)</Text>
+                    <TextInput
+                      value={brandingData.subscriptionEwalletInfo}
+                      onChangeText={(txt) => setBrandingData({ ...brandingData, subscriptionEwalletInfo: txt })}
+                      placeholder="e.g. DANA 08123456789 a/n KASIR PRO"
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      numberOfLines={3}
+                      className="p-4 rounded-2xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top', minHeight: 80 }}
+                    />
+                  </View>
+
                   {/* subscriptionQrisUrl */}
                   <View className="space-y-2 mt-2">
                     <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">QRIS Pembayaran Langganan (Pusat)</Text>
@@ -3863,23 +3887,87 @@ export default function SettingsScreen({ navigation }: any) {
                   <View className="items-center space-y-4">
                     <Text className="text-sm font-black" style={{ color: colors.text }}>Metode Pembayaran</Text>
                     
-                    {brandingData.subscriptionQrisUrl ? (
-                      <View className="items-center w-full">
-                        <Text className="text-[10px] font-bold text-slate-400 uppercase mb-2">Scan QRIS</Text>
-                        <View className="p-2 bg-white rounded-2xl border shadow-sm w-48 h-48" style={{ borderColor: colors.border }}>
-                          <Image source={{ uri: brandingData.subscriptionQrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
-                        </View>
-                      </View>
-                    ) : null}
+                    {/* Method Tabs */}
+                    <View className="flex-row gap-2 w-full justify-center">
+                      <TouchableOpacity 
+                        onPress={() => setSubscriptionPaymentMethod('qris')} 
+                        className="flex-1 py-3 px-1 rounded-2xl flex-col items-center justify-center border"
+                        style={{ 
+                          backgroundColor: subscriptionPaymentMethod === 'qris' ? colors.accent + '15' : colors.surface, 
+                          borderColor: subscriptionPaymentMethod === 'qris' ? colors.accent : colors.border 
+                        }}
+                      >
+                        <QrCode size={18} color={subscriptionPaymentMethod === 'qris' ? colors.accent : colors.textMuted} />
+                        <Text className="text-[9px] font-black uppercase mt-1" style={{ color: subscriptionPaymentMethod === 'qris' ? colors.accent : colors.textMuted }}>QRIS</Text>
+                      </TouchableOpacity>
 
-                    {brandingData.subscriptionBankInfo ? (
-                      <View className="w-full mt-2">
-                        <Text className="text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Atau Transfer ke Rekening</Text>
-                        <View className="p-4 bg-white rounded-2xl border w-full" style={{ borderColor: colors.border }}>
-                          <Text className="text-xs font-black text-center" style={{ color: colors.text }}>{brandingData.subscriptionBankInfo}</Text>
-                        </View>
-                      </View>
-                    ) : null}
+                      <TouchableOpacity 
+                        onPress={() => setSubscriptionPaymentMethod('bank')} 
+                        className="flex-1 py-3 px-1 rounded-2xl flex-col items-center justify-center border"
+                        style={{ 
+                          backgroundColor: subscriptionPaymentMethod === 'bank' ? colors.accent + '15' : colors.surface, 
+                          borderColor: subscriptionPaymentMethod === 'bank' ? colors.accent : colors.border 
+                        }}
+                      >
+                        <Landmark size={18} color={subscriptionPaymentMethod === 'bank' ? colors.accent : colors.textMuted} />
+                        <Text className="text-[9px] font-black uppercase mt-1" style={{ color: subscriptionPaymentMethod === 'bank' ? colors.accent : colors.textMuted }}>BANK</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        onPress={() => setSubscriptionPaymentMethod('ewallet')} 
+                        className="flex-1 py-3 px-1 rounded-2xl flex-col items-center justify-center border"
+                        style={{ 
+                          backgroundColor: subscriptionPaymentMethod === 'ewallet' ? colors.accent + '15' : colors.surface, 
+                          borderColor: subscriptionPaymentMethod === 'ewallet' ? colors.accent : colors.border 
+                        }}
+                      >
+                        <Wallet size={18} color={subscriptionPaymentMethod === 'ewallet' ? colors.accent : colors.textMuted} />
+                        <Text className="text-[9px] font-black uppercase mt-1" style={{ color: subscriptionPaymentMethod === 'ewallet' ? colors.accent : colors.textMuted }}>E-Wallet</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Method Content */}
+                    <View className="mt-2 w-full items-center justify-center p-4 rounded-3xl border min-h-[140px]" style={{ borderColor: colors.border, backgroundColor: colors.bg }}>
+                      {subscriptionPaymentMethod === 'qris' && (
+                        brandingData.subscriptionQrisUrl ? (
+                          <View className="items-center w-full">
+                            <Text className="text-[9px] font-black uppercase mb-3" style={{ color: colors.textMuted }}>Scan QRIS di bawah ini (Ketuk untuk perbesar)</Text>
+                            <TouchableOpacity 
+                              onPress={() => setPreviewImageUrl(brandingData.subscriptionQrisUrl)}
+                              activeOpacity={0.9}
+                              className="p-3 bg-white rounded-3xl border shadow-sm w-44 h-44" 
+                              style={{ borderColor: colors.border }}
+                            >
+                              <Image source={{ uri: brandingData.subscriptionQrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <Text className="text-[10px] font-bold text-center italic" style={{ color: colors.textMuted }}>Metode QRIS belum diset oleh admin pusat.</Text>
+                        )
+                      )}
+
+                      {subscriptionPaymentMethod === 'bank' && (
+                        brandingData.subscriptionBankInfo ? (
+                          <View className="w-full items-center">
+                            <Text className="text-[9px] font-black uppercase mb-2" style={{ color: colors.textMuted }}>Transfer ke Nomor Rekening</Text>
+                            <Text className="text-xs font-black text-center leading-relaxed" style={{ color: colors.text }}>{brandingData.subscriptionBankInfo}</Text>
+                          </View>
+                        ) : (
+                          <Text className="text-[10px] font-bold text-center italic" style={{ color: colors.textMuted }}>Metode Transfer Bank belum diset.</Text>
+                        )
+                      )}
+
+                      {subscriptionPaymentMethod === 'ewallet' && (
+                        brandingData.subscriptionEwalletInfo ? (
+                          <View className="w-full items-center">
+                            <Text className="text-[9px] font-black uppercase mb-2" style={{ color: colors.textMuted }}>Kirim ke Info E-Wallet</Text>
+                            <Text className="text-xs font-black text-center leading-relaxed" style={{ color: colors.text }}>{brandingData.subscriptionEwalletInfo}</Text>
+                          </View>
+                        ) : (
+                          <Text className="text-[10px] font-bold text-center italic" style={{ color: colors.textMuted }}>Metode E-Wallet belum diset.</Text>
+                        )
+                      )}
+                    </View>
                   </View>
 
                   {/* Upload Proof */}
@@ -3953,12 +4041,18 @@ export default function SettingsScreen({ navigation }: any) {
                     <Text className={`text-[8px] font-black uppercase tracking-wider ${req.status === 'pending' ? 'text-amber-500' : 'text-emerald-500'}`}>{req.status}</Text>
                   </View>
                 </View>
-                <Text className="text-[10px] font-bold mb-3" style={{ color: colors.accent }}>Harga: Rp {req.price?.toLocaleString('id-ID')}</Text>
+                <Text className="text-[10px] font-bold" style={{ color: colors.accent }}>Harga: Rp {req.price?.toLocaleString('id-ID')}</Text>
+                <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>Metode: <Text className="uppercase" style={{ color: colors.text }}>{req.paymentMethod || 'qris'}</Text></Text>
                 
                 {req.proofUrl && (
-                  <View className="w-full h-40 rounded-xl overflow-hidden mb-3 border bg-slate-100" style={{ borderColor: colors.border }}>
+                  <TouchableOpacity 
+                    onPress={() => setPreviewImageUrl(req.proofUrl)}
+                    activeOpacity={0.9}
+                    className="w-full h-40 rounded-xl overflow-hidden mb-3 border bg-slate-100" 
+                    style={{ borderColor: colors.border }}
+                  >
                     <Image source={{ uri: req.proofUrl }} className="w-full h-full" resizeMode="cover" />
-                  </View>
+                  </TouchableOpacity>
                 )}
 
                 {req.status === 'pending' && (
@@ -3989,6 +4083,22 @@ export default function SettingsScreen({ navigation }: any) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Fullscreen Image Preview Modal */}
+      {previewImageUrl && (
+        <Modal visible={!!previewImageUrl} transparent animationType="fade" onRequestClose={() => setPreviewImageUrl(null)}>
+          <View className="flex-1 bg-black justify-center items-center relative">
+            <Image source={{ uri: previewImageUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+            <TouchableOpacity 
+              onPress={() => setPreviewImageUrl(null)} 
+              activeOpacity={0.8}
+              className="absolute top-12 right-6 w-12 h-12 rounded-full bg-black/40 items-center justify-center border border-white/10"
+            >
+              <X color="#ffffff" size={24} />
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
 
     </SafeAreaView>
   );

@@ -10,6 +10,7 @@ interface BrandingData {
   showWatermark: boolean;
   subscriptionQrisUrl: string;
   subscriptionBankInfo: string;
+  subscriptionEwalletInfo: string;
 }
 
 interface BrandingContextType {
@@ -23,6 +24,7 @@ const defaultBranding: BrandingData = {
   showWatermark: true,
   subscriptionQrisUrl: '',
   subscriptionBankInfo: '',
+  subscriptionEwalletInfo: '',
 };
 
 const getCachedBranding = (): BrandingData => {
@@ -60,7 +62,8 @@ export const BrandingProvider = ({ children }: { children: React.ReactNode }) =>
           receiptWatermark: data.receiptWatermark || defaultBranding.receiptWatermark,
           showWatermark: data.showWatermark ?? defaultBranding.showWatermark,
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
-          subscriptionBankInfo: data.subscriptionBankInfo || ''
+          subscriptionBankInfo: data.subscriptionBankInfo || '',
+          subscriptionEwalletInfo: data.subscriptionEwalletInfo || ''
         };
         setBranding(newBranding);
         if (typeof window !== 'undefined') {

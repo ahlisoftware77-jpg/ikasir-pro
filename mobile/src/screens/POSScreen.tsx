@@ -128,6 +128,7 @@ export default function POSScreen({ route, navigation }: any) {
     address: '',
     receiptMessage: '',
     qrisUrl: '',
+    bankInfo: '',
   });
 
   const { width, height } = useWindowDimensions();
@@ -290,6 +291,7 @@ export default function POSScreen({ route, navigation }: any) {
             address: data.address || '',
             receiptMessage: data.receiptMessage || '',
             qrisUrl: data.qrisUrl || '',
+            bankInfo: data.bankInfo || '',
           });
         }
       } catch (err) {

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
-import { X, Check, Camera, Loader2, Info, MessageCircle } from 'lucide-react';
+import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getInfraConfig } from '@/lib/infraConfig';
@@ -17,6 +17,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
   const [subscriptionProofBase64, setSubscriptionProofBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
 
   const SUBSCRIPTION_PACKAGES = [
     { id: '1m', title: '1 Bulan', price: 30000, desc: '1 Bulan x Rp 30.000 = Rp 30.000' },
@@ -68,6 +69,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
           packageId: selectedPackage.id,
           packageTitle: selectedPackage.title,
           price: selectedPackage.price,
+          paymentMethod: paymentMethod,
           proofUrl: uploadResult.secure_url,
           status: 'pending',
           createdAt: serverTimestamp()
@@ -169,23 +171,66 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
               <div className="space-y-4 text-center">
                 <h4 className="text-sm font-black text-foreground">Metode Pembayaran</h4>
                 
-                {branding.subscriptionQrisUrl && (
-                  <div className="flex flex-col items-center">
-                    <p className="text-[10px] font-bold text-app-text-muted uppercase mb-3">Scan QRIS</p>
-                    <div className="p-3 bg-white rounded-2xl border border-app-border shadow-sm inline-block w-48 h-48">
-                      <img src={branding.subscriptionQrisUrl} alt="QRIS Langganan" className="w-full h-full object-contain" />
-                    </div>
-                  </div>
-                )}
+                <div className="flex gap-2 justify-center">
+                   <button 
+                     onClick={() => setPaymentMethod('qris')} 
+                     className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${paymentMethod === 'qris' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-background border-app-border text-app-text-muted hover:border-emerald-500/50'}`}
+                   >
+                      <QrCode size={18} />
+                      <span className="text-[10px] font-black uppercase">QRIS</span>
+                   </button>
+                   <button 
+                     onClick={() => setPaymentMethod('bank')} 
+                     className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${paymentMethod === 'bank' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-background border-app-border text-app-text-muted hover:border-emerald-500/50'}`}
+                   >
+                      <Landmark size={18} />
+                      <span className="text-[10px] font-black uppercase">Transfer Bank</span>
+                   </button>
+                   <button 
+                     onClick={() => setPaymentMethod('ewallet')} 
+                     className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 transition-all border ${paymentMethod === 'ewallet' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-background border-app-border text-app-text-muted hover:border-emerald-500/50'}`}
+                   >
+                      <Wallet size={18} />
+                      <span className="text-[10px] font-black uppercase">E-Wallet</span>
+                   </button>
+                </div>
 
-                {branding.subscriptionBankInfo && (
-                  <div className="mt-4">
-                    <p className="text-[10px] font-bold text-app-text-muted uppercase mb-2">Atau Transfer ke Rekening</p>
-                    <div className="p-4 bg-white rounded-2xl border border-app-border inline-block min-w-[250px]">
-                      <p className="text-sm font-black text-slate-800 whitespace-pre-wrap">{branding.subscriptionBankInfo}</p>
-                    </div>
-                  </div>
-                )}
+                <div className="mt-4 p-4 bg-background border border-app-border rounded-2xl flex flex-col items-center justify-center min-h-[150px]">
+                  {paymentMethod === 'qris' && (
+                    branding.subscriptionQrisUrl ? (
+                      <>
+                        <p className="text-[10px] font-bold text-app-text-muted uppercase mb-3">Scan QRIS</p>
+                        <div className="p-3 bg-white rounded-2xl border border-app-border shadow-sm inline-block w-48 h-48">
+                          <img src={branding.subscriptionQrisUrl} alt="QRIS Langganan" className="w-full h-full object-contain" />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[10px] font-bold text-app-text-muted italic">Metode QRIS belum dikonfigurasi oleh admin pusat.</p>
+                    )
+                  )}
+
+                  {paymentMethod === 'bank' && (
+                    branding.subscriptionBankInfo ? (
+                      <>
+                        <p className="text-[10px] font-bold text-app-text-muted uppercase mb-3">Transfer ke Rekening</p>
+                        <p className="text-sm font-black text-foreground whitespace-pre-wrap">{branding.subscriptionBankInfo}</p>
+                      </>
+                    ) : (
+                      <p className="text-[10px] font-bold text-app-text-muted italic">Metode Transfer Bank belum dikonfigurasi.</p>
+                    )
+                  )}
+
+                  {paymentMethod === 'ewallet' && (
+                    branding.subscriptionEwalletInfo ? (
+                      <>
+                        <p className="text-[10px] font-bold text-app-text-muted uppercase mb-3">Transfer ke E-Wallet</p>
+                        <p className="text-sm font-black text-foreground whitespace-pre-wrap">{branding.subscriptionEwalletInfo}</p>
+                      </>
+                    ) : (
+                      <p className="text-[10px] font-bold text-app-text-muted italic">Metode E-Wallet belum dikonfigurasi.</p>
+                    )
+                  )}
+                </div>
               </div>
 
               {/* Upload Proof */}
