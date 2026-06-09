@@ -7,10 +7,14 @@ interface AuthState {
   role: 'admin' | 'cashier' | 'super-admin' | 'superadmin' | null;
   storeId: string | null;
   isLoading: boolean;
+  subscriptionUntil: string | null;
+  isSubscriptionExpired: boolean;
   setUser: (user: any | null) => void;
   setRole: (role: 'admin' | 'cashier' | 'super-admin' | 'superadmin' | null) => void;
   setStoreId: (storeId: string | null) => void;
   setLoading: (loading: boolean) => void;
+  setSubscriptionUntil: (val: string | null) => void;
+  setIsSubscriptionExpired: (val: boolean) => void;
   logout: () => void;
 }
 
@@ -21,11 +25,15 @@ export const useAuthStore = create<AuthState>()(
       role: null,
       storeId: null,
       isLoading: true,
+      subscriptionUntil: null,
+      isSubscriptionExpired: false,
       setUser: (user) => set({ user }),
       setRole: (role) => set({ role }),
       setStoreId: (storeId) => set({ storeId }),
       setLoading: (isLoading) => set({ isLoading }),
-      logout: () => set({ user: null, role: null, storeId: null }),
+      setSubscriptionUntil: (val) => set({ subscriptionUntil: val }),
+      setIsSubscriptionExpired: (val) => set({ isSubscriptionExpired: val }),
+      logout: () => set({ user: null, role: null, storeId: null, subscriptionUntil: null, isSubscriptionExpired: false }),
     }),
     {
       name: 'auth-storage',

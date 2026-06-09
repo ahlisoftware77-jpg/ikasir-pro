@@ -5,7 +5,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/aut
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShoppingBag, Lock, Mail, Loader2, Store, Users, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, Lock, Mail, Loader2, Store, Users, CheckCircle2, MessageCircle } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { logActivity } from '@/lib/activity';
 import { doc, getDoc } from 'firebase/firestore';
@@ -93,9 +93,27 @@ export default function LoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Fetch user profile for name and storeId
+      // Fetch user profile for name, storeId, and status
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       const userData = userDoc.data();
+
+      if (userData) {
+         if (userData.isActive === false) {
+           await auth.signOut();
+           setError('Akses dibekukan: Akun Anda telah dinonaktifkan.');
+           setIsLoading(false);
+           return;
+         }
+
+         const now = new Date();
+         const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+         if (validUntil && now > validUntil) {
+           await auth.signOut();
+           setError('Masa aktif aplikasi telah habis. Silakan perpanjang langganan via WA: 083815862300');
+           setIsLoading(false);
+           return;
+         }
+      }
 
       // Log Login
       if (userData?.storeId) {
@@ -148,6 +166,23 @@ export default function LoginPage() {
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
+
+        if (userData?.isActive === false) {
+          await auth.signOut();
+          setError('Akses dibekukan: Akun Anda telah dinonaktifkan.');
+          setIsLoading(false);
+          return;
+        }
+
+        const now = new Date();
+        const validUntil = userData?.validUntil ? new Date(userData.validUntil) : null;
+        if (validUntil && now > validUntil) {
+          await auth.signOut();
+          setError('Masa aktif aplikasi telah habis. Silakan perpanjang langganan via WA: 083815862300');
+          setIsLoading(false);
+          return;
+        }
+
         if (userData?.storeId) {
           await logActivity({
             userId: user.uid,
@@ -263,9 +298,22 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-6">
             
             {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-500 text-xs font-bold flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <Lock size={14} className="shrink-0" />
-                <span>{error}</span>
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-500 text-xs font-bold flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start gap-3">
+                  <Lock size={14} className="shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+                {error.toLowerCase().includes('habis') && (
+                  <a 
+                    href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya." 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white p-3 rounded-xl transition-colors mt-2"
+                  >
+                    <MessageCircle size={16} />
+                    <span>Perpanjang via WhatsApp</span>
+                  </a>
+                )}
               </div>
             )}
 

@@ -281,7 +281,7 @@ export default function OrdersPage() {
       id: Math.random().toString(36).substring(2, 9),
       date: new Date().toISOString(),
       amount: dp,
-      cashierName: userName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Kasir'),
+      cashierName: userName || user?.displayName || 'Kasir',
       note: isAlreadyDebt ? 'Cicilan Piutang' : 'Pembayaran Awal / DP'
     };
 

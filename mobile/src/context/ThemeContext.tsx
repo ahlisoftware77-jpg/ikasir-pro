@@ -15,9 +15,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const loadTheme = async () => {
-      const savedTheme = await AsyncStorage.getItem('app-theme') as ThemeType;
-      if (savedTheme && themes[savedTheme]) {
-        setThemeState(savedTheme);
+      try {
+        const savedTheme = await AsyncStorage.getItem('app-theme') as ThemeType;
+        if (savedTheme && themes[savedTheme]) {
+          setThemeState(savedTheme);
+        } else if (savedTheme && !themes[savedTheme]) {
+          // If the cached theme is invalid (e.g. old 'dark' key), fallback to 'ocean'
+          setThemeState('ocean');
+          await AsyncStorage.setItem('app-theme', 'ocean');
+        }
+      } catch (err) {
+        console.error(err);
       }
     };
     loadTheme();

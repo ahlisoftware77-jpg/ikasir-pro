@@ -52,6 +52,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any) => {
       </head>
       <body>
         <div class="header">
+          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `<div style="text-align: center; margin-bottom: 10px;"><img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; filter: grayscale(100%);" /></div>` : ''}
           <div class="store-name">${cleanStoreName}</div>
           ${address ? `<div class="info">${address}</div>` : ''}
           ${phone ? `<div class="info">Telp: ${phone}</div>` : ''}
@@ -171,6 +172,11 @@ export const generateA4Html = (trx: any, storeSettings?: any) => {
     <body>
       <table class="header-table">
         <tr>
+          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `
+          <td style="padding-bottom: 20px; width: 100px; vertical-align: top;">
+            <img src="${storeSettings.logoUrl}" style="max-width: 90px; max-height: 90px; display: block;" />
+          </td>
+          ` : ''}
           <td style="padding-bottom: 20px;">
             <h1 class="store-title">${cleanStoreName}</h1>
             <p class="store-info">${address}</p>
@@ -679,6 +685,154 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
     });
   } catch (error) {
     console.error('Error printing A4 document:', error);
+    throw error;
+  }
+};
+
+export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
+  let date: Date;
+  if (trx.timestamp?.seconds) {
+    date = new Date(trx.timestamp.seconds * 1000);
+  } else if (trx.timestamp?.toDate) {
+    date = trx.timestamp.toDate();
+  } else if (trx.timestamp instanceof Date) {
+    date = trx.timestamp;
+  } else if (trx.timestamp) {
+    date = new Date(trx.timestamp);
+  } else {
+    date = new Date();
+  }
+  const dateStr = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  
+  const storeName = storeSettings?.storeName || 'KASIR PRO STORE';
+  const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
+  const address = storeSettings?.address || '';
+  const phone = storeSettings?.phone || '';
+  
+  const itemsHtml = (trx.items || []).map((item: any, idx: number) => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 10px; text-align: left; color: #64748b;">${idx + 1}</td>
+      <td style="padding: 10px; text-align: left;">
+        <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+        ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
+        ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
+      </td>
+      <td style="padding: 10px; text-align: center; color: #1e293b; font-weight: bold;">${item.qty || 1} ${item.unit || 'pcs'}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <title>Surat Jalan #${trx.id}</title>
+      <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
+        .store-title { font-size: 24px; font-weight: 900; color: #0f172a; text-transform: uppercase; margin: 0 0 5px 0; }
+        .store-info { font-size: 11px; color: #64748b; margin: 0; line-height: 1.4; }
+        .doc-title { font-size: 28px; font-weight: 900; color: #cbd5e1; text-align: right; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 2px; }
+        .doc-meta { font-size: 11px; text-align: right; font-weight: bold; text-transform: uppercase; margin: 0; }
+        .info-grid { display: flex; gap: 20px; margin-bottom: 30px; }
+        .info-card { flex: 1; background-color: #f8fafc; border: 1px solid #f1f5f9; padding: 15px; border-radius: 8px; }
+        .info-label { font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+        .info-value { font-size: 13px; font-weight: bold; color: #0f172a; margin: 0; text-transform: uppercase; }
+        .info-subvalue { font-size: 11px; color: #64748b; margin-top: 5px; margin-bottom: 0; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .items-table th { background-color: #0f172a; color: #ffffff; font-size: 10px; font-weight: 900; text-transform: uppercase; padding: 12px 10px; letter-spacing: 1px; }
+        .items-table td { padding: 12px 10px; font-size: 12px; }
+        .signatures { display: flex; justify-content: space-between; padding: 0 50px; margin-top: 60px; text-align: center; }
+        .signature-box { width: 150px; }
+        .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 70px; }
+        .sig-name { font-size: 10px; font-weight: 900; color: #1e293b; text-transform: uppercase; border-top: 1.5px solid #0f172a; padding-top: 5px; }
+        .watermark { text-align: center; font-size: 9px; font-weight: 900; color: #cbd5e1; letter-spacing: 4px; margin-top: 80px; text-transform: uppercase; }
+      </style>
+    </head>
+    <body>
+      <table class="header-table">
+        <tr>
+          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `
+          <td style="padding-bottom: 20px; width: 100px; vertical-align: top;">
+            <img src="${storeSettings.logoUrl}" style="max-width: 90px; max-height: 90px; display: block;" />
+          </td>
+          ` : ''}
+          <td style="padding-bottom: 20px;">
+            <h1 class="store-title">${cleanStoreName}</h1>
+            <p class="store-info">${address}</p>
+            <p class="store-info">Telp: ${phone}</p>
+          </td>
+          <td style="text-align: right; padding-bottom: 20px; vertical-align: top;">
+            <h2 class="doc-title">SURAT JALAN</h2>
+            <p class="doc-meta" style="color: #0f172a;">REF. #${trx.id?.substring(0, 10).toUpperCase()}</p>
+            <p class="doc-meta" style="color: #94a3b8; margin-top: 5px;">Tgl Kirim: ${dateStr}</p>
+          </td>
+        </tr>
+      </table>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <p class="info-label">Penerima / Tujuan:</p>
+          <p class="info-value">${trx.customerName || 'Pelanggan Umum'}</p>
+          ${trx.customerPhone ? `<p class="info-subvalue">${trx.customerPhone}</p>` : ''}
+        </div>
+        <div class="info-card">
+          <p class="info-label">Informasi Pengiriman:</p>
+          <p class="info-subvalue">No. Kendaraan: ........................</p>
+          <p class="info-subvalue">Nama Driver: ........................</p>
+        </div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="text-align: left; width: 8%;">No</th>
+            <th style="text-align: left; width: 72%;">Nama Barang / Deskripsi</th>
+            <th style="text-align: center; width: 20%;">Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+
+      <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #e2e8f0; margin-bottom: 40px;">
+         <p class="info-label" style="margin-top: 0;">Keterangan Tambahan:</p>
+         <div style="height: 40px; border-bottom: 1px solid #e2e8f0; margin-bottom: 10px;"></div>
+         <div style="height: 10px; border-bottom: 1px solid #e2e8f0;"></div>
+      </div>
+
+      <div class="signatures">
+        <div class="signature-box">
+          <p class="sig-label">Penerima,</p>
+          <p class="sig-name">Nama Terang & Stempel</p>
+        </div>
+        <div class="signature-box">
+          <p class="sig-label">Sopir / Pengantar,</p>
+          <p class="sig-name">Nama Terang</p>
+        </div>
+        <div class="signature-box">
+          <p class="sig-label">Hormat Kami,</p>
+          <p class="sig-name" style="font-size: 12px;">${(trx.cashierName || 'Store Admin').split('@')[0]}</p>
+        </div>
+      </div>
+
+      <div class="watermark">
+        IKASIR PRO - DELIVERY SYSTEM
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+export const printA4Delivery = async (trx: any, storeSettings?: any) => {
+  try {
+    const html = generateA4DeliveryHtml(trx, storeSettings);
+    await Print.printAsync({
+      html,
+    });
+  } catch (error) {
+    console.error('Error printing A4 Delivery:', error);
     throw error;
   }
 };

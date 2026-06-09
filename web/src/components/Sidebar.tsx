@@ -75,7 +75,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications }: SidebarProps) {
   const pathname = usePathname();
-  const { user, role, permissions, newOrderCount, storeName, userName } = useAuthStore();
+  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const { branding } = useBranding();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ '/products': true });
@@ -227,15 +227,23 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
               );
             }
 
+            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts'].includes(item.path);
+
             return (
               <Link
                 key={item.path}
-                href={item.path}
+                href={isBlocked ? '#' : item.path}
+                onClick={(e) => {
+                  if (isBlocked) {
+                    e.preventDefault();
+                    toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                  }
+                }}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all border ${
                   pathname === item.path 
                     ? 'bg-accent text-foreground shadow-sm font-bold border-accent' 
                     : 'hover:bg-accent/10 hover:text-foreground border-transparent'
-                }`}
+                } ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <Icon size={18} />
                 <span className="text-sm flex-1">{item.name}</span>

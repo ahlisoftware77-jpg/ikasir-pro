@@ -18,7 +18,7 @@ import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/fire
 import toast from 'react-hot-toast';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName } = useAuthStore();
+  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const { branding } = useBranding();
@@ -527,6 +527,28 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           <div className="fixed top-0 left-0 md:left-64 right-0 z-[100] bg-blue-500 text-white py-1 px-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300">
             <Loader2 className="w-3 h-3 animate-spin" />
             Menyinkronkan Data ke Cloud...
+          </div>
+        )}
+        
+        {isSubscriptionExpired && (
+          <div className="mb-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest">Akses Terbatas: Langganan Habis</h3>
+                <p className="text-xs text-app-text-muted mt-1 font-bold">Menu transaksi, estimasi, dan piutang telah diblokir. Perpanjang langganan untuk memulihkan akses.</p>
+              </div>
+            </div>
+            <a 
+              href="https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors text-center whitespace-nowrap shrink-0"
+            >
+              Perpanjang via WhatsApp
+            </a>
           </div>
         )}
         

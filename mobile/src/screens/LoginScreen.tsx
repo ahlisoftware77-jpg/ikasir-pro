@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal, Linking } from 'react-native';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -17,7 +17,7 @@ GoogleSignin.configure({
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { setUser, setRole, setStoreId } = useAuthStore();
+  const { setUser, setRole, setStoreId, setSubscriptionUntil, setIsSubscriptionExpired } = useAuthStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -49,6 +49,23 @@ export default function LoginScreen() {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        
+        if (userData.isActive === false) {
+          await signOut(auth);
+          setError('Akses dibekukan: Akun Anda telah dinonaktifkan.');
+          return;
+        }
+
+        const now = new Date();
+        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        if (validUntil) {
+          setSubscriptionUntil(userData.validUntil);
+          setIsSubscriptionExpired(now > validUntil);
+        } else {
+          setSubscriptionUntil(null);
+          setIsSubscriptionExpired(false);
+        }
+
         setRole(userData.role);
         setStoreId(userData.storeId || 'default-store');
         setUser({
@@ -175,6 +192,24 @@ export default function LoginScreen() {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        
+        if (userData.isActive === false) {
+          await signOut(auth);
+          setError('Akses dibekukan: Akun Anda telah dinonaktifkan.');
+          setIsLoading(false);
+          return;
+        }
+
+        const now = new Date();
+        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        if (validUntil) {
+          setSubscriptionUntil(userData.validUntil);
+          setIsSubscriptionExpired(now > validUntil);
+        } else {
+          setSubscriptionUntil(null);
+          setIsSubscriptionExpired(false);
+        }
+
         setRole(userData.role);
         setStoreId(userData.storeId || 'default-store');
         setUser({
@@ -272,7 +307,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, maxWidth: 450, width: '100%', alignSelf: 'center' }}>
 
         <View
           className="absolute -top-12 -left-12 w-80 h-80 rounded-full opacity-10"
@@ -308,7 +343,15 @@ export default function LoginScreen() {
 
           {error ? (
             <View className="bg-red-500/10 border border-red-500/50 p-3 rounded-xl mb-6">
-              <Text className="text-red-500 text-[10px] font-bold text-center">{error}</Text>
+              <Text className="text-red-500 text-[10px] font-bold text-center mb-2">{error}</Text>
+              {error.toLowerCase().includes('habis') && (
+                 <TouchableOpacity 
+                    onPress={() => Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya.')} 
+                    className="bg-emerald-500 py-3 rounded-lg flex-row justify-center items-center gap-2 mt-1"
+                 >
+                    <Text className="text-white text-[10px] font-black uppercase tracking-widest">Perpanjang via WhatsApp</Text>
+                 </TouchableOpacity>
+              )}
             </View>
           ) : null}
 

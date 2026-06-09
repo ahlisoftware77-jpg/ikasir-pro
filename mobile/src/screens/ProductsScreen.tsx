@@ -209,7 +209,7 @@ export default function ProductsScreen({ navigation }: any) {
       </TouchableOpacity>
 
       {/* Barcode Scanner Modal */}
-      <Modal visible={showScanner} animationType="fade" transparent>
+      <Modal visible={showScanner} animationType="fade" transparent onRequestClose={() => setShowScanner(false)}>
         <View className="flex-1 bg-black">
           {showScanner && (
             <CameraView 

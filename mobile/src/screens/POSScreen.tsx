@@ -12,7 +12,9 @@ import {
   Alert, 
   RefreshControl, 
   Vibration, 
-  Pressable 
+  Pressable,
+  Linking,
+  useWindowDimensions
 } from 'react-native';
 import { 
   collection, 
@@ -27,7 +29,8 @@ import {
   writeBatch, 
   increment, 
   serverTimestamp, 
-  getDocs 
+  getDocs,
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -113,7 +116,7 @@ interface CartItem extends Product {
 
 export default function POSScreen({ route, navigation }: any) {
   const { colors } = useTheme();
-  const { user, storeId } = useAuthStore();
+  const { user, storeId, isSubscriptionExpired } = useAuthStore();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [discounts, setDiscounts] = useState<any[]>([]);
@@ -124,7 +127,11 @@ export default function POSScreen({ route, navigation }: any) {
     phone: '',
     address: '',
     receiptMessage: '',
+    qrisUrl: '',
   });
+
+  const { width, height } = useWindowDimensions();
+  const isTabletOrLandscape = width > 768 || width > height;
 
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -163,6 +170,7 @@ export default function POSScreen({ route, navigation }: any) {
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [allCustomers, setAllCustomers] = useState<{id: string, name: string}[]>([]);
 
   // Manual Item States
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -171,7 +179,9 @@ export default function POSScreen({ route, navigation }: any) {
   const [manualItemCategory, setManualItemCategory] = useState('Jasa');
   const [saveToCatalog, setSaveToCatalog] = useState(false);
   // Checkout configuration
-  const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'estimasi'>('direct');
+  const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'estimasi' | 'merge'>('direct');
+  const [selectedOrderToMerge, setSelectedOrderToMerge] = useState<string>('');
+  const [activeOrders, setActiveOrders] = useState<{id: string, customerName: string, total: number, paymentStatus?: string}[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'transfer'>('cash');
   const [cashReceived, setCashReceived] = useState('');
   const [debtDownPayment, setDebtDownPayment] = useState('');
@@ -279,6 +289,7 @@ export default function POSScreen({ route, navigation }: any) {
             phone: data.phone || '',
             address: data.address || '',
             receiptMessage: data.receiptMessage || '',
+            qrisUrl: data.qrisUrl || '',
           });
         }
       } catch (err) {
@@ -372,25 +383,49 @@ export default function POSScreen({ route, navigation }: any) {
     }
     const fetchCustomers = async () => {
       try {
-        const q = query(
-          collection(db, 'customers'),
-          where('storeId', '==', storeId),
-          where('name', '>=', customerQuery),
-          where('name', '<=', customerQuery + '\uf8ff'),
-          limit(5)
-        );
-        const querySnapshot = await getDocs(q);
-        const custs = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-        setSuggestions(custs);
+        let list = allCustomers;
+        if (list.length === 0) {
+          const q = query(collection(db, 'customers'), where('storeId', '==', storeId));
+          const snap = await getDocs(q);
+          list = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+          setAllCustomers(list);
+        }
+        
+        const qLower = customerQuery.toLowerCase();
+        const filtered = list.filter(c => c.name.toLowerCase().includes(qLower)).slice(0, 5);
+        setSuggestions(filtered);
       } catch (err) {
         console.error("Error searching customers:", err);
       }
     };
     const debounce = setTimeout(fetchCustomers, 300);
     return () => clearTimeout(debounce);
-  }, [customerQuery, selectedCustomer, storeId]);
+  }, [customerQuery, selectedCustomer, allCustomers, storeId]);
 
   const [selectedCategory, setSelectedCategory] = useState('Semua');
+
+  // Fetch active orders for merging
+  useEffect(() => {
+    if (paymentCategory === 'merge') {
+      const q = query(
+        collection(db, 'transactions'), 
+        where('storeId', '==', storeId),
+        where('paymentStatus', 'in', ['pending', 'unpaid', 'partially_paid']),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const orders = snapshot.docs.map(doc => ({
+          id: doc.id,
+          customerName: doc.data().customerName || 'Tanpa Nama',
+          total: doc.data().total,
+          paymentStatus: doc.data().paymentStatus
+        }));
+        setActiveOrders(orders);
+      });
+      return () => unsubscribe();
+    }
+  }, [paymentCategory, storeId]);
 
   const categories = useMemo(() => {
     const cats = new Set(products.map(p => p.category || 'Umum'));
@@ -598,6 +633,7 @@ export default function POSScreen({ route, navigation }: any) {
     setSelectedCustomer(null);
     setPaymentCategory('direct');
     setPaymentMethod('cash');
+    setSelectedOrderToMerge('');
   };
 
   // Start Shift execution
@@ -608,7 +644,7 @@ export default function POSScreen({ route, navigation }: any) {
       await addDoc(collection(db, 'shifts'), {
         storeId,
         userId: user?.uid,
-        userName: user?.displayName || user?.email || 'Kasir',
+        userName: user?.name || user?.displayName || 'Kasir',
         startTime: new Date(),
         startingCash: Number(startingCash),
         systemCalculatedCash: 0,
@@ -774,7 +810,7 @@ export default function POSScreen({ route, navigation }: any) {
         const estimationData: any = {
           storeId: storeId || 'default-store',
           cashierId: user?.uid,
-          cashierName: user?.email?.split('@')[0] || 'Kasir',
+          cashierName: user?.name || user?.displayName || 'Kasir',
           customerName: customerQuery.trim() || 'Tanpa Nama',
           customerId: selectedCustomer?.id || null,
           items: cart.map(item => ({
@@ -856,14 +892,70 @@ export default function POSScreen({ route, navigation }: any) {
       Alert.alert('Gagal', 'Nama pelanggan wajib diisi!');
       return;
     }
+    if (paymentCategory === 'merge' && !selectedOrderToMerge) {
+      Alert.alert('Gagal', 'Harap pilih pesanan yang akan digabungkan!');
+      return;
+    }
 
     setIsProcessing(true);
     try {
       const localNow = new Date();
+
+      if (paymentCategory === 'merge') {
+        const orderRef = doc(db, 'transactions', selectedOrderToMerge);
+        const docSnap = await getDoc(orderRef);
+        if (!docSnap.exists()) {
+          Alert.alert('Gagal', 'Pesanan tidak ditemukan.');
+          setIsProcessing(false);
+          return;
+        }
+        const existingData = docSnap.data();
+        
+        const newItems = cart.map(item => ({
+          productId: item.id || 'manual',
+          productName: item.name,
+          qty: item.cartQty,
+          price: item.displayPrice,
+          subtotal: item.displayPrice * item.cartQty,
+          originalPrice: item.originalPrice || item.price,
+          discountName: item.discountName || null,
+          selectedExtras: item.selectedExtras || [],
+          note: item.note?.trim() || null
+        }));
+
+        const mergedItems = [...existingData.items, ...newItems];
+        const newSubtotal = existingData.subtotal + subtotal;
+        const newTax = storeSettings.useTax ? newSubtotal * (storeSettings.taxRate / 100) : 0;
+        const newTotal = newSubtotal + newTax;
+
+        const updateData: any = {
+          items: mergedItems,
+          subtotal: newSubtotal,
+          tax: newTax,
+          total: newTotal
+        };
+
+        if (existingData.paymentCategory === 'debt') {
+           const dp = existingData.paidAmount || 0;
+           updateData.debtAmount = Math.max(0, newTotal - dp);
+           updateData.paymentStatus = (newTotal - dp) > 0 ? (dp > 0 ? 'partially_paid' : 'unpaid') : 'paid';
+        }
+
+        await updateDoc(orderRef, updateData);
+
+        Vibration.vibrate([0, 15, 80, 15]);
+        setSuccessTrx({ id: selectedOrderToMerge, ...existingData, items: mergedItems, total: newTotal, paymentCategory: 'merge' });
+        resetPOSState();
+        setShowCheckout(false);
+        setShowSignature(false);
+        setIsProcessing(false);
+        return;
+      }
+
       const transactionData: any = {
         storeId: storeId || 'default-store',
         cashierId: user?.uid,
-        cashierName: user?.email || 'Kasir Mobile',
+        cashierName: user?.name || user?.displayName || 'Kasir Mobile',
         items: cart.map(item => {
           let warrantyExpiry = null;
           if (item.warrantyDuration && item.warrantyDuration > 0) {
@@ -921,7 +1013,7 @@ export default function POSScreen({ route, navigation }: any) {
             id: Math.random().toString(36).substring(2, 9),
             date: localNow.toISOString(),
             amount: dp,
-            cashierName: user?.email?.split('@')[0] || 'Kasir',
+            cashierName: user?.name || user?.displayName || 'Kasir',
             note: 'Pembayaran Awal (DP)'
           }];
         } else {
@@ -1046,7 +1138,38 @@ export default function POSScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
+      <View className={isTabletOrLandscape ? 'flex-1 flex-row' : 'flex-1'}>
+        <View className={isTabletOrLandscape ? 'flex-[2] border-r border-slate-800/40 relative overflow-hidden' : 'flex-1 relative'}>
       
+      {/* SUBSCRIPTION EXPIRED OVERLAY */}
+      {isSubscriptionExpired && (
+        <View className="absolute inset-0 z-[100] bg-slate-950/95 justify-center p-6">
+          <View className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 items-center shadow-2xl">
+            <View className="bg-rose-500/10 p-5 rounded-full mb-6">
+              <Lock size={40} color="#f43f5e" />
+            </View>
+            <Text className="text-xl font-black text-slate-100 uppercase tracking-tight mb-2 text-center">Akses Terkunci</Text>
+            <Text className="text-xs font-bold text-slate-400 text-center leading-relaxed mb-6">
+              Masa aktif langganan Kasir Pro Anda telah habis. Akses ke menu transaksi dihentikan sementara.
+            </Text>
+
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Settings')}
+              className="w-full bg-accent py-4 rounded-2xl items-center justify-center flex-row gap-2 active:opacity-90 mb-3"
+            >
+              <Text className="font-black text-xs uppercase tracking-widest text-white">Buka Menu Langganan</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya.')}
+              className="w-full bg-emerald-500 py-4 rounded-2xl items-center justify-center flex-row gap-2 active:opacity-90"
+            >
+              <Text className="font-black text-xs uppercase tracking-widest text-white">Perpanjang via WhatsApp</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* SHIFT LOCK OVERLAY */}
       {!isShiftChecking && !activeShift && (
         <View className="absolute inset-0 z-50 bg-slate-950/95 justify-center p-6">
@@ -1383,7 +1506,7 @@ export default function POSScreen({ route, navigation }: any) {
       )}
 
       {/* Floating Cart Bar */}
-      {cart.length > 0 && (
+      {!isTabletOrLandscape && cart.length > 0 && (
         <View 
           className="absolute bottom-6 left-6 right-6 h-16 rounded-[24px] shadow-2xl flex-row items-center px-6"
           style={{ backgroundColor: colors.accent }}
@@ -1414,7 +1537,7 @@ export default function POSScreen({ route, navigation }: any) {
       )}
 
       {/* Product Extras Modal */}
-      <Modal visible={activeExtrasProduct !== null} animationType="slide" transparent>
+      <Modal visible={activeExtrasProduct !== null} animationType="slide" transparent onRequestClose={() => setActiveExtrasProduct(null)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View 
             className="h-[80%] rounded-t-[40px] p-6"
@@ -1490,7 +1613,7 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Manual Item Modal */}
-      <Modal visible={isManualModalOpen} animationType="slide" transparent>
+      <Modal visible={isManualModalOpen} animationType="slide" transparent onRequestClose={() => setIsManualModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[75%] rounded-t-[40px] p-6 bg-slate-900">
             <View className="flex-row items-center justify-between mb-6">
@@ -1561,7 +1684,7 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Close Shift Modal */}
-      <Modal visible={isCloseShiftModalOpen} animationType="slide" transparent>
+      <Modal visible={isCloseShiftModalOpen} animationType="slide" transparent onRequestClose={() => setIsCloseShiftModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[80%] rounded-t-[40px] p-6 bg-slate-900">
             <View className="flex-row items-center justify-between mb-6">
@@ -1648,34 +1771,45 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Advanced Checkout Modal (Revamped) */}
-      <Modal visible={showCheckout} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View 
-            className="h-[90%] rounded-t-[40px] p-6"
-            style={{ backgroundColor: colors.bg }}
-          >
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-xl font-black" style={{ color: colors.text }}>Detail Checkout</Text>
-              <TouchableOpacity onPress={() => setShowCheckout(false)}>
-                <X color={colors.text} size={24} />
-              </TouchableOpacity>
+        </View>
+
+        {/* RIGHT SIDE / TABLET OR MODAL CHECKOUT */}
+        {(isTabletOrLandscape || showCheckout) && (
+          <View className={isTabletOrLandscape ? "flex-[1.2] bg-surface z-10" : "absolute inset-0 z-50 bg-black/60 justify-end"}>
+            <View 
+              className={isTabletOrLandscape ? "flex-1 px-5 pt-7 pb-2" : "h-[85%] rounded-t-[36px] px-6 pt-7 pb-2"}
+              style={{ backgroundColor: colors.bg }}
+            >
+            <View className="flex-row items-center justify-between mb-5">
+              <View>
+                <Text className="text-2xl font-black tracking-tight" style={{ color: colors.text }}>Checkout</Text>
+                <Text className="text-[10px] font-bold text-slate-400 mt-0.5">Selesaikan pesanan pelanggan</Text>
+              </View>
+              {!isTabletOrLandscape && (
+                <TouchableOpacity 
+                  onPress={() => setShowCheckout(false)}
+                  className="w-10 h-10 rounded-full bg-black/5 items-center justify-center"
+                >
+                  <X color={colors.text} size={20} />
+                </TouchableOpacity>
+              )}
             </View>
 
-            <ScrollView className="flex-1 space-y-6" showsVerticalScrollIndicator={false}>
+            <ScrollView className="flex-1 space-y-5" showsVerticalScrollIndicator={false}>
               
               {/* Product Cart List */}
-              <View className="space-y-3">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Barang Belanjaan</Text>
+              <View className="space-y-2">
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Rincian Pesanan</Text>
                 {cart.map(item => (
                   <View 
                     key={item.uniqueId} 
-                    className="p-4 rounded-3xl border"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    className="p-3.5 rounded-2xl border"
+                    style={{ backgroundColor: colors.surface, borderColor: 'rgba(0,0,0,0.05)' }}
                   >
                     <View className="flex-row justify-between items-start">
-                      <View className="flex-1 pr-2">
+                      <View className="flex-1 pr-3">
                         <View className="flex-row items-center flex-wrap gap-2">
-                          <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
+                          <Text className="text-[13px] font-black" style={{ color: colors.text }}>{item.name}</Text>
                           
                           <TouchableOpacity 
                             onPress={() => setExpandedNotes(prev => ({ ...prev, [item.uniqueId]: !prev[item.uniqueId] }))}
@@ -1714,29 +1848,30 @@ export default function POSScreen({ route, navigation }: any) {
                     {expandedNotes[item.uniqueId] && (
                       <View className="mt-3">
                         <TextInput
-                          placeholder="Tambahkan catatan item..."
+                          placeholder="Ketik catatan..."
                           placeholderTextColor={colors.textMuted}
                           value={item.note}
                           onChangeText={(val) => {
                             setCart(prev => prev.map(i => i.uniqueId === item.uniqueId ? { ...i, note: val } : i));
                           }}
-                          className="w-full bg-black/10 rounded-xl py-2 px-3 text-xs font-bold text-slate-300"
+                          className="w-full bg-black/5 rounded-xl py-2.5 px-3 text-xs font-bold"
+                          style={{ color: colors.text }}
                         />
                       </View>
                     )}
 
                     {/* Qty edit row */}
-                    <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-slate-800/10">
-                      <TouchableOpacity onPress={() => removeFromCart(item.uniqueId)} className="p-1">
-                        <Trash2 size={16} color="#ef4444" />
+                    <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-black/5">
+                      <TouchableOpacity onPress={() => removeFromCart(item.uniqueId)} className="p-1.5 bg-rose-500/10 rounded-lg">
+                        <Trash2 size={14} color="#f43f5e" />
                       </TouchableOpacity>
 
                       <View className="flex-row items-center gap-3">
-                         <TouchableOpacity onPress={() => updateQty(item.uniqueId, -1)} className="w-8 h-8 items-center justify-center rounded-lg bg-black/10">
+                         <TouchableOpacity onPress={() => updateQty(item.uniqueId, -1)} className="w-8 h-8 items-center justify-center rounded-lg bg-black/5">
                             <Minus size={14} color={colors.text} />
                          </TouchableOpacity>
                          <Text className="font-black text-xs" style={{ color: colors.text }}>{item.cartQty}</Text>
-                         <TouchableOpacity onPress={() => updateQty(item.uniqueId, 1)} className="w-8 h-8 items-center justify-center rounded-lg bg-black/10">
+                         <TouchableOpacity onPress={() => updateQty(item.uniqueId, 1)} className="w-8 h-8 items-center justify-center rounded-lg bg-black/5">
                             <Plus size={14} color={colors.text} />
                          </TouchableOpacity>
                       </View>
@@ -1747,31 +1882,31 @@ export default function POSScreen({ route, navigation }: any) {
 
               {/* Customer Lookup & Quick Add */}
               <View className="space-y-2">
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Informasi Pelanggan</Text>
+                <View className="flex-row justify-between items-center ml-1">
+                  <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Data Pelanggan</Text>
                   <TouchableOpacity 
                     onPress={() => setIsAddCustomerModalOpen(true)}
-                    className="flex-row items-center bg-accent/15 px-2.5 py-1 rounded-lg border border-accent/30"
+                    className="flex-row items-center bg-accent/10 px-3 py-1.5 rounded-xl border border-accent/20"
                   >
                     <UserPlus size={12} color={colors.accent} />
-                    <Text className="text-[8px] font-black text-accent ml-1 uppercase">Daftar Baru</Text>
+                    <Text className="text-[9px] font-black text-accent ml-1.5 uppercase">Baru</Text>
                   </TouchableOpacity>
                 </View>
 
                 <View className="flex-row gap-2 relative">
-                  <View className="flex-1 bg-black/10 border rounded-2xl flex-row items-center px-4" style={{ borderColor: colors.border }}>
+                  <View className="flex-1 bg-black/5 rounded-2xl flex-row items-center px-4">
                     <Search size={16} color={colors.textMuted} />
                     <TextInput
-                      placeholder="Cari / Ketik nama pelanggan..."
+                      placeholder="Cari nama pelanggan..."
                       placeholderTextColor={colors.textMuted}
                       value={customerQuery}
                       onChangeText={setCustomerQuery}
-                      className="flex-1 ml-2.5 py-3 text-xs font-bold"
+                      className="flex-1 ml-2.5 py-3.5 text-xs font-bold"
                       style={{ color: colors.text }}
                     />
                     {selectedCustomer && (
-                      <TouchableOpacity onPress={() => { setSelectedCustomer(null); setCustomerQuery(''); }}>
-                        <X size={14} color="#ef4444" />
+                      <TouchableOpacity onPress={() => { setSelectedCustomer(null); setCustomerQuery(''); }} className="p-1 bg-rose-500/10 rounded-full">
+                        <X size={12} color="#f43f5e" />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1785,12 +1920,12 @@ export default function POSScreen({ route, navigation }: any) {
                         key={s.id}
                         onPress={() => {
                           setSelectedCustomer(s);
-                          setCustomerQuery(s.name);
+                          setCustomerQuery(s.name.toLowerCase());
                           setSuggestions([]);
                         }}
                         className="p-3 border-b border-slate-800 last:border-0 active:bg-slate-800"
                       >
-                        <Text className="text-xs font-bold text-slate-200">{s.name}</Text>
+                        <Text className="text-xs font-bold text-slate-200 lowercase">{s.name}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1799,13 +1934,14 @@ export default function POSScreen({ route, navigation }: any) {
 
               {/* Transaction Category Selector */}
               <View className="space-y-2">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kategori Transaksi</Text>
-                <View className="flex-row flex-wrap justify-between gap-y-2">
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori Pesanan</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row" contentContainerStyle={{ gap: 8 }}>
                   {[
                     { id: 'direct', label: 'Tunai' },
                     { id: 'debt', label: 'Piutang' },
                     { id: 'order', label: 'Antrean' },
-                    { id: 'estimasi', label: 'Estimasi' }
+                    { id: 'estimasi', label: 'Estimasi' },
+                    { id: 'merge', label: 'Gabung' }
                   ].map(cat => (
                     <TouchableOpacity 
                       key={cat.id}
@@ -1814,28 +1950,28 @@ export default function POSScreen({ route, navigation }: any) {
                         setCashReceived('');
                         setDebtDownPayment('');
                       }}
-                      className="w-[48%] py-3.5 rounded-2xl items-center border active:opacity-90"
+                      className="px-5 py-3 rounded-full items-center border active:opacity-90"
                       style={{
                         backgroundColor: paymentCategory === cat.id ? colors.accent : colors.surface,
-                        borderColor: paymentCategory === cat.id ? colors.accent : colors.border
+                        borderColor: paymentCategory === cat.id ? colors.accent : 'rgba(0,0,0,0.05)'
                       }}
                     >
                       <Text 
-                        className="text-[10px] font-black uppercase tracking-wider text-center"
+                        className="text-[11px] font-black tracking-widest"
                         style={{ color: paymentCategory === cat.id ? '#0f172a' : colors.textMuted }}
                       >
                         {cat.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>              {/* Conditional Inputs based on Transaction Category */}
               {paymentCategory === 'direct' && (
                 <View className="space-y-4">
                   
                   {/* Payment Method */}
                   <View className="space-y-2">
-                    <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Metode Pembayaran</Text>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Pembayaran</Text>
                     <View className="flex-row gap-2">
                       {[
                         { id: 'cash', label: 'Tunai' },
@@ -1848,10 +1984,10 @@ export default function POSScreen({ route, navigation }: any) {
                             setPaymentMethod(method.id as any);
                             setCashReceived('');
                           }}
-                          className="flex-1 py-3.5 rounded-2xl items-center border active:opacity-90"
+                          className="flex-1 py-3 rounded-xl items-center border active:opacity-90"
                           style={{
                             backgroundColor: paymentMethod === method.id ? colors.accent : colors.surface,
-                            borderColor: paymentMethod === method.id ? colors.accent : colors.border
+                            borderColor: paymentMethod === method.id ? colors.accent : 'rgba(0,0,0,0.05)'
                           }}
                         >
                           <Text 
@@ -1867,24 +2003,24 @@ export default function POSScreen({ route, navigation }: any) {
 
                   {/* Cash received details */}
                   {paymentMethod === 'cash' && (
-                    <View className="space-y-3 bg-black/10 p-4 rounded-3xl border" style={{ borderColor: colors.border }}>
+                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl">
                       
                       {/* Fast Pay Suggestions */}
-                      <View className="flex-row flex-wrap gap-1.5">
+                      <View className="flex-row flex-wrap gap-2">
                         <TouchableOpacity 
                           onPress={() => setCashReceived(total.toString())}
-                          className="bg-accent/15 px-3 py-1.5 rounded-lg border border-accent/20"
+                          className="bg-accent/15 px-3.5 py-2 rounded-xl border border-accent/20"
                         >
-                          <Text className="text-[9px] font-black text-accent">UANG PAS</Text>
+                          <Text className="text-[10px] font-black text-accent">UANG PAS</Text>
                         </TouchableOpacity>
                         
                         {cashSuggestions.map(val => (
                           <TouchableOpacity 
                             key={val}
                             onPress={() => setCashReceived(val.toString())}
-                            className="bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700"
+                            className="bg-slate-800/10 px-3.5 py-2 rounded-xl border border-black/5"
                           >
-                            <Text className="text-[9px] font-black text-slate-300">
+                            <Text className="text-[10px] font-black" style={{ color: colors.text }}>
                               Rp {val.toLocaleString('id-ID')}
                             </Text>
                           </TouchableOpacity>
@@ -1892,26 +2028,66 @@ export default function POSScreen({ route, navigation }: any) {
                       </View>
 
                       {/* Manual received input */}
-                      <View className="space-y-1">
-                        <Text className="text-[10px] font-black text-slate-400 uppercase">Uang Tunai Diterima (Rp)</Text>
+                      <View className="space-y-1.5 mt-2">
+                        <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">Diterima (Rp)</Text>
                         <TextInput
                           placeholder="Nominal bayar..."
                           placeholderTextColor={colors.textMuted}
                           keyboardType="numeric"
                           value={cashReceived}
                           onChangeText={setCashReceived}
-                          className="w-full bg-black/25 rounded-2xl py-3 px-4 font-black text-sm"
-                          style={{ color: colors.text, borderColor: colors.border }}
+                          className="w-full bg-white/50 border border-black/5 rounded-2xl py-3.5 px-4 font-black text-sm"
+                          style={{ color: colors.text }}
                         />
                       </View>
 
                       {Number(cashReceived) > 0 && (
-                        <View className="flex-row justify-between pt-1">
-                          <Text className="text-[10px] font-black text-slate-400 uppercase">Kembalian</Text>
-                          <Text className={`text-xs font-black ${change < 0 ? 'text-rose-500' : 'text-emerald-400'}`}>
-                            {change < 0 ? 'TUNAI DITERIMA KURANG!' : `Rp ${change.toLocaleString('id-ID')}`}
+                        <View className="flex-row justify-between pt-2">
+                          <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">Kembalian</Text>
+                          <Text className={`text-sm font-black ${change < 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                            {change < 0 ? 'DANA KURANG!' : `Rp ${change.toLocaleString('id-ID')}`}
                           </Text>
                         </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* QRIS details */}
+                  {paymentMethod === 'qris' && (
+                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl items-center">
+                      <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Scan QRIS untuk Membayar</Text>
+                      {storeSettings.qrisUrl ? (
+                        <View className="p-2 bg-white rounded-2xl border border-black/5 shadow-sm">
+                          <Image source={{ uri: storeSettings.qrisUrl }} style={{ width: 200, height: 200, resizeMode: 'contain' }} />
+                        </View>
+                      ) : (
+                        <View className="p-4 bg-rose-500/10 rounded-xl border border-rose-500/20 w-full items-center">
+                          <Text className="text-xs font-bold text-rose-500 text-center">Foto QRIS belum diunggah.</Text>
+                          <Text className="text-[10px] font-bold text-slate-500 text-center mt-1">Silakan unggah foto QRIS di menu Pengaturan Toko terlebih dahulu.</Text>
+                        </View>
+                      )}
+                      {storeSettings.qrisUrl && (
+                         <Text className="text-[10px] font-black" style={{ color: colors.accent }}>Total Tagihan: Rp {total.toLocaleString('id-ID')}</Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Bank Transfer details */}
+                  {paymentMethod === 'transfer' && (
+                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl items-center">
+                      <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Info Rekening Transfer</Text>
+                      {storeSettings.bankInfo ? (
+                        <View className="p-4 bg-white rounded-2xl border border-black/5 shadow-sm w-full">
+                          <Text className="text-sm font-black text-center" style={{ color: colors.text }}>{storeSettings.bankInfo}</Text>
+                        </View>
+                      ) : (
+                        <View className="p-4 bg-rose-500/10 rounded-xl border border-rose-500/20 w-full items-center">
+                          <Text className="text-xs font-bold text-rose-500 text-center">Info Bank belum diatur.</Text>
+                          <Text className="text-[10px] font-bold text-slate-500 text-center mt-1">Silakan atur Info Rekening di menu Pengaturan Toko.</Text>
+                        </View>
+                      )}
+                      {storeSettings.bankInfo && (
+                         <Text className="text-[10px] font-black" style={{ color: colors.accent }}>Total Tagihan: Rp {total.toLocaleString('id-ID')}</Text>
                       )}
                     </View>
                   )}
@@ -1919,40 +2095,40 @@ export default function POSScreen({ route, navigation }: any) {
               )}
 
               {paymentCategory === 'debt' && (
-                <View className="space-y-3 bg-black/10 p-4 rounded-3xl border" style={{ borderColor: colors.border }}>
+                <View className="space-y-3 bg-black/5 p-4 rounded-2xl">
                   <View className="flex-row gap-3">
                     
                     {/* DP */}
-                    <View className="flex-1 space-y-1">
-                      <Text className="text-[10px] font-black text-slate-400 uppercase">DP / Bayar Awal (Rp)</Text>
+                    <View className="flex-1 space-y-1.5">
+                      <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">DP (Awal)</Text>
                       <TextInput
                         placeholder="0"
                         placeholderTextColor={colors.textMuted}
                         keyboardType="numeric"
                         value={debtDownPayment}
                         onChangeText={setDebtDownPayment}
-                        className="bg-black/25 rounded-2xl py-3 px-4 text-xs font-black"
+                        className="bg-white/50 border border-black/5 rounded-xl py-3.5 px-4 text-xs font-black"
                         style={{ color: colors.text }}
                       />
                     </View>
 
                     {/* Due Date */}
-                    <View className="flex-1 space-y-1">
-                      <Text className="text-[10px] font-black text-slate-400 uppercase">Jatuh Tempo</Text>
+                    <View className="flex-1 space-y-1.5">
+                      <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">Jatuh Tempo</Text>
                       <TextInput
                         placeholder="YYYY-MM-DD"
                         placeholderTextColor={colors.textMuted}
                         value={dueDate}
                         onChangeText={setDueDate}
-                        className="bg-black/25 rounded-2xl py-3 px-4 text-xs font-bold text-center"
+                        className="bg-white/50 border border-black/5 rounded-xl py-3.5 px-4 text-xs font-bold text-center"
                         style={{ color: colors.text }}
                       />
                     </View>
                   </View>
 
-                  <View className="flex-row justify-between pt-2 border-t border-slate-800/10">
-                    <Text className="text-[10px] font-black text-slate-400 uppercase">Sisa Piutang</Text>
-                    <Text className="text-sm font-black text-rose-400">
+                  <View className="flex-row justify-between pt-3 border-t border-black/5 mt-2">
+                    <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">Sisa Hutang</Text>
+                    <Text className="text-sm font-black text-rose-500">
                       Rp {Math.max(0, total - Number(debtDownPayment || 0)).toLocaleString('id-ID')}
                     </Text>
                   </View>
@@ -1961,42 +2137,95 @@ export default function POSScreen({ route, navigation }: any) {
 
             </ScrollView>
 
+            {paymentCategory === 'merge' && (
+              <View className="space-y-3 bg-black/10 p-4 rounded-3xl border" style={{ borderColor: colors.border }}>
+                <Text className="text-[10px] font-black text-slate-400 uppercase">Pilih Pesanan untuk Digabung</Text>
+                {activeOrders.length === 0 ? (
+                  <Text className="text-xs font-bold text-center text-rose-400 py-4">Tidak ada pesanan aktif (Antrean/Piutang) yang bisa digabung.</Text>
+                ) : (
+                  <View className="space-y-2">
+                    {activeOrders.map(ord => (
+                      <TouchableOpacity
+                        key={ord.id}
+                        onPress={() => setSelectedOrderToMerge(ord.id)}
+                        className="p-3 rounded-2xl border"
+                        style={{
+                          backgroundColor: selectedOrderToMerge === ord.id ? colors.accent + '20' : colors.surface,
+                          borderColor: selectedOrderToMerge === ord.id ? colors.accent : colors.border
+                        }}
+                      >
+                        <View className="flex-row justify-between items-center">
+                          <View>
+                            <Text className="text-xs font-bold" style={{ color: selectedOrderToMerge === ord.id ? colors.accent : colors.text }}>
+                              {ord.id}
+                            </Text>
+                            <Text className="text-[10px] font-bold text-slate-400">
+                              {ord.customerName} {ord.paymentStatus !== 'pending' && <Text style={{color: '#f43f5e', fontWeight: '900'}}>[PIUTANG]</Text>}
+                            </Text>
+                          </View>
+                          <Text className="text-xs font-black" style={{ color: selectedOrderToMerge === ord.id ? colors.accent : colors.text }}>
+                            Rp {ord.total.toLocaleString('id-ID')}
+                          </Text>
+                        </View>
+                        
+                        {/* Auto-expand confirm button when selected */}
+                        {selectedOrderToMerge === ord.id && (
+                          <TouchableOpacity 
+                            onPress={() => handleCheckout()}
+                            className="mt-3 p-3 rounded-xl items-center"
+                            style={{ backgroundColor: colors.accent }}
+                          >
+                            <Text className="text-[10px] font-black uppercase text-slate-900 tracking-widest">
+                              GABUNGKAN SEKARANG
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Calculations and Actions Footer */}
-            <View className="border-t pt-4 space-y-4" style={{ borderColor: colors.border }}>
-              <View className="flex-row justify-between items-center">
+            <View className="pt-5 mt-2 bg-transparent">
+              <View className="flex-row justify-between items-end mb-4">
                 <View>
-                  <Text className="text-[10px] font-bold uppercase" style={{ color: colors.textMuted }}>Total Tagihan</Text>
+                  <Text className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total Tagihan</Text>
                   {storeSettings.useTax && (
-                    <Text className="text-[8px] font-bold" style={{ color: colors.textMuted }}>
+                    <Text className="text-[9px] font-bold text-slate-500 mt-0.5">
                       Termasuk PPN ({storeSettings.taxRate}%)
                     </Text>
                   )}
                 </View>
-                <Text className="text-2xl font-black" style={{ color: colors.accent }}>Rp {total.toLocaleString('id-ID')}</Text>
+                <Text className="text-3xl font-black tracking-tighter" style={{ color: colors.accent }}>Rp {total.toLocaleString('id-ID')}</Text>
               </View>
 
               <TouchableOpacity
                 onPress={() => handleCheckout()}
-                disabled={isProcessing || (paymentCategory === 'direct' && paymentMethod === 'cash' && Number(cashReceived || 0) < total)}
-                className="h-16 rounded-[24px] items-center justify-center flex-row gap-2 active:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: colors.accent }}
+                disabled={isProcessing || (paymentCategory === 'direct' && paymentMethod === 'cash' && Number(cashReceived || 0) < total) || (paymentCategory === 'merge' && !selectedOrderToMerge)}
+                className="w-full py-4 rounded-3xl flex-row justify-center items-center active:opacity-80 disabled:opacity-50"
+                style={{ backgroundColor: colors.accent, elevation: 4, shadowColor: colors.accent, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8 }}
               >
-                {isProcessing ? <ActivityIndicator color="#0f172a" /> : (
+                {isProcessing ? (
+                  <ActivityIndicator color="#0f172a" />
+                ) : (
                   <>
                     <CreditCard color="#0f172a" size={18} />
-                    <Text className="font-black text-sm text-slate-900">
-                      {paymentCategory === 'order' ? 'PROSES ANTRIAN' : 'PROSES SELESAI'}
+                    <Text className="text-[10px] font-black uppercase text-slate-900 tracking-widest ml-2">
+                      {paymentCategory === 'order' ? 'PROSES ANTRIAN' : paymentCategory === 'merge' ? 'GABUNG PESANAN' : 'PROSES SELESAI'}
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
+            </View>
           </View>
-        </View>
-      </Modal>
+        )}
+      </View>
 
       {/* Quick Add Customer Modal */}
-      <Modal visible={isAddCustomerModalOpen} animationType="slide" transparent>
+      <Modal visible={isAddCustomerModalOpen} animationType="slide" transparent onRequestClose={() => setIsAddCustomerModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[50%] rounded-t-[40px] p-6 bg-slate-900">
             <View className="flex-row items-center justify-between mb-6">
@@ -2046,7 +2275,7 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Barcode Scanner Modal */}
-      <Modal visible={showScanner} animationType="fade" transparent>
+      <Modal visible={showScanner} animationType="fade" transparent onRequestClose={() => setShowScanner(false)}>
         <View className="flex-1 bg-black">
           {showScanner && (
             <CameraView 
@@ -2087,7 +2316,7 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Success Receipt Modal */}
-      <Modal visible={successTrx !== null} animationType="fade" transparent>
+      <Modal visible={successTrx !== null} animationType="fade" transparent onRequestClose={() => setSuccessTrx(null)}>
         <View className="flex-1 bg-black/80 items-center justify-center p-6">
           <View className="w-full max-w-sm rounded-[40px] p-8 items-center" style={{ backgroundColor: colors.surface }}>
             <CheckCircle2 color="#10b981" size={60} className="mb-4" />
@@ -2149,7 +2378,7 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Digital Receipt Modal (Struk Digital) */}
-      <Modal visible={viewingReceipt !== null} animationType="slide" transparent>
+      <Modal visible={viewingReceipt !== null} animationType="slide" transparent onRequestClose={() => setViewingReceipt(null)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[85%] rounded-t-[40px] p-6 bg-slate-900">
             <View className="flex-row items-center justify-between mb-4 border-b border-slate-800 pb-3">
@@ -2361,7 +2590,7 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Signature Modal */}
-      <Modal visible={showSignature} animationType="slide" transparent>
+      <Modal visible={showSignature} animationType="slide" transparent onRequestClose={() => setShowSignature(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View 
             className="h-[60%] rounded-t-[40px] p-6"

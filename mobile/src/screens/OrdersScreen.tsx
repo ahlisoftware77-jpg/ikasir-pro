@@ -300,7 +300,7 @@ export default function OrdersScreen() {
       id: Math.random().toString(36).substring(2, 9),
       date: new Date().toISOString(),
       amount: dp,
-      cashierName: user?.name || user?.email?.split('@')[0] || 'Kasir',
+      cashierName: user?.name || user?.displayName || 'Kasir',
       note: isAlreadyDebt ? 'Cicilan Piutang' : 'Pembayaran Awal / DP'
     };
 
@@ -685,7 +685,7 @@ export default function OrdersScreen() {
       )}
 
       {/* SETTLEMENT MODAL (BAYAR KASIR) */}
-      <Modal visible={showPaymentModal && selectedOrder !== null} animationType="slide" transparent>
+      <Modal visible={showPaymentModal && selectedOrder !== null} animationType="slide" transparent onRequestClose={() => setShowPaymentModal(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[75%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-6">
@@ -783,7 +783,7 @@ export default function OrdersScreen() {
       </Modal>
 
       {/* DEBT MODAL (CICILAN PIUTANG / DP) */}
-      <Modal visible={showPiutangModal && selectedPiutangOrder !== null} animationType="slide" transparent>
+      <Modal visible={showPiutangModal && selectedPiutangOrder !== null} animationType="slide" transparent onRequestClose={() => setShowPiutangModal(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[70%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-6">

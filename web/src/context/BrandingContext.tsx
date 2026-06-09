@@ -8,6 +8,8 @@ interface BrandingData {
   appName: string;
   receiptWatermark: string;
   showWatermark: boolean;
+  subscriptionQrisUrl: string;
+  subscriptionBankInfo: string;
 }
 
 interface BrandingContextType {
@@ -19,6 +21,8 @@ const defaultBranding: BrandingData = {
   appName: 'IKASIR PRO',
   receiptWatermark: 'Powered by YadiApp',
   showWatermark: true,
+  subscriptionQrisUrl: '',
+  subscriptionBankInfo: '',
 };
 
 const getCachedBranding = (): BrandingData => {
@@ -55,6 +59,8 @@ export const BrandingProvider = ({ children }: { children: React.ReactNode }) =>
           appName: data.appName || defaultBranding.appName,
           receiptWatermark: data.receiptWatermark || defaultBranding.receiptWatermark,
           showWatermark: data.showWatermark ?? defaultBranding.showWatermark,
+          subscriptionQrisUrl: data.subscriptionQrisUrl || '',
+          subscriptionBankInfo: data.subscriptionBankInfo || ''
         };
         setBranding(newBranding);
         if (typeof window !== 'undefined') {

@@ -13,9 +13,12 @@ import { logActivity } from '@/lib/activity';
 import SignaturePad from '@/components/SignaturePad';
 import { printReceipt } from '@/lib/printReceipt';
 import { useBranding } from '@/context/BrandingContext';
+import SubscriptionModal from '@/components/SubscriptionModal';
 
 export default function SettingsPage() {
   const user = useAuthStore(state => state.user);
+  const isSubscriptionExpired = useAuthStore(state => state.isSubscriptionExpired);
+  const subscriptionUntil = useAuthStore(state => state.subscriptionUntil);
   const storeId = useAuthStore(state => state.storeId);
   const authStoreName = useAuthStore(state => state.storeName);
   const setLogoUrl = useAuthStore(state => state.setLogoUrl);
@@ -24,6 +27,7 @@ export default function SettingsPage() {
   const [swStatus, setSwStatus] = useState<'Checking' | 'Activated' | 'Not Registered' | 'Error'>('Checking');
   const [isSaving, setIsSaving] = useState(false);
   const [signaturePadData, setSignaturePadData] = useState<string>('');
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   
   const FONT_OPTIONS = [
     { id: 'sans', name: 'Modern (Sans)', family: "'Inter', sans-serif" },
@@ -79,12 +83,15 @@ export default function SettingsPage() {
     ordCounter: 0,
     signatureUrl: '',
     showSignature: true,
-    thermalLogoUrl: ''
+    thermalLogoUrl: '',
+    qrisUrl: ''
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [thermalLogoFile, setThermalLogoFile] = useState<File | null>(null);
   const [thermalLogoPreview, setThermalLogoPreview] = useState<string | null>(null);
+  const [qrisFile, setQrisFile] = useState<File | null>(null);
+  const [qrisPreview, setQrisPreview] = useState<string | null>(null);
   
   const [passwordState, setPasswordState] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -138,11 +145,13 @@ export default function SettingsPage() {
             ordCounter: data.ordCounter || 0,
             signatureUrl: data.signatureUrl || '',
             showSignature: data.showSignature !== false,
-            thermalLogoUrl: data.thermalLogoUrl || ''
+            thermalLogoUrl: data.thermalLogoUrl || '',
+            qrisUrl: data.qrisUrl || ''
           });
           setLogoPreview(data.logoUrl || null);
           setLogoUrl(data.logoUrl || null);
           setThermalLogoPreview(data.thermalLogoUrl || null);
+          setQrisPreview(data.qrisUrl || null);
         } else {
           // Defaults if none exist
           setSettings({
@@ -185,6 +194,7 @@ export default function SettingsPage() {
             a4EstimationNote: '',
             a4DebtNote: '',
             thermalLogoUrl: '',
+            qrisUrl: '',
           });
         }
       } catch (err) {
@@ -287,6 +297,14 @@ export default function SettingsPage() {
     }
   };
 
+  const handleQrisChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setQrisFile(file);
+      setQrisPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -336,6 +354,29 @@ export default function SettingsPage() {
           setThermalLogoFile(null);
         } else {
           throw new Error(uploadResult.error?.message || 'Gagal unggah logo thermal ke Cloudinary');
+        }
+      }
+
+      // Upload QRIS to Cloudinary if changed
+      if (qrisFile) {
+        const config = await getInfraConfig();
+        const uploadData = new FormData();
+        uploadData.append('file', qrisFile);
+        uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+
+        const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST',
+          body: uploadData
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadRes.ok && uploadResult.secure_url) {
+          finalSettings.qrisUrl = uploadResult.secure_url;
+          setSettings(prev => ({ ...prev, qrisUrl: uploadResult.secure_url }));
+          setQrisFile(null);
+        } else {
+          throw new Error(uploadResult.error?.message || 'Gagal unggah foto QRIS ke Cloudinary');
         }
       }
 
@@ -582,6 +623,13 @@ export default function SettingsPage() {
     }
   };
 
+  const handleRemoveQris = () => {
+    if (confirm('Hapus foto QRIS pembayaran?')) {
+      setSettings(prev => ({ ...prev, qrisUrl: '' }));
+      toast.success('Foto QRIS dihapus (klik Simpan untuk menetapkan)');
+    }
+  };
+
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordState.newPassword !== passwordState.confirmPassword) {
@@ -644,6 +692,25 @@ export default function SettingsPage() {
           <p className="text-app-text-muted mt-1 font-medium">Konfigurasi profil bisnis dan informasi cetak struk</p>
         </div>
       </div>
+
+      {/* Subscription Banner */}
+      <div className="bg-gradient-to-r from-accent/90 to-accent/60 border border-accent/20 rounded-3xl p-6 shadow-xl shadow-accent/20 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+        <div>
+          <h2 className="text-white font-black text-xs uppercase tracking-widest mb-1">Masa Aktif Akun</h2>
+          <p className="text-white/90 font-bold text-sm">
+            {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
+            {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+          </p>
+        </div>
+        <button 
+          onClick={() => setShowSubscriptionModal(true)}
+          className="bg-white px-6 py-3 rounded-2xl border border-white/20 shadow-lg text-xs font-black uppercase tracking-wider text-accent hover:scale-105 active:scale-95 transition-all"
+        >
+          Perpanjang Sekarang
+        </button>
+      </div>
+
+      <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
 
       <div className="bg-surface border border-app-border rounded-3xl overflow-hidden mt-6 p-5 md:p-8 shadow-xl shadow-black/20 transition-colors duration-300">
         <form onSubmit={handleSave} className="space-y-6">
@@ -756,6 +823,58 @@ export default function SettingsPage() {
                         )}
                      </div>
                      <p className="text-[10px] font-bold text-app-text-muted leading-relaxed italic">Khusus untuk printer thermal. Wajib berlatar belakang <b className="text-foreground">PUTIH SOLID</b> dan logo warna hitam. Lebar optimal: kelipatan 8 (misal: 200px).</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-app-border/50">
+                <label className="block text-xs font-black text-app-text-muted uppercase tracking-widest ml-1">Foto QRIS Pembayaran</label>
+                <div className="flex items-center gap-6">
+                  <div className="relative group">
+                    <div className="w-24 h-24 rounded-2xl bg-white border-2 border-app-border overflow-hidden flex items-center justify-center relative shadow-inner p-1">
+                       {qrisPreview ? (
+                         <img src={qrisPreview} alt="QRIS Preview" className="w-full h-full object-contain" />
+                       ) : (
+                         <div className="text-app-text-muted text-[10px] font-black uppercase text-center px-2 italic opacity-50">NO QRIS</div>
+                       )}
+                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                          <UploadCloud size={20} className="text-white" />
+                       </div>
+                    </div>
+                    <input 
+                     type="file" 
+                     accept="image/*"
+                     onChange={handleQrisChange}
+                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                     <div className="flex items-center justify-between">
+                        <div className="relative">
+                           <button 
+                             type="button"
+                             className="bg-accent/15 hover:bg-accent text-accent hover:text-white px-3 py-1.5 rounded-lg transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-accent/20"
+                           >
+                             <UploadCloud size={12} /> Pilih Foto QRIS
+                           </button>
+                           <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleQrisChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                           />
+                        </div>
+                        {settings.qrisUrl && (
+                          <button 
+                            type="button"
+                            onClick={handleRemoveQris}
+                            className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white p-1.5 rounded-lg transition-all flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest"
+                          >
+                             <Trash2 size={12} /> Hapus
+                          </button>
+                        )}
+                     </div>
+                     <p className="text-[10px] font-bold text-app-text-muted leading-relaxed italic">Dipergunakan saat checkout pembayaran QRIS di sistem POS.</p>
                   </div>
                 </div>
               </div>

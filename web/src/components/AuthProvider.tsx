@@ -90,16 +90,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                 if (navigator.onLine) await signOut(auth);
                 setUser(null);
               } 
-              else if (validUntil && now > validUntil) {
-                setBlockingDetails({
-                  title: 'Langganan Berakhir',
-                  message: 'Masa berlaku aplikasi telah habis. Silakan hubungi administrator untuk perpanjangan layanan.',
-                  type: 'expired'
-                });
-                if (navigator.onLine) await signOut(auth);
-                setUser(null);
-              }
               else {
+                // Set subscription details instead of hard blocking
+                if (userData.validUntil) {
+                  useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
+                  useAuthStore.getState().setIsSubscriptionExpired(now > new Date(userData.validUntil));
+                } else {
+                  useAuthStore.getState().setSubscriptionUntil(null);
+                  useAuthStore.getState().setIsSubscriptionExpired(false);
+                }
+
                 const sId = userData.storeId || 'default-store';
                 
                 // PENTING: Toko (stores) tetap dibaca dari db yang sedang aktif (bisa jadi Target DB)

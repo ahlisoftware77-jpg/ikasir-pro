@@ -51,7 +51,7 @@ import toast from 'react-hot-toast';
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { role, user, permissions, newOrderCount } = useAuthStore();
+  const { role, user, permissions, newOrderCount, isSubscriptionExpired } = useAuthStore();
   const { branding } = useBranding();
   const { theme, setTheme } = useTheme();
 
@@ -160,17 +160,25 @@ export default function MobileBottomNav() {
         <div className="flex justify-between items-center px-2 py-2">
           {displayTabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path !== '/' && pathname.startsWith(tab.path + '/'));
+            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts'].includes(tab.path);
             const Icon = tab.icon;
             return (
               <Link
-                href={tab.path}
+                href={isBlocked ? '#' : tab.path}
                 key={tab.path}
-                onClick={() => setIsMoreOpen(false)}
+                onClick={(e) => {
+                  if (isBlocked) {
+                    e.preventDefault();
+                    toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                  } else {
+                    setIsMoreOpen(false);
+                  }
+                }}
                 className={`flex flex-col items-center justify-center w-full py-1.5 transition-all ${
                   isActive 
                     ? 'text-accent scale-105' 
                     : 'text-app-text-muted hover:text-foreground'
-                }`}
+                } ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <div className={`p-1.5 rounded-md transition-all relative ${isActive ? 'bg-accent/15' : ''}`}>
                   <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'animate-bounce-short' : ''} />
@@ -237,6 +245,12 @@ export default function MobileBottomNav() {
                    <div key={menu.name} className="space-y-1">
                      <div
                        onClick={() => {
+                         const isBlocked = isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path);
+                         if (isBlocked) {
+                           toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                           return;
+                         }
+
                          if (hasSubItems) {
                            setExpandedMenu(isExpanded ? null : menu.name);
                          } else {
@@ -248,7 +262,7 @@ export default function MobileBottomNav() {
                           isActive 
                             ? 'border-accent bg-accent/5 shadow-sm text-foreground' 
                             : 'border-app-border bg-background/50 hover:border-accent/40 text-app-text-muted'
-                       }`}
+                       } ${isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path) ? 'opacity-40 cursor-not-allowed' : ''}`}
                      >
                        <div className="flex items-center gap-3">
                          <div className={`p-2 rounded-md border ${isActive ? 'bg-accent text-white shadow-sm border-accent' : 'bg-surface border-transparent'}`}>

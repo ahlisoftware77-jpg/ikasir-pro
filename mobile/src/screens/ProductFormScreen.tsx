@@ -846,7 +846,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
       </ScrollView>
 
       {/* 1. Category Selection Drawer Modal */}
-      <Modal visible={showCategoryModal} animationType="slide" transparent>
+      <Modal visible={showCategoryModal} animationType="slide" transparent onRequestClose={() => setShowCategoryModal(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[60%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-6">
@@ -897,7 +897,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
       </Modal>
 
       {/* 2. Custom Category Input Dialog Modal */}
-      <Modal visible={showCustomCategoryModal} animationType="fade" transparent>
+      <Modal visible={showCustomCategoryModal} animationType="fade" transparent onRequestClose={() => setShowCustomCategoryModal(false)}>
         <View className="flex-1 bg-black/75 items-center justify-center p-6">
           <View className="w-full max-w-sm rounded-[32px] p-6 items-center" style={{ backgroundColor: colors.surface }}>
             <Text className="text-base font-black text-center mb-4" style={{ color: colors.text }}>Kategori Kustom Baru</Text>
@@ -941,7 +941,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
       </Modal>
 
       {/* 3. Scanner Modal */}
-      <Modal visible={showScanner} animationType="fade" transparent>
+      <Modal visible={showScanner} animationType="fade" transparent onRequestClose={() => setShowScanner(false)}>
         <View className="flex-1 bg-black">
           {showScanner && (
             <CameraView 

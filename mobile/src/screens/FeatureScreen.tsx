@@ -19,6 +19,7 @@ import {
   Printer, UserCog
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
+import SwipeableItem from '../components/SwipeableItem';
 
 export default function FeatureScreen({ route, navigation }: any) {
   const { colors } = useTheme();
@@ -120,10 +121,17 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [debtFilter, setDebtFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
   const [selectedDebt, setSelectedDebt] = useState<any | null>(null);
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
+  const [debtPaymentNote, setDebtPaymentNote] = useState('Pembayaran cicilan mobile');
   const [isSubmittingDebtPayment, setIsSubmittingDebtPayment] = useState(false);
+  const [editingDebtNoteId, setEditingDebtNoteId] = useState<string | null>(null);
+  const [editDebtNoteValue, setEditDebtNoteValue] = useState('');
+
+  // Item Editing States
+  const [editingDebtItemIndex, setEditingDebtItemIndex] = useState<number | null>(null);
+  const [editDebtItemData, setEditDebtItemData] = useState({qty: '1', price: '0', note: ''});
 
   // Estimasi States
-  const [estimationFilter, setEstimationFilter] = useState<'active' | 'converted'>('active');
+  const [estimationFilter, setEstimationFilter] = useState<'active' | 'converted' | 'cancelled'>('active');
 
   // --- DATA STATES ---
   const [estimations, setEstimations] = useState<any[]>([]);
@@ -828,7 +836,7 @@ export default function FeatureScreen({ route, navigation }: any) {
       // Log Permission Update
       await addDoc(collection(db, 'activity_logs'), {
         userId: user?.uid || 'unknown',
-        userName: user?.email?.split('@')[0] || 'Admin',
+        userName: user?.name || user?.displayName || 'Admin',
         userEmail: user?.email || '-',
         storeId: storeId || 'unknown',
         action: 'EDIT_USER',
@@ -873,7 +881,7 @@ export default function FeatureScreen({ route, navigation }: any) {
               // Log User Deletion
               await addDoc(collection(db, 'activity_logs'), {
                 userId: user?.uid || 'unknown',
-                userName: user?.email?.split('@')[0] || 'Admin',
+                userName: user?.name || user?.displayName || 'Admin',
                 userEmail: user?.email || '-',
                 storeId: storeId || 'unknown',
                 action: 'DELETE_USER',
@@ -938,7 +946,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             paymentCategory: 'debt',
             paymentStatus: formStatus || 'unpaid',
             orderStatus: 'completed',
-            cashierName: user?.email?.split('@')[0] || 'Kasir',
+            cashierName: user?.name || user?.displayName || 'Kasir',
             timestamp: new Date().toISOString(),
             items: [{
               productName: 'Hutang Manual',
@@ -1091,7 +1099,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             // 6. Log Activity
             await addDoc(collection(db, 'activity_logs'), {
               userId: user?.uid || 'unknown',
-              userName: user?.email?.split('@')[0] || 'Admin',
+              userName: user?.name || user?.displayName || 'Admin',
               userEmail: user?.email || '-',
               storeId: storeId || 'unknown',
               action: 'ADD_USER',
@@ -1295,8 +1303,8 @@ export default function FeatureScreen({ route, navigation }: any) {
         id: Math.random().toString(36).substring(2, 9),
         amount: amount,
         date: new Date().toISOString(),
-        cashierName: user?.email ? user.email.split('@')[0] : 'Kasir',
-        note: `Pembayaran cicilan mobile`
+        cashierName: user?.name || user?.displayName || 'Kasir',
+        note: debtPaymentNote || 'Pembayaran cicilan mobile'
       };
 
       const updatedHistory = [...(selectedDebt.paymentHistory || []), newHistoryItem];
@@ -1314,11 +1322,97 @@ export default function FeatureScreen({ route, navigation }: any) {
       Alert.alert('Berhasil', newStatus === 'paid' ? 'Hutang berhasil dilunasi!' : 'Pembayaran cicilan berhasil dicatat.');
       setSelectedDebt(null);
       setDebtPaymentAmount('');
+      setDebtPaymentNote('Pembayaran cicilan mobile');
     } catch (err) {
       console.error(err);
       Alert.alert('Gagal', 'Terjadi kesalahan saat menyimpan pembayaran.');
     } finally {
       setIsSubmittingDebtPayment(false);
+    }
+  };
+
+  const handleUpdateHistoryNote = async (histId: string) => {
+    if (!selectedDebt || !selectedDebt.id || !selectedDebt.paymentHistory) return;
+    try {
+      const updatedHistory = selectedDebt.paymentHistory.map((h: any, i: number) => {
+        const id = h.id || i.toString();
+        if (id === histId) {
+          return { ...h, note: editDebtNoteValue };
+        }
+        return h;
+      });
+      await updateDoc(doc(db, 'transactions', selectedDebt.id), {
+        paymentHistory: updatedHistory
+      });
+      setSelectedDebt({ ...selectedDebt, paymentHistory: updatedHistory });
+      setEditingDebtNoteId(null);
+      Alert.alert('Berhasil', 'Catatan berhasil diperbarui');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal memperbarui catatan');
+    }
+  };
+
+  const handleDeleteDebtItem = async (idx: number) => {
+    if (!selectedDebt || !selectedDebt.id || !selectedDebt.items) return;
+    try {
+      const newItems = [...selectedDebt.items];
+      newItems.splice(idx, 1);
+      
+      const newTotal = newItems.reduce((acc: any, curr: any) => acc + (curr.subtotal || 0), 0);
+      const paid = selectedDebt.paidAmount ?? selectedDebt.cashReceived ?? 0;
+      const newDebtAmount = Math.max(0, newTotal - paid);
+      const newStatus = newDebtAmount <= 0 ? 'paid' : selectedDebt.paymentStatus;
+      
+      await updateDoc(doc(db, 'transactions', selectedDebt.id), {
+        items: newItems,
+        total: newTotal,
+        debtAmount: newDebtAmount,
+        paymentStatus: newStatus
+      });
+      setSelectedDebt({...selectedDebt, items: newItems, total: newTotal, debtAmount: newDebtAmount, paymentStatus: newStatus});
+      Vibration.vibrate(10);
+      Alert.alert('Sukses', 'Item berhasil dihapus');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat menghapus item');
+    }
+  };
+
+  const handleSaveDebtItem = async () => {
+    if (editingDebtItemIndex === null || !selectedDebt) return;
+    try {
+      const newItems = [...selectedDebt.items];
+      const qtyNum = parseFloat(editDebtItemData.qty) || 1;
+      const priceNum = parseFloat(editDebtItemData.price) || 0;
+      const newSubtotal = qtyNum * priceNum;
+      
+      newItems[editingDebtItemIndex] = {
+        ...newItems[editingDebtItemIndex],
+        qty: qtyNum,
+        price: priceNum,
+        subtotal: newSubtotal,
+        note: editDebtItemData.note
+      };
+      
+      const newTotal = newItems.reduce((acc: any, curr: any) => acc + (curr.subtotal || 0), 0);
+      const paid = selectedDebt.paidAmount ?? selectedDebt.cashReceived ?? 0;
+      const newDebtAmount = Math.max(0, newTotal - paid);
+      const newStatus = newDebtAmount <= 0 ? 'paid' : (selectedDebt.paymentStatus === 'paid' && newDebtAmount > 0 ? 'partially_paid' : selectedDebt.paymentStatus);
+      
+      await updateDoc(doc(db, 'transactions', selectedDebt.id), {
+        items: newItems,
+        total: newTotal,
+        debtAmount: newDebtAmount,
+        paymentStatus: newStatus
+      });
+      setSelectedDebt({...selectedDebt, items: newItems, total: newTotal, debtAmount: newDebtAmount, paymentStatus: newStatus});
+      setEditingDebtItemIndex(null);
+      Vibration.vibrate(10);
+      Alert.alert('Sukses', 'Data item berhasil diubah');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat mengubah item');
     }
   };
 
@@ -1777,6 +1871,16 @@ export default function FeatureScreen({ route, navigation }: any) {
                   Selesai
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setEstimationFilter('cancelled')}
+                activeOpacity={0.8}
+                className="flex-1 py-3 rounded-xl items-center justify-center"
+                style={{ backgroundColor: estimationFilter === 'cancelled' ? colors.accent : 'transparent' }}
+              >
+                <Text className="text-[10px] font-black uppercase tracking-widest" style={{ color: estimationFilter === 'cancelled' ? '#ffffff' : colors.text }}>
+                  Batal
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <FlatList
@@ -1842,32 +1946,36 @@ export default function FeatureScreen({ route, navigation }: any) {
                     )}
 
                     <View className="flex-row flex-wrap gap-2 pt-2 border-t" style={{ borderColor: colors.border + '15' }}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Vibration.vibrate(15);
-                          navigation.navigate('Main', {
-                            screen: 'Kasir',
-                            params: { loadEstimate: item, mode: 'convert' }
-                          });
-                        }}
-                        className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex-row items-center justify-center gap-1.5"
-                      >
-                        <CreditCard size={12} color="#10b981" />
-                        <Text className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Proses POS</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Vibration.vibrate(15);
-                          navigation.navigate('Main', {
-                            screen: 'Kasir',
-                            params: { loadEstimate: item, mode: 'edit' }
-                          });
-                        }}
-                        className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex-row items-center justify-center gap-1.5"
-                      >
-                        <Edit2 size={12} color="#d97706" />
-                        <Text className="text-[9px] font-black uppercase text-amber-600 tracking-wider">Edit</Text>
-                      </TouchableOpacity>
+                      {item.status === 'active' && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => {
+                              Vibration.vibrate(15);
+                              navigation.navigate('Main', {
+                                screen: 'Kasir',
+                                params: { loadEstimate: item, mode: 'convert' }
+                              });
+                            }}
+                            className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex-row items-center justify-center gap-1.5"
+                          >
+                            <CreditCard size={12} color="#10b981" />
+                            <Text className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Proses POS</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => {
+                              Vibration.vibrate(15);
+                              navigation.navigate('Main', {
+                                screen: 'Kasir',
+                                params: { loadEstimate: item, mode: 'edit' }
+                              });
+                            }}
+                            className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex-row items-center justify-center gap-1.5"
+                          >
+                            <Edit2 size={12} color="#d97706" />
+                            <Text className="text-[9px] font-black uppercase text-amber-600 tracking-wider">Edit</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                       <TouchableOpacity
                         onPress={() => handlePrintA4(item)}
                         className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex-row items-center justify-center gap-1.5"
@@ -1882,15 +1990,34 @@ export default function FeatureScreen({ route, navigation }: any) {
                         <Printer size={12} color="#64748b" />
                         <Text className="text-[9px] font-black uppercase text-slate-600 tracking-wider">Thermal</Text>
                       </TouchableOpacity>
+                      {item.status === 'active' && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            Vibration.vibrate(10);
+                            Alert.alert('Batalkan Estimasi', 'Yakin ingin membatalkan estimasi ini?', [
+                              { text: 'Tutup', style: 'cancel' },
+                              { text: 'Batalkan', style: 'destructive', onPress: async () => {
+                                try {
+                                  await updateDoc(doc(db, 'estimations', item.id), { status: 'cancelled' });
+                                } catch (err) {}
+                              }}
+                            ]);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-center gap-1.5 mt-1"
+                        >
+                          <X size={12} color="#f43f5e" />
+                          <Text className="text-[9px] font-black uppercase text-rose-500 tracking-wider">Batalkan Estimasi</Text>
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity
                         onPress={() => {
                           Vibration.vibrate(10);
                           handleDelete(item.id, 'estimasi');
                         }}
-                        className="w-full py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-center gap-1.5 mt-1"
+                        className="w-full py-2.5 rounded-xl flex-row items-center justify-center gap-1.5 mt-1"
                       >
-                        <Trash2 size={12} color="#f43f5e" />
-                        <Text className="text-[9px] font-black uppercase text-rose-500 tracking-wider">Hapus Estimasi</Text>
+                        <Trash2 size={12} color={colors.textMuted} />
+                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>Hapus Permanen</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2919,13 +3046,33 @@ export default function FeatureScreen({ route, navigation }: any) {
             data={customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))}
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
-              <View className="p-4 rounded-2xl border mb-3 flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                <View>
-                  <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
-                  <Text className="text-[10px] font-bold text-slate-400 mt-1">Telp: {item.phone} • Blanja: {item.orders}x</Text>
+              <View className="p-4 rounded-2xl border mb-3 flex gap-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="flex-row justify-between items-center">
+                  <View>
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
+                    <Text className="text-[10px] font-bold text-slate-400 mt-1">Telp: {item.phone} • Blanja: {item.orders}x</Text>
+                  </View>
+                  <View className="bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
+                    <Text className="text-xs font-black text-indigo-400">{item.points} Poin</Text>
+                  </View>
                 </View>
-                <View className="bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
-                  <Text className="text-xs font-black text-indigo-400">{item.points} Poin</Text>
+                {/* Actions */}
+                <View className="flex-row gap-2 pt-3 border-t" style={{ borderColor: colors.border + '15' }}>
+                  <TouchableOpacity
+                    onPress={() => openFormModal(item)}
+                    className="flex-1 py-2 rounded-xl border flex-row items-center justify-center gap-1.5"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                  >
+                    <Edit2 size={12} color={colors.textMuted} />
+                    <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id, 'pelanggan')}
+                    className="flex-1 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-center gap-1.5"
+                  >
+                    <Trash2 size={12} color="#f43f5e" />
+                    <Text className="text-[10px] font-black uppercase tracking-wider text-rose-500">Hapus</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -3187,13 +3334,13 @@ export default function FeatureScreen({ route, navigation }: any) {
       )}
 
       {/* ADD NEW RECORD MODAL */}
-      <Modal visible={isAddModalVisible} animationType="slide" transparent>
+      <Modal visible={isAddModalVisible} animationType="slide" transparent onRequestClose={() => setIsAddModalVisible(false)}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
           className="flex-1"
         >
-          <View className="flex-1 bg-black/60 justify-end">
-            <View className="rounded-t-[40px] p-6 pb-10" style={{ backgroundColor: colors.surface }}>
+          <View className="flex-1 bg-black/60 justify-end items-center">
+            <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10" style={{ backgroundColor: colors.surface }}>
               
               {/* Modal Header */}
               <View className="flex-row justify-between items-center mb-6">
@@ -3229,20 +3376,80 @@ export default function FeatureScreen({ route, navigation }: any) {
                   {editId ? 'Perbarui Data' : 'Simpan Data'}
                 </Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
+      {/* Item Edit Modal */}
+      <Modal visible={editingDebtItemIndex !== null} animationType="fade" transparent onRequestClose={() => setEditingDebtItemIndex(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+          <View className="flex-1 bg-black/60 items-center justify-center p-4">
+            <View className="w-full max-w-xl rounded-3xl p-6" style={{ backgroundColor: colors.surface }}>
+              <View className="flex-row justify-between items-center mb-6">
+                <Text className="text-base font-black" style={{ color: colors.text }}>Edit Item & Catatan</Text>
+                <TouchableOpacity onPress={() => setEditingDebtItemIndex(null)} className="w-8 h-8 rounded-full bg-black/10 items-center justify-center">
+                  <X color={colors.text} size={16} />
+                </TouchableOpacity>
+              </View>
+
+              <View className="space-y-4">
+                <View className="flex-row gap-4 mb-4">
+                  <View className="flex-1">
+                    <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Kuantitas (Qty)</Text>
+                    <TextInput
+                      keyboardType="numeric"
+                      value={editDebtItemData.qty}
+                      onChangeText={(t) => setEditDebtItemData({...editDebtItemData, qty: t})}
+                      className="px-4 py-3 rounded-2xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    />
+                  </View>
+                  <View className="flex-[2]">
+                    <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Harga Satuan (Rp)</Text>
+                    <TextInput
+                      keyboardType="numeric"
+                      value={editDebtItemData.price}
+                      onChangeText={(t) => setEditDebtItemData({...editDebtItemData, price: t})}
+                      className="px-4 py-3 rounded-2xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    />
+                  </View>
+                </View>
+
+                <View className="mb-6">
+                  <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Catatan Item (Opsional)</Text>
+                  <TextInput
+                    value={editDebtItemData.note}
+                    onChangeText={(t) => setEditDebtItemData({...editDebtItemData, note: t})}
+                    placeholder="Contoh: Warna merah, tanpa gula"
+                    placeholderTextColor={colors.textMuted}
+                    className="px-4 py-3 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
+                <TouchableOpacity 
+                  onPress={handleSaveDebtItem}
+                  className="w-full py-4 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: colors.accent }}
+                >
+                  <Text className="text-xs font-black text-white uppercase tracking-widest">Simpan Perubahan</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* STOCK OPNAME/ADJUSTMENT MODAL */}
-      <Modal visible={isAdjustModalVisible} animationType="slide" transparent>
+      <Modal visible={isAdjustModalVisible} animationType="slide" transparent onRequestClose={() => setIsAdjustModalVisible(false)}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
           className="flex-1"
         >
-          <View className="flex-1 bg-black/60 justify-end">
-            <View className="rounded-t-[40px] p-6 pb-10" style={{ backgroundColor: colors.surface }}>
+          <View className="flex-1 bg-black/60 justify-end items-center">
+            <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10" style={{ backgroundColor: colors.surface }}>
               {/* Header */}
               <View className="flex-row justify-between items-start mb-6">
                 <View>
@@ -3352,9 +3559,9 @@ export default function FeatureScreen({ route, navigation }: any) {
       </Modal>
 
       {/* PRODUCT & CATEGORY SELECTOR MODAL FOR DISCOUNTS */}
-      <Modal visible={isSelectorModalVisible} animationType="slide" transparent>
-        <SafeAreaView className="flex-1 bg-black/80 justify-end" edges={['top', 'bottom']}>
-          <View className="rounded-t-[40px] p-6 pb-8 flex-1" style={{ backgroundColor: colors.surface }}>
+      <Modal visible={isSelectorModalVisible} animationType="slide" transparent onRequestClose={() => setIsSelectorModalVisible(false)}>
+        <SafeAreaView className="flex-1 bg-black/80 justify-end items-center" edges={['top', 'bottom']}>
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-8 flex-1" style={{ backgroundColor: colors.surface }}>
             {/* Header */}
             <View className="flex-row justify-between items-start mb-6">
               <View>
@@ -3521,13 +3728,13 @@ export default function FeatureScreen({ route, navigation }: any) {
       </Modal>
 
       {/* DEBT DETAIL & INSTALLMENT MODAL */}
-      <Modal visible={!!selectedDebt} animationType="slide" transparent>
+      <Modal visible={!!selectedDebt} animationType="slide" transparent onRequestClose={() => setSelectedDebt(null)}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
           className="flex-1"
         >
-          <View className="flex-1 bg-black/60 justify-end">
-            <View className="rounded-t-[40px] p-6 pb-10 flex-col max-h-[90%]" style={{ backgroundColor: colors.surface }}>
+          <View className="flex-1 bg-black/60 justify-end items-center">
+            <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 flex-col max-h-[90%]" style={{ backgroundColor: colors.surface }}>
               
               {/* Modal Header */}
               <View className="flex-row justify-between items-center mb-5">
@@ -3569,9 +3776,40 @@ export default function FeatureScreen({ route, navigation }: any) {
                       <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-black/5 pb-1">Item Terbeli</Text>
                       <View className="flex gap-1.5">
                         {selectedDebt.items?.map((item: any, idx: number) => (
-                          <View key={idx} className="flex-row justify-between items-center bg-black/5 p-3 rounded-xl">
-                            <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.qty}x {item.productName}</Text>
-                            <Text className="text-xs font-bold text-slate-400">Rp {item.subtotal?.toLocaleString('id-ID')}</Text>
+                          <View key={idx} className="p-3 rounded-xl border border-black/5 mb-1.5" style={{ backgroundColor: colors.surface, elevation: 1, shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2 }}>
+                            <View className="flex-row justify-between items-start">
+                              <View className="flex-1 pr-2">
+                                <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.qty}x {item.productName}</Text>
+                                {item.note && <Text className="text-[9px] font-bold text-slate-400 mt-0.5">{item.note}</Text>}
+                              </View>
+                              <View className="items-end">
+                                <Text className="text-[11px] font-black text-emerald-500">Rp {item.subtotal?.toLocaleString('id-ID')}</Text>
+                              </View>
+                            </View>
+                            <View className="flex-row justify-end gap-2 mt-3 pt-3 border-t border-black/5">
+                              <TouchableOpacity 
+                                onPress={() => {
+                                  setEditDebtItemData({
+                                    qty: item.qty?.toString() || '1',
+                                    price: item.price?.toString() || '0',
+                                    note: item.note || ''
+                                  });
+                                  setEditingDebtItemIndex(idx);
+                                  Vibration.vibrate(10);
+                                }} 
+                                className="px-3 py-1.5 bg-amber-500/10 rounded-lg flex-row items-center gap-1.5 border border-amber-500/20"
+                              >
+                                <Edit2 size={12} color="#d97706" />
+                                <Text className="text-[9px] font-black uppercase text-amber-600">Edit</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity 
+                                onPress={() => handleDeleteDebtItem(idx)} 
+                                className="px-3 py-1.5 bg-rose-500/10 rounded-lg flex-row items-center gap-1.5 border border-rose-500/20"
+                              >
+                                <Trash2 size={12} color="#f43f5e" />
+                                <Text className="text-[9px] font-black uppercase text-rose-500">Hapus</Text>
+                              </TouchableOpacity>
+                            </View>
                           </View>
                         ))}
                       </View>
@@ -3584,15 +3822,43 @@ export default function FeatureScreen({ route, navigation }: any) {
                         <View className="flex gap-1.5">
                           {selectedDebt.paymentHistory.map((hist: any, i: number) => {
                             const histDate = hist.date ? new Date(hist.date).toLocaleDateString('id-ID') : '-';
+                            const currentHistId = hist.id || i.toString();
                             return (
-                              <View key={hist.id || i} className="flex-row justify-between items-center bg-black/5 border border-black/5 p-3 rounded-xl">
-                                <View>
+                              <View key={currentHistId} className="bg-black/5 border border-black/5 p-3 rounded-xl mb-1.5">
+                                <View className="flex-row justify-between items-center mb-2">
                                   <Text className="text-[10px] font-black" style={{ color: colors.text }}>{histDate}</Text>
-                                  <Text className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">Oleh: {hist.cashierName}</Text>
+                                  <Text className="text-xs font-black text-emerald-500">
+                                    +Rp {hist.amount?.toLocaleString('id-ID')}
+                                  </Text>
                                 </View>
-                                <Text className="text-xs font-black text-emerald-500">
-                                  +Rp {hist.amount?.toLocaleString('id-ID')}
-                                </Text>
+                                {editingDebtNoteId === currentHistId ? (
+                                  <View className="flex-row items-center gap-1 mt-1 mb-1 bg-white/10 rounded-lg pr-1">
+                                    <TextInput
+                                      value={editDebtNoteValue}
+                                      onChangeText={setEditDebtNoteValue}
+                                      placeholder="Catatan..."
+                                      placeholderTextColor={colors.textMuted}
+                                      className="flex-1 px-3 py-1.5 text-xs font-bold"
+                                      style={{ color: colors.text, backgroundColor: colors.bg, borderRadius: 8 }}
+                                    />
+                                    <TouchableOpacity onPress={() => handleUpdateHistoryNote(currentHistId)} className="p-2 bg-emerald-500/10 rounded-lg ml-1">
+                                      <CheckCircle size={14} color="#10b981" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setEditingDebtNoteId(null)} className="p-2 bg-rose-500/10 rounded-lg ml-1">
+                                      <X size={14} color="#f43f5e" />
+                                    </TouchableOpacity>
+                                  </View>
+                                ) : (
+                                  <View className="flex-row items-center justify-between mt-0.5">
+                                    <View className="flex-row items-center gap-2">
+                                      <Text className="text-[10px] font-bold" style={{ color: colors.text }}>{hist.note || 'Pembayaran cicilan mobile'}</Text>
+                                      <TouchableOpacity onPress={() => { setEditingDebtNoteId(currentHistId); setEditDebtNoteValue(hist.note || 'Pembayaran cicilan mobile'); }}>
+                                        <Edit2 size={10} color={colors.accent} />
+                                      </TouchableOpacity>
+                                    </View>
+                                    <Text className="text-[8px] text-slate-400 font-bold uppercase">Oleh: {hist.cashierName}</Text>
+                                  </View>
+                                )}
                               </View>
                             );
                           })}
@@ -3632,7 +3898,15 @@ export default function FeatureScreen({ route, navigation }: any) {
                           onChangeText={setDebtPaymentAmount}
                           placeholder="0"
                           placeholderTextColor={colors.textMuted}
-                          className="w-full px-4 py-3 rounded-2xl border font-black text-lg text-center"
+                          className="w-full px-4 py-3 rounded-2xl border font-black text-lg text-center mb-2"
+                          style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                        />
+                        <TextInput
+                          value={debtPaymentNote}
+                          onChangeText={setDebtPaymentNote}
+                          placeholder="Catatan pembayaran (opsional)"
+                          placeholderTextColor={colors.textMuted}
+                          className="w-full px-4 py-3 rounded-2xl border font-bold text-xs"
                           style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                         />
 
@@ -3696,9 +3970,9 @@ export default function FeatureScreen({ route, navigation }: any) {
       </Modal>
 
       {/* 5. MODAL EDIT IZIN AKSES */}
-      <Modal visible={isPermModalOpen} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="rounded-t-[40px] p-6 pb-10 flex-col max-h-[85%]" style={{ backgroundColor: colors.surface }}>
+      <Modal visible={isPermModalOpen} animationType="slide" transparent onRequestClose={() => setIsPermModalOpen(false)}>
+        <View className="flex-1 bg-black/60 justify-end items-center">
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 flex-col max-h-[85%]" style={{ backgroundColor: colors.surface }}>
             
             {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-5 border-b pb-3" style={{ borderColor: colors.border + '15' }}>

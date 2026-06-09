@@ -5,7 +5,9 @@ import { useAuthStore } from '@/store/auth';
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { User as UserIcon, UserCircle, Mail, Shield, Key, Loader2, Save, AlertCircle, CheckCircle2, ChevronRight } from 'lucide-react';
+import { User as UserIcon, UserCircle, Mail, Shield, Key, Loader2, Save, AlertCircle, CheckCircle2, ChevronRight, Camera } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 import toast from 'react-hot-toast';
 import { logActivity } from '@/lib/activity';
 
@@ -14,6 +16,8 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +36,7 @@ export default function ProfilePage() {
         name: userName || user.displayName || '',
         email: user.email || '',
       });
+      setPhotoUrl(user.photoURL);
       setIsLoading(false);
     }
   }, [user, userName]);
@@ -113,6 +118,35 @@ export default function ProfilePage() {
     }
   };
 
+  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user) return;
+    const file = e.target.files[0];
+    
+    if (!file.type.startsWith('image/')) {
+       toast.error('File harus berupa gambar');
+       return;
+    }
+    
+    setIsUploading(true);
+    try {
+       const storageRef = ref(storage, `profiles/${user.uid}_${Date.now()}`);
+       await uploadBytes(storageRef, file);
+       const url = await getDownloadURL(storageRef);
+       
+       await updateProfile(user, { photoURL: url });
+       await updateDoc(doc(db, 'users', user.uid), { photoUrl: url });
+       
+       setPhotoUrl(url);
+       toast.success('Foto profil berhasil diperbarui!');
+    } catch (err: any) {
+       console.error(err);
+       toast.error('Gagal mengunggah foto');
+    } finally {
+       setIsUploading(false);
+       e.target.value = '';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -128,8 +162,19 @@ export default function ProfilePage() {
       <div className="relative overflow-hidden bg-surface border border-app-border rounded-[2.5rem] p-8 md:p-12 shadow-2xl shadow-black/20">
         <div className="absolute top-[-20%] right-[-10%] w-[40%] h-[120%] bg-accent/5 blur-[100px] pointer-events-none rounded-full"></div>
         <div className="relative flex flex-col md:flex-row items-center gap-8">
-          <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-foreground shadow-2xl shadow-accent/40 border-4 border-white/10 shrink-0">
-            <UserIcon size={64} className="drop-shadow-lg" />
+          <div className="relative w-32 h-32 rounded-3xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-foreground shadow-2xl shadow-accent/40 border-4 border-white/10 shrink-0 group overflow-hidden">
+            {photoUrl ? (
+               <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+               <UserIcon size={64} className="drop-shadow-lg" />
+            )}
+            <label className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+               {isUploading ? <Loader2 size={24} className="animate-spin text-white" /> : <Camera size={24} className="text-white mb-1" />}
+               <span className="text-[10px] font-black text-white uppercase text-center leading-tight">
+                  {isUploading ? 'Mengunggah...' : 'Ubah\nFoto'}
+               </span>
+               <input type="file" accept="image/*" className="hidden" onChange={handleImagePick} disabled={isUploading} />
+            </label>
           </div>
           <div className="flex-1 text-center md:text-left space-y-1">
             <h1 className="text-3xl font-black text-foreground tracking-tight">{userName || user?.displayName || 'User'}</h1>

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
-import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck } from 'lucide-react-native';
-import { printReceipt } from '../utils/ReceiptHelper';
+import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
@@ -86,7 +86,7 @@ interface Transaction {
   isSignatureLinkActive?: boolean;
 }
 
-export default function TransactionsScreen() {
+export default function TransactionsScreen({ navigation }: any) {
   const { colors } = useTheme();
   const { storeId } = useAuthStore();
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -95,8 +95,8 @@ export default function TransactionsScreen() {
   const [selectedTrx, setSelectedTrx] = useState<Transaction | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [storeSettings, setStoreSettings] = useState<any>({});
+  const [filterTab, setFilterTab] = useState<'all' | 'completed' | 'debt' | 'estimation' | 'online'>('all');
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
-
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -367,8 +367,14 @@ export default function TransactionsScreen() {
   useEffect(() => {
     if (!storeId) return;
     setLoading(true);
+
+    let collectionRef = collection(db, 'transactions');
+    if (filterTab === 'estimation') {
+      collectionRef = collection(db, 'estimations');
+    }
+
     const q = query(
-      collection(db, 'transactions'), 
+      collectionRef, 
       where('storeId', '==', storeId),
       orderBy('timestamp', 'desc'),
       limit(50)
@@ -379,7 +385,17 @@ export default function TransactionsScreen() {
       snapshot.forEach((doc) => {
         trx.push({ id: doc.id, ...doc.data() } as Transaction);
       });
-      setTransactions(trx);
+
+      let filteredTrx = trx;
+      if (filterTab === 'completed') {
+        filteredTrx = trx.filter(t => t.paymentStatus === 'paid');
+      } else if (filterTab === 'debt') {
+        filteredTrx = trx.filter(t => t.paymentStatus === 'unpaid' || t.paymentStatus === 'partially_paid' || t.paymentCategory === 'debt');
+      } else if (filterTab === 'online') {
+        filteredTrx = trx.filter(t => t.orderType === 'online');
+      }
+
+      setTransactions(filteredTrx);
       setLoading(false);
     });
 
@@ -396,7 +412,7 @@ export default function TransactionsScreen() {
     fetchSettings();
     
     return () => unsubscribe();
-  }, [storeId]);
+  }, [storeId, filterTab]);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '...';
@@ -583,6 +599,69 @@ export default function TransactionsScreen() {
     );
   };
 
+  const handleDeleteAllTrx = () => {
+    let title = "Hapus Semua Transaksi";
+    let msg = "Apakah Anda yakin ingin menghapus SEMUA riwayat transaksi?";
+    
+    if (filterTab === 'completed') {
+      title = "Hapus Transaksi Selesai";
+      msg = "Apakah Anda yakin ingin menghapus semua transaksi yang sudah LUNAS?";
+    } else if (filterTab === 'debt') {
+      title = "Hapus Utang/Piutang";
+      msg = "Apakah Anda yakin ingin menghapus semua data PIUTANG?";
+    } else if (filterTab === 'estimation') {
+      title = "Hapus Semua Estimasi";
+      msg = "Apakah Anda yakin ingin menghapus semua data ESTIMASI?";
+    } else if (filterTab === 'online') {
+      title = "Hapus Online Order";
+      msg = "Apakah Anda yakin ingin menghapus semua data ONLINE ORDER?";
+    }
+
+    Alert.alert(
+      title,
+      msg + " Tindakan ini tidak dapat dibatalkan.",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Ya, Hapus Semua", 
+          style: "destructive",
+          onPress: async () => {
+            if (!storeId) return;
+            setLoading(true);
+            try {
+              let colName = filterTab === 'estimation' ? 'estimations' : 'transactions';
+              const allTrxQuery = query(collection(db, colName), where('storeId', '==', storeId));
+              const snap = await getDocs(allTrxQuery);
+
+              let docsToDelete = snap.docs;
+              if (filterTab === 'completed') {
+                docsToDelete = snap.docs.filter(d => d.data().paymentStatus === 'paid');
+              } else if (filterTab === 'debt') {
+                docsToDelete = snap.docs.filter(d => {
+                   const s = d.data().paymentStatus;
+                   const c = d.data().paymentCategory;
+                   return s === 'unpaid' || s === 'partially_paid' || c === 'debt';
+                });
+              } else if (filterTab === 'online') {
+                docsToDelete = snap.docs.filter(d => d.data().orderType === 'online');
+              }
+
+              const deletePromises = docsToDelete.map(document => deleteDoc(doc(db, colName, document.id)));
+              await Promise.all(deletePromises);
+              Vibration.vibrate(15);
+              Alert.alert("Sukses", `${docsToDelete.length} dokumen berhasil dihapus.`);
+            } catch (error) {
+              console.error("Gagal hapus semua transaksi:", error);
+              Alert.alert("Error", "Gagal menghapus transaksi");
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
       {loading ? (
@@ -592,6 +671,52 @@ export default function TransactionsScreen() {
           data={transactions}
           keyExtractor={item => item.id!}
           contentContainerStyle={{ padding: 24 }}
+          ListHeaderComponent={
+            <View>
+              {/* Tab Filters */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row" contentContainerStyle={{ gap: 8 }}>
+                {[
+                  { id: 'all', label: 'Semua' },
+                  { id: 'completed', label: 'Selesai' },
+                  { id: 'debt', label: 'Piutang' },
+                  { id: 'estimation', label: 'Estimasi' },
+                  { id: 'online', label: 'Online Order' }
+                ].map(tab => {
+                  const isActive = filterTab === tab.id;
+                  return (
+                    <TouchableOpacity 
+                      key={tab.id}
+                      onPress={() => setFilterTab(tab.id as any)}
+                      activeOpacity={0.8}
+                      className={`px-5 py-2.5 rounded-full border`}
+                      style={{
+                        backgroundColor: isActive ? colors.text : 'transparent',
+                        borderColor: isActive ? colors.text : colors.border
+                      }}
+                    >
+                      <Text className="text-xs font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.textMuted }}>{tab.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {transactions.length > 0 ? (
+                <View className="flex-row justify-end mb-4">
+                  <TouchableOpacity 
+                    onPress={handleDeleteAllTrx}
+                    activeOpacity={0.8}
+                    className="flex-row items-center gap-2 px-5 py-2.5 rounded-full border"
+                    style={{ backgroundColor: 'rgba(244,63,94,0.08)', borderColor: 'rgba(244,63,94,0.15)' }}
+                  >
+                    <Trash2 color="#f43f5e" size={14} />
+                    <Text className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                      {filterTab === 'all' ? 'Hapus Semua' : filterTab === 'completed' ? 'Hapus Lunas' : filterTab === 'debt' ? 'Hapus Piutang' : filterTab === 'online' ? 'Hapus Online' : 'Hapus Estimasi'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -602,10 +727,18 @@ export default function TransactionsScreen() {
           }
           renderItem={({ item }) => (
             <TouchableOpacity 
-              onPress={() => setSelectedTrx(item)}
+              onPress={() => navigation.navigate('TransactionDetail', { trx: item, storeSettings })}
               activeOpacity={0.7}
-              className="flex-row items-center mb-4 p-5 rounded-[32px] border"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              className="flex-row items-center mb-4 p-5 rounded-[28px] border"
+              style={{ 
+                backgroundColor: colors.surface, 
+                borderColor: colors.border,
+                shadowColor: colors.text,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.03,
+                shadowRadius: 12,
+                elevation: 2
+              }}
             >
               <View 
                  className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
@@ -616,7 +749,7 @@ export default function TransactionsScreen() {
               
               <View className="flex-1">
                 <View className="flex-row justify-between items-start">
-                   <Text className="text-lg font-black" style={{ color: colors.text }}>
+                   <Text className="text-[17px] font-black" style={{ color: colors.text }}>
                      Rp {item.total.toLocaleString('id-ID')}
                    </Text>
                    {renderStatusBadge(item)}
@@ -643,646 +776,6 @@ export default function TransactionsScreen() {
           }
         />
       )}
-
-      {/* Detail Modal */}
-      <Modal visible={selectedTrx !== null} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View 
-            className="h-[85%] rounded-t-[40px] p-8"
-            style={{ backgroundColor: colors.bg }}
-          >
-            <View className="flex-row items-center justify-between mb-8">
-              <Text className="text-2xl font-black" style={{ color: colors.text }}>Detail Transaksi</Text>
-              <View className="flex-row items-center gap-4">
-                {selectedTrx?.id && (
-                  <TouchableOpacity onPress={() => handleDeleteTrx(selectedTrx.id!)}>
-                    <Trash2 color="#ef4444" size={24} />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={() => setSelectedTrx(null)}>
-                  <X color={colors.text} size={24} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {selectedTrx && (
-              <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                {/* Section Info */}
-                <View 
-                   className="p-6 rounded-3xl border mb-6 space-y-4"
-                   style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                >
-                   <View className="flex-row items-center gap-3">
-                      <UserCircle color={colors.accent} size={20} />
-                      <View>
-                        <Text className="text-[10px] font-bold text-app-text-muted uppercase">Pelanggan</Text>
-                        <Text className="font-black" style={{ color: colors.text }}>{selectedTrx.customerName || 'Umum'}</Text>
-                      </View>
-                   </View>
-                   <View className="flex-row items-center gap-3">
-                      <User color={colors.accent} size={20} />
-                      <View>
-                        <Text className="text-[10px] font-bold text-app-text-muted uppercase">Operator Kasir</Text>
-                        <Text className="font-black" style={{ color: colors.text }}>{(selectedTrx.cashierName || 'Online (Sistem)').split('@')[0]}</Text>
-                      </View>
-                   </View>
-                   <View className="flex-row items-center gap-3">
-                      <Calendar color={colors.accent} size={20} />
-                      <View>
-                        <Text className="text-[10px] font-bold text-app-text-muted uppercase">Waktu Transaksi</Text>
-                        <Text className="font-black" style={{ color: colors.text }}>{formatDate(selectedTrx.timestamp)}</Text>
-                      </View>
-                   </View>
-
-                   {selectedTrx.dueDate ? (
-                     <View className="flex-row items-center gap-3 pt-3 border-t" style={{ borderColor: colors.border }}>
-                        <Calendar color="#f43f5e" size={20} />
-                        <View>
-                          <Text className="text-[10px] font-black text-rose-500 uppercase">Jatuh Tempo</Text>
-                          <Text className="font-black text-rose-500">
-                            {new Date(selectedTrx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                          </Text>
-                        </View>
-                     </View>
-                   ) : null}
-                </View>
-
-                {/* Daftar Belanja */}
-                <Text className="text-[10px] font-black uppercase tracking-[2px] mb-4 ml-2" style={{ color: colors.textMuted }}>
-                  Daftar Belanja
-                </Text>
-
-                <View className="space-y-4 mb-6">
-                  {selectedTrx.items?.map((item, idx) => (
-                    <View key={idx} className="flex-row justify-between items-start mb-3 pb-3 border-b" style={{ borderColor: colors.border + '20' }}>
-                      <View className="flex-1 pr-4">
-                        <Text className="font-bold text-sm" style={{ color: colors.text }}>{item.productName}</Text>
-                        <Text className="text-[11px] mt-0.5" style={{ color: colors.textMuted }}>{item.qty} x Rp {item.price.toLocaleString('id-ID')}</Text>
-                        
-                        {item.note ? (
-                          <View className="bg-amber-500/10 px-2.5 py-1 rounded mt-1.5 self-start">
-                            <Text className="text-[10px] font-bold italic" style={{ color: '#f59e0b' }}>Catatan: {item.note}</Text>
-                          </View>
-                        ) : null}
-
-                        {item.selectedExtras && item.selectedExtras.length > 0 ? (
-                          <View className="flex-row flex-wrap gap-1 mt-1.5">
-                            {item.selectedExtras.map((ext: any, eIdx: number) => (
-                              <View key={eIdx} className="px-2 py-0.5 bg-slate-500/5 border border-slate-500/10 rounded-md">
-                                <Text className="text-[8px] font-bold" style={{ color: colors.textMuted }}>
-                                  + {ext.optionName}
-                                </Text>
-                              </View>
-                            ))}
-                          </View>
-                        ) : null}
-
-                        {item.warrantyExpiry ? (
-                          <View className="mt-2 flex-row items-center gap-1.5 flex-wrap">
-                            <ShieldCheck size={14} color={new Date(item.warrantyExpiry) > new Date() ? "#10b981" : "#f43f5e"} />
-                            <Text className={`text-[10px] font-black uppercase tracking-wider ${new Date(item.warrantyExpiry) > new Date() ? "text-emerald-500" : "text-rose-500"}`}>
-                              Garansi {new Date(item.warrantyExpiry) > new Date() ? "Aktif" : "Habis"}
-                            </Text>
-                            <TouchableOpacity 
-                              onPress={() => handleClaimWarranty(item)}
-                              activeOpacity={0.6}
-                              className="px-2 py-0.5 bg-slate-500/5 rounded border border-slate-500/10"
-                            >
-                              <Text className="text-[8px] font-black" style={{ color: colors.textMuted }}>CLAIM</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ) : null}
-                      </View>
-                      
-                      <Text className="font-black text-sm" style={{ color: colors.text }}>
-                         Rp {(item.subtotal || (item.price * item.qty)).toLocaleString('id-ID')}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Ledger Histori Pembayaran (Jika Ada) */}
-                {selectedTrx.paymentHistory && selectedTrx.paymentHistory.length > 0 ? (
-                  <View className="mt-4 mb-6">
-                    <Text className="text-[10px] font-black uppercase tracking-[2px] mb-4 ml-2" style={{ color: colors.textMuted }}>
-                      Histori Pembayaran
-                    </Text>
-                    
-                    {selectedTrx.paymentHistory.map((hist, idx) => (
-                      <View 
-                        key={idx} 
-                        className="flex-row justify-between items-center p-3 rounded-2xl border mb-3"
-                        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                      >
-                        <View className="flex-1">
-                          <Text className="text-xs font-black" style={{ color: colors.text }}>{hist.note}</Text>
-                          <Text className="text-[9px] uppercase mt-1 font-bold" style={{ color: colors.textMuted }}>
-                            {new Date(hist.date).toLocaleString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </Text>
-                        </View>
-                        <Text className="text-sm font-black text-emerald-500">
-                          Rp {hist.amount.toLocaleString('id-ID')}
-                        </Text>
-                      </View>
-                    ))}
-                    
-                    <View className="p-4 rounded-2xl border mt-2 space-y-2" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                      <View className="flex-row justify-between items-center">
-                        <Text className="text-[10px] font-bold uppercase tracking-[1px]" style={{ color: colors.textMuted }}>Telah Terbayar</Text>
-                        <Text className="text-sm font-black text-emerald-500">
-                          Rp {(selectedTrx.paidAmount || 0).toLocaleString('id-ID')}
-                        </Text>
-                      </View>
-                      
-                      {selectedTrx.paymentStatus !== 'paid' && (
-                        <View className="flex-row justify-between items-center pt-2 border-t" style={{ borderColor: colors.border }}>
-                          <Text className="text-[10px] font-bold uppercase tracking-[1px]" style={{ color: colors.textMuted }}>Sisa Piutang</Text>
-                          <Text className="text-base font-black text-rose-500">
-                            Rp {Math.max(0, selectedTrx.total - (selectedTrx.paidAmount || 0)).toLocaleString('id-ID')}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                ) : null}
-
-                {/* Section Kalkulasi & Pajak */}
-                <View className="border-t mt-4 pt-6 space-y-2" style={{ borderColor: colors.border }}>
-                   <View className="flex-row justify-between text-xs font-bold uppercase tracking-[1px]">
-                     <Text style={{ color: colors.textMuted }}>Subtotal</Text>
-                     <Text style={{ color: colors.text }}>Rp {((selectedTrx.total || 0) - (selectedTrx.tax || 0)).toLocaleString('id-ID')}</Text>
-                   </View>
-                   
-                   {selectedTrx.tax ? (
-                     <View className="flex-row justify-between text-xs font-bold uppercase tracking-[1px]">
-                       <Text style={{ color: colors.textMuted }}>Pajak PPN</Text>
-                       <Text style={{ color: colors.text }}>Rp {selectedTrx.tax.toLocaleString('id-ID')}</Text>
-                     </View>
-                   ) : null}
-                   
-                   <View className="flex-row justify-between items-center pt-4 border-t mt-2" style={{ borderColor: colors.border }}>
-                      <Text className="text-xl font-bold" style={{ color: colors.text }}>Total Akhir</Text>
-                      <Text className="text-3xl font-black" style={{ color: colors.accent }}>
-                         Rp {selectedTrx.total.toLocaleString('id-ID')}
-                      </Text>
-                   </View>
-
-                   {selectedTrx.paymentMethod?.toLowerCase() === 'cash' && selectedTrx.cashReceived !== undefined ? (
-                     <View className="pt-3 space-y-2 border-t mt-2" style={{ borderColor: colors.border }}>
-                       <View className="flex-row justify-between text-xs font-bold uppercase tracking-[1px]">
-                         <Text style={{ color: colors.textMuted }}>Tunai</Text>
-                         <Text style={{ color: colors.text }}>Rp {selectedTrx.cashReceived.toLocaleString('id-ID')}</Text>
-                       </View>
-                       <View className="flex-row justify-between text-xs font-black uppercase tracking-[1px]">
-                         <Text style={{ color: '#10b981' }}>Kembalian</Text>
-                         <Text style={{ color: '#10b981' }}>Rp {selectedTrx.change?.toLocaleString('id-ID')}</Text>
-                       </View>
-                     </View>
-                   ) : null}
-                </View>
-
-                {/* Section Action Buttons Grid */}
-                <View className="mt-8 pt-6 border-t gap-3" style={{ borderColor: colors.border }}>
-                  <View className="flex-row gap-2">
-                    <TouchableOpacity 
-                      onPress={() => Linking.openURL(`https://ikasir.my.id/invoice?id=${selectedTrx.id}`)}
-                      activeOpacity={0.7}
-                      className="flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl border"
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                    >
-                      <Printer size={16} color="#10b981" /> 
-                      <Text className="text-[11px] font-black uppercase" style={{ color: colors.text }}>INVOICE</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      onPress={() => Linking.openURL(`https://ikasir.my.id/delivery?id=${selectedTrx.id}`)}
-                      activeOpacity={0.7}
-                      className="flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl border"
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                    >
-                      <Truck size={16} color="#3b82f6" /> 
-                      <Text className="text-[11px] font-black uppercase" style={{ color: colors.text }}>SURAT JALAN</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View className="flex-row gap-2">
-                    <TouchableOpacity 
-                      onPress={() => handleShareSignatureLink('trx', selectedTrx.id!)}
-                      activeOpacity={0.7}
-                      className="flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl border"
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                    >
-                      <Share2 size={16} color="#f59e0b" /> 
-                      <Text className="text-[11px] font-black uppercase" style={{ color: colors.text }}>BAGIKAN TTD</Text>
-                    </TouchableOpacity>
-
-                    {selectedTrx.paymentStatus !== 'paid' && (
-                      <TouchableOpacity 
-                        onPress={() => handleSendWA(selectedTrx)}
-                        activeOpacity={0.7}
-                        className="flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500"
-                      >
-                        <MessageCircle size={16} color="#ffffff" /> 
-                        <Text className="text-[11px] font-black uppercase text-white">INGATKAN WA</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  <TouchableOpacity 
-                    onPress={() => setViewingReceipt(selectedTrx)}
-                    activeOpacity={0.7}
-                    className="w-full flex-row items-center justify-center gap-2 py-4 rounded-2xl"
-                    style={{ backgroundColor: colors.accent }}
-                  >
-                    <Printer size={18} color="#000000" /> 
-                    <Text className="text-xs font-black uppercase text-black">
-                      {selectedTrx.paymentStatus === 'paid' ? 'CETAK STRUK THERMAL' : 'CETAK STRUK'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal Struk Digital */}
-      <Modal visible={viewingReceipt !== null} animationType="fade" transparent>
-        <View className="flex-1 bg-black/70 justify-center items-center">
-          <View 
-            className="rounded-[32px] overflow-hidden flex-col"
-            style={{ 
-              backgroundColor: '#ffffff',
-              width: screenWidth * 0.9,
-              height: screenHeight * 0.82
-            }}
-          >
-            {/* Header Modal */}
-            <View className="p-6 border-b border-slate-100 flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2">
-                <View className="p-2 bg-emerald-500/10 rounded-xl">
-                  <History color="#10b981" size={18} />
-                </View>
-                <Text className="text-lg font-black text-slate-900 italic">Struk Digital</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => setViewingReceipt(null)}
-                className="p-2 bg-slate-50 rounded-xl"
-              >
-                <X color="#94a3b8" size={20} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Konten Struk (Paper) */}
-            <ScrollView className="flex-1 px-5 py-6" contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-              <View className="items-center mb-6">
-                {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt !== false ? (
-                  <Image 
-                    source={{ uri: storeSettings.logoUrl }} 
-                    className="w-12 h-12 mb-2 opacity-60" 
-                    resizeMode="contain" 
-                  />
-                ) : null}
-                <Text className="text-sm font-black uppercase text-slate-900 text-center">
-                  {storeSettings?.storeName || 'Toko Kami'}
-                </Text>
-                {storeSettings?.showReceiptAddress !== false && storeSettings?.address ? (
-                  <Text className="text-[10px] font-mono text-slate-500 text-center mt-1">
-                    {storeSettings.address}
-                  </Text>
-                ) : null}
-                {storeSettings?.showReceiptPhone !== false && storeSettings?.phone ? (
-                  <Text className="text-[10px] font-mono text-slate-500 text-center mt-0.5">
-                    Telp: {storeSettings.phone}
-                  </Text>
-                ) : null}
-                
-                <Text className="text-slate-300 font-mono text-[10px] mt-4 w-full text-center" numberOfLines={1}>
-                  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                </Text>
-              </View>
-
-              {/* Detail Transaksi */}
-              <View className="space-y-1 font-mono text-[10px] mb-6">
-                <View className="flex-row justify-between">
-                  <Text className="text-[10px] font-mono text-slate-500">Nomor TRX</Text>
-                  <Text className="text-[10px] font-mono font-bold text-slate-900">
-                    #{(viewingReceipt?.id || "").toUpperCase()}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-[10px] font-mono text-slate-500">Tanggal</Text>
-                  <Text className="text-[10px] font-mono font-bold text-slate-900">
-                    {formatDate(viewingReceipt?.timestamp)}
-                  </Text>
-                </View>
-                {storeSettings?.showReceiptCustomer !== false && (
-                  <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-mono text-slate-500">Pelanggan</Text>
-                    <Text className="text-[10px] font-mono font-bold text-slate-900">
-                      {viewingReceipt?.customerName || 'Umum'}
-                    </Text>
-                  </View>
-                )}
-                {storeSettings?.showReceiptCashier !== false && (
-                  <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-mono text-slate-500">Kasir</Text>
-                    <Text className="text-[10px] font-mono font-bold text-slate-900">
-                      {(viewingReceipt?.cashierName || 'Online').split('@')[0]}
-                    </Text>
-                  </View>
-                )}
-                
-                <Text className="text-slate-300 font-mono text-[10px] mt-4 w-full text-center" numberOfLines={1}>
-                  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                </Text>
-              </View>
-
-              {/* List Item */}
-              <View className="space-y-4 mb-6">
-                {viewingReceipt?.items?.map((item: any, idx: number) => (
-                  <View key={idx} className="space-y-1">
-                    <View className="flex-row justify-between">
-                      <Text className="flex-1 mr-4 font-mono font-bold text-slate-900 uppercase text-[10px]">
-                        {item.productName || item.name}
-                      </Text>
-                      <Text className="font-mono font-bold text-slate-900 text-[10px]">
-                        Rp {(item.subtotal || (item.price * item.qty) || 0).toLocaleString('id-ID')}
-                      </Text>
-                    </View>
-                    
-                    <View className="flex-row justify-between">
-                      <Text className="font-mono text-slate-500 text-[10px]">
-                        {item.qty} x {(item.price || 0).toLocaleString('id-ID')}
-                      </Text>
-                      
-                      <View className="items-end">
-                        {item.note ? (
-                          <Text className="font-mono text-[9px] text-slate-500 italic">
-                            ({item.note})
-                          </Text>
-                        ) : null}
-                        {item.warrantyExpiry ? (
-                          <Text className="font-mono text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1">
-                            🛡️ Garansi s/d: {new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {
-                              day: '2-digit', month: '2-digit', year: '2-digit'
-                            })}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </View>
-
-                    {item.selectedExtras && item.selectedExtras.length > 0 ? (
-                      <View className="pl-2 border-l border-slate-100 mt-1 space-y-0.5">
-                        {item.selectedExtras.map((ex: any, ei: number) => (
-                          <View key={ei} className="flex-row justify-between">
-                            <Text className="font-mono text-[9px] text-slate-400">+ {ex.optionName}</Text>
-                            <Text className="font-mono text-[9px] text-slate-400">Rp {(ex.price || 0).toLocaleString('id-ID')}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                  </View>
-                ))}
-                
-                <Text className="text-slate-300 font-mono text-[10px] mt-4 w-full text-center" numberOfLines={1}>
-                  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-                </Text>
-              </View>
-
-              {/* Kalkulasi Akhir */}
-              <View className="space-y-2 mb-6">
-                {storeSettings?.showReceiptSubtotal !== false && (
-                  <View className="flex-row justify-between">
-                    <Text className="font-mono text-slate-500 text-[10px]">SUBTOTAL</Text>
-                    <Text className="font-mono font-bold text-slate-900 text-[10px]">
-                      Rp {(viewingReceipt?.subtotal || (viewingReceipt?.total || 0) - (viewingReceipt?.tax || 0)).toLocaleString('id-ID')}
-                    </Text>
-                  </View>
-                )}
-                {(viewingReceipt?.tax ?? 0) > 0 && (
-                  <View className="flex-row justify-between">
-                    <Text className="font-mono text-slate-500 text-[10px]">PAJAK (PPN)</Text>
-                    <Text className="font-mono font-bold text-slate-900 text-[10px]">
-                      Rp {(viewingReceipt?.tax || 0).toLocaleString('id-ID')}
-                    </Text>
-                  </View>
-                )}
-                
-                <View className="flex-row justify-between pt-2 border-t border-slate-200">
-                  <Text className="font-mono font-black text-slate-900 text-xs">TOTAL</Text>
-                  <Text className="font-mono font-black text-slate-900 text-xs">
-                    Rp {(viewingReceipt?.total || 0).toLocaleString('id-ID')}
-                  </Text>
-                </View>
-                
-                {viewingReceipt?.paymentStatus === 'paid' && (
-                  <>
-                    <View className="flex-row justify-between">
-                      <Text className="font-mono text-slate-500 text-[10px]">
-                        {viewingReceipt?.cashReceived ? 'UANG DITERIMA' : 'DIBAYAR'}
-                      </Text>
-                      <Text className="font-mono font-bold text-emerald-600 text-[10px]">
-                        Rp {(viewingReceipt?.cashReceived || viewingReceipt?.total || 0).toLocaleString('id-ID')}
-                      </Text>
-                    </View>
-                    {(viewingReceipt?.change ?? 0) > 0 && (
-                      <View className="flex-row justify-between">
-                        <Text className="font-mono text-slate-500 text-[10px]">KEMBALIAN</Text>
-                        <Text className="font-mono font-bold text-slate-900 text-[10px]">
-                          Rp {(viewingReceipt?.change || 0).toLocaleString('id-ID')}
-                        </Text>
-                      </View>
-                    )}
-                  </>
-                )}
-              </View>
-
-              {/* Footer Pesan */}
-              <View className="items-center pt-4">
-                <Text className="font-bold font-mono text-slate-900 text-[10px] text-center">
-                  {storeSettings?.receiptMessage || 'Terima Kasih Atas Kunjungan Anda'}
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* Button Aksi */}
-            <View className="p-6 bg-slate-50 flex-row gap-2 border-t border-slate-200">
-              <TouchableOpacity 
-                onPress={() => setViewingReceipt(null)}
-                className="flex-1 py-4 bg-slate-200 rounded-2xl items-center justify-center"
-              >
-                <Text className="font-black text-slate-600 text-xs uppercase">Tutup</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                onPress={async () => {
-                  if (viewingReceipt) {
-                    await handlePrintAction(viewingReceipt);
-                  }
-                }}
-                className="flex-[2] py-4 bg-slate-900 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg shadow-slate-900/10"
-              >
-                <Printer size={16} color="#ffffff" />
-                <Text className="font-black text-white text-xs uppercase">Cetak ke Printer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal Bluetooth Printer Manager */}
-      <Modal visible={isBluetoothModalVisible} animationType="slide" transparent>
-        <View className="flex-1 bg-black/70 justify-center items-center">
-          <View 
-            className="rounded-[32px] overflow-hidden flex-col"
-            style={{ 
-              backgroundColor: '#ffffff',
-              width: screenWidth * 0.9,
-              height: screenHeight * 0.72
-            }}
-          >
-            {/* Header Modal */}
-            <View className="p-6 border-b border-slate-100 flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2">
-                <View className="p-2 bg-blue-500/10 rounded-xl">
-                  <Printer color="#3b82f6" size={18} />
-                </View>
-                <Text className="text-lg font-black text-slate-900">Printer Bluetooth</Text>
-              </View>
-              <TouchableOpacity 
-                onPress={() => setIsBluetoothModalVisible(false)}
-                className="p-2 bg-slate-50 rounded-xl"
-              >
-                <X color="#94a3b8" size={20} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Banner Bluetooth Status */}
-            {!isBluetoothActive && BluetoothManager && (
-              <View className="bg-rose-50 p-4 mx-6 mt-4 rounded-2xl border border-rose-100 flex-row items-center gap-3">
-                <View className="p-2 bg-rose-500/10 rounded-xl">
-                  <X color="#f43f5e" size={16} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-xs font-black text-rose-900">Bluetooth Non-aktif</Text>
-                  <Text className="text-[10px] text-rose-600 mt-0.5">Aktifkan bluetooth untuk mendeteksi printer.</Text>
-                </View>
-                <TouchableOpacity 
-                  onPress={requestEnableBluetooth}
-                  className="px-3 py-1.5 bg-rose-500 rounded-xl"
-                >
-                  <Text className="text-[9px] font-black text-white uppercase">Aktifkan</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* List Perangkat */}
-            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
-              {!isBluetoothActive && BluetoothManager ? (
-                <View className="items-center py-12 opacity-65">
-                  <History color="#94a3b8" size={48} />
-                  <Text className="font-bold text-slate-400 mt-4 text-center text-xs">
-                    Bluetooth dinonaktifkan. Harap aktifkan koneksi bluetooth ponsel Anda.
-                  </Text>
-                </View>
-              ) : isScanning ? (
-                <View className="items-center py-12">
-                  <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
-                  <Text className="text-xs font-bold text-slate-400 uppercase tracking-[2px] animate-pulse">
-                    Memindai Printer...
-                  </Text>
-                </View>
-              ) : (
-                <View className="space-y-4">
-                  {bluetoothDevices.length > 0 ? (
-                    <>
-                      <Text className="text-[10px] font-black text-slate-400 uppercase tracking-[1px] mb-2">
-                        Perangkat Terdeteksi ({bluetoothDevices.length})
-                      </Text>
-                      
-                      {bluetoothDevices.map((device) => {
-                        const isCurrent = activePrinter === device.name;
-                        return (
-                          <TouchableOpacity
-                            key={device.id}
-                            onPress={() => !isCurrent && handleConnectDevice(device)}
-                            disabled={isConnecting}
-                            activeOpacity={0.7}
-                            className={`flex-row items-center p-4 rounded-2xl border mb-3 ${isCurrent ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}
-                          >
-                            <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${isCurrent ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                              <Printer color={isCurrent ? '#ffffff' : '#64748b'} size={18} />
-                            </View>
-                            
-                            <View className="flex-1">
-                              <Text className={`font-black text-xs ${isCurrent ? 'text-blue-900' : 'text-slate-900'}`}>{device.name}</Text>
-                              <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.5px] mt-0.5" numberOfLines={1}>{device.address || device.type}</Text>
-                            </View>
-
-                            <View className="items-end">
-                              {isCurrent ? (
-                                <View className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                  <Text className="text-[8px] font-black text-blue-500 uppercase">Aktif</Text>
-                                </View>
-                              ) : (
-                                <View className="px-2.5 py-1 bg-slate-200/50 border border-slate-200 rounded-lg">
-                                  <Text className="text-[8px] font-black text-slate-500 uppercase">Pilih</Text>
-                                </View>
-                              )}
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <View className="items-center py-12 opacity-65">
-                      <Printer color="#94a3b8" size={48} />
-                      <Text className="font-bold text-slate-400 mt-4 text-center text-xs">
-                        Tidak ada printer bluetooth terdeteksi. Pastikan printer dalam jangkauan dan mode berpasangan.
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {!BluetoothManager && (
-                    <View className="bg-amber-50 p-4 rounded-2xl border border-amber-100 mt-4">
-                      <Text className="text-[9px] font-bold text-amber-800 leading-[14px]">
-                        ℹ️ MODE SIMULATOR: Modul Bluetooth Native tidak terdeteksi pada Expo Go. Jalankan dengan custom dev client atau build APK real untuk memindai perangkat fisik Anda secara langsung.
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Hubungkan Loading state */}
-            {isConnecting && (
-              <View className="absolute inset-0 bg-white/95 justify-center items-center rounded-[32px]">
-                <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
-                <Text className="text-sm font-black text-slate-900">Menghubungkan Perangkat...</Text>
-                <Text className="text-xs text-slate-400 mt-1">Mengamankan koneksi Bluetooth...</Text>
-              </View>
-            )}
-
-            {/* Tindakan Bawah */}
-            <View className="p-6 bg-slate-50 border-t border-slate-200">
-              <TouchableOpacity 
-                onPress={startBluetoothScan}
-                disabled={isScanning || isConnecting}
-                className="w-full py-4 bg-slate-900 rounded-2xl items-center justify-center"
-              >
-                <Text className="font-black text-white text-xs uppercase">Pindai Ulang Perangkat</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
-

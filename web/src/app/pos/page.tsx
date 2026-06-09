@@ -90,7 +90,7 @@ export default function POSPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<{id: string, name: string} | null>(null);
   const [useOrderType, setUseOrderType] = useState(false);
   const [orderType, setOrderType] = useState<'dine-in' | 'takeaway'>('dine-in');
-  const [activeOrders, setActiveOrders] = useState<{id: string, customerName: string, total: number}[]>([]);
+  const [activeOrders, setActiveOrders] = useState<{id: string, customerName: string, total: number, paymentStatus?: string}[]>([]);
   const [selectedOrderToMerge, setSelectedOrderToMerge] = useState<string>('');
 
   const [cashReceived, setCashReceived] = useState<string>('');
@@ -110,7 +110,8 @@ export default function POSPage() {
     showReceiptPhone: true,
     showReceiptCustomer: true,
     showReceiptCashier: true,
-    showReceiptSubtotal: true
+    showReceiptSubtotal: true,
+    qrisUrl: ''
   });
   const [successTrx, setSuccessTrx] = useState<any>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -277,7 +278,7 @@ export default function POSPage() {
     setSelectedOrderToMerge('');
   };
 
-  // Fetch customer suggestions (Debounced)
+  // Fetch customer suggestions (Debounced with local case-insensitive substring search)
   useEffect(() => {
     if (customerQuery.length < 1 || selectedCustomer?.name === customerQuery) {
       setSuggestions([]);
@@ -286,16 +287,17 @@ export default function POSPage() {
 
     const fetchCustomers = async () => {
       try {
-        const q = query(
-          collection(db, 'customers'),
-          where('storeId', '==', storeId),
-          where('name', '>=', customerQuery),
-          where('name', '<=', customerQuery + '\uf8ff'),
-          limit(5)
-        );
-        const querySnapshot = await getDocs(q);
-        const custs = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-        setSuggestions(custs);
+        let list = allCustomers;
+        if (list.length === 0) {
+          const q = query(collection(db, 'customers'), where('storeId', '==', storeId));
+          const snap = await getDocs(q);
+          list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+          setAllCustomers(list);
+        }
+        
+        const qLower = customerQuery.toLowerCase();
+        const filtered = list.filter(c => c.name.toLowerCase().includes(qLower)).slice(0, 5);
+        setSuggestions(filtered.map(c => ({ id: c.id!, name: c.name })));
       } catch (err) {
         console.error("Error searching customers:", err);
       }
@@ -303,7 +305,7 @@ export default function POSPage() {
 
     const debounce = setTimeout(fetchCustomers, 300);
     return () => clearTimeout(debounce);
-  }, [customerQuery, selectedCustomer]);
+  }, [customerQuery, selectedCustomer, allCustomers, storeId]);
 
   // Fetch active orders for merging
   useEffect(() => {
@@ -311,7 +313,7 @@ export default function POSPage() {
       const q = query(
         collection(db, 'transactions'), 
         where('storeId', '==', storeId),
-        where('paymentStatus', '==', 'pending'),
+        where('paymentStatus', 'in', ['pending', 'unpaid', 'partially_paid']),
         orderBy('timestamp', 'desc'),
         limit(20)
       );
@@ -319,7 +321,8 @@ export default function POSPage() {
         const orders = snapshot.docs.map(doc => ({
           id: doc.id,
           customerName: doc.data().customerName || 'Tanpa Nama',
-          total: doc.data().total
+          total: doc.data().total,
+          paymentStatus: doc.data().paymentStatus
         }));
         setActiveOrders(orders);
       });
@@ -428,7 +431,8 @@ export default function POSPage() {
               showReceiptPhone: data.showReceiptPhone !== false,
               showReceiptCustomer: data.showReceiptCustomer !== false,
               showReceiptCashier: data.showReceiptCashier !== false,
-              showReceiptSubtotal: data.showReceiptSubtotal !== false
+              showReceiptSubtotal: data.showReceiptSubtotal !== false,
+              qrisUrl: data.qrisUrl || ''
             });
         }
       } catch (err) {
@@ -756,7 +760,7 @@ export default function POSPage() {
       const localNow = new Date();
       const transactionData: any = {
         cashierId: user?.uid,
-        cashierName: userName || user?.displayName || user?.email || 'Admin',
+        cashierName: userName || user?.displayName || 'Admin',
         items: cart.map(item => {
           let warrantyExpiry = null;
           if (item.warrantyDuration && item.warrantyDuration > 0) {
@@ -816,7 +820,7 @@ export default function POSPage() {
             id: Math.random().toString(36).substring(2, 9),
             date: localNow.toISOString(),
             amount: dp,
-            cashierName: userName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Kasir'),
+            cashierName: userName || user?.displayName || 'Kasir',
             note: 'Pembayaran Awal (DP)'
           }];
         } else {
@@ -886,13 +890,22 @@ export default function POSPage() {
               if (orderSnap.exists()) {
                 const existingData = orderSnap.data();
                 const mergedItems = [...existingData.items, ...transactionData.items];
-                t.update(orderRef, {
+                const newTotal = existingData.total + total;
+                const updateData: any = {
                   items: mergedItems,
-                  total: existingData.total + total,
+                  total: newTotal,
                   subtotal: (existingData.subtotal || 0) + subtotal,
                   tax: (existingData.tax || 0) + tax,
                   lastUpdate: serverTimestamp()
-                });
+                };
+
+                if (existingData.paymentCategory === 'debt') {
+                   const dp = existingData.paidAmount || 0;
+                   updateData.debtAmount = Math.max(0, newTotal - dp);
+                   updateData.paymentStatus = (newTotal - dp) > 0 ? (dp > 0 ? 'partially_paid' : 'unpaid') : 'paid';
+                }
+
+                t.update(orderRef, updateData);
                 finalDocId = selectedOrderToMerge!;
               }
             } else {
@@ -1007,7 +1020,7 @@ export default function POSPage() {
       const estimationData: any = {
         storeId: storeId,
         cashierId: user?.uid,
-        cashierName: userName || user?.displayName || user?.email?.split('@')[0] || 'Kasir',
+        cashierName: userName || user?.displayName || 'Kasir',
         customerName: customerQuery.trim() || 'Tanpa Nama',
         customerId: selectedCustomer?.id || null,
         items: cart.map(item => ({
@@ -1163,7 +1176,7 @@ export default function POSPage() {
       
       const sessionData = {
         cashierId: user?.uid,
-        cashierName: userName || user?.displayName || user?.email || 'Kasir',
+        cashierName: userName || user?.displayName || 'Kasir',
         timestamp: serverTimestamp(),
         systemCalculatedCash: systemCash,
         actualCash: Number(actualCash) || 0,
@@ -1693,7 +1706,7 @@ export default function POSPage() {
                           onClick={() => setSelectedOrderToMerge(ord.id)}
                           className={`w-full p-2 text-left text-[10px] rounded-lg border flex justify-between items-center transition-all ${selectedOrderToMerge === ord.id ? 'bg-accent/10 border-accent text-accent' : 'bg-background border-app-border text-app-text-muted'}`}
                         >
-                          <span className="font-bold">{ord.customerName}</span>
+                          <span className="font-bold">{ord.customerName} {ord.paymentStatus !== 'pending' && <span className="text-rose-500 font-black tracking-widest">[PIUTANG]</span>}</span>
                           <span className="font-black">Rp {ord.total.toLocaleString('id-ID')}</span>
                         </button>
                       ))
@@ -1980,6 +1993,38 @@ export default function POSPage() {
                     </div>
                   )}
                </div>
+
+               {/* QRIS Image Display */}
+               {paymentCategory === 'direct' && paymentMethod === 'qris' && (
+                 <div className="bg-surface border border-app-border rounded-2xl p-4 flex flex-col items-center justify-center space-y-3">
+                   <h3 className="font-black text-foreground text-sm uppercase tracking-widest text-center">Scan QRIS untuk Membayar</h3>
+                   {storeSettings.qrisUrl ? (
+                     <img src={storeSettings.qrisUrl} alt="QRIS" className="w-48 h-48 object-contain rounded-xl bg-white p-2 border border-app-border/50" />
+                   ) : (
+                     <div className="w-48 h-48 flex items-center justify-center bg-background border-2 border-dashed border-app-border rounded-xl">
+                       <p className="text-xs text-app-text-muted text-center px-4 font-bold">Foto QRIS belum diatur di Pengaturan Toko.</p>
+                     </div>
+                   )}
+                   <p className="text-[10px] text-app-text-muted italic text-center">Arahkan pelanggan untuk scan kode ini.</p>
+                 </div>
+               )}
+
+               {/* Bank Transfer Info Display */}
+               {paymentCategory === 'direct' && paymentMethod === 'transfer' && (
+                 <div className="bg-surface border border-app-border rounded-2xl p-4 flex flex-col items-center justify-center space-y-3">
+                   <h3 className="font-black text-foreground text-sm uppercase tracking-widest text-center">Info Rekening Transfer</h3>
+                   {storeSettings.bankInfo ? (
+                     <div className="w-full bg-background border border-app-border rounded-xl p-4">
+                       <p className="text-sm font-black text-foreground whitespace-pre-line text-center">{storeSettings.bankInfo}</p>
+                     </div>
+                   ) : (
+                     <div className="w-full flex items-center justify-center bg-background border-2 border-dashed border-app-border rounded-xl p-4">
+                       <p className="text-xs text-app-text-muted text-center font-bold">Info Bank belum diatur di Pengaturan Toko.</p>
+                     </div>
+                   )}
+                   <p className="text-[10px] text-app-text-muted italic text-center">Pastikan transfer sesuai nominal transaksi.</p>
+                 </div>
+               )}
 
                {/* Info Pelanggan & Tipe */}
                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
@@ -2648,7 +2693,7 @@ export default function POSPage() {
                                     onClick={() => setSelectedOrderToMerge(ord.id)}
                                     className={`flex-shrink-0 p-2 px-3 rounded-xl border text-[9px] text-left transition-all ${selectedOrderToMerge === ord.id ? 'bg-accent border-accent text-foreground' : 'bg-background border-app-border text-app-text-muted'}`}
                                 >
-                                    <div className="font-black">{ord.customerName}</div>
+                                    <div className="font-black">{ord.customerName} {ord.paymentStatus !== 'pending' && <span className="text-rose-500 font-black tracking-widest">[PIUTANG]</span>}</div>
                                     <div className="opacity-70">Rp {ord.total.toLocaleString('id-ID')}</div>
                                 </button>
                               ))}

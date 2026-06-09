@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
@@ -34,9 +34,9 @@ import {
   X,
   ArrowRight,
   LogOut,
-  Mail
+  Mail,
+  Receipt
 } from 'lucide-react';
-import { getDocs, writeBatch } from 'firebase/firestore';
 import { handleExportJSON, handleImportJSON } from '@/lib/backupUtils';
 
 export default function SuperAdminPage() {
@@ -48,7 +48,7 @@ export default function SuperAdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions'>('users');
   const [stores, setStores] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -62,7 +62,7 @@ export default function SuperAdminPage() {
   const [migratingUser, setMigratingUser] = useState<any>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [migrationMode, setMigrationMode] = useState<'standard' | 'mass'>('standard');
-
+  const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
   const triggerBackup = async (storeId: string) => {
     if (!confirm(storeId === 'GLOBAL' ? 'Mulai pencadangan semua data toko?' : 'Mulai pencadangan untuk toko ini?')) return;
     setIsBackingUp(storeId);
@@ -130,9 +130,17 @@ export default function SuperAdminPage() {
       setStores(str);
     });
 
+    const qSubscriptions = query(collection(db, 'subscription_requests'));
+    const unsubscribeSubscriptions = onSnapshot(qSubscriptions, (snapshot) => {
+      const subs: any[] = [];
+      snapshot.forEach((d) => subs.push({ id: d.id, ...d.data() }));
+      setSubscriptionRequests(subs);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeStores();
+      unsubscribeSubscriptions();
     };
   }, []);
 
@@ -213,7 +221,8 @@ export default function SuperAdminPage() {
         isSubscribed: editingUser.isSubscribed ?? false,
         validUntil: editingUser.validUntil || '',
         name: editingUser.name,
-        storeId: editingUser.storeId || 'default-store'
+        storeId: editingUser.storeId || 'default-store',
+        createdAt: editingUser.createdAt || new Date().toISOString()
       });
       alert('Data pengguna berhasil diperbarui!');
       setEditingUser(null);
@@ -285,6 +294,42 @@ export default function SuperAdminPage() {
     } catch (err: any) {
       console.error(err);
       alert('Gagal memperbarui detail toko: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVerifySubscription = async (req: any) => {
+    if (!confirm('Validasi pembayaran ini dan tambahkan masa aktif?')) return;
+    setIsSaving(true);
+    try {
+      const match = req.packageId.match(/(\d+)m/);
+      const months = match ? parseInt(match[1]) : 1;
+      
+      const newValidUntil = new Date();
+      newValidUntil.setDate(newValidUntil.getDate() + (months * 30));
+
+      const batch = writeBatch(db);
+      
+      batch.update(doc(db, 'subscription_requests', req.id), {
+        status: 'approved',
+        approvedAt: new Date().toISOString()
+      });
+
+      const qUsers = query(collection(db, 'users'), where('storeId', '==', req.storeId));
+      const userSnaps = await getDocs(qUsers);
+      userSnaps.forEach((userDoc) => {
+        batch.update(userDoc.ref, {
+          validUntil: newValidUntil.toISOString(),
+          isSubscribed: true
+        });
+      });
+
+      await batch.commit();
+      alert(`Berhasil memperpanjang masa aktif toko selama ${months} bulan.`);
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal memverifikasi langganan: ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -557,6 +602,61 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleDeleteStorePermanently = async (storeId: string) => {
+    if (confirm('⚠️ PERINGATAN KERAS ⚠️\n\nAnda yakin ingin menghapus toko ini secara PERMANEN? Semua data (Produk, Transaksi, Pelanggan, Karyawan) yang terkait akan ikut hangus dan tidak dapat dikembalikan!')) {
+      if (confirm('Konfirmasi Terakhir: Apakah Anda benar-benar yakin? Tindakan ini TIDAK BISA dibatalkan.')) {
+        setIsSaving(true);
+        try {
+          await deleteDoc(doc(db, 'stores', storeId));
+          await deleteDoc(doc(db, 'settings', `store_${storeId}`));
+          
+          const collectionsToDelete = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras', 'estimations', 'subscription_requests'];
+          let totalDeleted = 0;
+          for (const collName of collectionsToDelete) {
+            const q = query(collection(db, collName), where('storeId', '==', storeId));
+            const snap = await getDocs(q);
+            let batch = writeBatch(db);
+            let count = 0;
+            for (const docSnap of snap.docs) {
+              batch.delete(docSnap.ref);
+              count++;
+              totalDeleted++;
+              if (count === 400) {
+                await batch.commit();
+                batch = writeBatch(db);
+                count = 0;
+              }
+            }
+            if (count > 0) {
+              await batch.commit();
+            }
+          }
+          alert(`Toko beserta ${totalDeleted} data terkait berhasil dihapus secara permanen.`);
+        } catch (error: any) {
+          console.error(error);
+          alert('Terjadi kesalahan saat menghapus data toko: ' + error.message);
+        } finally {
+          setIsSaving(false);
+        }
+      }
+    }
+  };
+
+  const handleDeleteUserPermanently = async (userId: string, email: string) => {
+    if (confirm(`⚠️ PERINGATAN KERAS ⚠️\n\nAnda yakin ingin menghapus akses User "${email}" secara PERMANEN dari database utama?`)) {
+      setIsSaving(true);
+      try {
+        await deleteDoc(doc(db, 'users', userId));
+        alert('User berhasil dihapus secara permanen dari Firestore.');
+      } catch (error: any) {
+        console.error(error);
+        alert('Gagal menghapus user: ' + error.message);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
   const filteredUsers = users.filter(u => 
     u.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -675,6 +775,17 @@ export default function SuperAdminPage() {
              >
                 <Database size={16} /> INFRASTRUKTUR
              </button>
+             <button 
+               onClick={() => setActiveTab('subscriptions')}
+               className={`relative flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl font-black text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 ${activeTab === 'subscriptions' ? 'bg-accent text-foreground shadow-lg' : 'text-app-text-muted hover:text-foreground'}`}
+             >
+                <Receipt size={16} /> LANGGANAN
+                {subscriptionRequests.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full flex items-center justify-center text-[9px] text-white animate-bounce shadow-lg shadow-rose-500/50">
+                    {subscriptionRequests.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+             </button>
           </div>
 
           {activeTab === 'stores' && (
@@ -792,6 +903,13 @@ export default function SuperAdminPage() {
                                  >
                                     <UserCog size={18} />
                                  </button>
+                                 <button 
+                                   onClick={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
+                                   title="Hapus Permanen"
+                                   className="p-3 bg-surface hover:bg-rose-500 hover:text-white text-rose-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
+                                 >
+                                    <Trash2 size={18} />
+                                 </button>
                               </div>
                            </td>
                         </tr>
@@ -834,6 +952,12 @@ export default function SuperAdminPage() {
                              className="p-3 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90"
                            >
                               <UserCog size={18} />
+                           </button>
+                           <button 
+                             onClick={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
+                             className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl active:scale-90"
+                           >
+                              <Trash2 size={18} />
                            </button>
                         </div>
                      </div>
@@ -941,6 +1065,13 @@ export default function SuperAdminPage() {
                                >
                                   <Power size={18} />
                                </button>
+                               <button 
+                                 onClick={() => handleDeleteStorePermanently(s.id)}
+                                 className="p-3 bg-surface hover:bg-rose-500 hover:text-white text-rose-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
+                                 title="Hapus Permanen Toko"
+                               >
+                                  <Trash2 size={18} />
+                               </button>
                              </div>
                           </td>
                       </tr>
@@ -985,6 +1116,12 @@ export default function SuperAdminPage() {
                           }`}
                        >
                           <Power size={18} />
+                         </button>
+                         <button 
+                            onClick={() => handleDeleteStorePermanently(s.id)}
+                            className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl active:scale-90"
+                         >
+                            <Trash2 size={18} />
                          </button>
                       </div>
                    </div>
@@ -1094,7 +1231,7 @@ export default function SuperAdminPage() {
               </div>
            </div>
         </div>
-      ) : (
+      ) : activeTab === 'infrastructure' ? (
         <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">
            {/* CONNECTION STATUS BADGE */}
            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 bg-surface border border-app-border rounded-[2rem] shadow-xl overflow-hidden relative group">
@@ -1323,7 +1460,45 @@ export default function SuperAdminPage() {
               </div>
            </div>
         </div>
-      )}
+      ) : activeTab === 'subscriptions' ? (
+        <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {subscriptionRequests.map(req => (
+                 <div key={req.id} className="bg-surface border border-app-border p-6 rounded-[2rem] shadow-xl flex flex-col justify-between">
+                    <div>
+                       <div className="flex justify-between items-start mb-4">
+                          <div>
+                             <p className="text-xs font-black text-foreground uppercase tracking-widest">{req.packageTitle}</p>
+                             <p className="text-[10px] text-app-text-muted font-bold mt-1">{req.ownerEmail}</p>
+                             <p className="text-[9px] text-emerald-500 font-bold">Harga: Rp {req.price?.toLocaleString('id-ID')}</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider ${req.status === 'pending' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500'}`}>
+                             {req.status}
+                          </span>
+                       </div>
+                       <a href={req.proofUrl} target="_blank" rel="noreferrer">
+                          <img src={req.proofUrl} alt="Bukti Transfer" className="w-full h-40 object-cover rounded-xl border border-app-border mb-4 cursor-pointer hover:opacity-80 transition-opacity bg-background/50" />
+                       </a>
+                    </div>
+                    {req.status === 'pending' && (
+                       <button 
+                         onClick={() => handleVerifySubscription(req)} 
+                         disabled={isSaving} 
+                         className="w-full py-3 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-600 transition-colors flex justify-center items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                       >
+                          <CheckCircle2 size={16} /> Verifikasi Valid
+                       </button>
+                    )}
+                 </div>
+              ))}
+              {subscriptionRequests.length === 0 && (
+                 <div className="col-span-full py-12 text-center border border-dashed border-app-border rounded-[2rem]">
+                    <p className="text-app-text-muted text-xs font-bold">Belum ada pengajuan langganan.</p>
+                 </div>
+              )}
+           </div>
+        </div>
+      ) : null}
 
       {/* EDIT MODAL */}
       {editingUser && (
@@ -1349,7 +1524,7 @@ export default function SuperAdminPage() {
                     />
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Role Akun</label>
                         <select 
@@ -1363,10 +1538,19 @@ export default function SuperAdminPage() {
                         </select>
                     </div>
                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Tanggal Daftar</label>
+                       <input 
+                         type="date" 
+                         value={editingUser.createdAt ? (editingUser.createdAt.includes('T') ? editingUser.createdAt.substring(0, 10) : editingUser.createdAt) : ''} 
+                         onChange={e => setEditingUser({...editingUser, createdAt: e.target.value ? new Date(e.target.value).toISOString() : ''})}
+                         className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none transition-all cursor-pointer"
+                       />
+                    </div>
+                    <div className="space-y-2">
                         <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Tanggal Expired</label>
                         <input 
                           type="date" 
-                          value={editingUser.validUntil || ''} 
+                          value={editingUser.validUntil ? (editingUser.validUntil.includes('T') ? editingUser.validUntil.substring(0, 10) : editingUser.validUntil) : ''} 
                           onChange={e => setEditingUser({...editingUser, validUntil: e.target.value})}
                           className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none transition-all cursor-pointer"
                         />

@@ -45,7 +45,7 @@ export default function EstimationsPage() {
   const { branding } = useBranding();
   const [estimations, setEstimations] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'active' | 'converted'>('active');
+  const [filter, setFilter] = useState<'active' | 'converted' | 'cancelled'>('active');
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedEstimation, setSelectedEstimation] = useState<any>(null);
   
@@ -114,12 +114,22 @@ export default function EstimationsPage() {
   }, [storeId]);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Yakin ingin menghapus estimasi ini?')) return;
+    if (!window.confirm('Yakin ingin menghapus estimasi ini (data akan hilang permanen)?')) return;
     try {
       await deleteDoc(doc(db, 'estimations', id));
       toast.success('Estimasi dihapus');
     } catch (err) {
       toast.error('Gagal menghapus');
+    }
+  };
+
+  const handleCancelEstimation = async (id: string) => {
+    if (!window.confirm('Yakin ingin membatalkan estimasi ini?')) return;
+    try {
+      await updateDoc(doc(db, 'estimations', id), { status: 'cancelled' });
+      toast.success('Estimasi dibatalkan');
+    } catch (err) {
+      toast.error('Gagal membatalkan');
     }
   };
 
@@ -203,6 +213,12 @@ export default function EstimationsPage() {
            >
              SELESAI
            </button>
+           <button 
+             onClick={() => setFilter('cancelled')}
+             className={`flex-1 md:px-6 py-2 rounded-xl text-xs font-black transition-all ${filter === 'cancelled' ? 'bg-accent text-foreground shadow-lg shadow-accent/10' : 'text-app-text-muted hover:text-foreground'}`}
+           >
+             DIBATALKAN
+           </button>
         </div>
 
         <div className="relative flex-1 w-full md:w-auto">
@@ -265,18 +281,22 @@ export default function EstimationsPage() {
                </div>
 
                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    onClick={() => handleEdit(est)}
-                    className="col-span-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    <FileText size={14} /> EDIT ESTIMASI
-                  </button>
-                  <button 
-                    onClick={() => loadToPOS(est)}
-                    className="col-span-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                  >
-                    <CreditCard size={14} /> PROSES KE KASIR
-                  </button>
+                  {est.status === 'active' && (
+                    <>
+                      <button 
+                        onClick={() => handleEdit(est)}
+                        className="col-span-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                      >
+                        <FileText size={14} /> EDIT ESTIMASI
+                      </button>
+                      <button 
+                        onClick={() => loadToPOS(est)}
+                        className="col-span-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                      >
+                        <CreditCard size={14} /> PROSES KE KASIR
+                      </button>
+                    </>
+                  )}
                   <button 
                     onClick={() => window.open(`/invoice?id=${est.id}&type=estimation`, '_blank')}
                     className="py-3 bg-surface border border-app-border text-foreground rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
@@ -295,11 +315,19 @@ export default function EstimationsPage() {
                   >
                     <Share2 size={14} /> BAGIKAN LINK TTD
                   </button>
+                  {est.status === 'active' && (
+                    <button 
+                      onClick={() => handleCancelEstimation(est.id)}
+                      className="col-span-2 mt-2 py-2 text-rose-500 hover:bg-rose-50 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-colors flex items-center justify-center gap-1 border border-rose-100"
+                    >
+                      <X size={14} /> BATALKAN ESTIMASI
+                    </button>
+                  )}
                   <button 
                     onClick={() => handleDelete(est.id)}
-                    className="col-span-2 mt-2 py-2 text-rose-500/50 hover:text-rose-500 text-[9px] font-black uppercase tracking-[0.3em] transition-colors flex items-center justify-center gap-1"
+                    className="col-span-2 mt-2 py-2 text-app-text-muted hover:text-rose-500 text-[9px] font-black uppercase tracking-[0.3em] transition-colors flex items-center justify-center gap-1"
                   >
-                    <Trash2 size={12} /> HAPUS ESTIMASI
+                    <Trash2 size={12} /> HAPUS PERMANEN
                   </button>
                </div>
             </div>

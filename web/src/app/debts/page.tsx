@@ -20,7 +20,8 @@ import {
   Plus,
   Printer,
   Globe,
-  Share2
+  Share2,
+  Edit2
 } from 'lucide-react';
 import { Transaction } from '@/types';
 import toast from 'react-hot-toast';
@@ -40,7 +41,10 @@ export default function DebtsPage() {
   
   const [selectedDebt, setSelectedDebt] = useState<Transaction | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentNote, setPaymentNote] = useState<string>('Pembayaran cicilan');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNoteValue, setEditNoteValue] = useState('');
 
   useEffect(() => {
     if (!storeId) return;
@@ -122,8 +126,8 @@ export default function DebtsPage() {
         id: Math.random().toString(36).substring(2, 9),
         amount: paymentAmount,
         date: new Date().toISOString(),
-        cashierName: userName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Unknown'),
-        note: `Pembayaran cicilan`
+        cashierName: userName || user?.displayName || 'Unknown',
+        note: paymentNote || 'Pembayaran cicilan'
       };
 
       const updatedHistory = [...(selectedDebt.paymentHistory || []), newHistoryItem];
@@ -141,11 +145,34 @@ export default function DebtsPage() {
       toast.success(newStatus === 'paid' ? 'Hutang berhasil dilunasi!' : 'Pembayaran cicilan berhasil dicatat.');
       setSelectedDebt(null);
       setPaymentAmount(0);
+      setPaymentNote('Pembayaran cicilan');
     } catch (err) {
       console.error(err);
       toast.error('Terjadi kesalahan saat menyimpan pembayaran.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateHistoryNote = async (histId: string) => {
+    if (!selectedDebt || !selectedDebt.id || !selectedDebt.paymentHistory) return;
+    try {
+      const updatedHistory = selectedDebt.paymentHistory.map((h, i) => {
+        const id = h.id || i.toString();
+        if (id === histId) {
+          return { ...h, note: editNoteValue };
+        }
+        return h;
+      });
+      await updateDoc(doc(db, 'transactions', selectedDebt.id), {
+        paymentHistory: updatedHistory
+      });
+      setSelectedDebt({ ...selectedDebt, paymentHistory: updatedHistory });
+      setEditingNoteId(null);
+      toast.success('Catatan berhasil diperbarui');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal memperbarui catatan');
     }
   };
 
@@ -367,17 +394,38 @@ export default function DebtsPage() {
                        <History size={12} /> Riwayat Cicilan
                      </h4>
                      <div className="space-y-2">
-                        {selectedDebt.paymentHistory.map((hist, i) => (
-                          <div key={hist.id || i} className="flex justify-between items-center text-[10px] bg-background border border-app-border p-3 rounded-xl">
+                         {selectedDebt.paymentHistory.map((hist, i) => {
+                           const currentHistId = hist.id || i.toString();
+                           return (
+                          <div key={currentHistId} className="flex justify-between items-center text-[10px] bg-background border border-app-border p-3 rounded-xl">
                              <div className="space-y-1">
-                               <p className="font-bold text-foreground">{formatDate(hist.date)}</p>
-                               <p className="text-app-text-muted">Oleh: {hist.cashierName?.includes('@') ? hist.cashierName.split('@')[0] : (hist.cashierName || 'Kasir')}</p>
+                               {editingNoteId === currentHistId ? (
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <input 
+                                      autoFocus
+                                      value={editNoteValue}
+                                      onChange={(e) => setEditNoteValue(e.target.value)}
+                                      className="bg-surface border border-app-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-accent w-32"
+                                      placeholder="Catatan..."
+                                    />
+                                    <button onClick={() => handleUpdateHistoryNote(currentHistId)} className="text-emerald-500 bg-emerald-500/10 p-1 rounded hover:bg-emerald-500 hover:text-white transition-colors"><CheckCircle2 size={12}/></button>
+                                    <button onClick={() => setEditingNoteId(null)} className="text-rose-500 bg-rose-500/10 p-1 rounded hover:bg-rose-500 hover:text-white transition-colors"><X size={12}/></button>
+                                  </div>
+                               ) : (
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="font-bold text-foreground text-xs">{hist.note || 'Pembayaran cicilan'}</p>
+                                    <button onClick={() => { setEditingNoteId(currentHistId); setEditNoteValue(hist.note || 'Pembayaran cicilan'); }} className="text-accent hover:text-accent-hover opacity-60 hover:opacity-100 transition-opacity p-0.5">
+                                      <Edit2 size={10} />
+                                    </button>
+                                  </div>
+                               )}
+                               <p className="text-app-text-muted">{formatDate(hist.date)} • Oleh: {hist.cashierName?.includes('@') ? hist.cashierName.split('@')[0] : (hist.cashierName || 'Kasir')}</p>
                              </div>
                              <span className="font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">
                                +{formatCurrency(hist.amount)}
                              </span>
                           </div>
-                        ))}
+                         )})}
                      </div>
                    </div>
                  )}
@@ -406,7 +454,7 @@ export default function DebtsPage() {
                         <form onSubmit={handlePayInstallment} className="space-y-4">
                            <div>
                              <label className="block text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1 mb-2">Masukkan Nominal Pembayaran</label>
-                             <div className="relative">
+                             <div className="relative mb-3">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground font-black text-sm">Rp</span>
                                 <input 
                                   type="number"
@@ -415,6 +463,15 @@ export default function DebtsPage() {
                                   value={paymentAmount || ''}
                                   onChange={(e) => setPaymentAmount(Number(e.target.value))}
                                   className="w-full pl-12 pr-4 py-4 bg-background border border-app-border rounded-xl text-lg font-black text-foreground focus:outline-none focus:border-accent"
+                                />
+                             </div>
+                             <div className="relative mb-2">
+                                <input 
+                                  type="text"
+                                  value={paymentNote}
+                                  onChange={(e) => setPaymentNote(e.target.value)}
+                                  placeholder="Catatan pembayaran (opsional)"
+                                  className="w-full px-4 py-3 bg-background border border-app-border rounded-xl text-xs font-bold text-foreground focus:outline-none focus:border-accent"
                                 />
                              </div>
                              <div className="flex gap-2 mt-2">

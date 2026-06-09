@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
+
+LocaleConfig.locales['id'] = {
+  monthNames: ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'],
+  monthNamesShort: ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'],
+  dayNames: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],
+  dayNamesShort: ['Min','Sen','Sel','Rab','Kam','Jum','Sab'],
+  today: 'Hari ini'
+};
+LocaleConfig.defaultLocale = 'id';
+
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,11 +18,12 @@ import {
   LogOut, Check, X, Calculator, CreditCard, History, Package, Home, PlusCircle, 
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
-  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ShieldCheck, Mail, Palette, Sparkles, Bell
+  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save
 } from 'lucide-react-native';
-import { db, auth } from '../lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { db, auth, storage } from '../lib/firebase';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
@@ -33,10 +45,73 @@ const getFontFamily = (id: string) => {
 
 export default function SettingsScreen({ navigation }: any) {
   const { colors, theme, setTheme } = useTheme();
-  const { user, role, storeId, logout } = useAuthStore();
+  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
-  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | null>(null);
+  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
+
+  // Profile States
+  const { setUser } = useAuthStore();
+  const [editProfileName, setEditProfileName] = useState(user?.name || user?.email?.split('@')[0] || '');
+  const [editProfilePhoto, setEditProfilePhoto] = useState<string | null>(user?.photoURL || null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handleSaveProfile = async () => {
+    if (!user || !user.uid) return;
+    setIsSavingProfile(true);
+    try {
+      if (auth.currentUser) {
+         await updateProfile(auth.currentUser, { displayName: editProfileName });
+      }
+      await updateDoc(doc(db, 'users', user.uid), { name: editProfileName });
+      setUser({ ...user, name: editProfileName });
+      Alert.alert('Sukses', 'Profil berhasil diperbarui');
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Gagal', 'Tidak dapat menyimpan profil');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handlePickProfilePhoto = async () => {
+    if (!user || !user.uid) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsUploadingPhoto(true);
+        const imageUri = result.assets[0].uri;
+        
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        
+        const storageRef = ref(storage, `profiles/${user.uid}_${Date.now()}`);
+        await uploadBytes(storageRef, blob);
+        const downloadUrl = await getDownloadURL(storageRef);
+        
+        if (auth.currentUser) {
+           await updateProfile(auth.currentUser, { photoURL: downloadUrl });
+        }
+        await updateDoc(doc(db, 'users', user.uid), { photoUrl: downloadUrl });
+        
+        setEditProfilePhoto(downloadUrl);
+        setUser({ ...user, photoURL: downloadUrl });
+        Alert.alert('Sukses', 'Foto profil diperbarui');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Gagal', 'Tidak dapat mengunggah foto');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   // Store Settings States
   const [storeSettings, setStoreSettings] = useState({
@@ -84,12 +159,14 @@ export default function SettingsScreen({ navigation }: any) {
     a4InvoiceNote: '',
     a4EstimationNote: '',
     a4DebtNote: '',
+    qrisUrl: '',
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingThermalLogo, setIsUploadingThermalLogo] = useState(false);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+  const [isUploadingQris, setIsUploadingQris] = useState(false);
   const [showSignaturePadMobile, setShowSignaturePadMobile] = useState(false);
 
   // Password change states
@@ -101,11 +178,13 @@ export default function SettingsScreen({ navigation }: any) {
   // Backup & Restore states
   const [isBackuping, setIsBackuping] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState<{visible: boolean, field: 'createdAt' | 'validUntil' | null}>({visible: false, field: null});
   const [restoreProgress, setRestoreProgress] = useState(0);
 
   // Super Admin states
   const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
   const [superAdminStores, setSuperAdminStores] = useState<any[]>([]);
+  const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -120,9 +199,23 @@ export default function SettingsScreen({ navigation }: any) {
   
   const [brandingData, setBrandingData] = useState({ 
     appName: 'IKASIR PRO', 
-    receiptWatermark: 'Powered by YadiApp',
-    showWatermark: true
+    receiptWatermark: 'Powered by YadiApp', 
+    showWatermark: true,
+    subscriptionQrisUrl: '',
+    subscriptionBankInfo: ''
   });
+
+  // Subscription Menu States
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [subscriptionProofBase64, setSubscriptionProofBase64] = useState<string | null>(null);
+  const [isSubmittingSubscription, setIsSubmittingSubscription] = useState(false);
+
+  const SUBSCRIPTION_PACKAGES = [
+    { id: '1m', title: '1 Bulan', price: 30000, desc: 'Rp 30.000 / bln' },
+    { id: '3m', title: '3 Bulan', price: 84000, desc: 'Rp 28.000 / bln (Hemat Rp 6.000)' },
+    { id: '6m', title: '6 Bulan', price: 159000, desc: 'Rp 26.500 / bln (Hemat Rp 21.000)' },
+    { id: '12m', title: '12 Bulan', price: 306000, desc: 'Rp 25.500 / bln (Hemat Rp 54.000)' },
+  ];
 
   const [infraData, setInfraData] = useState<any>({
     cloudinary_cloud_name: '',
@@ -158,7 +251,9 @@ export default function SettingsScreen({ navigation }: any) {
           setBrandingData({
             appName: data.appName || 'IKASIR PRO',
             receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
-            showWatermark: data.showWatermark ?? true
+            showWatermark: data.showWatermark ?? true,
+            subscriptionQrisUrl: data.subscriptionQrisUrl || '',
+            subscriptionBankInfo: data.subscriptionBankInfo || ''
           });
         }
       });
@@ -174,12 +269,19 @@ export default function SettingsScreen({ navigation }: any) {
         setDbProjects(projects);
       });
 
+      const unsubSubscriptions = onSnapshot(collection(db, 'subscription_requests'), (snapshot) => {
+        const subs: any[] = [];
+        snapshot.forEach((d) => subs.push({ id: d.id, ...d.data() }));
+        setSubscriptionRequests(subs);
+      });
+
       return () => {
         unsubUsers();
         unsubStores();
         unsubBranding();
         unsubInfra();
         unsubProjects();
+        unsubSubscriptions();
       };
     }
   }, [role]);
@@ -422,7 +524,6 @@ export default function SettingsScreen({ navigation }: any) {
 
   const handleUpdateUser = async () => {
     if (!editingUser) return;
-    
     setIsSaving(true);
     try {
       await updateDoc(doc(db, 'users', editingUser.id), {
@@ -431,13 +532,14 @@ export default function SettingsScreen({ navigation }: any) {
         isSubscribed: editingUser.isSubscribed ?? false,
         validUntil: editingUser.validUntil || '',
         name: editingUser.name,
-        storeId: editingUser.storeId || 'default-store'
+        storeId: editingUser.storeId || 'default-store',
+        createdAt: editingUser.createdAt || new Date().toISOString()
       });
-      Alert.alert('Sukses', 'Data pengguna berhasil diperbarui!');
+      alert('Data pengguna berhasil diperbarui!');
       setEditingUser(null);
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Gagal', 'Gagal memperbarui data: ' + err.message);
+      alert('Gagal memperbarui data: ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -454,7 +556,7 @@ export default function SettingsScreen({ navigation }: any) {
         createdAt: new Date().toISOString(),
         isActive: true,
         package: 'manual-pro',
-        maxUsers: Number(newStoreData.maxUsers) || 5
+        maxUsers: Math.max(1, Number(newStoreData.maxUsers) || 1)
       });
       Alert.alert('Sukses', 'Toko berhasil ditambahkan!');
       setIsAddingStore(false);
@@ -498,7 +600,7 @@ export default function SettingsScreen({ navigation }: any) {
       await updateDoc(doc(db, 'stores', editingStore.id), {
         name: editingStore.name,
         ownerEmail: editingStore.ownerEmail || '-',
-        maxUsers: parseInt(editingStore.maxUsers) || 5
+        maxUsers: Math.max(1, parseInt(editingStore.maxUsers as any) || 1)
       });
       
       await updateDoc(doc(db, 'settings', "store_" + editingStore.id), {
@@ -515,6 +617,146 @@ export default function SettingsScreen({ navigation }: any) {
     }
   };
 
+  const handleDeleteStorePermanently = async (storeId: string) => {
+    Alert.alert(
+      '⚠️ PERINGATAN KERAS ⚠️',
+      'Anda yakin ingin menghapus toko ini secara PERMANEN? Semua data (Produk, Transaksi, Pelanggan, Karyawan) yang terkait akan ikut hangus dan tidak dapat dikembalikan!',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'YA, HAPUS SEMUA',
+          style: 'destructive',
+          onPress: async () => {
+            Alert.alert(
+              'Konfirmasi Terakhir',
+              'Apakah Anda benar-benar yakin?',
+              [
+                { text: 'Batal', style: 'cancel' },
+                {
+                  text: 'EKSEKUSI',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setIsSaving(true);
+                    try {
+                      // 1. Delete store doc
+                      await deleteDoc(doc(db, 'stores', storeId));
+                      // 2. Delete store settings
+                      await deleteDoc(doc(db, 'settings', `store_${storeId}`));
+                      
+                      // 3. Batch delete related collections
+                      const collectionsToDelete = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras', 'estimations'];
+                      
+                      for (const collName of collectionsToDelete) {
+                        const q = query(collection(db, collName), where('storeId', '==', storeId));
+                        const snap = await getDocs(q);
+                        
+                        let batch = writeBatch(db);
+                        let count = 0;
+                        
+                        for (const docSnap of snap.docs) {
+                          batch.delete(docSnap.ref);
+                          count++;
+                          if (count === 400) {
+                            await batch.commit();
+                            batch = writeBatch(db);
+                            count = 0;
+                          }
+                        }
+                        if (count > 0) {
+                          await batch.commit();
+                        }
+                      }
+                      
+                      Alert.alert('Sukses', 'Toko dan seluruh datanya telah berhasil dihapus!');
+                    } catch (err: any) {
+                      console.error(err);
+                      Alert.alert('Gagal', 'Terjadi kesalahan saat menghapus: ' + err.message);
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteUserPermanently = async (userId: string, email: string) => {
+    Alert.alert(
+      '⚠️ PERINGATAN KERAS ⚠️',
+      `Anda yakin ingin menghapus akses User "${email}" secara PERMANEN dari database utama?`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus Permanen',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              await deleteDoc(doc(db, 'users', userId));
+              Alert.alert('Sukses', 'User berhasil dihapus secara permanen dari Firestore.');
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal menghapus user: ' + err.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleVerifySubscription = async (req: any) => {
+    Alert.alert(
+      'Konfirmasi Verifikasi',
+      `Validasi pembayaran dari ${req.ownerEmail} dan tambahkan masa aktif?`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Verifikasi Valid',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              const match = req.packageId.match(/(\d+)m/);
+              const months = match ? parseInt(match[1]) : 1;
+              
+              const newValidUntil = new Date();
+              newValidUntil.setDate(newValidUntil.getDate() + (months * 30));
+
+              const batch = writeBatch(db);
+              
+              batch.update(doc(db, 'subscription_requests', req.id), {
+                status: 'approved',
+                approvedAt: new Date().toISOString()
+              });
+
+              const qUsers = query(collection(db, 'users'), where('storeId', '==', req.storeId));
+              const userSnaps = await getDocs(qUsers);
+              userSnaps.forEach((userDoc) => {
+                batch.update(userDoc.ref, {
+                  validUntil: newValidUntil.toISOString(),
+                  isSubscribed: true
+                });
+              });
+
+              await batch.commit();
+              Alert.alert('Sukses', `Berhasil memperpanjang masa aktif toko selama ${months} bulan.`);
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal memverifikasi langganan: ' + err.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleUpdateBranding = async () => {
     setIsSaving(true);
     try {
@@ -528,6 +770,105 @@ export default function SettingsScreen({ navigation }: any) {
       Alert.alert('Gagal', 'Gagal update branding: ' + err.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePickSubscriptionQris = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setIsSaving(true);
+        const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const cloudinaryUrl = 'https://api.cloudinary.com/v1_1/dtt1zow8f/image/upload';
+        
+        const data = {
+          file: base64Img,
+          upload_preset: 'kasirpos',
+        };
+
+        const uploadRes = await fetch(cloudinaryUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadResult.secure_url) {
+          setBrandingData(prev => ({ ...prev, subscriptionQrisUrl: uploadResult.secure_url }));
+          Alert.alert('Berhasil', 'Foto QRIS Langganan berhasil disiapkan, tekan Simpan Perubahan!');
+        } else {
+          Alert.alert('Gagal', 'Gagal menyiapkan QRIS ke server.');
+        }
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Gagal memilih QRIS.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePickSubscriptionProof = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setSubscriptionProofBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Gagal memilih gambar bukti transfer.');
+    }
+  };
+
+  const handleSubmitSubscription = async () => {
+    if (!selectedPackage || !subscriptionProofBase64) {
+      Alert.alert('Info', 'Pilih paket dan unggah bukti pembayaran terlebih dahulu.');
+      return;
+    }
+    setIsSubmittingSubscription(true);
+    try {
+      const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dtt1zow8f/image/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: subscriptionProofBase64, upload_preset: 'kasirpos' }),
+      });
+      const uploadResult = await uploadRes.json();
+      
+      if (uploadResult.secure_url) {
+        await addDoc(collection(db, 'subscription_requests'), {
+          storeId: storeId,
+          ownerUid: user?.uid || '',
+          ownerEmail: user?.email || '',
+          packageId: selectedPackage.id,
+          packageTitle: selectedPackage.title,
+          price: selectedPackage.price,
+          proofUrl: uploadResult.secure_url,
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
+        Alert.alert('Sukses', 'Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin pusat.');
+        setActiveModal(null);
+        setSelectedPackage(null);
+        setSubscriptionProofBase64(null);
+      } else {
+        Alert.alert('Error', 'Gagal mengunggah gambar ke server.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Error', 'Gagal memproses langganan: ' + err.message);
+    } finally {
+      setIsSubmittingSubscription(false);
     }
   };
 
@@ -896,6 +1237,51 @@ export default function SettingsScreen({ navigation }: any) {
     }
   };
 
+  const handlePickQrisMobile = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setIsUploadingQris(true);
+        const localUri = result.assets[0].uri;
+        const filename = localUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename || '');
+        const type = match ? `image/${match[1]}` : `image`;
+
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
+        formDataUpload.append('upload_preset', 'kasirpos');
+
+        const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+          method: 'POST',
+          body: formDataUpload,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadRes.ok && uploadResult.secure_url) {
+          setStoreSettings(prev => ({ ...prev, qrisUrl: uploadResult.secure_url }));
+          Alert.alert('Berhasil', 'Foto QRIS berhasil diunggah!');
+        } else {
+          console.error(uploadResult);
+          Alert.alert('Gagal', 'Gagal mengunggah QRIS ke server.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Gagal memilih QRIS.');
+    } finally {
+      setIsUploadingQris(false);
+    }
+  };
+
   const handlePickThermalLogoMobile = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -1111,26 +1497,35 @@ export default function SettingsScreen({ navigation }: any) {
   ];
 
   // Helper to render grid item
-  const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false) => {
+  const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isDisabled = false, badgeCount = 0) => {
     if (isAdminOnly && role !== 'admin') return null;
 
     return (
       <TouchableOpacity
         key={label}
-        onPress={onPress}
-        activeOpacity={0.7}
-        className="w-[30%] aspect-square m-[1.5%] p-3 rounded-2xl border items-center justify-center text-center"
-        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+        onPress={isDisabled ? () => Alert.alert('Akses Terkunci', 'Masa aktif langganan Anda telah habis. Harap perpanjang untuk mengakses fitur ini.') : onPress}
+        activeOpacity={isDisabled ? 1 : 0.7}
+        className="w-[30%] aspect-square m-[1.5%] p-3 rounded-2xl border items-center justify-center text-center relative"
+        style={{ 
+          backgroundColor: colors.surface, 
+          borderColor: colors.border,
+          opacity: isDisabled ? 0.4 : 1
+        }}
       >
         <View 
           className="w-10 h-10 rounded-xl items-center justify-center mb-2"
           style={{ backgroundColor: color + '15' }}
         >
-          <IconComponent size={20} color={color} />
+          <IconComponent size={20} color={isDisabled ? colors.textMuted : color} />
+          {badgeCount > 0 && (
+            <View className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full items-center justify-center border border-white">
+              <Text className="text-[8px] font-black text-white">{badgeCount}</Text>
+            </View>
+          )}
         </View>
         <Text 
           className="text-[9px] font-black text-center leading-normal" 
-          style={{ color: colors.text }}
+          style={{ color: isDisabled ? colors.textMuted : colors.text }}
           numberOfLines={2}
         >
           {label}
@@ -1177,6 +1572,32 @@ export default function SettingsScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Subscription Status Block */}
+        <View className="px-6 mt-4">
+          <TouchableOpacity 
+            onPress={() => setActiveModal('subscriptionMenu')}
+            activeOpacity={0.8}
+            className="w-full rounded-3xl p-5 border flex-row items-center overflow-hidden relative shadow-lg shadow-emerald-500/20"
+            style={{ backgroundColor: colors.accent, borderColor: colors.accent }}
+          >
+            <View className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full" />
+            <View className="absolute -left-4 -top-4 w-16 h-16 bg-black/10 rounded-full" />
+            
+            <View className="flex-1">
+              <Text className="text-white font-black text-xs uppercase tracking-widest mb-1">Masa Aktif Akun</Text>
+              <Text className="text-white/80 font-bold text-[10px]">
+                {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
+                {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+              </Text>
+            </View>
+            <View className="bg-white px-3 py-2 rounded-xl border border-white/20">
+              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>
+                Perpanjang
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Section 1: Transaksi & Keuangan */}
         <View className="mt-6 px-6">
           <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3 ml-2" style={{ color: colors.textMuted }}>
@@ -1186,11 +1607,11 @@ export default function SettingsScreen({ navigation }: any) {
             {renderMenuItem('Estimasi Biaya', Calculator, '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'estimasi', title: 'Estimasi Biaya' });
-            })}
+            }, false, isSubscriptionExpired)}
             {renderMenuItem('Hutang Piutang', CreditCard, '#f43f5e', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'piutang', title: 'Hutang Piutang' });
-            })}
+            }, false, isSubscriptionExpired)}
             {renderMenuItem('Riwayat Transaksi', History, colors.accent, () => {
               Vibration.vibrate(10);
               navigation.navigate('Transactions');
@@ -1316,6 +1737,10 @@ export default function SettingsScreen({ navigation }: any) {
                 Vibration.vibrate(10);
                 setActiveModal('superAdminInfra');
               })}
+              {renderMenuItem('Langganan', Receipt, '#8b5cf6', () => {
+                Vibration.vibrate(10);
+                setActiveModal('superAdminSubscriptions');
+              }, false, false, subscriptionRequests.filter(r => r.status === 'pending').length)}
             </View>
           </View>
         )}
@@ -1328,15 +1753,15 @@ export default function SettingsScreen({ navigation }: any) {
           <View className="flex-row flex-wrap">
             {renderMenuItem('Profil', User, '#14b8a6', () => {
               Vibration.vibrate(10);
-              setActiveModal('profile');
+              navigation.navigate('ProfileScreen');
             })}
             {renderMenuItem('Tema Aplikasi', Settings, '#64748b', () => {
               Vibration.vibrate(10);
-              setActiveModal('theme');
+              navigation.navigate('ThemeScreen');
             })}
             {renderMenuItem('Pengaturan Toko', Settings, colors.accent, () => {
               Vibration.vibrate(10);
-              setActiveModal('storeSettings');
+              navigation.navigate('StoreSettingsScreen');
             }, true)}
             {renderMenuItem('Notifikasi BG', ShieldAlert, '#f59e0b', handleOpenBatterySettings)}
           </View>
@@ -1345,25 +1770,24 @@ export default function SettingsScreen({ navigation }: any) {
       </ScrollView>
 
       {/* 1. THEME SELECTOR MODAL */}
-      <Modal visible={activeModal === 'theme'} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[75%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.bg }}>
-            <View className="flex-row justify-between items-center mb-6">
-              <View>
-                <Text className="text-xl font-black" style={{ color: colors.text }}>Pengaturan Tema</Text>
-                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Personalisasi warna aplikasi</Text>
-              </View>
-              <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
-                <X color={colors.text} size={20} />
-              </TouchableOpacity>
+      <Modal visible={activeModal === 'theme'} animationType="slide" transparent={false} onRequestClose={() => setActiveModal(null)}>
+        <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ backgroundColor: colors.bg }}>
+          <View className="flex-row items-center px-6 py-4 border-b" style={{ borderColor: colors.border + '30' }}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mr-4">
+              <ArrowLeft color={colors.text} size={20} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-xl font-black" style={{ color: colors.text }}>Pengaturan Tema</Text>
+              <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textMuted }}>Personalisasi warna aplikasi</Text>
             </View>
+          </View>
 
-            <ScrollView className="flex-1">
-              <View className="flex gap-3">
-                {themeOptions.map((t) => {
-                  const isSelected = theme === t.id;
-                  return (
-                    <TouchableOpacity
+          <ScrollView className="flex-1">
+            <View className="flex gap-3 px-6 pt-6 pb-12">
+              {themeOptions.map((t) => {
+                const isSelected = theme === t.id;
+                return (
+                  <TouchableOpacity
                       key={t.id}
                       onPress={() => setTheme(t.id as any)}
                       activeOpacity={0.8}
@@ -1395,38 +1819,63 @@ export default function SettingsScreen({ navigation }: any) {
                 })}
               </View>
             </ScrollView>
-          </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* 2. PROFILE DETAILS MODAL */}
-      <Modal visible={activeModal === 'profile'} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="rounded-t-[40px] p-8 pb-12" style={{ backgroundColor: colors.bg }}>
-            <View className="flex-row justify-between items-center mb-6">
+      <Modal visible={activeModal === 'profile'} animationType="slide" transparent={false} onRequestClose={() => setActiveModal(null)}>
+        <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ backgroundColor: colors.bg }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+            <View className="flex-row items-center px-6 py-4 border-b" style={{ borderColor: colors.border + '30' }}>
+              <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mr-4">
+                <ArrowLeft color={colors.text} size={20} />
+              </TouchableOpacity>
               <View>
                 <Text className="text-xl font-black" style={{ color: colors.text }}>Profil Pengguna</Text>
-                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Detail akun Kasir Pro Anda</Text>
+                <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textMuted }}>Detail akun Kasir Pro Anda</Text>
               </View>
-              <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
-                <X color={colors.text} size={20} />
-              </TouchableOpacity>
             </View>
+            <View className="flex-1 p-6">
 
             <View 
               className="p-6 rounded-3xl border mb-6 items-center"
               style={{ backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <View className="w-20 h-20 rounded-full items-center justify-center mb-4 bg-teal-500/10 border border-teal-500/20">
-                <Text className="text-3xl font-black text-teal-500">{user?.email?.[0].toUpperCase()}</Text>
-              </View>
-              <Text className="text-lg font-black" style={{ color: colors.text }}>{user?.name || user?.email?.split('@')[0]}</Text>
-              <Text className="text-xs font-bold uppercase tracking-widest mt-1 text-teal-500">
+              <TouchableOpacity onPress={handlePickProfilePhoto} disabled={isUploadingPhoto} className="relative w-24 h-24 rounded-full mb-4 bg-teal-500/10 border-2 border-teal-500/20 items-center justify-center overflow-hidden">
+                {editProfilePhoto ? (
+                  <Image source={{ uri: editProfilePhoto }} className="w-full h-full" />
+                ) : (
+                  <Text className="text-4xl font-black text-teal-500">{user?.email?.[0].toUpperCase()}</Text>
+                )}
+                <View className="absolute bottom-0 w-full bg-black/50 py-1 items-center">
+                  <Camera color="white" size={12} />
+                </View>
+                {isUploadingPhoto && (
+                   <View className="absolute inset-0 bg-black/60 items-center justify-center">
+                      <ActivityIndicator color="white" />
+                   </View>
+                )}
+              </TouchableOpacity>
+              
+              <Text className="text-xs font-bold uppercase tracking-widest text-teal-500 mb-1">
                 {role === 'admin' ? 'Owner (Admin)' : 'Kasir'}
               </Text>
-              <View className="w-full border-t border-slate-800/30 mt-6 pt-4 flex gap-3">
+
+              <View className="w-full">
+                <Text className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1 pl-1 mt-4">Nama Lengkap</Text>
+                <TextInput
+                  value={editProfileName}
+                  onChangeText={setEditProfileName}
+                  placeholder="Masukkan nama lengkap"
+                  placeholderTextColor={colors.textMuted}
+                  className="w-full h-12 px-4 rounded-xl font-bold text-sm"
+                  style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, borderWidth: 1 }}
+                />
+              </View>
+
+              <View className="w-full border-t border-slate-800/30 pt-4 mt-4 flex gap-3">
                 <View className="flex-row justify-between">
-                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Email</Text>
+                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Email (Permanen)</Text>
                   <Text className="text-xs font-black" style={{ color: colors.text }}>{user?.email}</Text>
                 </View>
                 <View className="flex-row justify-between">
@@ -1434,13 +1883,24 @@ export default function SettingsScreen({ navigation }: any) {
                   <Text className="text-[10px] font-black" style={{ color: colors.text }}>{user?.uid?.substring(0, 16)}...</Text>
                 </View>
               </View>
+
+              <TouchableOpacity
+                onPress={handleSaveProfile}
+                disabled={isSavingProfile}
+                className="w-full h-12 rounded-xl items-center justify-center mt-6 flex-row gap-2"
+                style={{ backgroundColor: colors.accent, opacity: isSavingProfile ? 0.5 : 1 }}
+              >
+                {isSavingProfile ? <ActivityIndicator color="white" /> : <Save color="white" size={18} />}
+                <Text className="font-black text-white uppercase tracking-wider">SIMPAN PROFIL</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        </View>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
 
       {/* 3. PREMIUM RUNTIME SETUP MODAL */}
-      <Modal visible={activeModal === 'premium'} animationType="fade" transparent>
+      <Modal visible={activeModal === 'premium'} animationType="fade" transparent onRequestClose={() => setActiveModal(null)}>
         <View className="flex-1 bg-black/75 items-center justify-center p-6">
           <View className="w-full max-w-sm rounded-[36px] p-8 items-center" style={{ backgroundColor: colors.surface }}>
             <View className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 items-center justify-center mb-4">
@@ -1464,18 +1924,18 @@ export default function SettingsScreen({ navigation }: any) {
       </Modal>
 
       {/* 4. STORE SETTINGS MODAL */}
-      <Modal visible={activeModal === 'storeSettings'} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[90%] rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.bg }}>
-            <View className="flex-row justify-between items-center mb-6">
-              <View>
-                <Text className="text-xl font-black" style={{ color: colors.text }}>Pengaturan Toko</Text>
-                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Konfigurasi profil bisnis & struk</Text>
-              </View>
-              <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
-                <X color={colors.text} size={20} />
-              </TouchableOpacity>
+      <Modal visible={activeModal === 'storeSettings'} animationType="slide" transparent={false} onRequestClose={() => setActiveModal(null)}>
+        <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ backgroundColor: colors.bg }}>
+          <View className="flex-row items-center px-6 py-4 border-b" style={{ borderColor: colors.border + '30' }}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mr-4">
+              <ArrowLeft color={colors.text} size={20} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-xl font-black" style={{ color: colors.text }}>Pengaturan Toko</Text>
+              <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textMuted }}>Konfigurasi profil bisnis & struk</Text>
             </View>
+          </View>
+          <View className="flex-1 p-6 pb-0">
 
             {isLoadingSettings ? (
               <View className="flex-1 items-center justify-center">
@@ -1551,6 +2011,42 @@ export default function SettingsScreen({ navigation }: any) {
                           {storeSettings.thermalLogoUrl !== '' && (
                             <TouchableOpacity 
                               onPress={() => setStoreSettings(prev => ({ ...prev, thermalLogoUrl: '' }))}
+                              className="px-4 py-2 rounded-xl items-center justify-center border border-rose-500/20 bg-rose-500/10"
+                            >
+                              <Text className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Hapus</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Foto QRIS Section */}
+                    <View className="space-y-2">
+                      <Text className="text-[9px] font-black uppercase tracking-wider pl-1" style={{ color: colors.textMuted }}>Foto QRIS Pembayaran</Text>
+                      <View className="flex-row items-center gap-4 p-4 rounded-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                        <View className="w-16 h-16 rounded-xl bg-white border overflow-hidden items-center justify-center" style={{ borderColor: colors.border }}>
+                          {storeSettings.qrisUrl ? (
+                            <Image source={{ uri: storeSettings.qrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+                          ) : (
+                            <Text className="text-[8px] font-bold text-slate-500 uppercase tracking-tight text-center">NO QRIS</Text>
+                          )}
+                        </View>
+                        <View className="flex-1 gap-2">
+                          <TouchableOpacity 
+                            onPress={handlePickQrisMobile}
+                            disabled={isUploadingQris}
+                            className="px-4 py-2.5 rounded-xl items-center justify-center"
+                            style={{ backgroundColor: colors.accent }}
+                          >
+                            {isUploadingQris ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <Text className="text-[10px] font-black text-white uppercase tracking-wider">Pilih Foto QRIS</Text>
+                            )}
+                          </TouchableOpacity>
+                          {storeSettings.qrisUrl !== '' && (
+                            <TouchableOpacity 
+                              onPress={() => setStoreSettings(prev => ({ ...prev, qrisUrl: '' }))}
                               className="px-4 py-2 rounded-xl items-center justify-center border border-rose-500/20 bg-rose-500/10"
                             >
                               <Text className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Hapus</Text>
@@ -2201,11 +2697,11 @@ export default function SettingsScreen({ navigation }: any) {
               </ScrollView>
             )}
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* 5. MOBILE SIGNATURE DRAWING MODAL */}
-      <Modal visible={showSignaturePadMobile} animationType="slide" transparent>
+      <Modal visible={showSignaturePadMobile} animationType="slide" transparent onRequestClose={() => setShowSignaturePadMobile(false)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[55%] rounded-t-[40px] p-6 pb-10" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-4">
@@ -2228,7 +2724,7 @@ export default function SettingsScreen({ navigation }: any) {
       </Modal>
 
       {/* 6. SUPER ADMIN - DATA USER MODAL */}
-      <Modal visible={activeModal === 'superAdminUsers'} animationType="slide" transparent>
+      <Modal visible={activeModal === 'superAdminUsers'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[92%] rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-6">
@@ -2296,6 +2792,12 @@ export default function SettingsScreen({ navigation }: any) {
                               className="p-2.5 bg-teal-500/10 border border-teal-500/20 rounded-xl"
                             >
                               <UserCheck size={14} color="#14b8a6" />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              onPress={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
+                              className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl"
+                            >
+                              <Trash2 size={14} color="#f43f5e" />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -2395,16 +2897,33 @@ export default function SettingsScreen({ navigation }: any) {
                 </View>
 
                 {/* Subscription and Expiry Date Inputs */}
-                <View className="space-y-1">
-                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Expired (YYYY-MM-DD)</Text>
-                  <TextInput
-                    value={editingUser.validUntil || ''}
-                    onChangeText={(txt) => setEditingUser({ ...editingUser, validUntil: txt })}
-                    placeholder="e.g. 2026-12-31"
-                    placeholderTextColor={colors.textMuted}
-                    className="p-3.5 rounded-2xl border font-bold text-xs"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                  />
+                <View className="flex-row gap-3">
+                  <View className="space-y-1 flex-1">
+                    <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Daftar</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker({visible: true, field: 'createdAt'})}
+                      className="p-3.5 rounded-2xl border flex-row items-center justify-between"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                    >
+                      <Text className="font-bold text-xs" style={{ color: editingUser.createdAt ? colors.text : colors.textMuted }}>
+                        {editingUser.createdAt ? (editingUser.createdAt.includes('T') ? editingUser.createdAt.substring(0, 10) : editingUser.createdAt) : 'Pilih Tanggal'}
+                      </Text>
+                      <CalendarRange size={14} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                  <View className="space-y-1 flex-1">
+                    <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Expired</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker({visible: true, field: 'validUntil'})}
+                      className="p-3.5 rounded-2xl border flex-row items-center justify-between"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                    >
+                      <Text className="font-bold text-xs" style={{ color: editingUser.validUntil ? colors.text : colors.textMuted }}>
+                        {editingUser.validUntil ? (editingUser.validUntil.includes('T') ? editingUser.validUntil.substring(0, 10) : editingUser.validUntil) : 'Pilih Tanggal'}
+                      </Text>
+                      <CalendarRange size={14} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Freeze and Subscription Toggles */}
@@ -2442,6 +2961,50 @@ export default function SettingsScreen({ navigation }: any) {
                     <Text className="font-black text-white text-xs uppercase tracking-wider">Simpan Perubahan</Text>
                   )}
                 </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* CALENDAR DATE PICKER MODAL */}
+        {showDatePicker.visible && (
+          <Modal visible={true} animationType="fade" transparent>
+            <View className="flex-1 bg-black/80 justify-center items-center p-6">
+              <View className="w-full max-w-sm rounded-[36px] overflow-hidden" style={{ backgroundColor: colors.surface }}>
+                <View className="flex-row justify-between items-center p-6 border-b" style={{ borderColor: colors.border + '30' }}>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>
+                    {showDatePicker.field === 'createdAt' ? 'Pilih Tanggal Daftar' : 'Pilih Tanggal Kedaluwarsa'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowDatePicker({visible: false, field: null})}>
+                    <X size={20} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <Calendar
+                  theme={{
+                    backgroundColor: colors.surface,
+                    calendarBackground: colors.surface,
+                    textSectionTitleColor: colors.textMuted,
+                    selectedDayBackgroundColor: colors.accent,
+                    selectedDayTextColor: '#ffffff',
+                    todayTextColor: colors.accent,
+                    dayTextColor: colors.text,
+                    textDisabledColor: colors.textMuted + '50',
+                    monthTextColor: colors.text,
+                    arrowColor: colors.accent,
+                    textDayFontWeight: 'bold',
+                    textMonthFontWeight: '900',
+                    textDayHeaderFontWeight: '800'
+                  }}
+                  onDayPress={(day: any) => {
+                    const isoDate = new Date(day.dateString).toISOString();
+                    if (showDatePicker.field === 'createdAt') {
+                      setEditingUser({ ...editingUser, createdAt: isoDate });
+                    } else {
+                      setEditingUser({ ...editingUser, validUntil: isoDate });
+                    }
+                    setShowDatePicker({visible: false, field: null});
+                  }}
+                />
               </View>
             </View>
           </Modal>
@@ -2497,7 +3060,7 @@ export default function SettingsScreen({ navigation }: any) {
       </Modal>
 
       {/* 7. SUPER ADMIN - KELOLA TOKO MODAL */}
-      <Modal visible={activeModal === 'superAdminStores'} animationType="slide" transparent>
+      <Modal visible={activeModal === 'superAdminStores'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[92%] rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-6">
@@ -2568,9 +3131,15 @@ export default function SettingsScreen({ navigation }: any) {
                             </TouchableOpacity>
                             <TouchableOpacity 
                               onPress={() => handleUpdateStore(s.id, s.isActive ?? true)}
-                              className={`p-2.5 rounded-xl border ${s.isActive !== false ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}
+                              className={`p-2.5 rounded-xl border ${s.isActive !== false ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}
                             >
-                              <Power size={14} color={s.isActive !== false ? '#f43f5e' : '#10b981'} />
+                              <Power size={14} color={s.isActive !== false ? '#10b981' : '#94a3b8'} />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              onPress={() => handleDeleteStorePermanently(s.id)}
+                              className="p-2.5 rounded-xl border bg-rose-500/10 border-rose-500/20 ml-1"
+                            >
+                              <Trash2 size={14} color="#f43f5e" />
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -2660,7 +3229,7 @@ export default function SettingsScreen({ navigation }: any) {
                   <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Kuota Maksimal User Staff</Text>
                   <TextInput
                     value={String(newStoreData.maxUsers)}
-                    onChangeText={(txt) => setNewStoreData({ ...newStoreData, maxUsers: Number(txt) || 5 })}
+                    onChangeText={(txt) => setNewStoreData({ ...newStoreData, maxUsers: txt.replace(/[^0-9]/g, '') as any })}
                     placeholder="5"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="numeric"
@@ -2726,7 +3295,7 @@ export default function SettingsScreen({ navigation }: any) {
                   <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Kuota Maksimal User Staff</Text>
                   <TextInput
                     value={String(editingStore.maxUsers)}
-                    onChangeText={(txt) => setEditingStore({ ...editingStore, maxUsers: Number(txt) || 5 })}
+                    onChangeText={(txt) => setEditingStore({ ...editingStore, maxUsers: txt.replace(/[^0-9]/g, '') as any })}
                     keyboardType="numeric"
                     className="p-3.5 rounded-2xl border font-bold text-xs"
                     style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
@@ -2753,7 +3322,7 @@ export default function SettingsScreen({ navigation }: any) {
       </Modal>
 
       {/* 8. SUPER ADMIN - BRANDING MODAL */}
-      <Modal visible={activeModal === 'superAdminBranding'} animationType="slide" transparent>
+      <Modal visible={activeModal === 'superAdminBranding'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[88%] rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-6">
@@ -2809,6 +3378,44 @@ export default function SettingsScreen({ navigation }: any) {
                     />
                   </View>
 
+                  <View className="h-[1px] w-full bg-slate-200 my-2" />
+
+                  {/* subscriptionBankInfo */}
+                  <View className="space-y-1">
+                    <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Info Bank/Rekening Pusat (Untuk Langganan)</Text>
+                    <TextInput
+                      value={brandingData.subscriptionBankInfo}
+                      onChangeText={(txt) => setBrandingData({ ...brandingData, subscriptionBankInfo: txt })}
+                      placeholder="e.g. BCA 1234567890 a/n KASIR PRO"
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      numberOfLines={3}
+                      className="p-4 rounded-2xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top', minHeight: 80 }}
+                    />
+                  </View>
+
+                  {/* subscriptionQrisUrl */}
+                  <View className="space-y-2 mt-2">
+                    <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">QRIS Pembayaran Langganan (Pusat)</Text>
+                    <View className="flex-row gap-3 h-24">
+                      <View className="flex-1 bg-white border border-dashed rounded-xl items-center justify-center overflow-hidden" style={{ borderColor: colors.border }}>
+                        {brandingData.subscriptionQrisUrl ? (
+                          <Image source={{ uri: brandingData.subscriptionQrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+                        ) : (
+                          <Text className="text-[8px] font-bold text-slate-400 px-4 text-center">Belum ada QRIS</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        onPress={handlePickSubscriptionQris}
+                        className="h-full px-4 rounded-xl items-center justify-center border"
+                        style={{ backgroundColor: colors.accent + '20', borderColor: colors.accent + '40' }}
+                      >
+                        <Text className="text-[10px] font-black uppercase" style={{ color: colors.accent }}>Upload QRIS</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
                   {/* Save Changes Button */}
                   <TouchableOpacity
                     onPress={handleUpdateBranding}
@@ -2857,7 +3464,7 @@ export default function SettingsScreen({ navigation }: any) {
       </Modal>
 
       {/* 9. SUPER ADMIN - INFRASTRUKTUR & DATABASE NODES MODAL */}
-      <Modal visible={activeModal === 'superAdminInfra'} animationType="slide" transparent>
+      <Modal visible={activeModal === 'superAdminInfra'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
         <View className="flex-1 bg-black/60 justify-end">
           <View className="h-[92%] rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.bg }}>
             <View className="flex-row justify-between items-center mb-4">
@@ -3153,6 +3760,185 @@ export default function SettingsScreen({ navigation }: any) {
             </View>
           </Modal>
         )}
+      </Modal>
+
+      {/* 10. SUBSCRIPTION MENU MODAL */}
+      <Modal visible={activeModal === 'subscriptionMenu'} animationType="slide" transparent onRequestClose={() => { setActiveModal(null); setSelectedPackage(null); }}>
+        <View className="flex-1 bg-black/80 justify-end">
+          <View className="h-[90%] rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.bg }}>
+            <View className="flex-row justify-between items-center mb-6">
+              <View>
+                <Text className="text-xl font-black" style={{ color: colors.text }}>Menu Langganan</Text>
+                <Text className="text-xs font-bold text-slate-400">Pilih paket untuk memperpanjang masa aktif</Text>
+              </View>
+              <TouchableOpacity onPress={() => { setActiveModal(null); setSelectedPackage(null); }} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
+                <X color={colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+              {!selectedPackage ? (
+                <View className="space-y-4">
+                  {SUBSCRIPTION_PACKAGES.map((pkg) => (
+                    <TouchableOpacity
+                      key={pkg.id}
+                      onPress={() => setSelectedPackage(pkg)}
+                      className="p-5 rounded-3xl border flex-row items-center justify-between"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    >
+                      <View>
+                        <Text className="text-sm font-black" style={{ color: colors.text }}>{pkg.title}</Text>
+                        <Text className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{pkg.desc}</Text>
+                      </View>
+                      <View className="bg-emerald-500/10 px-3 py-2 rounded-xl">
+                        <Text className="text-[10px] font-black text-emerald-500">PILIH</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                  <Text className="text-[9px] text-center text-slate-400 italic mt-4">
+                    Pilih paket yang sesuai dengan kebutuhan bisnis Anda. Harga sudah termasuk pajak.
+                  </Text>
+                </View>
+              ) : (
+                <View className="space-y-6 pb-10">
+                  {/* Selected Package Details */}
+                  <View className="p-4 rounded-2xl border bg-emerald-500/5 items-center" style={{ borderColor: colors.border }}>
+                    <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Paket Pilihan Anda</Text>
+                    <Text className="text-xl font-black text-emerald-500">{selectedPackage.title}</Text>
+                    <Text className="text-sm font-bold mt-1" style={{ color: colors.text }}>Total Tagihan: Rp {selectedPackage.price.toLocaleString('id-ID')}</Text>
+                  </View>
+
+                  <View className="h-[1px] w-full bg-slate-200" />
+
+                  {/* Payment Details */}
+                  <View className="items-center space-y-4">
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>Metode Pembayaran</Text>
+                    
+                    {brandingData.subscriptionQrisUrl ? (
+                      <View className="items-center w-full">
+                        <Text className="text-[10px] font-bold text-slate-400 uppercase mb-2">Scan QRIS</Text>
+                        <View className="p-2 bg-white rounded-2xl border shadow-sm w-48 h-48" style={{ borderColor: colors.border }}>
+                          <Image source={{ uri: brandingData.subscriptionQrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+                        </View>
+                      </View>
+                    ) : null}
+
+                    {brandingData.subscriptionBankInfo ? (
+                      <View className="w-full mt-2">
+                        <Text className="text-[10px] font-bold text-slate-400 uppercase mb-2 text-center">Atau Transfer ke Rekening</Text>
+                        <View className="p-4 bg-white rounded-2xl border w-full" style={{ borderColor: colors.border }}>
+                          <Text className="text-xs font-black text-center" style={{ color: colors.text }}>{brandingData.subscriptionBankInfo}</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Upload Proof */}
+                  <View className="mt-4">
+                    <Text className="text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Upload Bukti Pembayaran</Text>
+                    <TouchableOpacity 
+                      onPress={handlePickSubscriptionProof}
+                      className="w-full h-32 border-2 border-dashed rounded-2xl items-center justify-center bg-black/5 overflow-hidden"
+                      style={{ borderColor: subscriptionProofBase64 ? colors.accent : colors.border }}
+                    >
+                      {subscriptionProofBase64 ? (
+                        <Image source={{ uri: subscriptionProofBase64 }} className="w-full h-full" style={{ resizeMode: 'cover' }} />
+                      ) : (
+                        <View className="items-center">
+                          <Camera size={24} color={colors.textMuted} className="mb-2" />
+                          <Text className="text-[10px] font-bold text-slate-400">Ketuk untuk pilih gambar</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={handleSubmitSubscription}
+                    disabled={isSubmittingSubscription}
+                    className="py-4 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg mt-2"
+                    style={{ backgroundColor: colors.accent, shadowColor: colors.accent }}
+                  >
+                    {isSubmittingSubscription ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <>
+                        <Check size={16} color="#ffffff" strokeWidth={3} />
+                        <Text className="font-black text-white text-xs uppercase tracking-wider">Kirim Bukti Pembayaran</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => { setSelectedPackage(null); setSubscriptionProofBase64(null); }} className="py-3 items-center">
+                    <Text className="text-[10px] font-black text-slate-400 uppercase">Ganti Paket</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* SUPER ADMIN: SUBSCRIPTIONS MODAL */}
+      <Modal visible={activeModal === 'superAdminSubscriptions'} animationType="slide" transparent onRequestClose={() => setActiveModal(null)}>
+        <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ backgroundColor: colors.bg }}>
+          <View className="flex-row items-center px-6 py-4 border-b" style={{ borderColor: colors.border + '30' }}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center mr-4">
+              <ArrowLeft color={colors.text} size={20} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-xl font-black" style={{ color: colors.text }}>Pengajuan Langganan</Text>
+              <Text className="text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                {subscriptionRequests.filter(r => r.status === 'pending').length} Menunggu Verifikasi
+              </Text>
+            </View>
+          </View>
+          <ScrollView className="flex-1 p-6">
+            {subscriptionRequests.map(req => (
+              <View key={req.id} className="p-4 rounded-2xl border mb-4 shadow-sm" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="flex-row justify-between mb-2">
+                  <View>
+                    <Text className="text-xs font-black uppercase" style={{ color: colors.text }}>{req.packageTitle}</Text>
+                    <Text className="text-[10px] font-bold mt-1" style={{ color: colors.textMuted }}>{req.ownerEmail}</Text>
+                  </View>
+                  <View className={`px-2 py-1 rounded ${req.status === 'pending' ? 'bg-amber-500/10' : 'bg-emerald-500/10'}`}>
+                    <Text className={`text-[8px] font-black uppercase tracking-wider ${req.status === 'pending' ? 'text-amber-500' : 'text-emerald-500'}`}>{req.status}</Text>
+                  </View>
+                </View>
+                <Text className="text-[10px] font-bold mb-3" style={{ color: colors.accent }}>Harga: Rp {req.price?.toLocaleString('id-ID')}</Text>
+                
+                {req.proofUrl && (
+                  <View className="w-full h-40 rounded-xl overflow-hidden mb-3 border bg-slate-100" style={{ borderColor: colors.border }}>
+                    <Image source={{ uri: req.proofUrl }} className="w-full h-full" resizeMode="cover" />
+                  </View>
+                )}
+
+                {req.status === 'pending' && (
+                  <TouchableOpacity
+                    onPress={() => handleVerifySubscription(req)}
+                    disabled={isSaving}
+                    className="w-full py-3 rounded-xl items-center justify-center flex-row gap-2"
+                    style={{ backgroundColor: '#10b981', opacity: isSaving ? 0.7 : 1 }}
+                  >
+                    {isSaving ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <>
+                        <CheckCircle2 size={16} color="#ffffff" />
+                        <Text className="text-[10px] font-black text-white uppercase tracking-widest">Verifikasi Valid</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+            {subscriptionRequests.length === 0 && (
+              <View className="py-12 items-center">
+                <Text className="text-xs font-bold text-slate-400">Belum ada pengajuan langganan.</Text>
+              </View>
+            )}
+            <View className="h-10" />
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
     </SafeAreaView>

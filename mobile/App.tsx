@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
@@ -18,7 +18,11 @@ import OrdersScreen from './src/screens/OrdersScreen';
 import ProductsScreen from './src/screens/ProductsScreen';
 import ProductFormScreen from './src/screens/ProductFormScreen';
 import TransactionsScreen from './src/screens/TransactionsScreen';
+import TransactionDetailScreen from './src/screens/TransactionDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import ThemeScreen from './src/screens/ThemeScreen';
+import StoreSettingsScreen from './src/screens/StoreSettingsScreen';
 import FeatureScreen from './src/screens/FeatureScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import OrderNotificationListener from './src/components/OrderNotificationListener';
@@ -74,15 +78,16 @@ function TabNavigator() {
           backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 65 + insets.bottom,
-          paddingBottom: 12 + insets.bottom,
-          paddingTop: 8,
+          height: 75 + insets.bottom,
+          paddingBottom: 14 + insets.bottom,
+          paddingTop: 12,
         },
         tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarInactiveTintColor: colors.text + '80',
         tabBarLabelStyle: {
           fontWeight: '900',
-          fontSize: 10,
+          fontSize: 11,
+          marginTop: 4,
         }
       }}
     >
@@ -90,7 +95,7 @@ function TabNavigator() {
         name="Beranda" 
         component={DashboardScreen} 
         options={{
-          tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
+          tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={26} strokeWidth={2.5} />,
           title: 'DASBOR UTAMA'
         }}
       />
@@ -98,22 +103,26 @@ function TabNavigator() {
         name="Kasir" 
         component={POSScreen} 
         options={{
-          tabBarIcon: ({ color, size }) => <Calculator color={color} size={size} />,
-          title: 'KASIR PRO POS'
+          tabBarIcon: ({ color }) => <Calculator color={color} size={26} strokeWidth={2.5} />,
+          title: 'IKASIR PRO'
         }}
       />
       <Tab.Screen 
         name="Pesanan" 
         component={OrdersScreen} 
         options={{
-          tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
+          tabBarIcon: ({ color }) => <ShoppingBag color={color} size={26} strokeWidth={2.5} />,
           title: 'PESANAN ONLINE',
           tabBarBadge: newOrdersCount > 0 ? newOrdersCount : undefined,
           tabBarBadgeStyle: {
             backgroundColor: '#ef4444',
             color: '#ffffff',
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 'bold',
+            minWidth: 20,
+            height: 20,
+            borderRadius: 10,
+            lineHeight: 20,
           }
         }}
       />
@@ -121,7 +130,7 @@ function TabNavigator() {
         name="Transaksi" 
         component={TransactionsScreen} 
         options={{
-          tabBarIcon: ({ color, size }) => <History color={color} size={size} />,
+          tabBarIcon: ({ color }) => <History color={color} size={26} strokeWidth={2.5} />,
           title: 'RIWAYAT TRANSAKSI'
         }}
       />
@@ -129,7 +138,7 @@ function TabNavigator() {
         name="Lainnya" 
         component={SettingsScreen} 
         options={{
-          tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} />,
+          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={26} strokeWidth={2.5} />,
           title: 'MENU LAINNYA'
         }}
       />
@@ -149,6 +158,9 @@ function NavigationRoot() {
         ) : (
           <>
             <Stack.Screen name="Main" component={TabNavigator} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ThemeScreen" component={ThemeScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="StoreSettingsScreen" component={StoreSettingsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="EditProduct" component={ProductFormScreen} />
             <Stack.Screen 
               name="Products" 
@@ -194,19 +206,29 @@ function NavigationRoot() {
                 headerTintColor: colors.text
               }} 
             />
+            <Stack.Screen 
+              name="TransactionDetail" 
+              component={TransactionDetailScreen} 
+              options={{ headerShown: false }}
+            />
           </>
         )}
       </Stack.Navigator>
-      <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
+      <StatusBar style={theme.startsWith('light') ? 'dark' : 'light'} backgroundColor={colors.bg} translucent={false} />
     </NavigationContainer>
   );
 }
 
+import UpdateChecker from './src/components/UpdateChecker';
+
 export default function App() {
-  useKeepAwake();
+  useEffect(() => {
+    activateKeepAwakeAsync().catch(console.warn);
+  }, []);
   return (
     <SafeAreaProvider>
       <ThemeProvider>
+        <UpdateChecker />
         <OrderNotificationListener />
         <NavigationRoot />
       </ThemeProvider>

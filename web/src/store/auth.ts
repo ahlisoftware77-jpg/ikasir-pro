@@ -28,6 +28,8 @@ interface AuthState {
   storeId: string | null;
   storeName: string | null;
   userName: string | null;
+  subscriptionUntil: string | null;
+  isSubscriptionExpired: boolean;
   blockingDetails: {
     isBlocked: boolean;
     reason: string;
@@ -45,6 +47,8 @@ interface AuthState {
   setPermissions: (permissions: UserPermissions | null) => void;
   setStoreId: (storeId: string | null) => void;
   setStoreName: (storeName: string | null) => void;
+  setSubscriptionUntil: (val: string | null) => void;
+  setIsSubscriptionExpired: (val: boolean) => void;
   setLogoUrl: (url: string | null) => void;
   setWasAuthenticated: (val: boolean) => void;
   setBlockingDetails: (details: any) => void;
@@ -68,6 +72,8 @@ export const useAuthStore = create<AuthState>()(
       storeId: null,
       storeName: null,
       userName: null,
+      subscriptionUntil: null,
+      isSubscriptionExpired: false,
       logoUrl: null,
       newOrderCount: 0,
       blockingDetails: null,
@@ -77,6 +83,8 @@ export const useAuthStore = create<AuthState>()(
       setPermissions: (permissions) => set({ permissions }),
       setStoreId: (storeId) => set({ storeId }),
       setStoreName: (storeName) => set({ storeName }),
+      setSubscriptionUntil: (val) => set({ subscriptionUntil: val }),
+      setIsSubscriptionExpired: (val) => set({ isSubscriptionExpired: val }),
       setLogoUrl: (logoUrl) => set({ logoUrl }),
       setWasAuthenticated: (wasAuthenticated) => set({ wasAuthenticated }),
       setBlockingDetails: (blockingDetails) => set({ blockingDetails }),
@@ -92,6 +100,8 @@ export const useAuthStore = create<AuthState>()(
         storeId: null, 
         storeName: null,
         userName: null,
+        subscriptionUntil: null,
+        isSubscriptionExpired: false,
         logoUrl: null,
         blockingDetails: null 
       }),
@@ -106,6 +116,8 @@ export const useAuthStore = create<AuthState>()(
         storeId: state.storeId, 
         storeName: state.storeName,
         userName: state.userName,
+        subscriptionUntil: state.subscriptionUntil,
+        isSubscriptionExpired: state.isSubscriptionExpired,
         logoUrl: state.logoUrl,
         wasAuthenticated: state.wasAuthenticated,
         blockingDetails: state.blockingDetails

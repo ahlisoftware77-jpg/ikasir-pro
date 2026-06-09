@@ -1397,9 +1397,25 @@ function PublicOrderContent() {
                               </button>
                            </div>
                           {paymentMethod !== 'cash' && (
-                              <div className="p-4 bg-tr/5 border border-tr/20 rounded-2xl flex items-center gap-3 text-tr">
-                                <AlertTriangle size={18} className="shrink-0" />
-                                <p className="text-[10px] font-black uppercase leading-relaxed">Instruksi pembayaran {paymentMethod === 'transfer' ? 'Transfer Bank' : 'QRIS E-Wallet'} akan diinformasikan oleh staf kami melalui WhatsApp untuk konfirmasi pesanan.</p>
+                              <div className="p-4 bg-tr/5 border border-tr/20 rounded-2xl flex flex-col gap-3 text-tr">
+                                <div className="flex items-center gap-3">
+                                  <AlertTriangle size={18} className="shrink-0" />
+                                  <p className="text-[10px] font-black uppercase leading-relaxed">Instruksi pembayaran {paymentMethod === 'transfer' ? 'Transfer Bank' : 'QRIS E-Wallet'} akan diinformasikan oleh staf kami melalui WhatsApp untuk konfirmasi pesanan.</p>
+                                </div>
+                                {paymentMethod === 'qris' && storeSettings?.qrisUrl && (
+                                  <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-3 border border-tr/10 shadow-inner">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Scan QRIS Ini untuk Membayar</h4>
+                                    <img src={storeSettings.qrisUrl} alt="QRIS Pembayaran" className="w-40 h-40 object-contain rounded-lg border border-slate-100" />
+                                    <p className="text-[8px] text-slate-400 font-bold mt-2 text-center">Harap simpan bukti transfer/scan dan kirimkan ke staf kami via WhatsApp.</p>
+                                  </div>
+                                )}
+                                {paymentMethod === 'transfer' && storeSettings?.bankInfo && (
+                                  <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-4 border border-tr/10 shadow-inner">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Transfer ke Rekening Berikut</h4>
+                                    <p className="text-sm font-black text-slate-900 whitespace-pre-line text-center bg-slate-50 p-3 rounded-lg border border-slate-200 w-full">{storeSettings.bankInfo}</p>
+                                    <p className="text-[8px] text-slate-400 font-bold mt-3 text-center">Harap simpan bukti transfer dan kirimkan ke staf kami via WhatsApp.</p>
+                                  </div>
+                                )}
                               </div>
                           )}
                        </div>

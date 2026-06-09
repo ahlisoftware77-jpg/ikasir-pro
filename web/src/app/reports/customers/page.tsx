@@ -1,18 +1,27 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { Users, Loader2, Award, Download } from 'lucide-react';
+import { Users, Loader2, Award, Download, Edit2, Trash2, X, Check } from 'lucide-react';
 import { Customer } from '@/types';
 import { exportToExcel } from '@/lib/exportToExcel';
+import toast from 'react-hot-toast';
 
 export default function CustomerReportPage() {
   const { storeId } = useAuthStore();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Edit states
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formPoints, setFormPoints] = useState('');
+  const [formOrders, setFormOrders] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!storeId) return;
@@ -94,6 +103,52 @@ export default function CustomerReportPage() {
     exportToExcel(formattedData, 'Laporan_Pelanggan_Loyal');
   };
 
+  const handleEditClick = (stat: any) => {
+     if (!stat.id) return;
+     const cust = customers.find(c => c.id === stat.id);
+     if (cust) {
+        setEditCustomer(cust);
+        setFormName(cust.name);
+        setFormPhone(cust.phone || '');
+        setFormPoints(cust.points?.toString() || '0');
+        setFormOrders(cust.orders?.toString() || '0');
+     }
+  };
+
+  const handleDeleteClick = async (stat: any) => {
+     if (!stat.id) return;
+     if (window.confirm(`Yakin ingin menghapus pelanggan ${stat.name}?`)) {
+        try {
+           await deleteDoc(doc(db, 'customers', stat.id));
+           toast.success('Pelanggan berhasil dihapus');
+        } catch (error) {
+           console.error(error);
+           toast.error('Gagal menghapus pelanggan');
+        }
+     }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!editCustomer?.id) return;
+     setIsSaving(true);
+     try {
+        await updateDoc(doc(db, 'customers', editCustomer.id), {
+           name: formName,
+           phone: formPhone,
+           points: parseInt(formPoints) || 0,
+           orders: parseInt(formOrders) || 0,
+        });
+        toast.success('Data pelanggan diperbarui');
+        setEditCustomer(null);
+     } catch (error) {
+        console.error(error);
+        toast.error('Gagal memperbarui data');
+     } finally {
+        setIsSaving(false);
+     }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -139,6 +194,7 @@ export default function CustomerReportPage() {
                      <th className="p-4 text-center">Total Kunjungan</th>
                      <th className="p-4">Kunjungan Terakhir</th>
                      <th className="p-4 text-right">Total Belanja</th>
+                     <th className="p-4 text-center">Aksi</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-app-border">
@@ -169,6 +225,20 @@ export default function CustomerReportPage() {
                        </td>
                        <td className="p-4 text-right font-black text-emerald-400">
                           Rp {stat.totalSpent.toLocaleString('id-ID')}
+                       </td>
+                       <td className="p-4 text-center">
+                          {stat.id ? (
+                             <div className="flex justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleEditClick(stat)} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
+                                   <Edit2 size={16} />
+                                </button>
+                                <button onClick={() => handleDeleteClick(stat)} className="p-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg transition-colors">
+                                   <Trash2 size={16} />
+                                </button>
+                             </div>
+                          ) : (
+                             <span className="text-[10px] text-app-text-muted font-bold uppercase">-</span>
+                          )}
                        </td>
                      </tr>
                    ))}
@@ -211,6 +281,16 @@ export default function CustomerReportPage() {
                         <p className="text-[9px] text-app-text-muted font-bold uppercase mt-0.5">TERAKHIR: {stat.lastOrder ? stat.lastOrder.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}</p>
                       </div>
                     </div>
+                    {stat.id && (
+                      <div className="flex items-center gap-2 pt-2 mt-2 border-t border-app-border">
+                        <button onClick={() => handleEditClick(stat)} className="flex-1 py-1.5 flex justify-center items-center gap-2 bg-background border border-app-border rounded-lg text-[10px] font-black uppercase text-app-text-muted hover:text-foreground">
+                          <Edit2 size={12} /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteClick(stat)} className="flex-1 py-1.5 flex justify-center items-center gap-2 bg-rose-500/10 border border-rose-500/20 rounded-lg text-[10px] font-black uppercase text-rose-500 hover:bg-rose-500 hover:text-white transition-colors">
+                          <Trash2 size={12} /> Hapus
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -218,6 +298,77 @@ export default function CustomerReportPage() {
            </>
          )}
       </div>
+
+      {/* EDIT MODAL */}
+      {editCustomer && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="bg-surface border border-app-border rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+               <div className="p-6 border-b border-app-border flex items-center justify-between">
+                  <h2 className="text-xl font-black text-foreground flex items-center gap-2">
+                     <Edit2 size={20} className="text-accent" />
+                     Edit Pelanggan
+                  </h2>
+                  <button onClick={() => setEditCustomer(null)} className="text-app-text-muted hover:text-rose-500 transition-colors p-2 hover:bg-background rounded-full">
+                     <X size={20} />
+                  </button>
+               </div>
+               
+               <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted pl-1">Nama Pelanggan</label>
+                     <input 
+                        required
+                        value={formName}
+                        onChange={e => setFormName(e.target.value)}
+                        className="w-full px-4 py-3 bg-background border border-app-border rounded-xl font-bold text-sm text-foreground focus:outline-none focus:border-accent transition-colors"
+                     />
+                  </div>
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted pl-1">No. WhatsApp/HP</label>
+                     <input 
+                        required
+                        type="tel"
+                        value={formPhone}
+                        onChange={e => setFormPhone(e.target.value)}
+                        className="w-full px-4 py-3 bg-background border border-app-border rounded-xl font-bold text-sm text-foreground focus:outline-none focus:border-accent transition-colors"
+                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted pl-1">Poin</label>
+                        <input 
+                           type="number"
+                           value={formPoints}
+                           onChange={e => setFormPoints(e.target.value)}
+                           className="w-full px-4 py-3 bg-background border border-app-border rounded-xl font-bold text-sm text-foreground focus:outline-none focus:border-accent transition-colors text-center"
+                        />
+                     </div>
+                     <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted pl-1">Jml Trx</label>
+                        <input 
+                           type="number"
+                           value={formOrders}
+                           onChange={e => setFormOrders(e.target.value)}
+                           className="w-full px-4 py-3 bg-background border border-app-border rounded-xl font-bold text-sm text-foreground focus:outline-none focus:border-accent transition-colors text-center"
+                        />
+                     </div>
+                  </div>
+                  
+                  <div className="pt-2">
+                     <button 
+                        type="submit"
+                        disabled={isSaving}
+                        className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black flex justify-center items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                     >
+                        {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                        SIMPAN PERUBAHAN
+                     </button>
+                  </div>
+               </form>
+            </div>
+         </div>
+      )}
+
     </div>
   );
 }
