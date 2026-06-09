@@ -223,10 +223,10 @@ export default function SettingsScreen({ navigation }: any) {
   const [isSubscriptionSuccess, setIsSubscriptionSuccess] = useState(false);
 
   const SUBSCRIPTION_PACKAGES = [
-    { id: '1m', title: '1 Bulan', price: 30000, desc: 'Rp 30.000 / bln' },
-    { id: '3m', title: '3 Bulan', price: 84000, desc: 'Rp 28.000 / bln (Hemat Rp 6.000)' },
-    { id: '6m', title: '6 Bulan', price: 159000, desc: 'Rp 26.500 / bln (Hemat Rp 21.000)' },
-    { id: '12m', title: '12 Bulan', price: 306000, desc: 'Rp 25.500 / bln (Hemat Rp 54.000)' },
+    { id: '1m', title: '1 Bulan', price: 30000, desc: '1 Bulan x Rp 30.000 = Rp 30.000' },
+    { id: '3m', title: '3 Bulan', price: 84000, desc: '3 Bulan x Rp 28.000 = Rp 84.000' },
+    { id: '6m', title: '6 Bulan', price: 159000, desc: '6 Bulan x Rp 26.500 = Rp 159.000' },
+    { id: '12m', title: '12 Bulan', price: 306000, desc: '12 Bulan x Rp 25.500 = Rp 306.000' },
   ];
 
   const [infraData, setInfraData] = useState<any>({
