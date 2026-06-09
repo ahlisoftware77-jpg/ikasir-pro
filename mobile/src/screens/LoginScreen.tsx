@@ -344,14 +344,6 @@ export default function LoginScreen() {
           {error ? (
             <View className="bg-red-500/10 border border-red-500/50 p-3 rounded-xl mb-6">
               <Text className="text-red-500 text-[10px] font-bold text-center mb-2">{error}</Text>
-              {error.toLowerCase().includes('habis') && (
-                 <TouchableOpacity 
-                    onPress={() => Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20ingin%20memperpanjang%20langganan%20aplikasi%20saya.')} 
-                    className="bg-emerald-500 py-3 rounded-lg flex-row justify-center items-center gap-2 mt-1"
-                 >
-                    <Text className="text-white text-[10px] font-black uppercase tracking-widest">Perpanjang via WhatsApp</Text>
-                 </TouchableOpacity>
-              )}
             </View>
           ) : null}
 
