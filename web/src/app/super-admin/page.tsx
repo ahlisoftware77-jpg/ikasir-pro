@@ -447,10 +447,8 @@ export default function SuperAdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!infraData.cloudinary_cloud_name || !infraData.cloudinary_upload_preset) {
-      alert('Error: Konfigurasi Cloudinary belum disetel di tab Infrastruktur.');
-      return;
-    }
+    const cloudName = infraData.cloudinary_cloud_name || 'dkcjfwbvc';
+    const uploadPreset = infraData.cloudinary_upload_preset || 'kasirpos';
 
     setIsSaving(true);
     try {
@@ -459,9 +457,9 @@ export default function SuperAdminPage() {
         const base64 = reader.result as string;
         const formData = new FormData();
         formData.append('file', base64);
-        formData.append('upload_preset', infraData.cloudinary_upload_preset);
+        formData.append('upload_preset', uploadPreset);
 
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${infraData.cloudinary_cloud_name}/image/upload`, {
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
           method: 'POST',
           body: formData
         });
