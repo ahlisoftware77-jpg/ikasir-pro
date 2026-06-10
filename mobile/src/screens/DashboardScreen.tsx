@@ -11,7 +11,30 @@ import { useNotificationStore } from '../store/notificationStore';
 
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useTheme();
-  const { user, storeId } = useAuthStore();
+  const { user, storeId, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
+
+  useEffect(() => {
+    if (isSubscriptionExpired) {
+      const formattedDate = subscriptionUntil 
+        ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '-';
+      Alert.alert(
+        '🚨 Masa Aktif Akun Habis',
+        `Masa aktif langganan akun Anda telah berakhir pada ${formattedDate}. Silakan lakukan perpanjangan agar tetap dapat mengakses semua fitur iKasir Pro secara lengkap.`,
+        [
+          { text: 'Nanti', style: 'cancel' },
+          { 
+            text: 'Perpanjang Sekarang', 
+            onPress: () => {
+              Vibration.vibrate(10);
+              navigation.navigate('Lainnya', { openSubscription: true });
+            } 
+          }
+        ],
+        { cancelable: true }
+      );
+    }
+  }, [isSubscriptionExpired, subscriptionUntil, navigation]);
   const unreadCount = useNotificationStore(state => state.getUnreadCount());
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customersCount, setCustomersCount] = useState(0);

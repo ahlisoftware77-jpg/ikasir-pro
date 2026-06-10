@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
 import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet, Download, ExternalLink } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, primaryDb } from '@/lib/firebase';
 import { getInfraConfig } from '@/lib/infraConfig';
 import toast from 'react-hot-toast';
 
@@ -62,7 +62,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
       const uploadResult = await uploadRes.json();
       
       if (uploadResult.secure_url) {
-        await addDoc(collection(db, 'subscription_requests'), {
+        await addDoc(collection(primaryDb, 'subscription_requests'), {
           storeId: storeId,
           ownerUid: user?.uid || '',
           ownerEmail: user?.email || '',

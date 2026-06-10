@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, Linking, Alert } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AlertTriangle, Download } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import * as Updates from 'expo-updates';
 
 const CURRENT_VERSION_CODE = 2; // Increment this with every new APK build
 
@@ -23,10 +24,44 @@ export default function UpdateChecker() {
             setNeedsUpdate(true);
             if (data.updateUrl) setUpdateUrl(data.updateUrl);
             if (data.updateMessage) setUpdateMessage(data.updateMessage);
+            return; // Stop checking OTA if hard update is required
           }
         }
       } catch (err) {
         console.log("Error checking app version:", err);
+      }
+
+      // Check for OTA Updates (EAS Updates)
+      checkOTAUpdate();
+    };
+
+    const checkOTAUpdate = async () => {
+      if (__DEV__) return; // Skip in local development
+
+      try {
+        const updateStatus = await Updates.checkForUpdateAsync();
+        if (updateStatus.isAvailable) {
+          // Fetch the updates in background
+          await Updates.fetchUpdateAsync();
+          
+          // Notify the user to reload
+          Alert.alert(
+            '🚨 Pembaruan Tersedia',
+            'Versi baru aplikasi telah berhasil diunduh. Muat ulang aplikasi sekarang untuk menerapkan perubahan terbaru?',
+            [
+              { text: 'Nanti', style: 'cancel' },
+              { 
+                text: 'Muat Ulang', 
+                onPress: async () => {
+                  await Updates.reloadAsync();
+                } 
+              }
+            ],
+            { cancelable: false }
+          );
+        }
+      } catch (error) {
+        console.log("Error checking OTA updates:", error);
       }
     };
     

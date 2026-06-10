@@ -681,7 +681,7 @@ export default function FeatureScreen({ route, navigation }: any) {
     let index = 0;
 
     rawSoldTransactions.forEach(trx => {
-      if (trx.paymentStatus !== 'paid') return;
+      if (trx.paymentStatus === 'cancelled' || trx.orderStatus === 'cancelled') return;
 
       const trxDate = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date(trx.timestamp);
       
@@ -2576,7 +2576,7 @@ export default function FeatureScreen({ route, navigation }: any) {
               <TouchableOpacity 
                 onPress={handleResetSold}
                 disabled={isResettingSold}
-                className="w-14 h-full rounded-xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
+                className="w-12 h-12 rounded-xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
               >
                 {isResettingSold ? <Activity size={16} color="#f43f5e" /> : <Trash2 size={20} color="#f43f5e" />}
               </TouchableOpacity>

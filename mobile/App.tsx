@@ -7,8 +7,9 @@ import { activateKeepAwakeAsync } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
+import { Alert, Platform } from 'react-native';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -26,6 +27,7 @@ import StoreSettingsScreen from './src/screens/StoreSettingsScreen';
 import FeatureScreen from './src/screens/FeatureScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import OrderNotificationListener from './src/components/OrderNotificationListener';
+import SuperAdminScreen from './src/screens/SuperAdminScreen';
 
 // Icons
 import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag } from 'lucide-react-native';
@@ -148,8 +150,41 @@ function TabNavigator() {
 }
 
 function NavigationRoot() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { colors, theme } = useTheme();
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        
+        if (userData.isActive === false) {
+          logout();
+          Alert.alert('Akses Dibekukan', 'Akun Anda telah dinonaktifkan.');
+          return;
+        }
+
+        const now = new Date();
+        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        if (validUntil) {
+          useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
+          useAuthStore.getState().setIsSubscriptionExpired(now > validUntil);
+        } else {
+          useAuthStore.getState().setSubscriptionUntil(null);
+          useAuthStore.getState().setIsSubscriptionExpired(false);
+        }
+
+        if (userData.role) useAuthStore.getState().setRole(userData.role);
+        if (userData.storeId) useAuthStore.getState().setStoreId(userData.storeId);
+      }
+    }, (err) => {
+      console.error("Error listening to user doc in App.tsx:", err);
+    });
+
+    return () => unsubUser();
+  }, [user?.uid]);
 
   const navTheme = {
     ...DefaultTheme,
@@ -170,7 +205,8 @@ function NavigationRoot() {
       <Stack.Navigator 
         screenOptions={{ 
           headerShown: false,
-          contentStyle: { backgroundColor: colors.bg }
+          contentStyle: { backgroundColor: colors.bg },
+          animation: Platform.OS === 'ios' ? 'slide_from_right' : 'none'
         }}
       >
         {!user ? (
@@ -178,6 +214,13 @@ function NavigationRoot() {
         ) : (
           <>
             <Stack.Screen name="Main" component={TabNavigator} />
+            <Stack.Screen name="SuperAdminScreen" component={SuperAdminScreen} options={({ route }: any) => ({
+              headerShown: true,
+              title: route.params?.title || 'Super Admin',
+              headerStyle: { backgroundColor: colors.surface },
+              headerTitleStyle: { color: colors.text, fontWeight: '900', fontSize: 16 },
+              headerTintColor: colors.text
+            })} />
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ThemeScreen" component={ThemeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="StoreSettingsScreen" component={StoreSettingsScreen} options={{ headerShown: false }} />

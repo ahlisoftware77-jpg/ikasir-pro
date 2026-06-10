@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, where, getDocs, writeBatch } from 'firebase/firestore';
-import { db, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
+import { db, primaryDb, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
 import { 
@@ -117,7 +117,7 @@ export default function SuperAdminPage() {
   }, [role, isLoading, router]);
 
   useEffect(() => {
-    const qUsers = query(collection(db, 'users'));
+    const qUsers = query(collection(primaryDb, 'users'));
     const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
       const usr: any[] = [];
       snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
@@ -132,7 +132,7 @@ export default function SuperAdminPage() {
       setStores(str);
     });
 
-    const qSubscriptions = query(collection(db, 'subscription_requests'));
+    const qSubscriptions = query(collection(primaryDb, 'subscription_requests'));
     const unsubscribeSubscriptions = onSnapshot(qSubscriptions, (snapshot) => {
       const subs: any[] = [];
       snapshot.forEach((d) => subs.push({ id: d.id, ...d.data() }));
@@ -217,7 +217,7 @@ export default function SuperAdminPage() {
     
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'users', editingUser.id), {
+      await updateDoc(doc(primaryDb, 'users', editingUser.id), {
         role: editingUser.role,
         isActive: editingUser.isActive ?? true,
         isSubscribed: editingUser.isSubscribed ?? false,
@@ -311,14 +311,14 @@ export default function SuperAdminPage() {
       const newValidUntil = new Date();
       newValidUntil.setDate(newValidUntil.getDate() + (months * 30));
 
-      const batch = writeBatch(db);
+      const batch = writeBatch(primaryDb);
       
-      batch.update(doc(db, 'subscription_requests', req.id), {
+      batch.update(doc(primaryDb, 'subscription_requests', req.id), {
         status: 'approved',
         approvedAt: new Date().toISOString()
       });
 
-      const qUsers = query(collection(db, 'users'), where('storeId', '==', req.storeId));
+      const qUsers = query(collection(primaryDb, 'users'), where('storeId', '==', req.storeId));
       const userSnaps = await getDocs(qUsers);
       userSnaps.forEach((userDoc) => {
         batch.update(userDoc.ref, {
@@ -648,7 +648,7 @@ export default function SuperAdminPage() {
 
       // 4. Update Global Registry (Primary DB)
       // This is crucial so AuthProvider knows where to route the next login
-      await updateDoc(doc(db, 'users', userToMigrate.id), {
+      await updateDoc(doc(primaryDb, 'users', userToMigrate.id), {
         targetProjectId: isResetting ? null : targetProj.fb_project_id,
         infraConfig: isResetting ? null : targetProj,
         lastMigration: new Date().toISOString()
@@ -712,7 +712,7 @@ export default function SuperAdminPage() {
     if (confirm(`⚠️ PERINGATAN KERAS ⚠️\n\nAnda yakin ingin menghapus akses User "${email}" secara PERMANEN dari database utama?`)) {
       setIsSaving(true);
       try {
-        await deleteDoc(doc(db, 'users', userId));
+        await deleteDoc(doc(primaryDb, 'users', userId));
         alert('User berhasil dihapus secara permanen dari Firestore.');
       } catch (error: any) {
         console.error(error);
@@ -727,7 +727,7 @@ export default function SuperAdminPage() {
     if (confirm('Yakin ingin menghapus riwayat langganan ini?')) {
       setIsSaving(true);
       try {
-        await deleteDoc(doc(db, 'subscription_requests', reqId));
+        await deleteDoc(doc(primaryDb, 'subscription_requests', reqId));
         alert('Riwayat langganan berhasil dihapus.');
       } catch (error: any) {
         console.error(error);

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History } from 'lucide-react';
 import { getInfraConfig } from '@/lib/infraConfig';
 import { doc, getDoc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, primaryDb } from '@/lib/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { handleExportJSON } from '@/lib/backupUtils';
 import { useAuthStore } from '@/store/auth';
@@ -33,7 +33,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (storeId) {
       import('firebase/firestore').then(({ collection, query, where, onSnapshot }) => {
-        const q = query(collection(db, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
+        const q = query(collection(primaryDb, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
         const unsubscribe = onSnapshot(q, (snap) => {
           setHasPendingSubscription(!snap.empty);
         });

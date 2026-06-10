@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db, primaryDb, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { doc, getDoc, setDoc, onSnapshotsInSync } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshotsInSync, onSnapshot } from 'firebase/firestore';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { 
@@ -30,8 +30,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setSyncing(false);
     });
 
+    let unsubscribeUser: (() => void) | null = null;
+
     // 3. Monitor Auth State
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (unsubscribeUser) {
+        unsubscribeUser();
+        unsubscribeUser = null;
+      }
+
       if (user) {
         // Default root admin override (Super Admin)
         if (user.email === 'triyadi72@gmail.com') {
@@ -74,78 +81,85 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           try {
             // SELALU gunakan primaryDb untuk Auth, Role, dan Info Langganan
             const userRef = doc(primaryDb, 'users', user.uid);
-            let userDoc = await getDoc(userRef);
             
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              const now = new Date();
-              const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
-              
-              if (userData.isActive === false) {
-                setBlockingDetails({
-                  title: 'Akses Dibekukan',
-                  message: 'Maaf, akun Anda telah dinonaktifkan sementara oleh administrator sistem.',
-                  type: 'disabled'
-                });
-                if (navigator.onLine) await signOut(auth);
-                setUser(null);
-              } 
-              else {
-                // Set subscription details instead of hard blocking
-                if (userData.validUntil) {
-                  useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
-                  useAuthStore.getState().setIsSubscriptionExpired(now > new Date(userData.validUntil));
-                } else {
-                  useAuthStore.getState().setSubscriptionUntil(null);
-                  useAuthStore.getState().setIsSubscriptionExpired(false);
-                }
-
-                const sId = userData.storeId || 'default-store';
+            unsubscribeUser = onSnapshot(userRef, async (userDoc) => {
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                const now = new Date();
                 
-                // PENTING: Toko (stores) tetap dibaca dari db yang sedang aktif (bisa jadi Target DB)
-                const storeRef = doc(db, 'stores', sId);
-                const storeDoc = await getDoc(storeRef);
-                const storeData = storeDoc.exists() ? storeDoc.data() : null;
-
-                if (storeData && storeData.isActive === false) {
+                if (userData.isActive === false) {
                   setBlockingDetails({
-                    title: 'Menunggu Persetujuan',
-                    message: 'Pendaftaran toko Anda sedang ditinjau oleh tim administrator.',
-                    type: 'pending_approval'
+                    title: 'Akses Dibekukan',
+                    message: 'Maaf, akun Anda telah dinonaktifkan sementara oleh administrator sistem.',
+                    type: 'disabled'
                   });
                   if (navigator.onLine) await signOut(auth);
                   setUser(null);
-                } else {
-                  setUser(user);
-                  setRole(userData.role as any);
-                  setStoreId(sId);
-                  setStoreName(storeData ? storeData.name : 'Toko Saya');
-                  setUserName(userData.name || user.email);
-
-                  if (userData.role === 'admin') {
-                    setPermissions({
-                      canAccessPOS: true,
-                      canManageProducts: true,
-                      canCreateProducts: true,
-                      canEditProducts: true,
-                      canDeleteProducts: true,
-                      canViewReports: true,
-                      canManageUsers: true,
-                      canEditSettings: true
-                    });
-                  } else {
-                    setPermissions({
-                      canAccessPOS: userData.permissions?.canAccessPOS ?? true,
-                      canManageProducts: userData.permissions?.canManageProducts ?? false,
-                      canCreateProducts: userData.permissions?.canCreateProducts ?? userData.permissions?.canManageProducts ?? false,
-                      canEditProducts: userData.permissions?.canEditProducts ?? userData.permissions?.canManageProducts ?? false,
-                      canDeleteProducts: userData.permissions?.canDeleteProducts ?? userData.permissions?.canManageProducts ?? false,
-                      canViewReports: userData.permissions?.canViewReports ?? false,
-                      canManageUsers: userData.permissions?.canManageUsers ?? false,
-                      canEditSettings: userData.permissions?.canEditSettings ?? false,
-                      ...userData.permissions
-                    });
+                  if (unsubscribeUser) {
+                    unsubscribeUser();
+                    unsubscribeUser = null;
                   }
+                } 
+                else {
+                  // Set subscription details instead of hard blocking
+                  if (userData.validUntil) {
+                    useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
+                    useAuthStore.getState().setIsSubscriptionExpired(now > new Date(userData.validUntil));
+                  } else {
+                    useAuthStore.getState().setSubscriptionUntil(null);
+                    useAuthStore.getState().setIsSubscriptionExpired(false);
+                  }
+
+                  const sId = userData.storeId || 'default-store';
+                  
+                  // PENTING: Toko (stores) tetap dibaca dari db yang sedang aktif (bisa jadi Target DB)
+                  const storeRef = doc(db, 'stores', sId);
+                  const storeDoc = await getDoc(storeRef);
+                  const storeData = storeDoc.exists() ? storeDoc.data() : null;
+
+                  if (storeData && storeData.isActive === false) {
+                    setBlockingDetails({
+                      title: 'Menunggu Persetujuan',
+                      message: 'Pendaftaran toko Anda sedang ditinjau oleh tim administrator.',
+                      type: 'pending_approval'
+                    });
+                    if (navigator.onLine) await signOut(auth);
+                    setUser(null);
+                    if (unsubscribeUser) {
+                      unsubscribeUser();
+                      unsubscribeUser = null;
+                    }
+                  } else {
+                    setUser(user);
+                    setRole(userData.role as any);
+                    setStoreId(sId);
+                    setStoreName(storeData ? storeData.name : 'Toko Saya');
+                    setUserName(userData.name || user.email);
+
+                    if (userData.role === 'admin') {
+                      setPermissions({
+                        canAccessPOS: true,
+                        canManageProducts: true,
+                        canCreateProducts: true,
+                        canEditProducts: true,
+                        canDeleteProducts: true,
+                        canViewReports: true,
+                        canManageUsers: true,
+                        canEditSettings: true
+                      });
+                    } else {
+                      setPermissions({
+                        canAccessPOS: userData.permissions?.canAccessPOS ?? true,
+                        canManageProducts: userData.permissions?.canManageProducts ?? false,
+                        canCreateProducts: userData.permissions?.canCreateProducts ?? userData.permissions?.canManageProducts ?? false,
+                        canEditProducts: userData.permissions?.canEditProducts ?? userData.permissions?.canManageProducts ?? false,
+                        canDeleteProducts: userData.permissions?.canDeleteProducts ?? userData.permissions?.canManageProducts ?? false,
+                        canViewReports: userData.permissions?.canViewReports ?? false,
+                        canManageUsers: userData.permissions?.canManageUsers ?? false,
+                        canEditSettings: userData.permissions?.canEditSettings ?? false,
+                        ...userData.permissions
+                      });
+                    }
                   }
 
                   // SYNC DYNAMIC INFRASTRUCTURE (Multi-Tenancy)
@@ -178,29 +192,32 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                     }
                   } catch (err) {}
                 }
-            } else {
-              // FAIL-SAFE: Jika user tidak ditemukan di database AKTIF, 
-              // tapi kita sedang menggunakan OVERRIDE (Dynamic Config), 
-              // kemungkinan profil user ada di database UTAMA.
-              if (isDynamicConfig) {
-                 console.warn("User profile not found in target project. Falling back to primary...");
-                 localStorage.removeItem('infra_config_fb');
-                 window.location.reload();
-                 return; 
-              }
+              } else {
+                // FAIL-SAFE: Jika user tidak ditemukan di database AKTIF, 
+                // tapi kita sedang menggunakan OVERRIDE (Dynamic Config), 
+                // kemungkinan profil user ada di database UTAMA.
+                if (isDynamicConfig) {
+                   console.warn("User profile not found in target project. Falling back to primary...");
+                   localStorage.removeItem('infra_config_fb');
+                   window.location.reload();
+                   return; 
+                }
 
-              setUser(user);
-              setRole('cashier');
-              setStoreId('default-store');
-            }
+                setUser(user);
+                setRole('cashier');
+                setStoreId('default-store');
+              }
+              setLoading(false);
+            }, (error) => {
+              console.error("Error listening to user doc:", error);
+              setLoading(false);
+            });
           } catch (error) {
-            console.error("Error fetching user data", error);
+            console.error("Error setting up user listener", error);
             // If offline and we have a user, assume previous session is valid
             if (!navigator.onLine && user) {
                setUser(user);
-               // Minimal permissions if completely unknown
             }
-          } finally {
             setLoading(false);
           }
         }
@@ -222,6 +239,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       window.removeEventListener('offline', handleOffline);
       unsubscribeSync();
       unsubscribeAuth();
+      if (unsubscribeUser) {
+        unsubscribeUser();
+      }
     };
   }, [setUser, setRole, setLoading, setBlockingDetails, setStoreId, setStoreName, setLogoUrl, setPermissions, setOnline, setSyncing]);
 

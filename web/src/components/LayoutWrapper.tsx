@@ -11,7 +11,7 @@ import NavigationGuard from './NavigationGuard';
 import MobileBottomNav from './MobileBottomNav';
 import { useNotificationStore } from '@/store/notifications';
 import NotificationCenter from '@/components/NotificationCenter';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, primaryDb } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { handleExportJSON } from '@/lib/backupUtils';
 import SubscriptionModal from '@/components/SubscriptionModal';
@@ -38,7 +38,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     if (!storeId || (role as string) === 'customer') return;
 
     const q = query(
-      collection(db, 'subscription_requests'),
+      collection(primaryDb, 'subscription_requests'),
       where('storeId', '==', storeId),
       where('status', '==', 'pending')
     );
