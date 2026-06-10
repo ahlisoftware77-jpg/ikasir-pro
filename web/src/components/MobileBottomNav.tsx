@@ -242,7 +242,7 @@ export default function MobileBottomNav() {
                  const hasSubItems = (menu as any).subItems && (menu as any).subItems.length > 0;
 
                  return (
-                   <div key={menu.name} className="space-y-1">
+                   <div key={menu.name} className="space-y-1 py-1">
                      <div
                        onClick={() => {
                          const isBlocked = isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path);
@@ -258,25 +258,21 @@ export default function MobileBottomNav() {
                            router.push(menu.path);
                          }
                        }}
-                       className={`flex items-center justify-between p-3.5 rounded-lg border transition-all cursor-pointer ${
-                          isActive 
-                            ? 'border-accent bg-accent/5 shadow-sm text-foreground' 
-                            : 'border-app-border bg-background/50 hover:border-accent/40 text-app-text-muted'
-                       } ${isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                       className={`uiverse-btn ${isActive ? 'active-btn' : ''} ${isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path) ? 'opacity-40 cursor-not-allowed' : ''}`}
                      >
-                       <div className="flex items-center gap-3">
-                         <div className={`p-2 rounded-md border ${isActive ? 'bg-accent text-white shadow-sm border-accent' : 'bg-surface border-transparent'}`}>
+                       <span className="uiverse-btn-top w-full justify-between">
+                         <span className="flex items-center gap-3">
                            <menu.icon size={18} />
-                         </div>
-                         <span className="font-bold text-sm text-foreground">{menu.name}</span>
-                       </div>
-                       {hasSubItems ? (
-                         <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}>
-                            <ChevronRight size={16} className="opacity-30" />
-                         </div>
-                       ) : (
-                         <ChevronRight size={16} className="opacity-30" />
-                       )}
+                           <span className="text-sm font-bold text-foreground">{menu.name}</span>
+                         </span>
+                         {hasSubItems ? (
+                           <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}>
+                              <ChevronRight size={16} className="opacity-30" />
+                           </div>
+                         ) : (
+                           <ChevronRight size={16} className="opacity-30" />
+                         )}
+                       </span>
                      </div>
 
                      {hasSubItems && isExpanded && (

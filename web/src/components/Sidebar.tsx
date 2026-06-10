@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
         <div className="mb-4 text-[10px] font-bold text-app-text-muted uppercase tracking-[0.2em] px-3 opacity-50">
           Main Menu
         </div>
-        <nav className="space-y-3">
+        <nav className="space-y-1">
           {menuItems.filter(item => {
             if (item.superOnly) return role === 'super-admin';
             
@@ -186,30 +186,32 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             if (item.subItems) {
               const isOpen = openMenus[item.path];
               return (
-                <div key={item.path} className="space-y-2">
+                <div key={item.path} className="space-y-1 py-1">
                   <button
                     onClick={() => toggleMenu(item.path)}
-                    className={`menu-btn ${isActive && !isOpen ? 'active' : ''}`}
+                    className={`uiverse-btn ${isActive && !isOpen ? 'active-btn' : ''}`}
                   >
-                    <span className="menu-btn-top">
-                      <Icon size={18} />
-                      <span className="text-sm flex-1 text-left">{item.name}</span>
+                    <span className="uiverse-btn-top w-full justify-between">
+                      <span className="flex items-center gap-3">
+                        <Icon size={18} />
+                        <span className="text-sm">{item.name}</span>
+                      </span>
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </span>
                   </button>
                   
                   {isOpen && (
-                    <div className="pl-6 space-y-1.5 mt-2 border-l border-app-border ml-5">
+                    <div className="pl-6 space-y-1 mt-1.5 border-l border-app-border ml-4">
                       {item.subItems.map(sub => {
                         const isSubActive = pathname === sub.path;
                         return (
                           <Link
                             key={sub.path}
                             href={sub.path}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] transition-all border ${
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] transition-all border ${
                               isSubActive 
-                                ? 'bg-accent/15 text-accent shadow-sm font-bold border-accent/25' 
-                                : 'text-app-text-muted hover:text-foreground hover:bg-accent/10 font-bold border-transparent'
+                                ? 'bg-accent/10 text-accent font-black border-accent/20' 
+                                : 'text-app-text-muted hover:text-foreground hover:bg-accent/5 font-bold border-transparent'
                             }`}
                           >
                             {sub.icon && <sub.icon size={12} className={isSubActive ? 'text-accent' : 'text-app-text-muted/60'} />}
@@ -226,27 +228,28 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts'].includes(item.path);
 
             return (
-              <Link
-                key={item.path}
-                href={isBlocked ? '#' : item.path}
-                onClick={(e) => {
-                  if (isBlocked) {
-                    e.preventDefault();
-                    toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
-                  }
-                }}
-                className={`menu-btn ${pathname === item.path ? 'active' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
-              >
-                <span className="menu-btn-top">
-                  <Icon size={18} />
-                  <span className="text-sm flex-1 text-left">{item.name}</span>
-                  {item.path === '/orders' && newOrderCount > 0 && (
-                    <span className="bg-rose-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md shadow-sm border border-rose-600 animate-pulse">
-                       {newOrderCount}
-                    </span>
-                  )}
-                </span>
-              </Link>
+              <div key={item.path} className="py-1">
+                <Link
+                  href={isBlocked ? '#' : item.path}
+                  onClick={(e) => {
+                    if (isBlocked) {
+                      e.preventDefault();
+                      toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                    }
+                  }}
+                  className={`uiverse-btn ${pathname === item.path ? 'active-btn' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                >
+                  <span className="uiverse-btn-top">
+                    <Icon size={18} />
+                    <span className="text-sm flex-1 text-left">{item.name}</span>
+                    {item.path === '/orders' && newOrderCount > 0 && (
+                      <span className="bg-rose-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md shadow-sm border border-rose-600 animate-pulse">
+                         {newOrderCount}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              </div>
             );
           })}
         </nav>

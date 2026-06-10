@@ -129,69 +129,60 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px var(--app-bg), 0 0 0 4px var(--app-accent);
 }
 
-/* 3D Sidebar Menu Button style from Uiverse.io */
-.menu-btn {
-  /* Variables adapted for theme */
-  --button_radius: 12px;
+/* From Uiverse.io by Voxybuns - Adaptive 3D Main Menu Buttons */
+.uiverse-btn {
+  --button_radius: 14px;
   --button_color: var(--app-surface);
   --button_outline_color: var(--app-border);
-  font-size: 13px;
+  position: relative;
+  display: block;
   font-weight: bold;
   border: none;
   cursor: pointer;
   border-radius: var(--button_radius);
   background: var(--button_outline_color);
-  display: block;
-  width: 100%;
-  position: relative;
+  padding: 0 !important;
   text-decoration: none;
-  padding: 0;
-  transition: none;
+  transition: transform 0.1s ease;
+  width: 100%;
 }
 
-/* Override the default scale active state */
-button.menu-btn:active:not(:disabled),
-a.menu-btn:active {
-  transform: none !important;
-}
-
-.menu-btn-top {
+.uiverse-btn-top {
   display: flex;
   align-items: center;
   gap: 12px;
   box-sizing: border-box;
-  border: 2px solid var(--button_outline_color);
+  border: 1px solid var(--app-border);
   border-radius: var(--button_radius);
   padding: 10px 14px;
   background: var(--button_color);
   color: var(--app-text-muted);
   transform: translateY(-0.2em);
-  transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
-  width: 100%;
+  transition: transform 0.1s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.menu-btn:hover .menu-btn-top {
+.uiverse-btn:hover .uiverse-btn-top {
   /* Pull the button upwards when hovered */
   transform: translateY(-0.33em);
+  border-color: var(--app-accent);
   color: var(--app-text);
-  border-color: var(--app-border);
-  background: var(--app-bg);
+  background: var(--app-surface);
 }
 
-.menu-btn:active .menu-btn-top {
+.uiverse-btn:active .uiverse-btn-top {
   /* Push the button downwards when pressed */
   transform: translateY(0);
 }
 
-/* Active Menu Item States */
-.menu-btn.active {
-  --button_outline_color: var(--app-accent);
+/* Active State Styles */
+.uiverse-btn.active-btn {
+  background: var(--app-accent);
 }
 
-.menu-btn.active .menu-btn-top {
+.uiverse-btn.active-btn .uiverse-btn-top {
   background: var(--app-accent);
-  color: var(--app-text);
+  color: #ffffff;
   border-color: var(--app-accent);
-  transform: translateY(0); /* active state doesn't translate up */
+  transform: translateY(-0.1em);
 }
 
