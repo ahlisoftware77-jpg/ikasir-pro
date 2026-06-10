@@ -343,7 +343,8 @@ export default function SuperAdminPage() {
     showWatermark: true,
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
-    subscriptionEwalletInfo: ''
+    subscriptionEwalletInfo: '',
+    webAppUrl: ''
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -367,7 +368,8 @@ export default function SuperAdminPage() {
           showWatermark: data.showWatermark ?? true,
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
-          subscriptionEwalletInfo: data.subscriptionEwalletInfo || ''
+          subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
+          webAppUrl: data.webAppUrl || ''
         });
       }
     });
@@ -1265,7 +1267,19 @@ export default function SuperAdminPage() {
                     <p className="text-[9px] text-app-text-muted italic ml-1">*Muncul di bagian paling bawah setiap struk yang dicetak.</p>
                  </div>
 
-                 <div className="flex items-center justify-between p-4 bg-background border border-app-border rounded-2xl">
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Domain / URL Web & API App</label>
+                     <input 
+                       type="text" 
+                       value={brandingData.webAppUrl || ''}
+                       onChange={e => setBrandingData({...brandingData, webAppUrl: e.target.value})}
+                       className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all"
+                       placeholder="Contoh: https://ikasir-pro.vercel.app"
+                     />
+                     <p className="text-[9px] text-app-text-muted italic ml-1">*Digunakan oleh aplikasi mobile untuk mengirim push notifikasi.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-background border border-app-border rounded-2xl">
                     <div>
                        <p className="text-xs font-black text-foreground">Status Watermark</p>
                        <p className="text-[9px] text-app-text-muted">Tampilkan/Sembunyikan watermark di struk.</p>

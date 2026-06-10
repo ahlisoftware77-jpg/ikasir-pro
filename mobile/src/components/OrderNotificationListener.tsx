@@ -378,7 +378,8 @@ export default function OrderNotificationListener() {
   // 1.5 Get FCM Device Token and save to Firestore
   useEffect(() => {
     async function registerFCMToken() {
-      if (!storeId) return;
+      const targetStoreId = (role === 'superadmin' || role === 'super-admin') ? 'superadmin' : storeId;
+      if (!targetStoreId) return;
       try {
         const { status } = await Notifications.getPermissionsAsync();
         if (status !== 'granted') return;
@@ -390,7 +391,7 @@ export default function OrderNotificationListener() {
           console.log('[FG] FCM Device Token:', token);
           
           // Save to Firestore settings document
-          const storeSettingsRef = doc(db, 'settings', `store_${storeId}`);
+          const storeSettingsRef = doc(db, 'settings', `store_${targetStoreId}`);
           await setDoc(storeSettingsRef, {
             fcmTokens: arrayUnion(token)
           }, { merge: true });
@@ -402,7 +403,7 @@ export default function OrderNotificationListener() {
     
     // Slight delay to ensure auth state is ready
     setTimeout(registerFCMToken, 2000);
-  }, [storeId]);
+  }, [storeId, role]);
 
   // 2. Start/stop the Android foreground service based on storeId
   useEffect(() => {

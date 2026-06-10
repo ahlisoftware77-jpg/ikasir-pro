@@ -215,7 +215,8 @@ export default function SettingsScreen({ navigation }: any) {
     showWatermark: true,
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
-    subscriptionEwalletInfo: ''
+    subscriptionEwalletInfo: '',
+    webAppUrl: ''
   });
 
   // Subscription Menu States
@@ -257,7 +258,8 @@ export default function SettingsScreen({ navigation }: any) {
           showWatermark: data.showWatermark ?? true,
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
-          subscriptionEwalletInfo: data.subscriptionEwalletInfo || ''
+          subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
+          webAppUrl: data.webAppUrl || ''
         });
       }
     });
@@ -915,6 +917,19 @@ export default function SettingsScreen({ navigation }: any) {
           status: 'pending',
           createdAt: serverTimestamp()
         });
+
+        // Trigger FCM Push Notification for Superadmin
+        const webUrl = brandingData.webAppUrl || 'https://ikasir-pro.vercel.app';
+        fetch(`${webUrl}/api/send-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeId: 'superadmin',
+            title: '🚨 Pengajuan Langganan Baru!',
+            message: `Toko ${user?.email || ''} mengajukan paket ${selectedPackage.title || ''}.`
+          })
+        }).catch(e => console.error('Failed to trigger superadmin push notification from mobile:', e));
+
         setIsSubscriptionSuccess(true);
       } else {
         Alert.alert('Error', 'Gagal mengunggah gambar ke server.');
@@ -3424,7 +3439,7 @@ export default function SettingsScreen({ navigation }: any) {
                   </View>
 
                   {/* showWatermark Switch */}
-                  <View className="flex-row justify-between items-center p-4 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-center p-4 rounded-2xl border mb-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
                     <View>
                       <Text className="text-xs font-black" style={{ color: colors.text }}>Status Watermark</Text>
                       <Text className="text-[8px] font-bold text-slate-400">Tampilkan/Sembunyikan watermark di struk</Text>
@@ -3434,6 +3449,19 @@ export default function SettingsScreen({ navigation }: any) {
                       onValueChange={(val) => setBrandingData({ ...brandingData, showWatermark: val })}
                       trackColor={{ false: colors.border, true: colors.accent }}
                       thumbColor="#ffffff"
+                    />
+                  </View>
+
+                  {/* webAppUrl */}
+                  <View className="space-y-1">
+                    <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Domain / URL Web & API App</Text>
+                    <TextInput
+                      value={brandingData.webAppUrl || ''}
+                      onChangeText={(txt) => setBrandingData({ ...brandingData, webAppUrl: txt })}
+                      placeholder="e.g. https://ikasir-pro.vercel.app"
+                      placeholderTextColor={colors.textMuted}
+                      className="p-4 rounded-2xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                     />
                   </View>
 

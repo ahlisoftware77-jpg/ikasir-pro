@@ -74,6 +74,18 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
           status: 'pending',
           createdAt: serverTimestamp()
         });
+
+        // Trigger FCM Push Notification for Superadmin
+        fetch('/api/send-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeId: 'superadmin',
+            title: '🚨 Pengajuan Langganan Baru!',
+            message: `Toko ${user?.email || ''} mengajukan paket ${selectedPackage.title || ''}.`
+          })
+        }).catch(e => console.error('Failed to trigger superadmin push notification:', e));
+
         toast.success('Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin pusat.');
         setIsSuccess(true);
       } else {
