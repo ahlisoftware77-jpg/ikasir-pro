@@ -24,7 +24,7 @@ import SwipeableItem from '../components/SwipeableItem';
 export default function FeatureScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { featureId, title } = route.params;
-  const { storeId, user, role, isSubscriptionExpired } = useAuthStore();
+  const { storeId, user, role, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
   const [search, setSearch] = useState('');
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -1229,6 +1229,8 @@ export default function FeatureScreen({ route, navigation }: any) {
                 canViewLogs: formRole === 'admin'
               },
               isActive: true,
+              isSubscribed: !!subscriptionUntil,
+              validUntil: subscriptionUntil || '',
               createdAt: new Date().toISOString()
             });
 

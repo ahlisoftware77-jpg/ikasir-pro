@@ -11,7 +11,7 @@ import { Users as UsersIcon, Loader2, Plus, X, UserCog, Trash2 } from 'lucide-re
 import toast from 'react-hot-toast';
 
 export default function UsersPage() {
-  const { user, storeId, storeName } = useAuthStore();
+  const { user, storeId, storeName, subscriptionUntil } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [maxUsers, setMaxUsers] = useState<number>(5);
@@ -157,6 +157,8 @@ export default function UsersPage() {
           canViewLogs: formData.role === 'admin'
         },
         isActive: true,
+        isSubscribed: !!subscriptionUntil,
+        validUntil: subscriptionUntil || '',
         createdAt: new Date()
       });
 
