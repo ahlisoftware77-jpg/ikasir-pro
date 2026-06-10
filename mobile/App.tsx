@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -61,6 +61,7 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: true,
+        sceneStyle: { backgroundColor: colors.bg },
         headerStyle: {
           backgroundColor: colors.surface,
           borderBottomWidth: 1,
@@ -150,9 +151,28 @@ function NavigationRoot() {
   const { user } = useAuthStore();
   const { colors, theme } = useTheme();
 
+  const navTheme = {
+    ...DefaultTheme,
+    dark: !theme.startsWith('light'),
+    colors: {
+      ...DefaultTheme.colors,
+      primary: colors.accent,
+      background: colors.bg,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.accent,
+    },
+  };
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <NavigationContainer theme={navTheme}>
+      <Stack.Navigator 
+        screenOptions={{ 
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg }
+        }}
+      >
         {!user ? (
           <Stack.Screen name="Login" component={LoginScreen} />
         ) : (
