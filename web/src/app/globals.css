@@ -128,3 +128,70 @@ input:focus, select:focus, textarea:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--app-bg), 0 0 0 4px var(--app-accent);
 }
+
+/* 3D Sidebar Menu Button style from Uiverse.io */
+.menu-btn {
+  /* Variables adapted for theme */
+  --button_radius: 12px;
+  --button_color: var(--app-surface);
+  --button_outline_color: var(--app-border);
+  font-size: 13px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--button_radius);
+  background: var(--button_outline_color);
+  display: block;
+  width: 100%;
+  position: relative;
+  text-decoration: none;
+  padding: 0;
+  transition: none;
+}
+
+/* Override the default scale active state */
+button.menu-btn:active:not(:disabled),
+a.menu-btn:active {
+  transform: none !important;
+}
+
+.menu-btn-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  border: 2px solid var(--button_outline_color);
+  border-radius: var(--button_radius);
+  padding: 10px 14px;
+  background: var(--button_color);
+  color: var(--app-text-muted);
+  transform: translateY(-0.2em);
+  transition: transform 0.1s ease, background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+  width: 100%;
+}
+
+.menu-btn:hover .menu-btn-top {
+  /* Pull the button upwards when hovered */
+  transform: translateY(-0.33em);
+  color: var(--app-text);
+  border-color: var(--app-border);
+  background: var(--app-bg);
+}
+
+.menu-btn:active .menu-btn-top {
+  /* Push the button downwards when pressed */
+  transform: translateY(0);
+}
+
+/* Active Menu Item States */
+.menu-btn.active {
+  --button_outline_color: var(--app-accent);
+}
+
+.menu-btn.active .menu-btn-top {
+  background: var(--app-accent);
+  color: var(--app-text);
+  border-color: var(--app-accent);
+  transform: translateY(0); /* active state doesn't translate up */
+}
+

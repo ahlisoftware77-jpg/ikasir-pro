@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
         <div className="mb-4 text-[10px] font-bold text-app-text-muted uppercase tracking-[0.2em] px-3 opacity-50">
           Main Menu
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-3">
           {menuItems.filter(item => {
             if (item.superOnly) return role === 'super-admin';
             
@@ -186,37 +186,33 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             if (item.subItems) {
               const isOpen = openMenus[item.path];
               return (
-                <div key={item.path} className="space-y-1">
+                <div key={item.path} className="space-y-2">
                   <button
                     onClick={() => toggleMenu(item.path)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-all ${
-                      isActive && !isOpen
-                        ? 'bg-accent/10 text-accent font-bold border border-accent/20' 
-                        : 'hover:bg-accent/10 hover:text-foreground border border-transparent'
-                    }`}
+                    className={`menu-btn ${isActive && !isOpen ? 'active' : ''}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon size={18} className={isActive && !isOpen ? 'text-accent' : ''} />
-                      <span className="text-sm">{item.name}</span>
-                    </div>
-                    {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    <span className="menu-btn-top">
+                      <Icon size={18} />
+                      <span className="text-sm flex-1 text-left">{item.name}</span>
+                      {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </span>
                   </button>
                   
                   {isOpen && (
-                    <div className="pl-9 space-y-1 mt-1 border-l-2 border-app-border/50 ml-5">
+                    <div className="pl-6 space-y-1.5 mt-2 border-l border-app-border ml-5">
                       {item.subItems.map(sub => {
                         const isSubActive = pathname === sub.path;
                         return (
                           <Link
                             key={sub.path}
                             href={sub.path}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-md text-[11px] transition-all border ${
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] transition-all border ${
                               isSubActive 
-                                ? 'bg-accent text-foreground shadow-sm font-black border-accent' 
+                                ? 'bg-accent/15 text-accent shadow-sm font-bold border-accent/25' 
                                 : 'text-app-text-muted hover:text-foreground hover:bg-accent/10 font-bold border-transparent'
                             }`}
                           >
-                            {sub.icon && <sub.icon size={12} className={isSubActive ? 'text-foreground' : 'text-app-text-muted/60'} />}
+                            {sub.icon && <sub.icon size={12} className={isSubActive ? 'text-accent' : 'text-app-text-muted/60'} />}
                             {sub.name}
                           </Link>
                         )
@@ -239,19 +235,17 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                     toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
                   }
                 }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md transition-all border ${
-                  pathname === item.path 
-                    ? 'bg-accent text-foreground shadow-sm font-bold border-accent' 
-                    : 'hover:bg-accent/10 hover:text-foreground border-transparent'
-                } ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`menu-btn ${pathname === item.path ? 'active' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
-                <Icon size={18} />
-                <span className="text-sm flex-1">{item.name}</span>
-                {item.path === '/orders' && newOrderCount > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md shadow-sm border border-rose-600 animate-pulse">
-                     {newOrderCount}
-                  </span>
-                )}
+                <span className="menu-btn-top">
+                  <Icon size={18} />
+                  <span className="text-sm flex-1 text-left">{item.name}</span>
+                  {item.path === '/orders' && newOrderCount > 0 && (
+                    <span className="bg-rose-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md shadow-sm border border-rose-600 animate-pulse">
+                       {newOrderCount}
+                    </span>
+                  )}
+                </span>
               </Link>
             );
           })}
