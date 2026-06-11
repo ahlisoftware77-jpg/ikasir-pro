@@ -71,7 +71,8 @@ export default function LoginScreen() {
         setUser({
           uid: user.uid,
           email: user.email,
-          name: userData.name
+          name: userData.name,
+          photoURL: userData.photoURL || userData.photoUrl || user.photoURL || ''
         });
       } else {
         setRole('cashier');
@@ -215,7 +216,8 @@ export default function LoginScreen() {
         setUser({
           uid: user.uid,
           email: user.email,
-          name: userData.name
+          name: userData.name,
+          photoURL: userData.photoURL || userData.photoUrl || user.photoURL || ''
         });
       } else {
         setGoogleUser(user);
@@ -292,7 +294,7 @@ export default function LoginScreen() {
       setShowGoogleModal(false);
       setRole('admin');
       setStoreId(storeIdStr);
-      setUser({ uid: googleUser.uid, email: googleUser.email, name: displayName });
+      setUser({ uid: googleUser.uid, email: googleUser.email, name: displayName, photoURL: googleUser.photoURL || '' });
     } catch (err: any) {
       console.error(err);
       Alert.alert('Error', 'Gagal mendaftarkan toko: ' + err.message);

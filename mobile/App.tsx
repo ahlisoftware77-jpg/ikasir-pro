@@ -178,6 +178,13 @@ function NavigationRoot() {
 
         if (userData.role) useAuthStore.getState().setRole(userData.role);
         if (userData.storeId) useAuthStore.getState().setStoreId(userData.storeId);
+
+        // Sync photoURL from Firestore to keep profile photo up-to-date
+        const currentUser = useAuthStore.getState().user;
+        const firestorePhoto = userData.photoURL || userData.photoUrl || '';
+        if (currentUser && firestorePhoto && currentUser.photoURL !== firestorePhoto) {
+          useAuthStore.getState().setUser({ ...currentUser, photoURL: firestorePhoto });
+        }
       }
     }, (err) => {
       console.error("Error listening to user doc in App.tsx:", err);
