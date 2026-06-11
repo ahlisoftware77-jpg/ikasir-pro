@@ -11,7 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
-  History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell
+  History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
+  Wrench
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -143,6 +144,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  const [isUpdatingMaintenance, setIsUpdatingMaintenance] = useState(false);
+
   const handleSendBroadcast = async () => {
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
       Alert.alert('Error', 'Judul dan pesan tidak boleh kosong!');
@@ -194,6 +199,58 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const handleToggleMaintenance = async () => {
+    const nextState = !isMaintenanceActive;
+    const confirmTitle = nextState ? '⚠️ AKTIFKAN MODE PEMELIHARAAN ⚠️' : '⚠️ NONAKTIFKAN MODE PEMELIHARAAN ⚠️';
+    const confirmMsg = nextState 
+      ? 'Seluruh pengguna non-admin (kasir/merchant) di seluruh sistem akan dikunci secara real-time. Anda yakin?'
+      : 'Aplikasi akan kembali dibuka untuk semua pengguna. Anda yakin?';
+
+    Alert.alert(
+      confirmTitle,
+      confirmMsg,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: nextState ? 'Aktifkan' : 'Nonaktifkan',
+          style: nextState ? 'destructive' : 'default',
+          onPress: async () => {
+            setIsUpdatingMaintenance(true);
+            try {
+              await setDoc(doc(db, 'system_settings', 'maintenance'), {
+                isActive: nextState,
+                message: nextState ? (maintenanceMessage.trim() || 'Aplikasi sedang dalam pemeliharaan sistem. Harap coba beberapa saat lagi.') : '',
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+              Alert.alert('Sukses', `Mode Pemeliharaan berhasil ${nextState ? 'diaktifkan' : 'dinonaktifkan'}!`);
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal memperbarui status pemeliharaan: ' + err.message);
+            } finally {
+              setIsUpdatingMaintenance(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSaveMaintenanceMessage = async () => {
+    setIsUpdatingMaintenance(true);
+    try {
+      await setDoc(doc(db, 'system_settings', 'maintenance'), {
+        message: maintenanceMessage.trim(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      Alert.alert('Sukses', 'Pesan informasi pemeliharaan berhasil diperbarui!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal menyimpan pesan: ' + err.message);
+    } finally {
+      setIsUpdatingMaintenance(false);
+    }
+  };
+
   const [brandingData, setBrandingData] = useState({ 
     appName: 'IKASIR PRO', 
     receiptWatermark: 'Powered by YadiApp', 
@@ -225,6 +282,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     let unsubProjects: any = () => {};
     let unsubSubscriptions: any = () => {};
     let unsubBranding: any = () => {};
+    let unsubMaint: any = () => {};
 
     // Always fetch branding for potential preview checks
     unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
@@ -278,6 +336,16 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           setInfraData(docSnap.data());
         }
       });
+      unsubMaint = onSnapshot(doc(db, 'system_settings', 'maintenance'), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setIsMaintenanceActive(data.isActive ?? false);
+          setMaintenanceMessage(data.message ?? '');
+        } else {
+          setIsMaintenanceActive(false);
+          setMaintenanceMessage('');
+        }
+      });
       unsubProjects = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
         const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setDbProjects(projects);
@@ -312,6 +380,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       unsubProjects();
       unsubSubscriptions();
       unsubBranding();
+      unsubMaint();
     };
   }, [featureId]);
 
@@ -1497,6 +1566,68 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         return (
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="space-y-6 pb-20">
+              {/* MODE PEMELIHARAAN */}
+              <View className="p-5 rounded-3xl border space-y-4" style={{ backgroundColor: colors.surface, borderColor: isMaintenanceActive ? '#f43f5e' : colors.border }}>
+                <View className="flex-row items-center gap-3 border-b pb-4" style={{ borderColor: colors.border + '30' }}>
+                  <View className={`p-2.5 rounded-xl ${isMaintenanceActive ? 'bg-rose-500/20' : 'bg-slate-500/10'}`}>
+                    <Wrench size={20} color={isMaintenanceActive ? '#f43f5e' : colors.textMuted} />
+                  </View>
+                  <View className="flex-1">
+                    <View className="flex-row items-center gap-2">
+                      <Text className="text-sm font-black" style={{ color: colors.text }}>Mode Pemeliharaan</Text>
+                      {isMaintenanceActive && (
+                        <View className="bg-rose-500 px-2 py-0.5 rounded-full">
+                          <Text className="text-[7px] font-black text-white uppercase tracking-wider">AKTIF</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="text-[9px] font-bold text-slate-400">Batasi akses semua kasir/merchant untuk keperluan update.</Text>
+                  </View>
+                </View>
+
+                {/* Switch untuk Toggle cepat */}
+                <View className="flex-row justify-between items-center p-3 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <View className="flex-1 pr-2">
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>Status Keaktifan</Text>
+                    <Text className="text-[8px] font-bold text-slate-400">Aktifkan untuk mengunci seluruh pengguna non-admin.</Text>
+                  </View>
+                  <Switch
+                    value={isMaintenanceActive}
+                    onValueChange={handleToggleMaintenance}
+                    disabled={isUpdatingMaintenance}
+                    trackColor={{ false: colors.border, true: '#f43f5e' }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                {/* Input Pesan Alasan Pemeliharaan */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Pesan / Informasi Pemeliharaan</Text>
+                  <TextInput
+                    value={maintenanceMessage}
+                    onChangeText={setMaintenanceMessage}
+                    placeholder="Contoh: Sedang pemeliharaan database, diperkirakan selesai pukul 18:00 WIB."
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    numberOfLines={3}
+                    className="p-4 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top', minHeight: 80 }}
+                  />
+                </View>
+
+                {/* Tombol Simpan Pesan */}
+                <Button3D
+                  variant="secondary"
+                  colors={colors}
+                  onPress={handleSaveMaintenanceMessage}
+                  disabled={isUpdatingMaintenance || !maintenanceMessage.trim()}
+                  loading={isUpdatingMaintenance}
+                >
+                  <Check size={14} color={colors.text} />
+                  <Text className="font-black text-xs uppercase tracking-wider" style={{ color: colors.text }}>Perbarui Pesan</Text>
+                </Button3D>
+              </View>
+
               {/* SYSTEM UTILITIES */}
               <View className="p-5 rounded-3xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                 <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1">Perbaikan & Utilitas Sistem</Text>

@@ -9,7 +9,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { useAuthStore } from './src/store/authStore';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -30,7 +30,7 @@ import OrderNotificationListener from './src/components/OrderNotificationListene
 import SuperAdminScreen from './src/screens/SuperAdminScreen';
 
 // Icons
-import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag } from 'lucide-react-native';
+import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag, Wrench, AlertCircle, LogOut } from 'lucide-react-native';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -150,8 +150,45 @@ function TabNavigator() {
 }
 
 function NavigationRoot() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, role } = useAuthStore();
   const { colors, theme } = useTheme();
+  const [maintenance, setMaintenance] = useState<{ isActive: boolean; message: string } | null>(null);
+
+  const spinValue = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const unsubMaintenance = onSnapshot(doc(db, 'system_settings', 'maintenance'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMaintenance({
+          isActive: !!data.isActive,
+          message: data.message || '',
+        });
+      } else {
+        setMaintenance({ isActive: false, message: '' });
+      }
+    }, (err) => {
+      console.error("Error listening to maintenance status in App.tsx:", err);
+    });
+
+    return () => unsubMaintenance();
+  }, []);
+
+  useEffect(() => {
+    const isMaint = maintenance?.isActive && role !== 'super-admin' && role !== 'superadmin';
+    if (isMaint) {
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 4000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [maintenance?.isActive, role]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -192,6 +229,81 @@ function NavigationRoot() {
 
     return () => unsubUser();
   }, [user?.uid]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  if (user && maintenance?.isActive && role !== 'super-admin' && role !== 'superadmin') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <View
+          className="absolute -top-12 -left-12 w-80 h-80 rounded-full opacity-10"
+          style={{ backgroundColor: colors.accent }}
+        />
+        <View
+          className="absolute -bottom-12 -right-12 w-80 h-80 rounded-full opacity-5"
+          style={{ backgroundColor: colors.accent }}
+        />
+
+        <View className="items-center mb-8">
+          <Animated.View
+            style={{
+              transform: [{ rotate: spin }],
+              backgroundColor: colors.accent + '20',
+              padding: 24,
+              borderRadius: 32,
+              borderWidth: 1,
+              borderColor: colors.accent + '40',
+            }}
+          >
+            <Wrench color={colors.accent} size={48} strokeWidth={2} />
+          </Animated.View>
+        </View>
+
+        <View
+          className="p-6 rounded-[32px] border w-full max-w-[400px]"
+          style={{ backgroundColor: colors.surface + '99', borderColor: colors.border }}
+        >
+          <Text className="text-sm font-black text-center mb-4 uppercase tracking-[2px]" style={{ color: colors.text }}>
+            PEMELIHARAAN SISTEM
+          </Text>
+
+          <View className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl mb-6 flex-row gap-3">
+            <AlertCircle color="#f59e0b" size={20} className="shrink-0 mt-0.5" />
+            <View className="flex-1">
+              <Text className="text-xs font-black uppercase text-amber-500 tracking-[1px] mb-1">
+                Pemberitahuan
+              </Text>
+              <Text className="text-xs leading-5" style={{ color: colors.text }}>
+                {maintenance.message || 'Aplikasi sedang dalam pemeliharaan sistem. Harap coba beberapa saat lagi.'}
+              </Text>
+            </View>
+          </View>
+
+          <Text className="text-[10px] text-center mb-6 leading-5" style={{ color: colors.textMuted }}>
+            Untuk sementara Anda tidak dapat melakukan transaksi atau mengakses dasbor. Kami akan segera kembali setelah pemeliharaan selesai. Terima kasih atas kesabaran Anda.
+          </Text>
+
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              onPress={() => logout()}
+              activeOpacity={0.8}
+              className="flex-1 h-14 rounded-2xl items-center justify-center border flex-row gap-2"
+              style={{ borderColor: colors.border }}
+            >
+              <LogOut size={16} color={colors.textMuted} />
+              <Text className="text-xs font-black uppercase tracking-[1px]" style={{ color: colors.textMuted }}>
+                KELUAR
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <StatusBar style={theme.startsWith('light') ? 'dark' : 'light'} backgroundColor={colors.bg} translucent={false} />
+      </View>
+    );
+  }
 
   const navTheme = {
     ...DefaultTheme,

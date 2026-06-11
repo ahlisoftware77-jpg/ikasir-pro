@@ -19,7 +19,7 @@ export interface UserPermissions {
 
 interface AuthState {
   user: User | null;
-  role: 'super-admin' | 'admin' | 'cashier' | 'customer' | null;
+  role: 'super-admin' | 'superadmin' | 'admin' | 'cashier' | 'customer' | null;
   permissions: UserPermissions | null;
   wasAuthenticated: boolean;
   isLoading: boolean;
@@ -43,7 +43,7 @@ interface AuthState {
   newOrderCount: number;
   setUser: (user: User | null) => void;
   setUserName: (name: string | null) => void;
-  setRole: (role: 'super-admin' | 'admin' | 'cashier' | null) => void;
+  setRole: (role: 'super-admin' | 'superadmin' | 'admin' | 'cashier' | null) => void;
   setPermissions: (permissions: UserPermissions | null) => void;
   setStoreId: (storeId: string | null) => void;
   setStoreName: (storeName: string | null) => void;

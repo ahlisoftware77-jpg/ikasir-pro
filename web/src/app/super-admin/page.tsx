@@ -72,6 +72,44 @@ export default function SuperAdminPage() {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  const [isUpdatingMaintenance, setIsUpdatingMaintenance] = useState(false);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'system_settings', 'maintenance'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setIsMaintenanceActive(data.isActive ?? false);
+        setMaintenanceMessage(data.message ?? '');
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleToggleMaintenance = async () => {
+    const nextState = !isMaintenanceActive;
+    const actionText = nextState ? 'MENGAKTIFKAN' : 'MENONAKTIFKAN';
+    const confirmText = `Apakah Anda yakin ingin ${actionText} Mode Pemeliharaan? ${nextState ? 'Seluruh pengguna kasir/admin aktif di web & mobile akan segera dikunci secara real-time.' : 'Akses pengguna akan dibuka kembali.'}`;
+    
+    if (!confirm(confirmText)) return;
+    
+    setIsUpdatingMaintenance(true);
+    try {
+      await setDoc(doc(db, 'system_settings', 'maintenance'), {
+        isActive: nextState,
+        message: nextState ? (maintenanceMessage.trim() || 'Aplikasi sedang dalam pemeliharaan sistem. Harap coba beberapa saat lagi.') : '',
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      alert(`Mode Pemeliharaan berhasil ${nextState ? 'diaktifkan' : 'dinonaktifkan'}!`);
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal memperbarui status pemeliharaan: ' + err.message);
+    } finally {
+      setIsUpdatingMaintenance(false);
+    }
+  };
+
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
@@ -1533,6 +1571,39 @@ export default function SuperAdminPage() {
         </div>
       ) : activeTab === 'infrastructure' ? (
         <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">
+           {/* MAINTENANCE MODE CARD */}
+           <div className="p-6 bg-surface border border-app-border rounded-[2rem] shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isMaintenanceActive ? 'bg-rose-500/20 text-rose-500 animate-pulse' : 'bg-slate-500/10 text-slate-400'}`}>
+                    <Bell size={24} />
+                 </div>
+                 <div>
+                    <h4 className="text-sm font-black text-foreground uppercase tracking-widest">Mode Pemeliharaan (Maintenance)</h4>
+                    <p className="text-[10px] font-bold text-app-text-muted mt-1 leading-relaxed max-w-lg">
+                       Mengaktifkan mode ini akan langsung mengunci akses seluruh pengguna kasir/admin di web dan mobile secara real-time agar tidak melakukan transaksi. Akun Super Admin dikecualikan dan tetap memiliki akses penuh.
+                    </p>
+                 </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0 w-full lg:w-auto">
+                 <input 
+                    type="text" 
+                    placeholder="Pesan pemeliharaan (opsional)..."
+                    value={maintenanceMessage}
+                    onChange={(e) => setMaintenanceMessage(e.target.value)}
+                    className="flex-1 lg:w-80 bg-background border border-app-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-accent"
+                 />
+                 <button
+                    onClick={handleToggleMaintenance}
+                    disabled={isUpdatingMaintenance}
+                    className="btn-3d btn-3d-rose shrink-0"
+                 >
+                    <span className="btn-3d-top text-xs px-6 py-3 font-black">
+                       {isUpdatingMaintenance ? <Loader2 className="animate-spin" size={14} /> : null}
+                       {isMaintenanceActive ? 'NONAKTIFKAN PEMELIHARAAN' : 'AKTIFKAN PEMELIHARAAN'}
+                    </span>
+                 </button>
+              </div>
+           </div>
            {/* CONNECTION STATUS BADGE */}
            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 bg-surface border border-app-border rounded-[2rem] shadow-xl overflow-hidden relative group">
               <div className="flex items-center gap-4 relative z-10">

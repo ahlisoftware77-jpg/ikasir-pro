@@ -234,11 +234,45 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       }
     });
 
+    const unsubscribeMaintenance = onSnapshot(doc(db, 'system_settings', 'maintenance'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.isActive) {
+          const currentRole = useAuthStore.getState().role;
+          if (currentRole !== 'super-admin' && currentRole !== 'superadmin') {
+            setBlockingDetails({
+              title: 'Pemeliharaan Sistem',
+              message: data.message || 'Aplikasi sedang dalam pemeliharaan sistem. Harap coba beberapa saat lagi.',
+              type: 'maintenance'
+            });
+          } else {
+            const currentBlock = useAuthStore.getState().blockingDetails;
+            if (currentBlock?.type === 'maintenance') {
+              setBlockingDetails(null);
+            }
+          }
+        } else {
+          const currentBlock = useAuthStore.getState().blockingDetails;
+          if (currentBlock?.type === 'maintenance') {
+            setBlockingDetails(null);
+          }
+        }
+      } else {
+        const currentBlock = useAuthStore.getState().blockingDetails;
+        if (currentBlock?.type === 'maintenance') {
+          setBlockingDetails(null);
+        }
+      }
+    }, (error) => {
+      console.error("Error listening to maintenance status:", error);
+    });
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       unsubscribeSync();
       unsubscribeAuth();
+      unsubscribeMaintenance();
       if (unsubscribeUser) {
         unsubscribeUser();
       }
