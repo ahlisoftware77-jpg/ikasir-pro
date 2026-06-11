@@ -51,6 +51,81 @@ export const handleImportJSON = async (file: File) => {
 };
 
 /**
+ * Centrally managed JSON import/restore logic for a specific store.
+ * Imports data from a backup JSON file back into Firestore, with store ID remapping if needed.
+ */
+export const handleImportStoreJSON = async (file: File, targetStoreId: string) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const backupData = JSON.parse(content);
+        
+        if (!backupData.data || !backupData.metadata) {
+          throw new Error("Format file backup tidak valid.");
+        }
+
+        const sourceStoreId = backupData.metadata.storeId;
+        if (sourceStoreId === 'GLOBAL') {
+          throw new Error("File backup GLOBAL tidak dapat dipulihkan ke toko tunggal.");
+        }
+
+        const needsMapping = sourceStoreId !== targetStoreId;
+        const collections = Object.keys(backupData.data);
+        let totalRestored = 0;
+
+        for (const collName of collections) {
+          const docs = backupData.data[collName];
+          if (!Array.isArray(docs)) continue;
+
+          // Split into batches of 500 (Firestore limit)
+          for (let i = 0; i < docs.length; i += 500) {
+            const batch = writeBatch(db);
+            const chunk = docs.slice(i, i + 500);
+            
+            chunk.forEach((docData: any) => {
+              const { id, ...data } = docData;
+              let targetDocId = id;
+              
+              // Map settings document ID if different
+              if (needsMapping && collName === 'settings' && id === `store_${sourceStoreId}`) {
+                targetDocId = `store_${targetStoreId}`;
+              }
+              // Map stores document ID if different
+              else if (needsMapping && collName === 'stores' && id === sourceStoreId) {
+                targetDocId = targetStoreId;
+              }
+
+              const dataToSave = { ...data };
+              if (needsMapping) {
+                // Map storeId field inside collection documents if it exists
+                if ('storeId' in dataToSave) {
+                  dataToSave.storeId = targetStoreId;
+                }
+              }
+
+              const ref = doc(db, collName, targetDocId);
+              batch.set(ref, dataToSave, { merge: true });
+              totalRestored++;
+            });
+
+            await batch.commit();
+          }
+        }
+
+        resolve({ success: true, totalRestored, metadata: backupData.metadata });
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsText(file);
+  });
+};
+
+
+/**
  * Centrally managed JSON backup logic.
  * Exports settings and all core collections for a specific store.
  */

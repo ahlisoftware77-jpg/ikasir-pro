@@ -14,54 +14,94 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const storeSettingsRef = adminDb.collection('settings').doc(`store_${storeId}`);
-    const doc = await storeSettingsRef.get();
-    
-    if (!doc.exists) {
-      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
-    }
+    let tokens: string[] = [];
+    const tokenToDocMap: { [token: string]: string } = {};
 
-    const storeData = doc.data();
-    const tokens: string[] = storeData?.fcmTokens || [];
+    if (storeId === 'GLOBAL') {
+      const settingsSnap = await adminDb.collection('settings').get();
+      settingsSnap.forEach((doc) => {
+        const storeData = doc.data();
+        const docTokens: string[] = storeData?.fcmTokens || [];
+        docTokens.forEach((tok) => {
+          if (tok && !tokenToDocMap[tok]) {
+            tokenToDocMap[tok] = doc.id;
+            tokens.push(tok);
+          }
+        });
+      });
+    } else {
+      const storeSettingsRef = adminDb.collection('settings').doc(`store_${storeId}`);
+      const doc = await storeSettingsRef.get();
+      
+      if (!doc.exists) {
+        return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+      }
+
+      const storeData = doc.data();
+      const docTokens: string[] = storeData?.fcmTokens || [];
+      docTokens.forEach((tok) => {
+        if (tok && !tokenToDocMap[tok]) {
+          tokenToDocMap[tok] = `store_${storeId}`;
+          tokens.push(tok);
+        }
+      });
+    }
 
     if (tokens.length === 0) {
       return NextResponse.json({ message: 'No devices registered for push notifications' }, { status: 200 });
     }
 
-    const payload = {
-      notification: {
-        title: title,
-        body: message,
-      },
-      data: data || {},
-      tokens: tokens,
-    };
+    let successCount = 0;
+    let failureCount = 0;
+    const chunkSize = 500;
 
-    const response = await adminMessaging.sendEachForMulticast(payload);
-    
-    // Clean up invalid tokens
-    if (response.failureCount > 0) {
-      const failedTokens: string[] = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success && 
-            (resp.error?.code === 'messaging/invalid-registration-token' || 
-             resp.error?.code === 'messaging/registration-token-not-registered')) {
-          failedTokens.push(tokens[idx]);
-        }
-      });
+    for (let i = 0; i < tokens.length; i += chunkSize) {
+      const chunk = tokens.slice(i, i + chunkSize);
+      const payload = {
+        notification: {
+          title: title,
+          body: message,
+        },
+        data: data || {},
+        tokens: chunk,
+      };
+
+      const response = await adminMessaging.sendEachForMulticast(payload);
+      successCount += response.successCount;
+      failureCount += response.failureCount;
       
-      if (failedTokens.length > 0) {
-        await storeSettingsRef.update({
-          fcmTokens: FieldValue.arrayRemove(...failedTokens)
+      // Clean up invalid tokens
+      if (response.failureCount > 0) {
+        const failedTokensByDoc: { [docId: string]: string[] } = {};
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success && 
+              (resp.error?.code === 'messaging/invalid-registration-token' || 
+               resp.error?.code === 'messaging/registration-token-not-registered')) {
+            const badToken = chunk[idx];
+            const docId = tokenToDocMap[badToken];
+            if (docId) {
+              if (!failedTokensByDoc[docId]) {
+                failedTokensByDoc[docId] = [];
+              }
+              failedTokensByDoc[docId].push(badToken);
+            }
+          }
         });
-        console.log(`Removed ${failedTokens.length} invalid FCM tokens for store_${storeId}`);
+        
+        for (const [docId, badTokens] of Object.entries(failedTokensByDoc)) {
+          const docRef = adminDb.collection('settings').doc(docId);
+          await docRef.update({
+            fcmTokens: FieldValue.arrayRemove(...badTokens)
+          }).catch((err) => console.error(`Failed to clean tokens for ${docId}:`, err));
+          console.log(`Removed ${badTokens.length} invalid FCM tokens for ${docId}`);
+        }
       }
     }
 
     return NextResponse.json({ 
       success: true, 
-      successCount: response.successCount,
-      failureCount: response.failureCount 
+      successCount: successCount,
+      failureCount: failureCount 
     });
 
   } catch (error: any) {

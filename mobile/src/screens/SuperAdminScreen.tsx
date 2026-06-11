@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
-  History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle
+  History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -31,6 +31,89 @@ LocaleConfig.locales['id'] = {
   today: 'Hari ini'
 };
 LocaleConfig.defaultLocale = 'id';
+
+interface Button3DProps {
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  variant?: 'accent' | 'success' | 'danger' | 'warning' | 'info' | 'secondary';
+  colors: any;
+  children: React.ReactNode;
+  style?: any;
+}
+
+const get3DButtonColors = (variant: string, colors: any) => {
+  switch (variant) {
+    case 'accent':
+      return {
+        bg: colors.accent,
+        shadowBg: colors.accent === '#10b981' ? '#047857' : (colors.accent === '#8b5cf6' ? '#6d28d9' : (colors.accent === '#f43f5e' ? '#be123c' : '#1d4ed8')),
+        borderColor: colors.accent,
+        textColor: '#ffffff'
+      };
+    case 'success':
+      return { bg: '#10b981', shadowBg: '#047857', borderColor: '#10b981', textColor: '#ffffff' };
+    case 'danger':
+      return { bg: '#f43f5e', shadowBg: '#be123c', borderColor: '#f43f5e', textColor: '#ffffff' };
+    case 'warning':
+      return { bg: '#f59e0b', shadowBg: '#b45309', borderColor: '#f59e0b', textColor: '#ffffff' };
+    case 'info':
+      return { bg: '#3b82f6', shadowBg: '#1d4ed8', borderColor: '#3b82f6', textColor: '#ffffff' };
+    case 'secondary':
+    default:
+      return { bg: colors.surface, shadowBg: colors.border, borderColor: colors.border, textColor: colors.text };
+  }
+};
+
+export function Button3D({ 
+  onPress, 
+  disabled, 
+  loading, 
+  variant = 'accent', 
+  colors,
+  children,
+  style
+}: Button3DProps) {
+  const [isPressed, setIsPressed] = useState(false);
+  const themeColors = get3DButtonColors(variant, colors);
+
+  return (
+    <Pressable
+      onPressIn={() => !disabled && !loading && setIsPressed(true)}
+      onPressOut={() => !disabled && !loading && setIsPressed(false)}
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={[{
+        borderRadius: 16,
+        backgroundColor: themeColors.shadowBg,
+        paddingBottom: isPressed ? 0 : 4,
+        marginTop: isPressed ? 4 : 0,
+        opacity: disabled ? 0.6 : 1,
+      }, style]}
+    >
+      <View
+        style={{
+          backgroundColor: themeColors.bg,
+          borderWidth: 1,
+          borderColor: themeColors.borderColor,
+          borderRadius: 16,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={themeColors.textColor} />
+        ) : (
+          children
+        )}
+      </View>
+    </Pressable>
+  );
+}
 
 export default function SuperAdminScreen({ route, navigation }: any) {
   const { featureId } = route.params;
@@ -55,6 +138,61 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [restoreProgress, setRestoreProgress] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState<{visible: boolean, field: 'createdAt' | 'validUntil' | null}>({visible: false, field: null});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      Alert.alert('Error', 'Judul dan pesan tidak boleh kosong!');
+      return;
+    }
+
+    Alert.alert(
+      '⚠️ PERINGATAN BROADCAST ⚠️',
+      'Anda akan mengirimkan push notifikasi ini ke SEMUA pelanggan user di seluruh toko/tenant secara massal! Lanjutkan?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Kirim Sekarang',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSendingBroadcast(true);
+            try {
+              const webUrl = brandingData.webAppUrl || 'https://ikasir-pro.vercel.app';
+              const res = await fetch(`${webUrl}/api/send-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  storeId: 'GLOBAL',
+                  title: broadcastTitle,
+                  message: broadcastMessage
+                })
+              });
+
+              const data = await res.json();
+              if (data.success) {
+                Alert.alert(
+                  'Sukses',
+                  `Broadcast Berhasil Dikirim!\n\nSukses: ${data.successCount} perangkat\nGagal: ${data.failureCount} perangkat`
+                );
+                setBroadcastTitle('');
+                setBroadcastMessage('');
+              } else {
+                Alert.alert('Gagal', 'Gagal mengirim broadcast: ' + (data.error || 'Terjadi kesalahan'));
+              }
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Error mengirim broadcast: ' + err.message);
+            } finally {
+              setIsSendingBroadcast(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const [brandingData, setBrandingData] = useState({ 
     appName: 'IKASIR PRO', 
@@ -687,6 +825,114 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const onFileRestoreStore = async (targetStoreId: string) => {
+    Alert.alert(
+      'Konfirmasi Restore Toko',
+      'Apakah Anda yakin ingin mengimpor data backup ke toko ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Pilih File Backup',
+          onPress: async () => {
+            setIsRestoring(true);
+            setRestoreProgress(0);
+            try {
+              const pickerResult = await DocumentPicker.getDocumentAsync({
+                type: 'application/json',
+                copyToCacheDirectory: true,
+              });
+
+              if (pickerResult.canceled || !pickerResult.assets || pickerResult.assets.length === 0) {
+                setIsRestoring(false);
+                return;
+              }
+
+              const localUri = pickerResult.assets[0].uri;
+              const fileContent = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.UTF8 });
+              const backupData = JSON.parse(fileContent);
+
+              if (!backupData.data || !backupData.metadata) {
+                throw new Error('Format file backup tidak valid.');
+              }
+
+              const sourceStoreId = backupData.metadata.storeId;
+              if (sourceStoreId === 'GLOBAL') {
+                throw new Error('File backup GLOBAL tidak dapat dipulihkan ke toko tunggal.');
+              }
+
+              const needsMapping = sourceStoreId !== targetStoreId;
+
+              if (needsMapping) {
+                const confirmDifferent = await new Promise((res) => {
+                  Alert.alert(
+                    '⚠️ Peringatan Toko Berbeda',
+                    `File backup ini berasal dari Toko Lain (ID: ${sourceStoreId}).\n\nApakah Anda ingin memulihkannya ke Toko ini (${targetStoreId})?\nSemua dokumen yang diimpor akan dipetakan ke Toko baru ini.`,
+                    [
+                      { text: 'Batal', onPress: () => res(false), style: 'cancel' },
+                      { text: 'Ya, Petakan & Restore', onPress: () => res(true) }
+                    ]
+                  );
+                });
+                if (!confirmDifferent) {
+                  setIsRestoring(false);
+                  return;
+                }
+              }
+
+              const collections = Object.keys(backupData.data);
+              let totalDocs = 0;
+              collections.forEach(c => totalDocs += backupData.data[c].length);
+              let processedDocs = 0;
+
+              for (const collName of collections) {
+                const docs = backupData.data[collName];
+                if (!Array.isArray(docs)) continue;
+
+                for (let i = 0; i < docs.length; i += 400) {
+                  const batch = writeBatch(db);
+                  const chunk = docs.slice(i, i + 400);
+
+                  chunk.forEach((d: any) => {
+                    const { id, ...data } = d;
+                    let targetDocId = id;
+
+                    if (needsMapping && collName === 'settings' && id === `store_${sourceStoreId}`) {
+                      targetDocId = `store_${targetStoreId}`;
+                    } else if (needsMapping && collName === 'stores' && id === sourceStoreId) {
+                      targetDocId = targetStoreId;
+                    }
+
+                    const dataToSave = { ...data };
+                    if (needsMapping) {
+                      if ('storeId' in dataToSave) {
+                        dataToSave.storeId = targetStoreId;
+                      }
+                    }
+
+                    const ref = doc(db, collName, targetDocId);
+                    batch.set(ref, dataToSave, { merge: true });
+                  });
+
+                  await batch.commit();
+                  processedDocs += chunk.length;
+                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
+                }
+              }
+
+              Alert.alert('Sukses', `✅ RESTORE TOKO BERHASIL!\nTotal ${processedDocs} dokumen dipulihkan.`);
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Restore Gagal: ' + err.message);
+            } finally {
+              setIsRestoring(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+
   const handleMigrateData = async () => {
     Alert.alert(
       'Konfirmasi',
@@ -1030,15 +1276,26 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                             >
                               <Pencil size={14} color="#3b82f6" />
                             </TouchableOpacity>
-                            <TouchableOpacity 
+                             <TouchableOpacity 
                               onPress={() => triggerBackup(s.id)}
-                              disabled={isBackingUp !== null}
+                              disabled={isBackingUp !== null || isRestoring}
                               className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl"
                             >
                               {isBackingUp === s.id ? (
                                 <ActivityIndicator size="small" color="#8b5cf6" />
                               ) : (
                                 <Download size={14} color="#8b5cf6" />
+                              )}
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              onPress={() => onFileRestoreStore(s.id)}
+                              disabled={isRestoring || isBackingUp !== null}
+                              className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl"
+                            >
+                              {isRestoring ? (
+                                <ActivityIndicator size="small" color="#f59e0b" />
+                              ) : (
+                                <Upload size={14} color="#f59e0b" />
                               )}
                             </TouchableOpacity>
                             <TouchableOpacity 
@@ -1463,40 +1720,37 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
                   {req.status === 'pending' ? (
                     <View className="flex-row gap-2">
-                      <TouchableOpacity
+                      <Button3D
+                        variant="success"
+                        colors={colors}
                         onPress={() => handleVerifySubscription(req)}
                         disabled={isSaving}
-                        className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-2"
-                        style={{ backgroundColor: '#10b981', opacity: isSaving ? 0.7 : 1 }}
+                        style={{ flex: 1 }}
                       >
-                        {isSaving ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
-                        ) : (
-                          <>
-                            <CheckCircle2 size={16} color="#ffffff" />
-                            <Text className="text-[10px] font-black text-white uppercase tracking-widest">Validasi</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                        <CheckCircle2 size={16} color="#ffffff" />
+                        <Text className="text-[10px] font-black text-white uppercase tracking-widest">Validasi</Text>
+                      </Button3D>
+                      <Button3D
+                        variant="danger"
+                        colors={colors}
                         onPress={() => handleDeleteSubscription(req.id)}
                         disabled={isSaving}
-                        className="py-3.5 px-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
-                        style={{ opacity: isSaving ? 0.7 : 1 }}
+                        style={{ width: 60 }}
                       >
-                        <Trash2 size={16} color="#f43f5e" />
-                      </TouchableOpacity>
+                        <Trash2 size={16} color="#ffffff" />
+                      </Button3D>
                     </View>
                   ) : (
-                    <TouchableOpacity
+                    <Button3D
+                      variant="danger"
+                      colors={colors}
                       onPress={() => handleDeleteSubscription(req.id)}
                       disabled={isSaving}
-                      className="w-full py-3 rounded-2xl items-center justify-center flex-row gap-2 bg-rose-500/10 border border-rose-500/20 mt-1"
-                      style={{ opacity: isSaving ? 0.7 : 1 }}
+                      style={{ width: '100%', marginTop: 4 }}
                     >
-                      <Trash2 size={14} color="#f43f5e" />
-                      <Text className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Hapus Riwayat</Text>
-                    </TouchableOpacity>
+                      <Trash2 size={14} color="#ffffff" />
+                      <Text className="text-[10px] font-black text-white uppercase tracking-widest">Hapus Riwayat</Text>
+                    </Button3D>
                   )}
                 </View>
               ))}
@@ -1506,6 +1760,87 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada pengajuan langganan.</Text>
                 </View>
               )}
+            </View>
+          </ScrollView>
+        );
+
+      case 'superAdminBroadcast':
+        return (
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View className="space-y-6 pb-20">
+              <View className="p-6 rounded-3xl border space-y-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="flex-row items-center gap-3 border-b pb-4" style={{ borderColor: colors.border + '30' }}>
+                  <View className="p-2.5 rounded-xl" style={{ backgroundColor: colors.accent + '20' }}>
+                    <Bell size={20} color={colors.accent} />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>Kirim Broadcast Notifikasi</Text>
+                    <Text className="text-[9px] font-bold text-slate-400">Kirim notifikasi push ke semua perangkat pengguna.</Text>
+                  </View>
+                </View>
+
+                {/* Judul Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Judul Notifikasi</Text>
+                  <TextInput
+                    value={broadcastTitle}
+                    onChangeText={setBroadcastTitle}
+                    placeholder="Contoh: Pemeliharaan Sistem / Pengumuman"
+                    placeholderTextColor={colors.textMuted}
+                    className="p-4 rounded-2xl border font-black text-sm"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
+                {/* Pesan Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Isi Pesan Notifikasi</Text>
+                  <TextInput
+                    value={broadcastMessage}
+                    onChangeText={setBroadcastMessage}
+                    placeholder="Tulis isi pesan pengumuman..."
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    numberOfLines={4}
+                    className="p-4 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top', minHeight: 100 }}
+                  />
+                </View>
+
+                {/* Submit button utilizing our custom 3D button */}
+                <Button3D
+                  variant="danger"
+                  colors={colors}
+                  onPress={handleSendBroadcast}
+                  disabled={!broadcastTitle.trim() || !broadcastMessage.trim() || isSendingBroadcast}
+                  loading={isSendingBroadcast}
+                  style={{ marginTop: 8 }}
+                >
+                  <Bell size={16} color="#ffffff" />
+                  <Text className="font-black text-white text-xs uppercase tracking-wider">Kirim Broadcast massal</Text>
+                </Button3D>
+              </View>
+
+              {/* Preview Banner Mockup on Mobile */}
+              <View className="p-5 rounded-3xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400 pl-1">Pratinjau Tampilan Notifikasi</Text>
+                
+                {(broadcastTitle.trim() || broadcastMessage.trim()) ? (
+                  <View className="w-full p-4 rounded-2xl border bg-slate-900/90 shadow-md" style={{ borderColor: colors.border }}>
+                    <View className="flex-row items-center gap-2 mb-1.5">
+                      <View className="w-5 h-5 rounded bg-blue-500 items-center justify-center">
+                        <Text className="text-[8px] font-black text-white">i</Text>
+                      </View>
+                      <Text className="text-[9px] font-black uppercase tracking-wider text-white">{brandingData.appName}</Text>
+                      <Text className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</Text>
+                    </View>
+                    <Text className="text-xs font-black text-white">{broadcastTitle || 'Judul Notifikasi'}</Text>
+                    <Text className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed">{broadcastMessage || 'Isi pesan...'}</Text>
+                  </View>
+                ) : (
+                  <Text className="text-[9px] font-bold text-center italic py-4" style={{ color: colors.textMuted }}>Silakan isi form untuk melihat pratinjau banner.</Text>
+                )}
+              </View>
             </View>
           </ScrollView>
         );

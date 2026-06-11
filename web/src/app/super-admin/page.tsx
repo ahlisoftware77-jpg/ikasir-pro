@@ -37,9 +37,10 @@ import {
   Mail,
   Receipt,
   Wallet,
-  Upload
+  Upload,
+  Bell
 } from 'lucide-react';
-import { handleExportJSON, handleImportJSON } from '@/lib/backupUtils';
+import { handleExportJSON, handleImportJSON, handleImportStoreJSON } from '@/lib/backupUtils';
 
 export default function SuperAdminPage() {
   const { user, role } = useAuthStore();
@@ -50,7 +51,7 @@ export default function SuperAdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast'>('users');
   const [stores, setStores] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -63,8 +64,55 @@ export default function SuperAdminPage() {
   const [isBackingUp, setIsBackingUp] = useState<string | null>(null);
   const [migratingUser, setMigratingUser] = useState<any>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreTargetStoreId, setRestoreTargetStoreId] = useState<string | null>(null);
   const [migrationMode, setMigrationMode] = useState<'standard' | 'mass'>('standard');
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
+  
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      alert('Judul dan pesan tidak boleh kosong!');
+      return;
+    }
+
+    const confirmFirst = confirm('⚠️ PERINGATAN: Anda akan mengirimkan push notifikasi ini ke SEMUA pelanggan user di seluruh toko/tenant secara massal! Lanjutkan?');
+    if (!confirmFirst) return;
+
+    const confirmSecond = confirm('🚨 KONFIRMASI TERAKHIR: Tindakan ini tidak dapat dibatalkan dan akan langsung muncul di perangkat masing-masing pengguna. Kirim sekarang?');
+    if (!confirmSecond) return;
+
+    setIsSendingBroadcast(true);
+    try {
+      const res = await fetch('/api/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId: 'GLOBAL',
+          title: broadcastTitle,
+          message: broadcastMessage
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Broadcast Berhasil Dikirim!\n\nSukses: ${data.successCount} perangkat\nGagal: ${data.failureCount} perangkat`);
+        setBroadcastTitle('');
+        setBroadcastMessage('');
+      } else {
+        alert('❌ Gagal mengirim broadcast: ' + (data.error || 'Terjadi kesalahan'));
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('❌ Error mengirim broadcast: ' + err.message);
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
   const triggerBackup = async (storeId: string) => {
     if (!confirm(storeId === 'GLOBAL' ? 'Mulai pencadangan semua data toko?' : 'Mulai pencadangan untuk toko ini?')) return;
     setIsBackingUp(storeId);
@@ -107,6 +155,70 @@ export default function SuperAdminPage() {
       setIsRestoring(false);
       e.target.value = '';
     }
+  };
+
+  const onStoreFileRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !restoreTargetStoreId) return;
+
+    const confirmFirst = confirm("⚠️ PERINGATAN: Proses 'Restore Toko' akan mengimpor data dari file backup ke toko yang dipilih. Lanjutkan?");
+    if (!confirmFirst) {
+      e.target.value = '';
+      setRestoreTargetStoreId(null);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const backupData = JSON.parse(content);
+
+        if (!backupData.metadata || !backupData.data) {
+          alert('❌ Format file backup tidak valid.');
+          e.target.value = '';
+          setRestoreTargetStoreId(null);
+          return;
+        }
+
+        const sourceStoreId = backupData.metadata.storeId;
+        if (sourceStoreId === 'GLOBAL') {
+          alert('❌ File backup GLOBAL tidak dapat dipulihkan ke toko tunggal.');
+          e.target.value = '';
+          setRestoreTargetStoreId(null);
+          return;
+        }
+
+        if (sourceStoreId !== restoreTargetStoreId) {
+          const confirmDifferent = confirm(`⚠️ PERINGATAN TOKO BERBEDA:\nFile backup ini berasal dari Toko Lain (ID: ${sourceStoreId}).\n\nApakah Anda ingin memulihkannya ke Toko ini (${restoreTargetStoreId})?\nSemua dokumen yang diimpor akan dipetakan ke Toko baru ini.`);
+          if (!confirmDifferent) {
+            e.target.value = '';
+            setRestoreTargetStoreId(null);
+            return;
+          }
+        }
+
+        const confirmSecond = confirm("🚨 KONFIRMASI TERAKHIR: Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin?");
+        if (!confirmSecond) {
+          e.target.value = '';
+          setRestoreTargetStoreId(null);
+          return;
+        }
+
+        setIsRestoring(true);
+        const result: any = await handleImportStoreJSON(file, restoreTargetStoreId);
+        alert(`✅ RESTORE TOKO BERHASIL!\nTotal ${result.totalRestored} dokumen dipulihkan dari backup tanggal ${result.metadata.timestamp}.\n\nHalaman akan dimuat ulang.`);
+        window.location.reload();
+      } catch (err: any) {
+        console.error(err);
+        alert('❌ RESTORE TOKO GAGAL: ' + err.message);
+      } finally {
+        setIsRestoring(false);
+        e.target.value = '';
+        setRestoreTargetStoreId(null);
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Security Check
@@ -804,28 +916,34 @@ export default function SuperAdminPage() {
            <button 
              onClick={handleMigrateData}
              disabled={isMigrating}
-             className="flex items-center justify-center gap-2 px-6 py-4 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-2xl font-black text-[10px] md:text-xs hover:bg-amber-500 hover:text-white transition-all disabled:opacity-50"
+             className="btn-3d btn-3d-amber"
            >
-              {isMigrating ? <Loader2 className="animate-spin" size={16} /> : <Database size={16} />}
-              MIGRASI DATA LAMA
+              <span className="btn-3d-top text-[10px] md:text-xs px-6 py-4 font-black">
+                 {isMigrating ? <Loader2 className="animate-spin" size={16} /> : <Database size={16} />}
+                 MIGRASI DATA LAMA
+              </span>
            </button>
 
            <button 
              onClick={handleMigrateDiscountStructure}
              disabled={isMigrating || isBackingUp !== null}
-             className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-500/10 text-blue-500 border border-blue-500/20 rounded-2xl font-black text-[10px] md:text-xs hover:bg-blue-500 hover:text-white transition-all disabled:opacity-50"
+             className="btn-3d btn-3d-blue"
            >
-              {isMigrating ? <Loader2 className="animate-spin" size={16} /> : <Tag size={16} />}
-              MIGRASI DISKON
+              <span className="btn-3d-top text-[10px] md:text-xs px-6 py-4 font-black">
+                 {isMigrating ? <Loader2 className="animate-spin" size={16} /> : <Tag size={16} />}
+                 MIGRASI DISKON
+              </span>
            </button>
 
            <button 
              onClick={() => triggerBackup('GLOBAL')}
              disabled={isBackingUp !== null || isRestoring}
-             className="flex items-center justify-center gap-2 px-6 py-4 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-2xl font-black text-[10px] md:text-xs hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50"
+             className="btn-3d btn-3d-emerald"
            >
-              {isBackingUp === 'GLOBAL' ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-              BACKUP GLOBAL
+              <span className="btn-3d-top text-[10px] md:text-xs px-6 py-4 font-black">
+                 {isBackingUp === 'GLOBAL' ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+                 BACKUP GLOBAL
+              </span>
            </button>
            
            <div className="relative">
@@ -837,13 +955,23 @@ export default function SuperAdminPage() {
                 onChange={onFileRestore}
                 disabled={isRestoring}
               />
+              <input 
+                type="file" 
+                id="restore-store-file" 
+                accept=".json" 
+                className="hidden" 
+                onChange={onStoreFileRestore}
+                disabled={isRestoring}
+              />
               <button 
                 onClick={() => document.getElementById('restore-file')?.click()}
                 disabled={isRestoring || isBackingUp !== null}
-                className="flex items-center justify-center gap-2 px-6 py-4 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-2xl font-black text-[10px] md:text-xs hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
+                className="btn-3d btn-3d-rose"
               >
-                 {isRestoring ? <Loader2 className="animate-spin" size={16} /> : <History size={16} />}
-                 RESTORE GLOBAL
+                 <span className="btn-3d-top text-[10px] md:text-xs px-6 py-4 font-black">
+                    {isRestoring ? <Loader2 className="animate-spin" size={16} /> : <History size={16} />}
+                    RESTORE GLOBAL
+                 </span>
               </button>
            </div>
            
@@ -898,6 +1026,12 @@ export default function SuperAdminPage() {
                     {subscriptionRequests.filter(r => r.status === 'pending').length}
                   </span>
                 )}
+             </button>
+             <button 
+               onClick={() => setActiveTab('broadcast')}
+               className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl font-black text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 ${activeTab === 'broadcast' ? 'bg-accent text-foreground shadow-lg' : 'text-app-text-muted hover:text-foreground'}`}
+             >
+                <Bell size={16} /> BROADCAST
              </button>
           </div>
 
@@ -1177,11 +1311,24 @@ export default function SuperAdminPage() {
                                </button>
                                <button 
                                  onClick={() => triggerBackup(s.id)}
-                                 disabled={isBackingUp !== null}
+                                 disabled={isBackingUp !== null || isRestoring}
                                  className="p-3 bg-surface hover:bg-accent hover:text-foreground text-app-text-muted rounded-2xl border border-app-border transition-all shadow-sm active:scale-90 disabled:opacity-50"
                                  title="Backup Toko"
                                >
                                   {isBackingUp === s.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                               </button>
+                               <button 
+                                 onClick={() => {
+                                   setRestoreTargetStoreId(s.id);
+                                   setTimeout(() => {
+                                     document.getElementById('restore-store-file')?.click();
+                                   }, 100);
+                                 }}
+                                 disabled={isRestoring || isBackingUp !== null}
+                                 className="p-3 bg-surface hover:bg-amber-500 hover:text-white text-amber-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90 disabled:opacity-50"
+                                 title="Upload Database Toko"
+                               >
+                                  {isRestoring && restoreTargetStoreId === s.id ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                                </button>
                                <button 
                                  onClick={() => handleUpdateStore(s.id, s.isActive ?? true)}
@@ -1230,12 +1377,24 @@ export default function SuperAdminPage() {
                             <Pencil size={18} />
                          </button>
                          <button 
-                            onClick={() => triggerBackup(s.id)}
-                            disabled={isBackingUp !== null}
-                            className="p-3 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90 disabled:opacity-50"
-                         >
-                            {isBackingUp === s.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                         </button>
+                             onClick={() => triggerBackup(s.id)}
+                             disabled={isBackingUp !== null || isRestoring}
+                             className="p-3 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90 disabled:opacity-50"
+                          >
+                             {isBackingUp === s.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                          </button>
+                          <button 
+                             onClick={() => {
+                               setRestoreTargetStoreId(s.id);
+                               setTimeout(() => {
+                                 document.getElementById('restore-store-file')?.click();
+                               }, 100);
+                             }}
+                             disabled={isRestoring || isBackingUp !== null}
+                             className="p-3 bg-background border border-app-border text-amber-500 rounded-xl active:scale-90 disabled:opacity-50"
+                          >
+                             {isRestoring && restoreTargetStoreId === s.id ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                          </button>
                          <button 
                             onClick={() => handleUpdateStore(s.id, s.isActive ?? true)}
                           className={`p-3 rounded-xl border transition-all ${
@@ -1709,13 +1868,102 @@ export default function SuperAdminPage() {
                     )}
                  </div>
               ))}
-              {subscriptionRequests.length === 0 && (
+                 {subscriptionRequests.length === 0 && (
                  <div className="col-span-full py-12 text-center border border-dashed border-app-border rounded-[2rem]">
                     <p className="text-app-text-muted text-xs font-bold">Belum ada pengajuan langganan.</p>
                  </div>
               )}
-           </div>
-        </div>
+            </div>
+         </div>
+      ) : activeTab === 'broadcast' ? (
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in zoom-in-95 duration-500">
+            {/* Form Broadcast */}
+            <div className="bg-surface border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-2xl">
+               <div className="mb-8">
+                  <h3 className="text-2xl font-black text-foreground mb-2 flex items-center gap-3">
+                     <Bell className="text-accent" /> Kirim Broadcast Notifikasi
+                  </h3>
+                  <p className="text-xs text-app-text-muted font-medium">Kirimkan pemberitahuan instan ke semua perangkat pengguna aplikasi mobile.</p>
+               </div>
+               
+               <form onSubmit={handleSendBroadcast} className="space-y-6">
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Judul Notifikasi</label>
+                     <input 
+                       type="text" 
+                       value={broadcastTitle}
+                       onChange={e => setBroadcastTitle(e.target.value)}
+                       className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-black focus:outline-none focus:border-accent transition-all"
+                       placeholder="Contoh: Pemeliharaan Sistem / Pengumuman"
+                       required
+                     />
+                  </div>
+                  
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Isi Pesan</label>
+                     <textarea 
+                       value={broadcastMessage}
+                       onChange={e => setBroadcastMessage(e.target.value)}
+                       className="w-full h-40 p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all resize-none text-sm"
+                       placeholder="Tulis pesan Anda di sini yang akan diterima oleh semua perangkat pengguna..."
+                       required
+                     />
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={isSendingBroadcast}
+                    className="w-full py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black shadow-xl shadow-rose-500/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 mt-4"
+                  >
+                     {isSendingBroadcast ? <Loader2 size={16} className="animate-spin" /> : <Bell size={20} />}
+                     KIRIM BROADCAST NOTIFIKASI
+                  </button>
+               </form>
+            </div>
+
+            {/* Preview Push Notifikasi */}
+            <div className="bg-surface/30 border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 flex flex-col justify-center items-center">
+               <h4 className="text-sm font-black text-foreground mb-6 uppercase tracking-widest">Preview Push Notifikasi</h4>
+               
+               {/* Smartphone mockup preview container */}
+               <div className="w-[300px] h-[550px] bg-slate-950 border-[8px] border-slate-800 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col justify-between p-4">
+                  {/* Speaker and Camera notch */}
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-5 bg-slate-800 rounded-full flex items-center justify-center">
+                     <div className="w-12 h-1 bg-slate-700 rounded-full mr-2" />
+                     <div className="w-2.5 h-2.5 bg-slate-900 rounded-full" />
+                  </div>
+                  
+                  {/* Status Bar */}
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 mt-4 px-2 select-none">
+                     <span>15:21</span>
+                     <div className="flex items-center gap-1">
+                        <span>📶</span>
+                        <span>🔋</span>
+                     </div>
+                  </div>
+                  
+                  {/* Push notification banner */}
+                  <div className="flex-1 flex items-start justify-center pt-8">
+                     {(broadcastTitle.trim() || broadcastMessage.trim()) ? (
+                        <div className="w-full bg-slate-900/95 border border-slate-800/80 p-4 rounded-2xl shadow-xl backdrop-blur-md animate-bounce">
+                           <div className="flex items-center gap-2 mb-1">
+                              <div className="w-5 h-5 rounded bg-accent flex items-center justify-center text-[8px] font-black text-white">i</div>
+                              <span className="text-[10px] font-black text-foreground uppercase tracking-wider">{brandingData.appName}</span>
+                              <span className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</span>
+                           </div>
+                           <h5 className="text-xs font-black text-foreground">{broadcastTitle || 'Judul Notifikasi'}</h5>
+                           <p className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed break-words">{broadcastMessage || 'Isi pesan notifikasi...'}</p>
+                        </div>
+                     ) : (
+                        <p className="text-[10px] text-slate-600 text-center italic mt-12 font-bold uppercase tracking-wider">Silakan isi form di sebelah kiri untuk melihat preview</p>
+                     )}
+                  </div>
+                  
+                  {/* Home indicator */}
+                  <div className="w-28 h-1 bg-slate-700 rounded-full mx-auto mb-1" />
+               </div>
+            </div>
+         </div>
       ) : null}
 
       {/* EDIT MODAL */}

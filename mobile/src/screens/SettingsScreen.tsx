@@ -1135,6 +1135,10 @@ export default function SettingsScreen({ navigation, route }: any) {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminSubscriptions', title: 'Pengajuan Langganan' });
               }, false, false, pendingRequestsCount)}
+              {renderMenuItem('Broadcast', Bell, '#f43f5e', () => {
+                Vibration.vibrate(10);
+                navigation.navigate('SuperAdminScreen', { featureId: 'superAdminBroadcast', title: 'Broadcast Notifikasi' });
+              })}
             </View>
           </View>
         )}
