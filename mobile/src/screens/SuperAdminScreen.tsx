@@ -818,10 +818,60 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const handleDeleteSubscription = async (reqId: string) => {
+    Alert.alert(
+      'Hapus Riwayat',
+      'Yakin ingin menghapus riwayat langganan ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              await deleteDoc(doc(db, 'subscription_requests', reqId));
+              Alert.alert('Sukses', 'Riwayat langganan berhasil dihapus.');
+            } catch (error: any) {
+              console.error(error);
+              Alert.alert('Gagal', 'Gagal menghapus riwayat: ' + error.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // --- RENDER CONTENT BY FEATURE ID ---
   const renderContent = () => {
     switch (featureId) {
-      case 'superAdminUsers':
+      case 'superAdminUsers': {
+        // Group users by store for hierarchical display
+        const filteredMobileUsers = superAdminUsers.filter(u => 
+          u.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) || 
+          u.email?.toLowerCase().includes(superAdminSearchQuery.toLowerCase())
+        );
+        const mobileStoreMap = new Map<string, any[]>();
+        filteredMobileUsers.forEach(u => {
+          const sid = u.storeId || '__no_store__';
+          if (!mobileStoreMap.has(sid)) mobileStoreMap.set(sid, []);
+          mobileStoreMap.get(sid)!.push(u);
+        });
+        const mobileSortedKeys = Array.from(mobileStoreMap.keys()).sort((a, b) => {
+          if (a === '__no_store__') return 1;
+          if (b === '__no_store__') return -1;
+          const nameA = superAdminStores.find(s => s.id === a)?.name || '';
+          const nameB = superAdminStores.find(s => s.id === b)?.name || '';
+          return nameA.localeCompare(nameB);
+        });
+        const mobileGroupedUsers = mobileSortedKeys.map(sid => ({
+          storeId: sid,
+          storeName: superAdminStores.find(s => s.id === sid)?.name || (sid === '__no_store__' ? 'Tanpa Toko' : sid),
+          users: mobileStoreMap.get(sid)!
+        }));
+
         return (
           <View className="flex-1">
             {/* Search Input */}
@@ -843,54 +893,67 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
               <View className="space-y-4 pb-20">
-                {superAdminUsers
-                  .filter(u => 
-                    u.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) || 
-                    u.email?.toLowerCase().includes(superAdminSearchQuery.toLowerCase())
-                  )
-                  .map((u) => {
-                    const userStore = superAdminStores.find(s => s.id === u.storeId);
-                    return (
+                {mobileGroupedUsers.map((group) => (
+                  <View key={group.storeId} className="rounded-3xl border overflow-hidden mb-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                    {/* Store Group Header */}
+                    <View className="flex-row items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: colors.border + '50', backgroundColor: colors.bg + '80' }}>
+                      <View className="flex-row items-center gap-3 flex-1">
+                        <View className={`w-9 h-9 rounded-xl items-center justify-center ${group.storeId !== '__no_store__' ? 'bg-teal-500/10' : 'bg-slate-500/10'}`}>
+                          <Home size={16} color={group.storeId !== '__no_store__' ? '#14b8a6' : '#94a3b8'} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-[11px] font-black uppercase tracking-tight" style={{ color: colors.text }} numberOfLines={1}>{group.storeName}</Text>
+                          <Text className="text-[9px] font-bold" style={{ color: colors.textMuted }}>{group.users.length} pengguna</Text>
+                        </View>
+                      </View>
+                      <View className={`px-2.5 py-1 rounded-full border ${group.storeId !== '__no_store__' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}>
+                        <Text className={`text-[7px] font-black uppercase tracking-wider ${group.storeId !== '__no_store__' ? 'text-emerald-500' : 'text-slate-400'}`}>
+                          {group.storeId !== '__no_store__' ? '🏪 TOKO' : '👤 CUSTOMER'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* User Cards */}
+                    {group.users.map((u, idx) => (
                       <View 
                         key={u.id} 
-                        className="p-5 rounded-3xl border mb-3" 
-                        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                        className={`px-5 py-4 ${idx < group.users.length - 1 ? 'border-b' : ''}`}
+                        style={{ borderColor: colors.border + '30' }}
                       >
                         <View className="flex-row items-start justify-between">
                           <View className="flex-row items-center gap-3 flex-1">
-                            <View className="w-10 h-10 rounded-xl items-center justify-center bg-amber-500/10 border border-amber-500/20">
-                              <Text className="text-sm font-black text-amber-500">{u.email?.[0].toUpperCase()}</Text>
+                            <View className="w-9 h-9 rounded-lg items-center justify-center bg-amber-500/10 border border-amber-500/20">
+                              <Text className="text-xs font-black text-amber-500">{u.email?.[0].toUpperCase()}</Text>
                             </View>
                             <View className="flex-1 pr-2">
                               <Text className="text-xs font-black" style={{ color: colors.text }} numberOfLines={1}>{u.name || 'No Name'}</Text>
                               <Text className="text-[9px] font-bold text-slate-400" numberOfLines={1}>{u.email}</Text>
-                              <Text className="text-[9px] font-bold text-teal-500 mt-0.5" numberOfLines={1}>Toko: {userStore?.name || 'Toko Default'}</Text>
                             </View>
                           </View>
-                          <View className="flex-row gap-2">
+                          <View className="flex-row gap-1.5">
                             <TouchableOpacity 
                               onPress={() => setMigratingUser(u)}
-                              className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl"
+                              className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg"
                             >
-                              <ArrowRight size={14} color="#f59e0b" />
+                              <ArrowRight size={12} color="#f59e0b" />
                             </TouchableOpacity>
                             <TouchableOpacity 
                               onPress={() => setEditingUser(u)}
-                              className="p-2.5 bg-teal-500/10 border border-teal-500/20 rounded-xl"
+                              className="p-2 bg-teal-500/10 border border-teal-500/20 rounded-lg"
                             >
-                              <UserCheck size={14} color="#14b8a6" />
+                              <UserCheck size={12} color="#14b8a6" />
                             </TouchableOpacity>
                             <TouchableOpacity 
                               onPress={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
-                              className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl"
+                              className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg"
                             >
-                              <Trash2 size={14} color="#f43f5e" />
+                              <Trash2 size={12} color="#f43f5e" />
                             </TouchableOpacity>
                           </View>
                         </View>
 
-                        <View className="flex-row justify-between pt-3 mt-3 border-t" style={{ borderColor: colors.border + '30' }}>
-                          <View className="flex-row gap-1.5 items-center">
+                        <View className="flex-row justify-between pt-2.5 mt-2.5 border-t" style={{ borderColor: colors.border + '20' }}>
+                          <View className="flex-row gap-1.5 items-center flex-wrap">
                             <Text className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${u.role === 'super-admin' || u.role === 'superadmin' ? 'bg-amber-500/10 text-amber-500' : u.role === 'admin' ? 'bg-teal-500/10 text-teal-500' : 'bg-slate-800 text-slate-400'}`}>
                               {u.role || 'CASHIER'}
                             </Text>
@@ -904,12 +967,20 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                           <Text className="text-[8px] font-black text-slate-500 font-mono">DB: {u.targetProjectId || 'UTAMA'}</Text>
                         </View>
                       </View>
-                    );
-                  })}
+                    ))}
+                  </View>
+                ))}
+                {mobileGroupedUsers.length === 0 && (
+                  <View className="py-20 items-center opacity-30">
+                    <AlertCircle size={48} color={colors.textMuted} />
+                    <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Tidak ada pengguna yang ditemukan.</Text>
+                  </View>
+                )}
               </View>
             </ScrollView>
           </View>
         );
+      }
 
       case 'superAdminStores':
         return (
@@ -1390,21 +1461,41 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     </TouchableOpacity>
                   )}
 
-                  {req.status === 'pending' && (
+                  {req.status === 'pending' ? (
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity
+                        onPress={() => handleVerifySubscription(req)}
+                        disabled={isSaving}
+                        className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-2"
+                        style={{ backgroundColor: '#10b981', opacity: isSaving ? 0.7 : 1 }}
+                      >
+                        {isSaving ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <CheckCircle2 size={16} color="#ffffff" />
+                            <Text className="text-[10px] font-black text-white uppercase tracking-widest">Validasi</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteSubscription(req.id)}
+                        disabled={isSaving}
+                        className="py-3.5 px-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
+                        style={{ opacity: isSaving ? 0.7 : 1 }}
+                      >
+                        <Trash2 size={16} color="#f43f5e" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
                     <TouchableOpacity
-                      onPress={() => handleVerifySubscription(req)}
+                      onPress={() => handleDeleteSubscription(req.id)}
                       disabled={isSaving}
-                      className="w-full py-3.5 rounded-2xl items-center justify-center flex-row gap-2"
-                      style={{ backgroundColor: '#10b981', opacity: isSaving ? 0.7 : 1 }}
+                      className="w-full py-3 rounded-2xl items-center justify-center flex-row gap-2 bg-rose-500/10 border border-rose-500/20 mt-1"
+                      style={{ opacity: isSaving ? 0.7 : 1 }}
                     >
-                      {isSaving ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <>
-                          <CheckCircle2 size={16} color="#ffffff" />
-                          <Text className="text-[10px] font-black text-white uppercase tracking-widest">Verifikasi Valid</Text>
-                        </>
-                      )}
+                      <Trash2 size={14} color="#f43f5e" />
+                      <Text className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Hapus Riwayat</Text>
                     </TouchableOpacity>
                   )}
                 </View>

@@ -743,6 +743,38 @@ export default function SuperAdminPage() {
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Group users by storeId for hierarchical display
+  const groupedUsers = (() => {
+    const groups: { storeId: string; storeName: string; users: any[] }[] = [];
+    const storeMap = new Map<string, any[]>();
+    
+    filteredUsers.forEach(u => {
+      const sid = u.storeId || '__no_store__';
+      if (!storeMap.has(sid)) storeMap.set(sid, []);
+      storeMap.get(sid)!.push(u);
+    });
+
+    // Sort: stores with names first, then no-store group last
+    const sortedKeys = Array.from(storeMap.keys()).sort((a, b) => {
+      if (a === '__no_store__') return 1;
+      if (b === '__no_store__') return -1;
+      const nameA = stores.find(s => s.id === a)?.name || '';
+      const nameB = stores.find(s => s.id === b)?.name || '';
+      return nameA.localeCompare(nameB);
+    });
+
+    sortedKeys.forEach(sid => {
+      const store = stores.find(s => s.id === sid);
+      groups.push({
+        storeId: sid,
+        storeName: store?.name || (sid === '__no_store__' ? 'Tanpa Toko' : sid),
+        users: storeMap.get(sid)!
+      });
+    });
+
+    return groups;
+  })();
+
   if (isLoading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
@@ -900,174 +932,190 @@ export default function SuperAdminPage() {
       </div>
 
       {activeTab === 'users' ? (
-        <div className="bg-surface border border-app-border rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/10">
-           {/* Desktop Table View */}
-           <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left">
-                 <thead>
-                    <tr className="bg-background/50 text-[10px] font-black uppercase tracking-[0.2em] text-app-text-muted">
-                      <th className="px-8 py-6 uppercase">Pengguna & Toko</th>
-                      <th className="px-8 py-6 uppercase">Izin Akses</th>
-                      <th className="px-8 py-6 uppercase">Langganan</th>
-                      <th className="px-8 py-6 uppercase">Kedaluwarsa</th>
-                      <th className="px-8 py-6 uppercase text-center">Tindakan</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-app-border/30">
-                    {filteredUsers.map(u => {
-                      const userStore = stores.find(s => s.id === u.storeId);
-                      return (
-                        <tr key={u.id} className="group hover:bg-background/20 transition-colors">
-                           <td className="px-8 py-6">
-                              <div className="flex items-center gap-4">
-                                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-foreground font-black shadow-lg shadow-accent/20">
-                                    {u.email?.[0].toUpperCase()}
-                                 </div>
-                                 <div>
-                                    <p className="font-black text-sm text-foreground">{u.name || 'No Name'}</p>
-                                    <p className="text-[10px] font-bold text-app-text-muted italic mb-0.5">{userStore?.name || 'Toko Tidak Tertaut'}</p>
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                       <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                         u.role === 'super-admin' ? 'bg-amber-500/10 text-amber-500' : 
-                                         u.role === 'admin' ? 'bg-accent/10 text-accent' : 'bg-background text-app-text-muted'
-                                       }`}>
-                                         {u.role || 'CASHIER'}
-                                       </span>
-                                       <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${u.targetProjectId ? 'bg-amber-500/20 text-amber-500 animate-pulse' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10'}`}>
-                                          DB: {u.targetProjectId || 'UTAMA'}
-                                       </span>
+        <div className="space-y-4">
+           {groupedUsers.map(group => (
+             <div key={group.storeId} className="bg-surface border border-app-border rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/10">
+                {/* Store Group Header */}
+                <div className="flex items-center justify-between px-6 md:px-8 py-4 bg-background/50 border-b border-app-border/50">
+                   <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg ${group.storeId === '__no_store__' ? 'bg-slate-500/10 text-slate-400' : 'bg-accent/10 text-accent'}`}>
+                         <Building2 size={20} />
+                      </div>
+                      <div>
+                         <p className="font-black text-sm md:text-base text-foreground uppercase tracking-tight">{group.storeName}</p>
+                         <p className="text-[9px] md:text-[10px] font-bold text-app-text-muted">{group.users.length} pengguna terdaftar</p>
+                      </div>
+                   </div>
+                   <span className={`px-3 py-1 rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest border ${group.storeId !== '__no_store__' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+                      {group.storeId !== '__no_store__' ? '🏪 TOKO' : '👤 CUSTOMER'}
+                   </span>
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                   <table className="w-full text-left">
+                      <thead>
+                         <tr className="bg-background/30 text-[10px] font-black uppercase tracking-[0.2em] text-app-text-muted">
+                           <th className="px-8 py-4 uppercase">Pengguna</th>
+                           <th className="px-8 py-4 uppercase">Izin Akses</th>
+                           <th className="px-8 py-4 uppercase">Langganan</th>
+                           <th className="px-8 py-4 uppercase">Kedaluwarsa</th>
+                           <th className="px-8 py-4 uppercase text-center">Tindakan</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-app-border/30">
+                         {group.users.map(u => (
+                           <tr key={u.id} className="group hover:bg-background/20 transition-colors">
+                              <td className="px-8 py-5">
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-foreground font-black text-xs shadow-lg shadow-accent/20">
+                                       {u.email?.[0].toUpperCase()}
+                                    </div>
+                                    <div>
+                                       <p className="font-black text-sm text-foreground">{u.name || 'No Name'}</p>
+                                       <p className="text-[10px] font-bold text-app-text-muted">{u.email}</p>
+                                       <div className="flex items-center gap-1.5 mt-1">
+                                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                            u.role === 'super-admin' ? 'bg-amber-500/10 text-amber-500' : 
+                                            u.role === 'admin' ? 'bg-accent/10 text-accent' : 'bg-background text-app-text-muted'
+                                          }`}>
+                                            {u.role || 'CASHIER'}
+                                          </span>
+                                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${u.targetProjectId ? 'bg-amber-500/20 text-amber-500 animate-pulse' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10'}`}>
+                                             DB: {u.targetProjectId || 'UTAMA'}
+                                          </span>
+                                       </div>
                                     </div>
                                  </div>
-                              </div>
-                           </td>
-                           <td className="px-8 py-6">
-                              {u.isActive !== false ? (
-                                <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/10 w-fit px-3 py-1.5 rounded-full border border-emerald-500/20">
-                                   <CheckCircle2 size={14} />
-                                   <span className="text-[9px] font-black uppercase tracking-widest">IZIN AKTIF</span>
+                              </td>
+                              <td className="px-8 py-5">
+                                 {u.isActive !== false ? (
+                                   <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/10 w-fit px-3 py-1.5 rounded-full border border-emerald-500/20">
+                                      <CheckCircle2 size={14} />
+                                      <span className="text-[9px] font-black uppercase tracking-widest">IZIN AKTIF</span>
+                                    </div>
+                                 ) : (
+                                   <div className="flex items-center gap-2 text-rose-500 bg-rose-500/10 w-fit px-3 py-1.5 rounded-full border border-rose-500/20">
+                                      <ShieldAlert size={14} />
+                                      <span className="text-[9px] font-black uppercase tracking-widest">DIBLOKIR</span>
+                                    </div>
+                                 )}
+                              </td>
+                              <td className="px-8 py-5">
+                                 {u.isSubscribed ? (
+                                   <div className="flex items-center gap-2 text-accent">
+                                      <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                                      <span className="text-[10px] font-black uppercase tracking-widest italic">Berlangganan</span>
+                                    </div>
+                                 ) : (
+                                   <span className="text-[10px] font-bold text-app-text-muted italic opacity-50">TIDAK AKTIF</span>
+                                 )}
+                              </td>
+                              <td className="px-8 py-5">
+                                 <div className="flex items-center gap-2 text-app-text-muted font-bold text-xs bg-background/50 px-3 py-1.5 rounded-xl w-fit">
+                                    <History size={14} />
+                                    {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}
                                  </div>
-                              ) : (
-                                <div className="flex items-center gap-2 text-rose-500 bg-rose-500/10 w-fit px-3 py-1.5 rounded-full border border-rose-500/20">
-                                   <ShieldAlert size={14} />
-                                   <span className="text-[9px] font-black uppercase tracking-widest">DIBLOKIR</span>
+                              </td>
+                              <td className="px-8 py-5 text-center">
+                                 <div className="flex items-center justify-center gap-2">
+                                    <button 
+                                      onClick={() => setMigratingUser(u)}
+                                      title="Migrasi ke DB lain"
+                                      className="p-3 bg-surface hover:bg-amber-500 hover:text-white text-amber-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
+                                    >
+                                       <ArrowRight size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={() => setEditingUser(u)}
+                                      className="p-3 bg-surface hover:bg-accent hover:text-foreground text-app-text-muted rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
+                                    >
+                                       <UserCog size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
+                                      title="Hapus Permanen"
+                                      className="p-3 bg-surface hover:bg-rose-500 hover:text-white text-rose-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
+                                    >
+                                       <Trash2 size={18} />
+                                    </button>
                                  </div>
-                              )}
-                           </td>
-                           <td className="px-8 py-6">
-                              {u.isSubscribed ? (
-                                <div className="flex items-center gap-2 text-accent">
-                                   <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                                   <span className="text-[10px] font-black uppercase tracking-widest italic">Berlangganan</span>
-                                 </div>
-                              ) : (
-                                <span className="text-[10px] font-bold text-app-text-muted italic opacity-50">TIDAK AKTIF</span>
-                              )}
-                           </td>
-                           <td className="px-8 py-6">
-                              <div className="flex items-center gap-2 text-app-text-muted font-bold text-xs bg-background/50 px-3 py-1.5 rounded-xl w-fit">
-                                 <History size={14} />
-                                 {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}
-                              </div>
-                           </td>
-                           <td className="px-8 py-6 text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                 <button 
-                                   onClick={() => setMigratingUser(u)}
-                                   title="Migrasi ke DB lain"
-                                   className="p-3 bg-surface hover:bg-amber-500 hover:text-white text-amber-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
-                                 >
-                                    <ArrowRight size={18} />
-                                 </button>
-                                 <button 
-                                   onClick={() => setEditingUser(u)}
-                                   className="p-3 bg-surface hover:bg-accent hover:text-foreground text-app-text-muted rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
-                                 >
-                                    <UserCog size={18} />
-                                 </button>
-                                 <button 
-                                   onClick={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
-                                   title="Hapus Permanen"
-                                   className="p-3 bg-surface hover:bg-rose-500 hover:text-white text-rose-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
-                                 >
-                                    <Trash2 size={18} />
-                                 </button>
-                              </div>
-                           </td>
-                        </tr>
-                      );
-                    })}
-                 </tbody>
-              </table>
-           </div>
+                              </td>
+                           </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
 
-           {/* Mobile Card View for Users */}
-           <div className="md:hidden divide-y divide-app-border">
-              {filteredUsers.map(u => {
-                const userStore = stores.find(s => s.id === u.storeId);
-                return (
-                  <div key={u.id} className="p-5 flex flex-col gap-4">
-                     <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-xl bg-accent text-foreground flex items-center justify-center font-black text-xs">
-                              {u.email?.[0].toUpperCase()}
-                           </div>
-                           <div>
-                              <p className="font-black text-sm text-foreground">{u.name || 'No Name'}</p>
-                              <div className="flex items-center gap-2">
-                                 <p className="text-[10px] font-bold text-app-text-muted italic">{userStore?.name || 'Toko Default'}</p>
-                                 <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest ${u.targetProjectId ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                                    DB: {u.targetProjectId || 'UTAMA'}
-                                 </span>
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-app-border/30">
+                   {group.users.map(u => (
+                     <div key={u.id} className="p-5 flex flex-col gap-3">
+                        <div className="flex items-start justify-between">
+                           <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-accent text-foreground flex items-center justify-center font-black text-xs">
+                                 {u.email?.[0].toUpperCase()}
+                              </div>
+                              <div>
+                                 <p className="font-black text-sm text-foreground">{u.name || 'No Name'}</p>
+                                 <p className="text-[10px] font-bold text-app-text-muted">{u.email}</p>
                               </div>
                            </div>
+                           <div className="flex gap-1.5">
+                              <button 
+                                onClick={() => setMigratingUser(u)}
+                                className="p-2.5 bg-background border border-app-border text-amber-500 rounded-xl active:scale-90"
+                              >
+                                 <ArrowRight size={16} />
+                              </button>
+                              <button 
+                                onClick={() => setEditingUser(u)}
+                                className="p-2.5 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90"
+                              >
+                                 <UserCog size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
+                                className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl active:scale-90"
+                              >
+                                 <Trash2 size={16} />
+                              </button>
+                           </div>
                         </div>
-                        <div className="flex gap-2">
-                           <button 
-                             onClick={() => setMigratingUser(u)}
-                             className="p-3 bg-background border border-app-border text-amber-500 rounded-xl active:scale-90"
-                           >
-                              <ArrowRight size={18} />
-                           </button>
-                           <button 
-                             onClick={() => setEditingUser(u)}
-                             className="p-3 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90"
-                           >
-                              <UserCog size={18} />
-                           </button>
-                           <button 
-                             onClick={() => handleDeleteUserPermanently(u.id, u.email || 'No Email')}
-                             className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl active:scale-90"
-                           >
-                              <Trash2 size={18} />
-                           </button>
-                        </div>
-                     </div>
-                     
-                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-background/50 p-3 rounded-xl border border-app-border/30">
-                           <p className="text-[8px] font-black text-app-text-muted uppercase tracking-[0.1em] mb-1">Status Izin</p>
-                           {u.isActive !== false ? (
-                             <span className="text-[9px] font-black text-emerald-500 uppercase">AKTIF</span>
-                           ) : (
-                             <span className="text-[9px] font-black text-rose-500 uppercase">BLOKIR</span>
-                           )}
-                        </div>
-                        <div className="bg-background/50 p-3 rounded-xl border border-app-border/30">
-                           <p className="text-[8px] font-black text-app-text-muted uppercase tracking-[0.1em] mb-1">Langganan</p>
-                           <span className={`text-[9px] font-black uppercase ${u.isSubscribed ? 'text-accent' : 'text-app-text-muted/50'}`}>
+                        
+                        <div className="flex flex-wrap items-center gap-1.5">
+                           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                             u.role === 'super-admin' ? 'bg-amber-500/10 text-amber-500' : 
+                             u.role === 'admin' ? 'bg-accent/10 text-accent' : 'bg-background text-app-text-muted'
+                           }`}>
+                             {u.role || 'CASHIER'}
+                           </span>
+                           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${u.isActive !== false ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                             {u.isActive !== false ? 'AKTIF' : 'BLOKIR'}
+                           </span>
+                           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${u.isSubscribed ? 'bg-purple-500/10 text-purple-500' : 'bg-background text-app-text-muted/50'}`}>
                              {u.isSubscribed ? 'PRO' : 'FREE'}
                            </span>
+                           <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest ${u.targetProjectId ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                             DB: {u.targetProjectId || 'UTAMA'}
+                           </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-[9px] font-bold text-app-text-muted bg-background/50 px-3 py-2 rounded-lg">
+                           <span className="flex items-center gap-1"><History size={10} /> {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}</span>
+                           <span className="font-mono opacity-50">#{u.id?.substring(0,8)}</span>
                         </div>
                      </div>
-                     
-                     <div className="flex items-center justify-between text-[9px] font-bold text-app-text-muted bg-background/50 px-3 py-2 rounded-lg">
-                        <span className="flex items-center gap-1"><History size={10} /> {u.validUntil || '-'}</span>
-                        <span className="font-mono opacity-50">#{u.id?.substring(0,8)}</span>
-                     </div>
-                  </div>
-                );
-              })}
-           </div>
+                   ))}
+                </div>
+             </div>
+           ))}
+           {groupedUsers.length === 0 && (
+             <div className="bg-surface border border-app-border rounded-[2rem] p-20 text-center">
+                <UsersIcon className="w-16 h-16 opacity-10 mx-auto mb-4" />
+                <p className="text-app-text-muted font-bold italic">Tidak ada pengguna yang ditemukan.</p>
+             </div>
+           )}
         </div>
       ) : activeTab === 'stores' ? (
         <div className="bg-surface border border-app-border rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/10 animate-in fade-in duration-500">
