@@ -12,7 +12,7 @@ import {
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
-  Wrench
+  Wrench, ExternalLink
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -142,6 +142,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastLink, setBroadcastLink] = useState('');
+  const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
@@ -172,7 +174,11 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 body: JSON.stringify({
                   storeId: 'GLOBAL',
                   title: broadcastTitle,
-                  message: broadcastMessage
+                  message: broadcastMessage,
+                  data: {
+                    link: broadcastLink.trim() || '',
+                    imageUrl: broadcastImageUrl.trim() || ''
+                  }
                 })
               });
 
@@ -184,6 +190,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 );
                 setBroadcastTitle('');
                 setBroadcastMessage('');
+                setBroadcastLink('');
+                setBroadcastImageUrl('');
               } else {
                 Alert.alert('Gagal', 'Gagal mengirim broadcast: ' + (data.error || 'Terjadi kesalahan'));
               }
@@ -1938,6 +1946,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   />
                 </View>
 
+                {/* Link Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Tautan Web / URL Aksi (Opsional)</Text>
+                  <TextInput
+                    value={broadcastLink}
+                    onChangeText={setBroadcastLink}
+                    placeholder="Contoh: https://yadiapp.com/promo"
+                    placeholderTextColor={colors.textMuted}
+                    className="p-4 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
+                {/* Image URL Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">URL Gambar Lampiran (Opsional)</Text>
+                  <TextInput
+                    value={broadcastImageUrl}
+                    onChangeText={setBroadcastImageUrl}
+                    placeholder="Contoh: https://images.unsplash.com/photo-..."
+                    placeholderTextColor={colors.textMuted}
+                    className="p-4 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
                 {/* Submit button utilizing our custom 3D button */}
                 <Button3D
                   variant="danger"
@@ -1966,7 +2000,20 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                       <Text className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</Text>
                     </View>
                     <Text className="text-xs font-black text-white">{broadcastTitle || 'Judul Notifikasi'}</Text>
-                    <Text className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed">{broadcastMessage || 'Isi pesan...'}</Text>
+                    <Text className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed mb-2">{broadcastMessage || 'Isi pesan...'}</Text>
+                    
+                    {broadcastImageUrl.trim() ? (
+                      <View className="w-full h-24 rounded-lg overflow-hidden border border-slate-700 mt-2 bg-slate-800">
+                        <Image source={{ uri: broadcastImageUrl.trim() }} className="w-full h-full" resizeMode="cover" />
+                      </View>
+                    ) : null}
+
+                    {broadcastLink.trim() ? (
+                      <View className="flex-row items-center gap-1.5 mt-2 bg-blue-500/20 border border-blue-500/30 px-2.5 py-1.5 rounded-lg">
+                        <ExternalLink size={10} color="#3b82f6" />
+                        <Text className="text-[9px] font-bold text-blue-400" numberOfLines={1}>Link: {broadcastLink}</Text>
+                      </View>
+                    ) : null}
                   </View>
                 ) : (
                   <Text className="text-[9px] font-bold text-center italic py-4" style={{ color: colors.textMuted }}>Silakan isi form untuk melihat pratinjau banner.</Text>

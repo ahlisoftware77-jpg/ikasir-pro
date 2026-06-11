@@ -70,6 +70,8 @@ export default function SuperAdminPage() {
   
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastLink, setBroadcastLink] = useState('');
+  const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
 
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
@@ -131,7 +133,11 @@ export default function SuperAdminPage() {
         body: JSON.stringify({
           storeId: 'GLOBAL',
           title: broadcastTitle,
-          message: broadcastMessage
+          message: broadcastMessage,
+          data: {
+            link: broadcastLink.trim() || '',
+            imageUrl: broadcastImageUrl.trim() || ''
+          }
         })
       });
 
@@ -140,6 +146,8 @@ export default function SuperAdminPage() {
         alert(`✅ Broadcast Berhasil Dikirim!\n\nSukses: ${data.successCount} perangkat\nGagal: ${data.failureCount} perangkat`);
         setBroadcastTitle('');
         setBroadcastMessage('');
+        setBroadcastLink('');
+        setBroadcastImageUrl('');
       } else {
         alert('❌ Gagal mengirim broadcast: ' + (data.error || 'Terjadi kesalahan'));
       }
@@ -1981,6 +1989,28 @@ export default function SuperAdminPage() {
                      />
                   </div>
 
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Tautan Web / URL Aksi (Opsional)</label>
+                     <input 
+                       type="text" 
+                       value={broadcastLink}
+                       onChange={e => setBroadcastLink(e.target.value)}
+                       className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all text-xs"
+                       placeholder="Contoh: https://yadiapp.com/promo"
+                     />
+                  </div>
+
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">URL Gambar Lampiran (Opsional)</label>
+                     <input 
+                       type="text" 
+                       value={broadcastImageUrl}
+                       onChange={e => setBroadcastImageUrl(e.target.value)}
+                       className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all text-xs"
+                       placeholder="Contoh: https://images.unsplash.com/photo-..."
+                     />
+                  </div>
+
                   <button 
                     type="submit" 
                     disabled={isSendingBroadcast}
@@ -2023,7 +2053,17 @@ export default function SuperAdminPage() {
                               <span className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</span>
                            </div>
                            <h5 className="text-xs font-black text-foreground">{broadcastTitle || 'Judul Notifikasi'}</h5>
-                           <p className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed break-words">{broadcastMessage || 'Isi pesan notifikasi...'}</p>
+                           <p className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed break-words mb-2">{broadcastMessage || 'Isi pesan notifikasi...'}</p>
+                           {broadcastImageUrl.trim() && (
+                             <div className="w-full h-24 rounded-lg overflow-hidden border border-slate-800 mt-2 bg-slate-950">
+                               <img src={broadcastImageUrl.trim()} className="w-full h-full object-cover" alt="Preview" />
+                             </div>
+                           )}
+                           {broadcastLink.trim() && (
+                             <div className="flex items-center gap-1.5 mt-2 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1.5 rounded-lg text-blue-400 select-none">
+                               <span className="text-[9px] font-bold truncate">Link: {broadcastLink}</span>
+                             </div>
+                           )}
                         </div>
                      ) : (
                         <p className="text-[10px] text-slate-600 text-center italic mt-12 font-bold uppercase tracking-wider">Silakan isi form di sebelah kiri untuk melihat preview</p>

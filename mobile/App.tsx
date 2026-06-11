@@ -26,6 +26,7 @@ import ThemeScreen from './src/screens/ThemeScreen';
 import StoreSettingsScreen from './src/screens/StoreSettingsScreen';
 import FeatureScreen from './src/screens/FeatureScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import OrderNotificationListener from './src/components/OrderNotificationListener';
 import SuperAdminScreen from './src/screens/SuperAdminScreen';
 
@@ -387,6 +388,11 @@ function NavigationRoot() {
                 headerTitleStyle: { color: colors.text, fontWeight: '900', fontSize: 16 },
                 headerTintColor: colors.text
               }} 
+            />
+            <Stack.Screen 
+              name="NotificationDetail" 
+              component={NotificationDetailScreen} 
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
               name="TransactionDetail" 

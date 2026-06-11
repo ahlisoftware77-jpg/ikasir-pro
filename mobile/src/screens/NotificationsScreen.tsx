@@ -12,10 +12,7 @@ export default function NotificationsScreen({ navigation }: any) {
   const handleNotificationPress = (item: NotificationItem) => {
     markAsRead(item.id);
     Vibration.vibrate(10);
-    if (item.data?.transactionId) {
-      // Navigate to the KDS / online orders tab
-      navigation.navigate('Main', { screen: 'Pesanan' });
-    }
+    navigation.navigate('NotificationDetail', { notification: item });
   };
 
   const formatTime = (isoString: string) => {
@@ -86,11 +83,9 @@ export default function NotificationsScreen({ navigation }: any) {
         </View>
 
         {/* Chevron right */}
-        {item.data?.transactionId && (
-          <View className="justify-center h-full pt-3">
-            <ChevronRight size={16} color={colors.textMuted} />
-          </View>
-        )}
+        <View className="justify-center h-full pt-3">
+          <ChevronRight size={16} color={colors.textMuted} />
+        </View>
       </TouchableOpacity>
     );
   };

@@ -437,11 +437,22 @@ export default function OrderNotificationListener() {
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener((notification) => {
       const data = notification.request.content.data;
+      const title = notification.request.content.title || '';
+      const body = notification.request.content.body || '';
+
+      if (title || body) {
+        addNotification({
+          title,
+          body,
+          data: data || null
+        });
+      }
+
       if (data?.transactionId && appState.current === 'active') {
         Vibration.vibrate([100, 300, 100, 300, 100, 500]);
         Alert.alert(
           '🚨 Pesanan Baru Masuk!',
-          notification.request.content.body || 'Ada pesanan online baru!',
+          body || 'Ada pesanan online baru!',
           [{ text: 'OK', style: 'default' }]
         );
       }
