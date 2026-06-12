@@ -46,6 +46,41 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 ## 📝 Catatan Perubahan & Fitur (Changelog)
 
+### [2026-06-13] - Kontrol Menu Kedaluwarsa Global & Optimalisasi UI Mobile
+#### Perubahan / Penambahan Fitur:
+1.  **Checklist Menu Kedaluwarsa Global (expiredDisabledMenus)**
+    *   Menambahkan pengaturan checklist global di tab Branding SuperAdmin (Web & Mobile).
+    *   Menyimpan daftar menu yang dinonaktifkan ketika masa aktif akun pengguna habis ke Firestore `system_settings/branding`.
+    *   Mengimplementasikan penegakan dinamis di Mobile Tab Navigator (`App.tsx`) dan Menu Lainnya (`SettingsScreen.tsx`) berdasarkan data global tersebut.
+2.  **Optimalisasi UI Form Edit SuperAdmin (Mobile)**
+    *   Mengubah modal popup melayang untuk "Edit User" dan "Kelola Toko" di `SuperAdminScreen.tsx` menjadi render halaman penuh (full screen) dengan header navigasi tombol Kembali yang lebih intuitif dan nyaman.
+3.  **Pesan WhatsApp Pusat Bantuan Profesional**
+    *   Memperbarui tautan WhatsApp Pusat Bantuan di mobile (`SettingsScreen.tsx`) dengan pesan pembuka profesional yang terenkode.
+
+#### Berkas yang Dimodifikasi:
+*   **Web**:
+    *   [page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/super-admin/page.tsx) - Menambahkan antarmuka checklist branding global expired menu.
+*   **Mobile**:
+    *   [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Mengubah popup modal edit menjadi inline full screen form, menambahkan checklist branding global expired menu.
+    *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store.
+    *   [authStore.ts](file:///e:/yadiapp-project/KASIR/mobile/src/store/authStore.ts) - Menambahkan state store `expiredDisabledMenus`.
+    *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Mengintegrasikan penegakan pemblokiran menu secara dinamis dan memperbarui URL WhatsApp Pusat Bantuan.
+
+#### Catatan Deployment & Perintah yang Dijalankan:
+1.  **Git Commit & Push**:
+    *   *Perintah*: `git add .` dan `git commit -m "feat: implement global expired disabled menus checklist and full-screen mobile forms"`
+    *   *Hasil*: Commit `92244e9e` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+2.  **Expo OTA Update**:
+    *   *Perintah*: `npx eas-cli update --channel production --message "feat: global expired disabled menus and full screen mobile forms" --non-interactive`
+    *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
+        *   **Runtime Version**: `1.0.0`
+        *   **Update Group ID**: `a80adfd5-1dae-4a93-874e-2cb6b5000cc7`
+        *   **Android Update ID**: `019ebcd2-55b3-70f4-a4ee-fc89b84a96f2`
+        *   **iOS Update ID**: `019ebcd2-55b3-7dd2-81a8-241c54eb8d64`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/a80adfd5-1dae-4a93-874e-2cb6b5000cc7)
+
+---
+
 ### [2026-06-12] - Peningkatan Logika Menu & Hak Akses Staf
 #### Perubahan / Penambahan Fitur:
 1.  **Online Store Visibility Toggle (Visibilitas Toko Online)**
