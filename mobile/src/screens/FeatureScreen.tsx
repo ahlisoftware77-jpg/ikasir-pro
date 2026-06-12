@@ -16,10 +16,12 @@ import {
   Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter,
-  Printer, UserCog
+  Printer, UserCog, Download
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 export default function FeatureScreen({ route, navigation }: any) {
   const { colors } = useTheme();
@@ -174,6 +176,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isResettingSold, setIsResettingSold] = useState(false);
 
   // Laporan Penjualan State
+  const [salesTransactions, setSalesTransactions] = useState<any[]>([]);
   const [reportsPenjualanState, setReportsPenjualanState] = useState({
     grossSales: 0,
     totalOrders: 0,
@@ -392,10 +395,12 @@ export default function FeatureScreen({ route, navigation }: any) {
             let orderCount = 0;
             let discGiven = 0;
             const payMethods: Record<string, number> = {};
+            const allTrx: any[] = [];
 
             snapshot.forEach((doc) => {
               const data = doc.data();
               if (data.paymentStatus === 'paid') {
+                allTrx.push({ id: doc.id, ...data });
                 gSales += data.total;
                 orderCount++;
                 discGiven += data.discount || 0;
@@ -404,6 +409,7 @@ export default function FeatureScreen({ route, navigation }: any) {
               }
             });
 
+            setSalesTransactions(allTrx);
             setReportsPenjualanState({
               grossSales: gSales,
               totalOrders: orderCount,
@@ -785,6 +791,181 @@ export default function FeatureScreen({ route, navigation }: any) {
 
     return Object.values(itemsMap).sort((a, b) => b.qty - a.qty);
   }, [rawSoldTransactions, salesAnalyticsClearedAt, soldMonthFilter, soldYearFilter]);
+
+  // Export Excel/CSV logic
+  const handleExportExcelCSV = async () => {
+    let fileName = '';
+    let headers: string[] = [];
+    let rows: any[][] = [];
+
+    switch (featureId) {
+      case 'lap_penjualan':
+        fileName = 'Laporan_Penjualan';
+        headers = ['ID Transaksi', 'Waktu', 'Metode', 'Kasir', 'Subtotal', 'Diskon', 'Total'];
+        rows = salesTransactions.map(t => {
+          const date = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+          return [
+            t.id,
+            date.toLocaleString('id-ID'),
+            t.paymentMethod || 'Cash',
+            t.cashierName || 'Kasir',
+            t.subtotal || 0,
+            t.discountAmount || 0,
+            t.total || 0
+          ];
+        });
+        break;
+
+      case 'lap_omzet':
+        fileName = `Laporan_Omzet_${omzetPeriodType}`;
+        headers = ['Periode', 'Total Omzet (Rp)'];
+        rows = omzetReportState.map(item => [
+          item.label,
+          item.amount
+        ]);
+        break;
+
+      case 'lap_terlaris':
+        fileName = 'Laporan_Produk_Terlaris';
+        headers = ['Nama Produk', 'Jumlah Terjual (QTY)', 'Total Pendapatan (Rp)'];
+        const bestSellerMap: Record<string, { qty: number, revenue: number }> = {};
+        rawSoldTransactions.forEach(t => {
+          if (t.paymentStatus === 'cancelled' || t.orderStatus === 'cancelled') return;
+          const trxDate = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+          if (salesAnalyticsClearedAt && trxDate < salesAnalyticsClearedAt) return;
+
+          if (soldMonthFilter !== 'all') {
+            if (trxDate.getMonth() !== parseInt(soldMonthFilter) || trxDate.getFullYear() !== parseInt(soldYearFilter)) return;
+          } else {
+            if (trxDate.getFullYear() !== parseInt(soldYearFilter)) return;
+          }
+
+          t.items?.forEach((item: any) => {
+            const name = item.productName || 'Unknown';
+            const qty = item.qty || 0;
+            const subtotal = item.qty * item.price;
+            if (!bestSellerMap[name]) {
+              bestSellerMap[name] = { qty: 0, revenue: 0 };
+            }
+            bestSellerMap[name].qty += qty;
+            bestSellerMap[name].revenue += subtotal;
+          });
+        });
+        rows = Object.keys(bestSellerMap)
+          .map(name => [name, bestSellerMap[name].qty, bestSellerMap[name].revenue])
+          .sort((a: any, b: any) => b[1] - a[1]);
+        break;
+
+      case 'arus_kas':
+        fileName = 'Laporan_Arus_Kas';
+        headers = ['Waktu', 'Tipe', 'Kategori', 'Nominal (Rp)', 'Keterangan', 'Oleh'];
+        rows = cashflows.map(item => {
+          const date = item.timestamp?.toDate ? item.timestamp.toDate() : new Date(item.timestamp);
+          return [
+            date.toLocaleString('id-ID'),
+            item.type === 'in' ? 'Pemasukan' : 'Pengeluaran',
+            item.category || '-',
+            item.amount || 0,
+            item.description || '',
+            item.userEmail || '-'
+          ];
+        });
+        break;
+
+      case 'stok':
+        fileName = 'Laporan_Mutasi_Stok';
+        headers = ['Waktu', 'Produk', 'Pengguna', 'Jenis', 'QTY', 'Catatan'];
+        rows = stockLogs.map(log => {
+          const date = log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+          return [
+            date.toLocaleString('id-ID'),
+            log.productName || '-',
+            log.userEmail || '-',
+            log.type || '-',
+            log.qty || 0,
+            log.note || '-'
+          ];
+        });
+        break;
+
+      case 'piutang':
+        fileName = 'Laporan_Hutang_Piutang';
+        headers = ['ID Transaksi', 'Pelanggan', 'Tanggal', 'Total Transaksi', 'Telah Dibayar', 'Sisa Piutang', 'Jatuh Tempo', 'Status'];
+        rows = debts.map(d => {
+          const date = d.timestamp?.toDate ? d.timestamp.toDate() : new Date(d.timestamp);
+          const currentPaid = d.paidAmount ?? d.cashReceived ?? 0;
+          const remaining = d.total - currentPaid;
+          return [
+            d.id,
+            d.customerName || 'Anonim',
+            date.toLocaleString('id-ID'),
+            d.total || 0,
+            currentPaid,
+            remaining,
+            d.dueDate ? new Date(d.dueDate).toLocaleDateString('id-ID') : '-',
+            d.paymentStatus || 'unpaid'
+          ];
+        });
+        break;
+
+      default:
+        return;
+    }
+
+    if (rows.length === 0) {
+      Alert.alert('Info', 'Tidak ada data untuk diekspor.');
+      return;
+    }
+
+    try {
+      const escapeCSV = (val: any) => {
+        if (val === null || val === undefined) return '';
+        let str = String(val);
+        str = str.replace(/"/g, '""');
+        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes(';')) {
+          return `"${str}"`;
+        }
+        return str;
+      };
+
+      const headerRow = headers.map(escapeCSV).join(',');
+      const dataRows = rows.map(row => row.map(escapeCSV).join(',')).join('\n');
+      const csvContent = `${headerRow}\n${dataRows}`;
+
+      const fileUri = `${FileSystem.documentDirectory}${fileName}.csv`;
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Ekspor Laporan (Excel/CSV)' });
+      } else {
+        Alert.alert('Gagal', 'Sistem sharing tidak tersedia.');
+      }
+    } catch (err: any) {
+      Alert.alert('Gagal Ekspor', err.message);
+    }
+  };
+
+  useEffect(() => {
+    const exportableFeatures = ['lap_penjualan', 'lap_omzet', 'lap_terlaris', 'arus_kas', 'stok', 'piutang'];
+    if (exportableFeatures.includes(featureId)) {
+      navigation.setOptions({
+        headerRight: () => (
+          <TouchableOpacity 
+            onPress={handleExportExcelCSV} 
+            style={{ marginRight: 15 }}
+            activeOpacity={0.7}
+          >
+            <Download size={20} color={colors.text} />
+          </TouchableOpacity>
+        )
+      });
+    } else {
+      navigation.setOptions({
+        headerRight: undefined
+      });
+    }
+  }, [featureId, navigation, colors, reportsPenjualanState, omzetReportState, rawSoldTransactions, cashflows, stockLogs, debts, salesTransactions, omzetPeriodType, soldMonthFilter, soldYearFilter, salesAnalyticsClearedAt]);
 
   // --- FORM NAV ACTION (ADD/EDIT/DELETE) ---
   const openFormModal = (item?: any) => {

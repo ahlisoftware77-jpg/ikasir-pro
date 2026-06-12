@@ -21,7 +21,8 @@ import {
   Printer,
   Globe,
   Share2,
-  Edit2
+  Edit2,
+  Download
 } from 'lucide-react';
 import { Transaction } from '@/types';
 import toast from 'react-hot-toast';
@@ -29,6 +30,7 @@ import { printReceipt } from '@/lib/printReceipt';
 import Link from 'next/link';
 import { getDoc } from 'firebase/firestore';
 import { useBranding } from '@/context/BrandingContext';
+import { exportToExcel } from '@/lib/exportToExcel';
 
 export default function DebtsPage() {
   const { storeId, user, userName } = useAuthStore();
@@ -45,6 +47,24 @@ export default function DebtsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteValue, setEditNoteValue] = useState('');
+
+  const handleExport = () => {
+    const formattedData = filteredDebts.map(d => {
+      const currentPaid = d.paidAmount ?? d.cashReceived ?? 0;
+      const remaining = d.total - currentPaid;
+      return {
+        'ID Transaksi': d.id,
+        'Pelanggan': d.customerName || 'Pelanggan Anonim',
+        'Tanggal': d.timestamp?.toDate ? d.timestamp.toDate().toLocaleString('id-ID') : new Date(d.timestamp).toLocaleString('id-ID'),
+        'Total Transaksi (Rp)': d.total,
+        'Telah Dibayar (Rp)': currentPaid,
+        'Sisa Tagihan (Piutang) (Rp)': remaining,
+        'Jatuh Tempo': d.dueDate ? new Date(d.dueDate).toLocaleDateString('id-ID') : '-',
+        'Status': d.paymentStatus === 'paid' ? 'Lunas' : d.paymentStatus === 'partially_paid' ? 'Dicicil' : 'Belum Lunas'
+      };
+    });
+    exportToExcel(formattedData, 'Laporan_Daftar_Piutang');
+  };
 
   useEffect(() => {
     if (!storeId) return;
@@ -243,20 +263,29 @@ export default function DebtsPage() {
               className="w-full pl-12 pr-4 py-3 bg-background border border-app-border rounded-xl text-xs font-bold text-foreground focus:outline-none focus:border-accent transition-all"
             />
           </div>
-          <div className="flex bg-background border border-app-border rounded-xl p-1 overflow-x-auto w-full md:w-auto">
-            {(['all', 'unpaid', 'paid'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-[10px] font-black tracking-widest uppercase transition-all whitespace-nowrap ${
-                  filter === f 
-                    ? 'bg-accent text-foreground shadow-lg shadow-accent/20' 
-                    : 'text-app-text-muted hover:text-foreground'
-                }`}
-              >
-                {f === 'all' ? 'Semua' : f === 'unpaid' ? 'Belum Lunas' : 'Lunas'}
-              </button>
-            ))}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex bg-background border border-app-border rounded-xl p-1 overflow-x-auto w-full md:w-auto">
+              {(['all', 'unpaid', 'paid'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-[10px] font-black tracking-widest uppercase transition-all whitespace-nowrap ${
+                    filter === f 
+                      ? 'bg-accent text-foreground shadow-lg shadow-accent/20' 
+                      : 'text-app-text-muted hover:text-foreground'
+                  }`}
+                >
+                  {f === 'all' ? 'Semua' : f === 'unpaid' ? 'Belum Lunas' : 'Lunas'}
+                </button>
+              ))}
+            </div>
+            <button 
+                onClick={handleExport}
+                className="p-3 bg-background border border-app-border rounded-xl text-app-text-muted hover:text-emerald-500 hover:border-emerald-500/30 transition-all active:scale-95 flex items-center justify-center h-[38px] w-[38px]"
+                title="Export Excel"
+            >
+                <Download size={18} />
+            </button>
           </div>
         </div>
 

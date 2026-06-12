@@ -5,12 +5,28 @@ import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { StockMutation } from '@/types';
-import { History, Loader2, ArrowDownCircle, ArrowUpCircle, RefreshCw } from 'lucide-react';
+import { History, Loader2, ArrowDownCircle, ArrowUpCircle, RefreshCw, Download } from 'lucide-react';
+import { exportToExcel } from '@/lib/exportToExcel';
 
 export default function StockHistoryPage() {
   const { storeId } = useAuthStore();
   const [mutations, setMutations] = useState<StockMutation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleExport = () => {
+    const formattedData = mutations.map(log => {
+      const dateObject = log.timestamp?.toDate ? log.timestamp.toDate() : new Date();
+      return {
+        'Tanggal & Waktu': dateObject.toLocaleString('id-ID'),
+        'Nama Produk': log.productName,
+        'Pengguna': log.userEmail,
+        'Jenis Mutasi': log.type === 'masuk' ? 'Barang Masuk' : log.type === 'keluar' ? 'Barang Keluar' : 'Penyesuaian Opname',
+        'Jumlah QTY': log.qty,
+        'Catatan': log.note || '-'
+      };
+    });
+    exportToExcel(formattedData, 'Laporan_Mutasi_Stok');
+  };
 
   useEffect(() => {
     if (!storeId) return;
@@ -35,9 +51,17 @@ export default function StockHistoryPage() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight uppercase">Riwayat Mutasi Stok</h1>
-        <p className="text-app-text-muted mt-1 font-medium">Catatan jejak audit (Audit Trail) kapan dan siapa penjaga yang melakukan opname inventaris gudang.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight uppercase">Riwayat Mutasi Stok</h1>
+          <p className="text-app-text-muted mt-1 font-medium">Catatan jejak audit (Audit Trail) kapan dan siapa penjaga yang melakukan opname inventaris gudang.</p>
+        </div>
+        <button 
+            onClick={handleExport}
+            className="flex items-center gap-3 bg-accent hover:bg-accent-hover text-foreground px-6 py-4 rounded-2xl font-black shadow-xl shadow-accent/20 transition-all active:scale-95 text-[11px] uppercase tracking-widest"
+        >
+            <Download size={18} /> Export Excel
+        </button>
       </div>
 
       <div className="bg-surface border border-app-border rounded-2xl overflow-hidden shadow-sm">
