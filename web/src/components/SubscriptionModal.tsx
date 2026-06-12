@@ -234,7 +234,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
                     key={pkg.id}
                     onClick={() => setSelectedPackage(pkg)}
                     style={{ animationDelay: `${idx * 100}ms` }}
-                    className={`w-full p-5 rounded-3xl border flex items-center justify-between group transition-all text-left animate-card-load relative overflow-hidden ${
+                    className={`w-full p-5 rounded-3xl border flex items-center justify-between group transition-all text-left animate-card-load relative ${
                       isBestSeller 
                         ? 'border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent animate-border-glow' 
                         : 'border-app-border bg-background hover:border-emerald-500/50 hover:bg-emerald-500/5'

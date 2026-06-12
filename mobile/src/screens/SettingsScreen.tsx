@@ -2362,7 +2362,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                         <TouchableOpacity
                           onPress={() => setSelectedPackage(pkg)}
                           activeOpacity={0.85}
-                          className="p-5 rounded-3xl border flex-row items-center justify-between relative overflow-hidden"
+                          className="p-5 rounded-3xl border flex-row items-center justify-between relative"
                           style={{ 
                             backgroundColor: isBestSeller ? 'rgba(16,185,129,0.06)' : colors.surface, 
                             borderColor: isBestSeller ? 'rgba(16,185,129,0.35)' : colors.border,
