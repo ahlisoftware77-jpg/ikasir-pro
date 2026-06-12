@@ -130,6 +130,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [migratingUser, setMigratingUser] = useState<any>(null);
+  const [migratingStoreData, setMigratingStoreData] = useState<any>(null);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [editingStore, setEditingStore] = useState<any>(null);
@@ -469,6 +470,141 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const handleMigrateStore = async (storeToMigrate: any, targetProj: any) => {
+    const isResetting = !targetProj;
+    const targetId = isResetting ? 'DEFAULT (Internal)' : targetProj.fb_project_id;
+    
+    const confirmMsg = isResetting 
+      ? `Apakah Anda yakin ingin mengembalikan seluruh data Toko "${storeToMigrate.name}" ke database UTAMA? Semua transaksi, produk, dan pengguna akan dipetakan kembali ke database utama.`
+      : `Anda akan memindahkan Toko "${storeToMigrate.name}" beserta seluruh data produk, kategori, ekstra, diskon, pelanggan, transaksi, estimasi, pengeluaran, serta seluruh pengguna toko tersebut ke proyek database: ${targetId}.\n\nLanjutkan migrasi?`;
+      
+    Alert.alert(
+      'Konfirmasi Migrasi Toko',
+      confirmMsg,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Ya, Mulai Migrasi',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              const { initializeApp: initApp } = await import('firebase/app');
+              const { getFirestore: gFirestore, doc: fDoc, setDoc: fSet, getDoc: fGet, collection: fColl, getDocs: fGetDocs, query: fQuery, where: fWhere, writeBatch } = await import('firebase/firestore');
+
+              // 1. Determine Source Database config
+              const associatedUsers = superAdminUsers.filter(u => u.storeId === storeToMigrate.id);
+              const userWithInfra = associatedUsers.find(u => u.infraConfig && u.infraConfig.fb_project_id);
+              const sourceInfra = userWithInfra ? userWithInfra.infraConfig : null;
+
+              const sourceDb = sourceInfra 
+                ? gFirestore(initApp({
+                    apiKey: sourceInfra.fb_api_key,
+                    authDomain: sourceInfra.fb_auth_domain,
+                    projectId: sourceInfra.fb_project_id,
+                    storageBucket: sourceInfra.fb_storage_bucket,
+                    messagingSenderId: sourceInfra.fb_messaging_sender_id,
+                    appId: sourceInfra.fb_app_id
+                  }, `source-store-${Date.now()}`))
+                : db;
+
+              // 2. Initialize Target Database
+              const targetDb = isResetting 
+                ? db 
+                : gFirestore(initApp({
+                    apiKey: targetProj.fb_api_key,
+                    authDomain: targetProj.fb_auth_domain,
+                    projectId: targetProj.fb_project_id,
+                    storageBucket: targetProj.fb_storage_bucket,
+                    messagingSenderId: targetProj.fb_messaging_sender_id,
+                    appId: targetProj.fb_app_id
+                  }, `target-store-${Date.now()}`));
+
+              // 3. Migrate Store Document
+              const storeRef = fDoc(sourceDb, 'stores', storeToMigrate.id);
+              const storeSnap = await fGet(storeRef);
+              if (storeSnap.exists()) {
+                await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), storeSnap.data());
+              } else {
+                const { id, ...rest } = storeToMigrate;
+                await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), rest);
+              }
+
+              // 4. Migrate Store Settings Document
+              const settingsRefSrc = fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`);
+              const settingsSnap = await fGet(settingsRefSrc);
+              if (settingsSnap.exists()) {
+                await fSet(fDoc(targetDb, 'settings', `store_${storeToMigrate.id}`), settingsSnap.data());
+              }
+
+              // 5. Migrate Data Elements
+              const collectionsToMigrate = ['products', 'categories', 'product_extras', 'discounts', 'transactions', 'customers', 'expenses', 'estimations'];
+              let totalDocsMigrated = 0;
+
+              for (const collName of collectionsToMigrate) {
+                 const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', storeToMigrate.id));
+                 const snap = await fGetDocs(q);
+                 
+                 if (!snap.empty) {
+                    let batch = writeBatch(targetDb);
+                    let count = 0;
+                    for (const docSnap of snap.docs) {
+                       batch.set(fDoc(targetDb, collName, docSnap.id), docSnap.data());
+                       count++;
+                       totalDocsMigrated++;
+                       if (count === 400) {
+                          await batch.commit();
+                          batch = writeBatch(targetDb);
+                          count = 0;
+                       }
+                     }
+                     if (count > 0) {
+                        await batch.commit();
+                     }
+                 }
+              }
+
+              // 6. Migrate Users
+              const primaryBatch = writeBatch(db);
+              
+              for (const u of associatedUsers) {
+                 const userDocSnap = await fGet(fDoc(sourceDb, 'users', u.id));
+                 const userData = userDocSnap.exists() ? userDocSnap.data() : u;
+
+                 const updatedUserData = {
+                    ...userData,
+                    targetProjectId: isResetting ? null : targetProj.fb_project_id,
+                    infraConfig: isResetting ? null : targetProj,
+                    lastMigration: new Date().toISOString()
+                 };
+
+                 await fSet(fDoc(targetDb, 'users', u.id), updatedUserData);
+
+                 primaryBatch.update(fDoc(db, 'users', u.id), {
+                    targetProjectId: isResetting ? null : targetProj.fb_project_id,
+                    infraConfig: isResetting ? null : targetProj,
+                    lastMigration: new Date().toISOString()
+                 });
+              }
+
+              await primaryBatch.commit();
+              
+              Alert.alert(
+                'Migrasi Berhasil',
+                `Toko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.`
+              );
+              setMigratingStoreData(null);
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal melakukan migrasi: ' + err.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleMigrateUser = async (userToMigrate: any, targetProj: any) => {
     const isResetting = !targetProj;
     const targetId = isResetting ? 'DEFAULT (Internal)' : targetProj.fb_project_id;
@@ -484,11 +620,15 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             setIsSaving(true);
             try {
               await updateDoc(doc(db, 'users', userToMigrate.id), {
-                targetProjectId: isResetting ? null : targetProj.fb_project_id
+                targetProjectId: isResetting ? null : targetProj.fb_project_id,
+                infraConfig: isResetting ? null : targetProj,
+                lastMigration: new Date().toISOString()
               });
-              Alert.alert('Sukses', 'Peta instansi user berhasil diperbarui.');
+
+              Alert.alert('Sukses', `Berhasil! Data ${userToMigrate.email} telah dipetakan ke ${targetId}.`);
               setMigratingUser(null);
             } catch (err: any) {
+              console.error(err);
               Alert.alert('Gagal', 'Gagal memetakan user: ' + err.message);
             } finally {
               setIsSaving(false);
@@ -1376,6 +1516,12 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                               )}
                             </TouchableOpacity>
                             <TouchableOpacity 
+                              onPress={() => setMigratingStoreData(s)}
+                              className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"
+                            >
+                              <Database size={14} color="#10b981" />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
                               onPress={() => handleUpdateStore(s.id, s.isActive ?? true)}
                               className={`p-2.5 rounded-xl border ${s.isActive !== false ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}
                             >
@@ -2261,9 +2407,66 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                       <Text className="text-xs font-black uppercase" style={{ color: colors.text }} numberOfLines={1}>{proj.fb_project_id}</Text>
                       <Text className="text-[9px] font-bold text-slate-500 truncate" numberOfLines={1}>{proj.fb_auth_domain}</Text>
                     </View>
-                    {migratingUser.targetProjectId === proj.fb_project_id && <Check size={14} color={colors.accent} />}
                   </TouchableOpacity>
                 ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 4. STORE DATABASE MIGRATION DIALOG OVERLAY */}
+      {migratingStoreData && (
+        <Modal visible={true} animationType="fade" transparent>
+          <View className="flex-1 bg-black/80 justify-center p-6">
+            <View className="w-full max-w-sm rounded-[36px] p-6 space-y-4" style={{ backgroundColor: colors.surface }}>
+              <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '30' }}>
+                <Text className="text-base font-black" style={{ color: colors.text }}>Migrasi Database Toko</Text>
+                <TouchableOpacity onPress={() => setMigratingStoreData(null)}>
+                  <X size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <Text className="text-[10px] font-bold text-slate-400">Pilih target instance database Firestore untuk memindahkan Toko: {migratingStoreData.name}.</Text>
+
+              <ScrollView className="max-h-[220px] space-y-2">
+                {(() => {
+                  const assocUsers = superAdminUsers.filter(u => u.storeId === migratingStoreData.id);
+                  const userWithInfra = assocUsers.find(u => u.infraConfig && u.infraConfig.fb_project_id);
+                  const currentProjectId = userWithInfra ? userWithInfra.targetProjectId : null;
+
+                  return (
+                    <>
+                      <TouchableOpacity
+                        onPress={() => handleMigrateStore(migratingStoreData, null)}
+                        disabled={isSaving || !currentProjectId}
+                        className="p-4 rounded-2xl border flex-row justify-between items-center"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, opacity: (!currentProjectId) ? 0.5 : 1 }}
+                      >
+                        <View>
+                          <Text className="text-xs font-black" style={{ color: colors.text }}>DATABASE UTAMA (.ENV)</Text>
+                          <Text className="text-[9px] font-bold text-slate-500">Koneksi bawaan developer</Text>
+                        </View>
+                        {!currentProjectId && <Check size={14} color={colors.accent} />}
+                      </TouchableOpacity>
+
+                      {dbProjects.map((proj) => (
+                        <TouchableOpacity
+                          key={proj.id}
+                          onPress={() => handleMigrateStore(migratingStoreData, proj)}
+                          disabled={isSaving || currentProjectId === proj.fb_project_id}
+                          className="p-4 rounded-2xl border flex-row justify-between items-center"
+                          style={{ backgroundColor: colors.bg, borderColor: colors.border, opacity: currentProjectId === proj.fb_project_id ? 0.5 : 1 }}
+                        >
+                          <View className="flex-1 pr-2">
+                            <Text className="text-xs font-black uppercase" style={{ color: colors.text }} numberOfLines={1}>{proj.fb_project_id}</Text>
+                            <Text className="text-[9px] font-bold text-slate-500 truncate" numberOfLines={1}>{proj.fb_auth_domain}</Text>
+                          </View>
+                          {currentProjectId === proj.fb_project_id && <Check size={14} color={colors.accent} />}
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  );
+                })()}
               </ScrollView>
             </View>
           </View>

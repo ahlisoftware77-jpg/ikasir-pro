@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
 LocaleConfig.locales['id'] = {
@@ -58,6 +58,51 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
+
+  // --- SUBSCRIPTION PREMIUM ANIMATIONS ---
+  const entranceAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
+  const slideAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(20))).current;
+  const badgeBounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (activeModal === 'subscriptionMenu') {
+      entranceAnims.forEach(anim => anim.setValue(0));
+      slideAnims.forEach(anim => anim.setValue(20));
+      badgeBounceAnim.setValue(0);
+
+      Animated.stagger(80, entranceAnims.map((anim, i) => 
+        Animated.parallel([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true
+          }),
+          Animated.timing(slideAnims[i], {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true
+          })
+        ])
+      )).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(badgeBounceAnim, {
+            toValue: -4,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          }),
+          Animated.timing(badgeBounceAnim, {
+            toValue: 0,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          })
+        ])
+      ).start();
+    }
+  }, [activeModal]);
 
   useEffect(() => {
     if (route.params?.openSubscription) {
@@ -2190,22 +2235,60 @@ export default function SettingsScreen({ navigation, route }: any) {
                 </View>
               ) : !selectedPackage ? (
                 <View className="space-y-4">
-                  {SUBSCRIPTION_PACKAGES.map((pkg) => (
-                    <TouchableOpacity
-                      key={pkg.id}
-                      onPress={() => setSelectedPackage(pkg)}
-                      className="p-5 rounded-3xl border flex-row items-center justify-between"
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                    >
-                      <View>
-                        <Text className="text-sm font-black" style={{ color: colors.text }}>{pkg.title}</Text>
-                        <Text className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{pkg.desc}</Text>
-                      </View>
-                      <View className="bg-emerald-500/10 px-3 py-2 rounded-xl">
-                        <Text className="text-[10px] font-black text-emerald-500">PILIH</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {SUBSCRIPTION_PACKAGES.map((pkg, idx) => {
+                    const is12m = pkg.id === '12m';
+                    return (
+                      <Animated.View
+                        key={pkg.id}
+                        style={{
+                          opacity: entranceAnims[idx] || 1,
+                          transform: [{ translateY: slideAnims[idx] || 0 }],
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={() => setSelectedPackage(pkg)}
+                          activeOpacity={0.85}
+                          className="p-5 rounded-3xl border flex-row items-center justify-between relative"
+                          style={{ 
+                            backgroundColor: is12m ? 'rgba(16,185,129,0.06)' : colors.surface, 
+                            borderColor: is12m ? 'rgba(16,185,129,0.35)' : colors.border,
+                            borderWidth: is12m ? 1.5 : 1
+                          }}
+                        >
+                          {is12m && (
+                            <Animated.View 
+                              style={{ 
+                                transform: [{ translateY: badgeBounceAnim }],
+                                position: 'absolute',
+                                top: -12,
+                                right: 12,
+                                zIndex: 10,
+                                backgroundColor: '#f59e0b',
+                                borderColor: '#fbbf24',
+                                borderWidth: 1,
+                                borderRadius: 12,
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                            >
+                              <Sparkles size={8} color="#ffffff" />
+                              <Text className="text-[7px] font-black text-white uppercase tracking-widest">HEMAT 15% / TERLARIS</Text>
+                            </Animated.View>
+                          )}
+                          <View>
+                            <Text className="text-sm font-black" style={{ color: is12m ? '#10b981' : colors.text }}>{pkg.title}</Text>
+                            <Text className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">{pkg.desc}</Text>
+                          </View>
+                          <View className="bg-emerald-500/10 px-3 py-2 rounded-xl">
+                            <Text className="text-[10px] font-black text-emerald-500">PILIH</Text>
+                          </View>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  })}
                   <Text className="text-[9px] text-center text-slate-400 italic mt-4">
                     Pilih paket yang sesuai dengan kebutuhan bisnis Anda. Harga sudah termasuk pajak.
                   </Text>

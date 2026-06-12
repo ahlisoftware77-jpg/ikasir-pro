@@ -18,6 +18,15 @@ export async function POST(req: Request) {
     const tokenToDocMap: { [token: string]: string } = {};
 
     if (storeId === 'GLOBAL') {
+      // Save global broadcast to broadcasts collection in primary database
+      await adminDb.collection('broadcasts').add({
+        title,
+        message,
+        data: data || {},
+        createdAt: new Date().toISOString(),
+        storeId: 'GLOBAL'
+      }).catch((err) => console.error('Failed to save broadcast to DB:', err));
+
       const settingsSnap = await adminDb.collection('settings').get();
       settingsSnap.forEach((doc) => {
         const storeData = doc.data();

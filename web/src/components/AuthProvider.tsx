@@ -31,12 +31,17 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     });
 
     let unsubscribeUser: (() => void) | null = null;
+    let unsubscribeBroadcasts: (() => void) | null = null;
 
     // 3. Monitor Auth State
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (unsubscribeUser) {
         unsubscribeUser();
         unsubscribeUser = null;
+      }
+      if (unsubscribeBroadcasts) {
+        unsubscribeBroadcasts();
+        unsubscribeBroadcasts = null;
       }
 
       if (user) {
@@ -76,6 +81,53 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
               validUntil: '2099-12-31'
             }, { merge: true });
           } catch (err) {}
+
+          // Add broadcast listener for Super Admin
+          if (!unsubscribeBroadcasts) {
+            const { collection, onSnapshot: fireOnSnapshot } = await import('firebase/firestore');
+            const { useNotificationStore } = await import('@/store/notifications');
+            
+            unsubscribeBroadcasts = fireOnSnapshot(
+              collection(primaryDb, 'broadcasts'),
+              (snapshot) => {
+                try {
+                  const processedStr = localStorage.getItem('kasir-pro-processed-broadcasts');
+                  const processedIds = processedStr ? JSON.parse(processedStr) : [];
+                  const newProcessedIds = [...processedIds];
+                  let changed = false;
+                  
+                  snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                      const data = change.doc.data();
+                      const id = change.doc.id;
+                      
+                      if (!processedIds.includes(id)) {
+                        useNotificationStore.getState().addNotification({
+                          title: data.title,
+                          body: data.message,
+                          type: 'system',
+                          metadata: {
+                            broadcastId: id,
+                            link: data.data?.link || '',
+                            imageUrl: data.data?.imageUrl || ''
+                          }
+                        });
+                        newProcessedIds.push(id);
+                        changed = true;
+                      }
+                    }
+                  });
+                  
+                  if (changed) {
+                    localStorage.setItem('kasir-pro-processed-broadcasts', JSON.stringify(newProcessedIds));
+                  }
+                } catch (err) {
+                  console.error("Error processing broadcasts for admin:", err);
+                }
+              }
+            );
+          }
+
           setLoading(false);
         } else {
           try {
@@ -135,6 +187,53 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                     setStoreId(sId);
                     setStoreName(storeData ? storeData.name : 'Toko Saya');
                     setUserName(userData.name || user.email);
+
+                    // Add dynamic broadcast listener once on login
+                    if (!unsubscribeBroadcasts) {
+                      const { collection, onSnapshot: fireOnSnapshot } = await import('firebase/firestore');
+                      const { useNotificationStore } = await import('@/store/notifications');
+                      
+                      unsubscribeBroadcasts = fireOnSnapshot(
+                        collection(primaryDb, 'broadcasts'),
+                        (snapshot) => {
+                          try {
+                            const processedStr = localStorage.getItem('kasir-pro-processed-broadcasts');
+                            const processedIds = processedStr ? JSON.parse(processedStr) : [];
+                            const newProcessedIds = [...processedIds];
+                            let changed = false;
+                            
+                            snapshot.docChanges().forEach((change) => {
+                              if (change.type === 'added') {
+                                const data = change.doc.data();
+                                const id = change.doc.id;
+                                
+                                if (!processedIds.includes(id)) {
+                                  useNotificationStore.getState().addNotification({
+                                    title: data.title,
+                                    body: data.message,
+                                    type: 'system',
+                                    metadata: {
+                                      broadcastId: id,
+                                      link: data.data?.link || '',
+                                      imageUrl: data.data?.imageUrl || ''
+                                    }
+                                  });
+                                  newProcessedIds.push(id);
+                                  changed = true;
+                                }
+                              }
+                            });
+                            
+                            if (changed) {
+                              localStorage.setItem('kasir-pro-processed-broadcasts', JSON.stringify(newProcessedIds));
+                            }
+                          } catch (err) {
+                            console.error("Error processing broadcasts:", err);
+                          }
+                        },
+                        (error) => console.error("Error listening to broadcasts:", error)
+                      );
+                    }
 
                     if (userData.role === 'admin') {
                       setPermissions({

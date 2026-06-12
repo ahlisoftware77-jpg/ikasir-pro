@@ -63,6 +63,7 @@ export default function SuperAdminPage() {
   const [newStoreData, setNewStoreData] = useState({ name: '', ownerEmail: '', id: '', maxUsers: 5 });
   const [isBackingUp, setIsBackingUp] = useState<string | null>(null);
   const [migratingUser, setMigratingUser] = useState<any>(null);
+  const [migratingStoreData, setMigratingStoreData] = useState<any>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreTargetStoreId, setRestoreTargetStoreId] = useState<string | null>(null);
   const [migrationMode, setMigrationMode] = useState<'standard' | 'mass'>('standard');
@@ -826,6 +827,128 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleMigrateStore = async (storeToMigrate: any, targetProj: any) => {
+    const isResetting = !targetProj;
+    const targetId = isResetting ? 'DEFAULT (Internal)' : targetProj.fb_project_id;
+    
+    const confirmMsg = isResetting 
+      ? `Apakah Anda yakin ingin mengembalikan seluruh data Toko "${storeToMigrate.name}" ke database UTAMA? Semua transaksi, produk, dan pengguna akan dipetakan kembali ke database utama.`
+      : `⚠️ PERINGATAN MIGRASI ⚠️\n\nAnda akan memindahkan Toko "${storeToMigrate.name}" beserta seluruh data produk, kategori, ekstra, diskon, pelanggan, transaksi, estimasi, pengeluaran, serta seluruh pengguna toko tersebut ke proyek database: ${targetId}.\n\nLanjutkan migrasi?`;
+      
+    if (!confirm(confirmMsg)) return;
+
+    setIsSaving(true);
+    try {
+      const { initializeApp: initApp } = await import('firebase/app');
+      const { getFirestore: gFirestore, doc: fDoc, setDoc: fSet, getDoc: fGet, collection: fColl, getDocs: fGetDocs, query: fQuery, where: fWhere, writeBatch } = await import('firebase/firestore');
+
+      // 1. Determine Source Database config
+      const associatedUsers = users.filter(u => u.storeId === storeToMigrate.id);
+      const userWithInfra = associatedUsers.find(u => u.infraConfig && u.infraConfig.fb_project_id);
+      const sourceInfra = userWithInfra ? userWithInfra.infraConfig : null;
+
+      const sourceDb = sourceInfra 
+        ? gFirestore(initApp({
+            apiKey: sourceInfra.fb_api_key,
+            authDomain: sourceInfra.fb_auth_domain,
+            projectId: sourceInfra.fb_project_id,
+            storageBucket: sourceInfra.fb_storage_bucket,
+            messagingSenderId: sourceInfra.fb_messaging_sender_id,
+            appId: sourceInfra.fb_app_id
+          }, `source-store-${Date.now()}`))
+        : db;
+
+      // 2. Initialize Target Database
+      const targetDb = isResetting 
+        ? db 
+        : gFirestore(initApp({
+            apiKey: targetProj.fb_api_key,
+            authDomain: targetProj.fb_auth_domain,
+            projectId: targetProj.fb_project_id,
+            storageBucket: targetProj.fb_storage_bucket,
+            messagingSenderId: targetProj.fb_messaging_sender_id,
+            appId: targetProj.fb_app_id
+          }, `target-store-${Date.now()}`));
+
+      // 3. Migrate Store Document
+      const storeRef = fDoc(sourceDb, 'stores', storeToMigrate.id);
+      const storeSnap = await fGet(storeRef);
+      if (storeSnap.exists()) {
+        await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), storeSnap.data());
+      } else {
+        const { id, ...rest } = storeToMigrate;
+        await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), rest);
+      }
+
+      // 4. Migrate Store Settings Document
+      const settingsRefSrc = fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`);
+      const settingsSnap = await fGet(settingsRefSrc);
+      if (settingsSnap.exists()) {
+        await fSet(fDoc(targetDb, 'settings', `store_${storeToMigrate.id}`), settingsSnap.data());
+      }
+
+      // 5. Migrate Data Elements
+      const collectionsToMigrate = ['products', 'categories', 'product_extras', 'discounts', 'transactions', 'customers', 'expenses', 'estimations'];
+      let totalDocsMigrated = 0;
+
+      for (const collName of collectionsToMigrate) {
+         const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', storeToMigrate.id));
+         const snap = await fGetDocs(q);
+         
+         if (!snap.empty) {
+            let batch = writeBatch(targetDb);
+            let count = 0;
+            for (const docSnap of snap.docs) {
+               batch.set(fDoc(targetDb, collName, docSnap.id), docSnap.data());
+               count++;
+               totalDocsMigrated++;
+               if (count === 400) {
+                  await batch.commit();
+                  batch = writeBatch(targetDb);
+                  count = 0;
+               }
+            }
+            if (count > 0) {
+               await batch.commit();
+            }
+         }
+      }
+
+      // 6. Migrate Users
+      const primaryBatch = writeBatch(primaryDb);
+      
+      for (const u of associatedUsers) {
+         const userDocSnap = await fGet(fDoc(sourceDb, 'users', u.id));
+         const userData = userDocSnap.exists() ? userDocSnap.data() : u;
+
+         const updatedUserData = {
+            ...userData,
+            targetProjectId: isResetting ? null : targetProj.fb_project_id,
+            infraConfig: isResetting ? null : targetProj,
+            lastMigration: new Date().toISOString()
+         };
+
+         await fSet(fDoc(targetDb, 'users', u.id), updatedUserData);
+
+         primaryBatch.update(fDoc(primaryDb, 'users', u.id), {
+            targetProjectId: isResetting ? null : targetProj.fb_project_id,
+            infraConfig: isResetting ? null : targetProj,
+            lastMigration: new Date().toISOString()
+         });
+      }
+
+      await primaryBatch.commit();
+      
+      alert(`✅ MIGRASI BERHASIL!\n\nToko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.`);
+      setMigratingStoreData(null);
+    } catch (err: any) {
+      console.error(err);
+      alert('❌ Gagal melakukan migrasi: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleDeleteStorePermanently = async (storeId: string) => {
     if (confirm('⚠️ PERINGATAN KERAS ⚠️\n\nAnda yakin ingin menghapus toko ini secara PERMANEN? Semua data (Produk, Transaksi, Pelanggan, Karyawan) yang terkait akan ikut hangus dan tidak dapat dikembalikan!')) {
       if (confirm('Konfirmasi Terakhir: Apakah Anda benar-benar yakin? Tindakan ini TIDAK BISA dibatalkan.')) {
@@ -1364,28 +1487,35 @@ export default function SuperAdminPage() {
                                   {isBackingUp === s.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
                                </button>
                                <button 
-                                 onClick={() => {
-                                   setRestoreTargetStoreId(s.id);
-                                   setTimeout(() => {
-                                     document.getElementById('restore-store-file')?.click();
-                                   }, 100);
-                                 }}
-                                 disabled={isRestoring || isBackingUp !== null}
-                                 className="p-3 bg-surface hover:bg-amber-500 hover:text-white text-amber-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90 disabled:opacity-50"
-                                 title="Upload Database Toko"
-                               >
-                                  {isRestoring && restoreTargetStoreId === s.id ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                               </button>
-                               <button 
-                                 onClick={() => handleUpdateStore(s.id, s.isActive ?? true)}
-                                 className={`p-3 rounded-2xl border transition-all shadow-sm active:scale-90 ${
-                                   s.isActive !== false 
-                                   ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white' 
-                                   : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500 hover:text-white'
-                                 }`}
-                                 title={s.isActive !== false ? 'Matikan Toko' : 'Aktifkan Toko'}
-                               >
-                                  <Power size={18} />
+                                  onClick={() => {
+                                    setRestoreTargetStoreId(s.id);
+                                    setTimeout(() => {
+                                      document.getElementById('restore-store-file')?.click();
+                                    }, 100);
+                                  }}
+                                  disabled={isRestoring || isBackingUp !== null}
+                                  className="p-3 bg-surface hover:bg-amber-500 hover:text-white text-amber-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90 disabled:opacity-50"
+                                  title="Upload Database Toko"
+                                >
+                                   {isRestoring && restoreTargetStoreId === s.id ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                                </button>
+                                <button 
+                                  onClick={() => setMigratingStoreData(s)}
+                                  className="p-3 bg-surface hover:bg-emerald-500 hover:text-white text-emerald-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
+                                  title="Migrasi Database Toko"
+                                >
+                                  <Database size={18} />
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateStore(s.id, s.isActive ?? true)}
+                                  className={`p-3 rounded-2xl border transition-all shadow-sm active:scale-90 ${
+                                    s.isActive !== false 
+                                    ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 hover:bg-rose-500 hover:text-white' 
+                                    : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500 hover:text-white'
+                                  }`}
+                                  title={s.isActive !== false ? 'Matikan Toko' : 'Aktifkan Toko'}
+                                >
+                                   <Power size={18} />
                                </button>
                                <button 
                                  onClick={() => handleDeleteStorePermanently(s.id)}
@@ -1415,19 +1545,20 @@ export default function SuperAdminPage() {
                             <p className="font-black text-sm text-foreground uppercase truncate max-w-[150px]">{s.name}</p>
                             <p className="text-[9px] font-bold text-app-text-muted italic">{s.id}</p>
                          </div>
-                                          <div className="flex items-center gap-2">
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
                          <button 
                             onClick={() => setEditingStore(s)}
-                            className="p-3 bg-background border border-app-border text-blue-500 rounded-xl active:scale-90"
+                            className="p-2 bg-background border border-app-border text-blue-500 rounded-xl active:scale-90"
                          >
-                            <Pencil size={18} />
+                            <Pencil size={16} />
                          </button>
                          <button 
                              onClick={() => triggerBackup(s.id)}
                              disabled={isBackingUp !== null || isRestoring}
-                             className="p-3 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90 disabled:opacity-50"
+                             className="p-2 bg-background border border-app-border text-app-text-muted rounded-xl active:scale-90 disabled:opacity-50"
                           >
-                             {isBackingUp === s.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                             {isBackingUp === s.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                           </button>
                           <button 
                              onClick={() => {
@@ -1437,25 +1568,31 @@ export default function SuperAdminPage() {
                                }, 100);
                              }}
                              disabled={isRestoring || isBackingUp !== null}
-                             className="p-3 bg-background border border-app-border text-amber-500 rounded-xl active:scale-90 disabled:opacity-50"
+                             className="p-2 bg-background border border-app-border text-amber-500 rounded-xl active:scale-90 disabled:opacity-50"
                           >
-                             {isRestoring && restoreTargetStoreId === s.id ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                             {isRestoring && restoreTargetStoreId === s.id ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                          </button>
+                          <button 
+                             onClick={() => setMigratingStoreData(s)}
+                             className="p-2 bg-background border border-app-border text-emerald-500 rounded-xl active:scale-90"
+                          >
+                             <Database size={16} />
                           </button>
                          <button 
                             onClick={() => handleUpdateStore(s.id, s.isActive ?? true)}
-                          className={`p-3 rounded-xl border transition-all ${
+                          className={`p-2 rounded-xl border transition-all ${
                             s.isActive !== false 
                             ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' 
                             : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                           }`}
                        >
-                          <Power size={18} />
+                          <Power size={16} />
                          </button>
                          <button 
                             onClick={() => handleDeleteStorePermanently(s.id)}
-                            className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl active:scale-90"
+                            className="p-2 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl active:scale-90"
                          >
-                            <Trash2 size={18} />
+                            <Trash2 size={16} />
                          </button>
                       </div>
                    </div>
@@ -1480,7 +1617,6 @@ export default function SuperAdminPage() {
                          )}
                       </div>
                    </div>
-   </div>
                 </div>
               ))}
            </div>
@@ -2517,6 +2653,114 @@ export default function SuperAdminPage() {
             </div>
         </div>
       )}
+
+      {/* STORE MIGRATION MODAL */}
+      {migratingStoreData && (
+        <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-xl p-0 md:p-4">
+            <div className="bg-surface border-t md:border border-app-border rounded-t-[2rem] md:rounded-[3rem] w-full max-w-lg overflow-y-auto max-h-[90vh] shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300">
+               <div className="p-6 md:p-8 border-b border-app-border flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur-md z-10">
+                  <h2 className="text-lg md:text-xl font-black text-foreground flex items-center gap-3">
+                     <Database className="text-accent" /> Migrasi Database Toko
+                  </h2>
+                  <button onClick={() => setMigratingStoreData(null)} className="text-app-text-muted hover:text-rose-500 transition-colors">
+                     <XCircle size={28} />
+                  </button>
+               </div>
+
+               <div className="p-6 md:p-10 space-y-6">
+                  <div className="p-4 bg-background border border-app-border rounded-2xl flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-foreground font-black shadow-lg shadow-accent/20">
+                        <Building2 size={24} />
+                     </div>
+                     <div>
+                        <p className="font-black text-foreground">{migratingStoreData.name}</p>
+                        <p className="text-xs text-app-text-muted italic">Owner: {migratingStoreData.ownerEmail}</p>
+                        <p className="text-[9px] font-mono text-app-text-muted opacity-60">ID: {migratingStoreData.id}</p>
+                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Pilih Database Tujuan</label>
+                     <div className="grid grid-cols-1 gap-3 max-h-[40vh] overflow-y-auto pr-2 no-scrollbar">
+                        {(() => {
+                          const assocUsers = users.filter(u => u.storeId === migratingStoreData.id);
+                          const userWithInfra = assocUsers.find(u => u.infraConfig && u.infraConfig.fb_project_id);
+                          const currentProjectId = userWithInfra ? userWithInfra.targetProjectId : null;
+
+                          return (
+                            <>
+                              <button 
+                                onClick={() => handleMigrateStore(migratingStoreData, null)}
+                                disabled={isSaving || !currentProjectId}
+                                className={`w-full p-4 bg-emerald-500/5 hover:bg-emerald-500/10 border ${!currentProjectId ? 'border-emerald-500/50 opacity-50 cursor-not-allowed' : 'border-emerald-500/20 hover:border-emerald-500/40'} rounded-2xl flex items-center justify-between group transition-all`}
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-emerald-500 border border-emerald-500/20 transition-colors">
+                                       <Server size={16} />
+                                    </div>
+                                    <div className="text-left">
+                                       <p className="text-sm font-black text-foreground uppercase tracking-tight">Database Utama (Internal)</p>
+                                       <p className="text-[9px] font-bold text-app-text-muted italic lowercase opacity-60">Server App Utama (Default)</p>
+                                    </div>
+                                 </div>
+                                 {!currentProjectId ? (
+                                    <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest px-2 py-1 bg-emerald-500/10 rounded-md">AKTIF</span>
+                                 ) : (
+                                    <ArrowRight className="text-emerald-500 transform group-hover:translate-x-1 transition-all" size={18} />
+                                 )}
+                              </button>
+
+                              <div className="relative py-2 flex items-center">
+                                 <div className="flex-grow border-t border-app-border"></div>
+                                 <span className="flex-shrink mx-4 text-[8px] font-black text-app-text-muted uppercase tracking-widest">Database Eksternal</span>
+                                 <div className="flex-grow border-t border-app-border"></div>
+                              </div>
+
+                              {dbProjects.map((proj) => (
+                                 <button 
+                                   key={proj.id}
+                                   onClick={() => handleMigrateStore(migratingStoreData, proj)}
+                                   disabled={isSaving || currentProjectId === proj.fb_project_id}
+                                   className={`w-full p-4 bg-background hover:bg-accent/5 border ${currentProjectId === proj.fb_project_id ? 'border-accent/50 opacity-50 cursor-not-allowed' : 'border-app-border hover:border-accent'} rounded-2xl flex items-center justify-between group transition-all`}
+                                 >
+                                    <div className="flex items-center gap-3">
+                                       <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-app-text-muted group-hover:text-accent border border-app-border transition-colors">
+                                          <Database size={16} />
+                                       </div>
+                                       <div className="text-left">
+                                          <p className="text-sm font-black text-foreground uppercase tracking-tight">{proj.fb_project_id}</p>
+                                          <p className="text-[9px] font-bold text-app-text-muted italic lowercase opacity-60 truncate max-w-[150px]">{proj.fb_auth_domain}</p>
+                                       </div>
+                                    </div>
+                                    {currentProjectId === proj.fb_project_id ? (
+                                       <span className="text-[8px] font-black text-accent uppercase tracking-widest px-2 py-1 bg-accent/10 rounded-md">AKTIF</span>
+                                    ) : (
+                                       <ArrowRight className="text-app-text-muted group-hover:text-accent transform group-hover:translate-x-1 transition-all" size={18} />
+                                    )}
+                                 </button>
+                              ))}
+                            </>
+                          );
+                        })()}
+                        {dbProjects.length === 0 && (
+                           <div className="text-center py-8 space-y-2">
+                              <p className="text-xs font-bold text-app-text-muted italic">Belum ada project database eksternal terdaftar.</p>
+                              <p className="text-[10px] text-app-text-muted opacity-50">Daftarkan project di tab Infrastruktur terlebih dahulu.</p>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+                     <p className="text-[10px] text-amber-600 font-bold leading-relaxed">
+                        ⚠️ Seluruh data toko (produk, transaksi, dll.) dan seluruh penggunanya akan langsung disalin ke infrastruktur baru. Pengguna akan diarahkan otomatis saat login berikutnya.
+                     </p>
+                  </div>
+               </div>
+            </div>
+        </div>
+      )}
+
       {/* EDIT STORE MODAL */}
       {editingStore && (
         <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-xl p-0 md:p-4">

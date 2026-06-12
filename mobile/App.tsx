@@ -10,6 +10,8 @@ import { useAuthStore } from './src/store/authStore';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotificationStore } from './src/store/notificationStore';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -228,7 +230,48 @@ function NavigationRoot() {
       console.error("Error listening to user doc in App.tsx:", err);
     });
 
-    return () => unsubUser();
+    const unsubBroadcasts = onSnapshot(collection(db, 'broadcasts'), async (snapshot) => {
+      try {
+        const processedStr = await AsyncStorage.getItem('kasir-pro-mobile-processed-broadcasts');
+        const processedIds = processedStr ? JSON.parse(processedStr) : [];
+        const newProcessedIds = [...processedIds];
+        let changed = false;
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            const id = change.doc.id;
+
+            if (!processedIds.includes(id)) {
+              useNotificationStore.getState().addNotification({
+                title: data.title,
+                body: data.message,
+                data: {
+                  broadcastId: id,
+                  link: data.data?.link || '',
+                  imageUrl: data.data?.imageUrl || ''
+                }
+              });
+              newProcessedIds.push(id);
+              changed = true;
+            }
+          }
+        });
+
+        if (changed) {
+          await AsyncStorage.setItem('kasir-pro-mobile-processed-broadcasts', JSON.stringify(newProcessedIds));
+        }
+      } catch (err) {
+        console.error("Error syncing broadcasts on mobile:", err);
+      }
+    }, (err) => {
+      console.error("Error listening to broadcasts in App.tsx:", err);
+    });
+
+    return () => {
+      unsubUser();
+      unsubBroadcasts();
+    };
   }, [user?.uid]);
 
   const spin = spinValue.interpolate({

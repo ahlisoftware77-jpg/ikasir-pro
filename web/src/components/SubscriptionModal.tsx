@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
-import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet, Download, ExternalLink } from 'lucide-react';
+import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet, Download, ExternalLink, Sparkles } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db, primaryDb } from '@/lib/firebase';
 import { getInfraConfig } from '@/lib/infraConfig';
@@ -148,15 +148,25 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
             </div>
           ) : !selectedPackage ? (
             <div className="space-y-4">
-              {SUBSCRIPTION_PACKAGES.map((pkg) => (
+              {SUBSCRIPTION_PACKAGES.map((pkg, idx) => (
                 <button
                   key={pkg.id}
                   onClick={() => setSelectedPackage(pkg)}
-                  className="w-full p-5 rounded-2xl border border-app-border bg-background hover:border-emerald-500/50 hover:bg-emerald-500/5 flex items-center justify-between group transition-all text-left"
+                  style={{ animationDelay: `${idx * 100}ms` }}
+                  className={`w-full p-5 rounded-3xl border flex items-center justify-between group transition-all text-left animate-card-load relative ${
+                    pkg.id === '12m' 
+                      ? 'border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent animate-border-glow animate-shine-sweep' 
+                      : 'border-app-border bg-background hover:border-emerald-500/50 hover:bg-emerald-500/5'
+                  }`}
                 >
+                  {pkg.id === '12m' && (
+                    <div className="absolute -top-3.5 -right-1 bg-gradient-to-r from-amber-500 to-emerald-500 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-full shadow-lg border border-amber-400 animate-float-badge flex items-center gap-1 z-10">
+                      <Sparkles size={8} className="animate-pulse" /> HEMAT 15% / TERLARIS
+                    </div>
+                  )}
                   <div>
-                    <h3 className="text-base font-black text-foreground group-hover:text-emerald-500 transition-colors">{pkg.title}</h3>
-                    <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest">{pkg.desc}</p>
+                    <h3 className={`text-base font-black transition-colors ${pkg.id === '12m' ? 'text-emerald-400 group-hover:text-emerald-300' : 'text-foreground group-hover:text-emerald-500'}`}>{pkg.title}</h3>
+                    <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-0.5">{pkg.desc}</p>
                   </div>
                   <div className="bg-emerald-500/10 px-4 py-2 rounded-xl group-hover:bg-emerald-500/20 transition-colors">
                     <span className="text-[10px] font-black text-emerald-500 tracking-wider">PILIH</span>
