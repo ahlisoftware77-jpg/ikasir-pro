@@ -772,7 +772,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       await updateDoc(doc(db, 'stores', editingStore.id), {
         name: editingStore.name,
         ownerEmail: editingStore.ownerEmail || '-',
-        maxUsers: Math.max(1, parseInt(editingStore.maxUsers as any) || 1)
+        maxUsers: Math.max(1, parseInt(editingStore.maxUsers as any) || 1),
+        disabledMenus: editingStore.disabledMenus || []
       });
       
       await updateDoc(doc(db, 'settings', "store_" + editingStore.id), {
@@ -2770,6 +2771,61 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   className="p-3.5 rounded-2xl border font-bold text-xs"
                   style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
+              </View>
+
+              {/* Disabled Menus */}
+              <View className="space-y-1">
+                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Menu yang Dinonaktifkan</Text>
+                <ScrollView 
+                  style={{ maxHeight: 120, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 8, backgroundColor: colors.bg }}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {[
+                    { key: '/pos', name: 'Kasir (POS)' },
+                    { key: '/orders', name: 'Daftar Pesanan' },
+                    { key: '/estimations', name: 'Estimasi Biaya' },
+                    { key: '/shifts', name: 'Shift Karyawan' },
+                    { key: '/products', name: 'Manajemen Produk' },
+                    { key: '/transactions', name: 'Transaksi' },
+                    { key: '/debts', name: 'Hutang Piutang' },
+                    { key: '/reports', name: 'Laporan' },
+                    { key: '/users', name: 'Manajemen User' },
+                    { key: '/logs', name: 'Log Aktifitas' },
+                  ].map((item) => {
+                    const isDisabled = (editingStore.disabledMenus || []).includes(item.key);
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        onPress={() => {
+                          const current = editingStore.disabledMenus || [];
+                          const next = isDisabled
+                            ? current.filter((path: string) => path !== item.key)
+                            : [...current, item.key];
+                          setEditingStore({ ...editingStore, disabledMenus: next });
+                        }}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 }}
+                      >
+                        <View
+                          style={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: 4,
+                            borderWidth: 1,
+                            borderColor: isDisabled ? colors.accent : colors.text + '40',
+                            backgroundColor: isDisabled ? colors.accent : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {isDisabled && <Check size={10} color="#ffffff" />}
+                        </View>
+                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>
+                          {item.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
               {/* Save Changes */}

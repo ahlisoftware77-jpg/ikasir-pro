@@ -80,7 +80,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications }: SidebarProps) {
   const pathname = usePathname();
-  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
+  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired, subscriptionUntil, disabledMenus } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const { branding } = useBranding();
 
@@ -183,6 +183,9 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
         <nav className="space-y-1">
           {menuItems.filter(item => {
             if (item.superOnly) return role === 'super-admin';
+            
+            // Check if disabled by superadmin
+            if (disabledMenus && disabledMenus.includes(item.path)) return false;
             
             // Priority for granular permissions
             if ((item as any).permission) {

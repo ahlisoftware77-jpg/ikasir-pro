@@ -79,6 +79,7 @@ export default function SettingsPage() {
     allowPickup: true,
     allowDelivery: true,
     deliveryFee: 0,
+    isOnlineStoreActive: true,
     showReceiptAddress: true,
     showReceiptPhone: true,
     showReceiptCustomer: true,
@@ -141,6 +142,7 @@ export default function SettingsPage() {
             allowPickup: data.allowPickup !== false,
             allowDelivery: data.allowDelivery !== false,
             deliveryFee: data.deliveryFee || 0,
+            isOnlineStoreActive: data.isOnlineStoreActive !== false,
             showReceiptAddress: data.showReceiptAddress !== false,
             showReceiptPhone: data.showReceiptPhone !== false,
             showReceiptCustomer: data.showReceiptCustomer !== false,
@@ -186,6 +188,7 @@ export default function SettingsPage() {
             allowPickup: true,
             allowDelivery: true,
             deliveryFee: 0,
+            isOnlineStoreActive: true,
             showReceiptAddress: true,
             showReceiptPhone: true,
             showReceiptCustomer: true,
@@ -1380,6 +1383,19 @@ export default function SettingsPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
+                  <div 
+                    className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
+                    onClick={() => setSettings(prev => ({ ...prev, isOnlineStoreActive: !prev.isOnlineStoreActive }))}
+                  >
+                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.isOnlineStoreActive ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
+                      <Check size={14} className="stroke-[4]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground cursor-pointer select-none">Aktifkan Toko Online (Visibility)</p>
+                      <p className="text-[10px] text-app-text-muted font-medium">Aktifkan untuk menerima pesanan online dari pelanggan.</p>
+                    </div>
+                  </div>
+
                   <div 
                     className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
                     onClick={() => setSettings(prev => ({ ...prev, allowPickup: !prev.allowPickup }))}

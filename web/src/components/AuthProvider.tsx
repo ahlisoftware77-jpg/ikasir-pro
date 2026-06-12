@@ -10,7 +10,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const { 
     setUser, setRole, setLoading, setBlockingDetails, 
     setStoreId, setStoreName, setUserName, setLogoUrl, setPermissions, 
-    setOnline, setSyncing, isOnline 
+    setOnline, setSyncing, isOnline, setDisabledMenus
   } = useAuthStore();
 
   useEffect(() => {
@@ -52,6 +52,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           setStoreId('default-store');
           setStoreName('Toko Utama (Default)');
           setUserName('Super Admin Triyadi');
+          setDisabledMenus([]);
           setPermissions({
             canAccessPOS: true,
             canManageProducts: true,
@@ -187,6 +188,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                     setStoreId(sId);
                     setStoreName(storeData ? storeData.name : 'Toko Saya');
                     setUserName(userData.name || user.email);
+                    setDisabledMenus(storeData ? (storeData.disabledMenus || []) : []);
 
                     // Add dynamic broadcast listener once on login
                     if (!unsubscribeBroadcasts) {

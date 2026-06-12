@@ -30,6 +30,7 @@ interface AuthState {
   userName: string | null;
   subscriptionUntil: string | null;
   isSubscriptionExpired: boolean;
+  disabledMenus: string[] | null;
   blockingDetails: {
     isBlocked: boolean;
     reason: string;
@@ -50,6 +51,7 @@ interface AuthState {
   setSubscriptionUntil: (val: string | null) => void;
   setIsSubscriptionExpired: (val: boolean) => void;
   setLogoUrl: (url: string | null) => void;
+  setDisabledMenus: (disabledMenus: string[] | null) => void;
   setWasAuthenticated: (val: boolean) => void;
   setBlockingDetails: (details: any) => void;
   setOnline: (val: boolean) => void;
@@ -75,6 +77,7 @@ export const useAuthStore = create<AuthState>()(
       subscriptionUntil: null,
       isSubscriptionExpired: false,
       logoUrl: null,
+      disabledMenus: null,
       newOrderCount: 0,
       blockingDetails: null,
       setUser: (user) => set({ user }),
@@ -86,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
       setSubscriptionUntil: (val) => set({ subscriptionUntil: val }),
       setIsSubscriptionExpired: (val) => set({ isSubscriptionExpired: val }),
       setLogoUrl: (logoUrl) => set({ logoUrl }),
+      setDisabledMenus: (disabledMenus) => set({ disabledMenus }),
       setWasAuthenticated: (wasAuthenticated) => set({ wasAuthenticated }),
       setBlockingDetails: (blockingDetails) => set({ blockingDetails }),
       setOnline: (isOnline) => set({ isOnline }),
@@ -103,6 +107,7 @@ export const useAuthStore = create<AuthState>()(
         subscriptionUntil: null,
         isSubscriptionExpired: false,
         logoUrl: null,
+        disabledMenus: null,
         blockingDetails: null 
       }),
     }),
@@ -119,6 +124,7 @@ export const useAuthStore = create<AuthState>()(
         subscriptionUntil: state.subscriptionUntil,
         isSubscriptionExpired: state.isSubscriptionExpired,
         logoUrl: state.logoUrl,
+        disabledMenus: state.disabledMenus,
         wasAuthenticated: state.wasAuthenticated,
         blockingDetails: state.blockingDetails
       }),

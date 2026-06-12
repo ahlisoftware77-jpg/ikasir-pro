@@ -442,7 +442,8 @@ export default function SuperAdminPage() {
       await updateDoc(doc(db, 'stores', editingStore.id), {
         name: editingStore.name,
         ownerEmail: editingStore.ownerEmail || '-',
-        maxUsers: parseInt(editingStore.maxUsers) || 5
+        maxUsers: parseInt(editingStore.maxUsers) || 5,
+        disabledMenus: editingStore.disabledMenus || []
       });
       
       // SYNC to Settings for Receipt/Invoice
@@ -3037,6 +3038,45 @@ export default function SuperAdminPage() {
                         className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none pl-12"
                       />
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text-muted" size={18} />
+                    </div>
+                 </div>
+
+                 <div className="space-y-3">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">
+                      Menu yang Dinonaktifkan
+                    </label>
+                    <div className="grid grid-cols-2 gap-3 p-4 bg-background border border-app-border rounded-2xl max-h-48 overflow-y-auto">
+                      {[
+                        { key: '/pos', name: 'Kasir (POS)' },
+                        { key: '/orders', name: 'Daftar Pesanan' },
+                        { key: '/estimations', name: 'Estimasi Biaya' },
+                        { key: '/shifts', name: 'Shift Karyawan' },
+                        { key: '/products', name: 'Manajemen Produk' },
+                        { key: '/transactions', name: 'Transaksi' },
+                        { key: '/debts', name: 'Hutang Piutang' },
+                        { key: '/reports', name: 'Laporan' },
+                        { key: '/users', name: 'Manajemen User' },
+                        { key: '/logs', name: 'Log Aktifitas' },
+                      ].map((item) => {
+                        const isDisabled = (editingStore.disabledMenus || []).includes(item.key);
+                        return (
+                          <label key={item.key} className="flex items-center gap-3 cursor-pointer text-xs font-bold text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={isDisabled}
+                              onChange={(e) => {
+                                const current = editingStore.disabledMenus || [];
+                                const next = e.target.checked
+                                  ? [...current, item.key]
+                                  : current.filter((path: string) => path !== item.key);
+                                setEditingStore({ ...editingStore, disabledMenus: next });
+                              }}
+                              className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent"
+                            />
+                            {item.name}
+                          </label>
+                        );
+                      })}
                     </div>
                  </div>
 

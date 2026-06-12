@@ -9,7 +9,7 @@ import { activateKeepAwakeAsync } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -42,7 +42,7 @@ const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
   const { colors } = useTheme();
-  const { role, storeId, subscriptionUntil, isSubscriptionExpired } = useAuthStore();
+  const { role, storeId, subscriptionUntil, isSubscriptionExpired, disabledMenus } = useAuthStore();
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const insets = useSafeAreaInsets();
 
@@ -109,49 +109,57 @@ function TabNavigator() {
         }
       }}
     >
-      <Tab.Screen 
-        name="Beranda" 
-        component={DashboardScreen} 
-        options={{
-          tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={26} strokeWidth={2.5} />,
-          title: 'DASBOR UTAMA'
-        }}
-      />
-      <Tab.Screen 
-        name="Kasir" 
-        component={POSScreen} 
-        options={{
-          tabBarIcon: ({ color }) => <Calculator color={color} size={26} strokeWidth={2.5} />,
-          title: 'IKASIR PRO'
-        }}
-      />
-      <Tab.Screen 
-        name="Pesanan" 
-        component={OrdersScreen} 
-        options={{
-          tabBarIcon: ({ color }) => <ShoppingBag color={color} size={26} strokeWidth={2.5} />,
-          title: 'PESANAN ONLINE',
-          tabBarBadge: newOrdersCount > 0 ? newOrdersCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: '#ef4444',
-            color: '#ffffff',
-            fontSize: 10,
-            fontWeight: 'bold',
-            minWidth: 20,
-            height: 20,
-            borderRadius: 10,
-            lineHeight: 20,
-          }
-        }}
-      />
-      <Tab.Screen 
-        name="Transaksi" 
-        component={TransactionsScreen} 
-        options={{
-          tabBarIcon: ({ color }) => <History color={color} size={26} strokeWidth={2.5} />,
-          title: 'RIWAYAT TRANSAKSI'
-        }}
-      />
+      {!disabledMenus?.includes('/reports') && (
+        <Tab.Screen 
+          name="Beranda" 
+          component={DashboardScreen} 
+          options={{
+            tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={26} strokeWidth={2.5} />,
+            title: 'DASBOR UTAMA'
+          }}
+        />
+      )}
+      {!disabledMenus?.includes('/pos') && (
+        <Tab.Screen 
+          name="Kasir" 
+          component={POSScreen} 
+          options={{
+            tabBarIcon: ({ color }) => <Calculator color={color} size={26} strokeWidth={2.5} />,
+            title: 'IKASIR PRO'
+          }}
+        />
+      )}
+      {!disabledMenus?.includes('/orders') && (
+        <Tab.Screen 
+          name="Pesanan" 
+          component={OrdersScreen} 
+          options={{
+            tabBarIcon: ({ color }) => <ShoppingBag color={color} size={26} strokeWidth={2.5} />,
+            title: 'PESANAN ONLINE',
+            tabBarBadge: newOrdersCount > 0 ? newOrdersCount : undefined,
+            tabBarBadgeStyle: {
+              backgroundColor: '#ef4444',
+              color: '#ffffff',
+              fontSize: 10,
+              fontWeight: 'bold',
+              minWidth: 20,
+              height: 20,
+              borderRadius: 10,
+              lineHeight: 20,
+            }
+          }}
+        />
+      )}
+      {!disabledMenus?.includes('/transactions') && (
+        <Tab.Screen 
+          name="Transaksi" 
+          component={TransactionsScreen} 
+          options={{
+            tabBarIcon: ({ color }) => <History color={color} size={26} strokeWidth={2.5} />,
+            title: 'RIWAYAT TRANSAKSI'
+          }}
+        />
+      )}
       <Tab.Screen 
         name="Lainnya" 
         component={SettingsScreen} 
@@ -281,7 +289,15 @@ function NavigationRoot() {
         }
 
         if (userData.role) useAuthStore.getState().setRole(userData.role);
-        if (userData.storeId) useAuthStore.getState().setStoreId(userData.storeId);
+        if (userData.storeId) {
+          useAuthStore.getState().setStoreId(userData.storeId);
+          getDoc(doc(db, 'stores', userData.storeId)).then((storeSnap) => {
+            if (storeSnap.exists()) {
+              const storeData = storeSnap.data();
+              useAuthStore.getState().setDisabledMenus(storeData.disabledMenus || []);
+            }
+          }).catch(err => console.error("Error loading store details on mobile:", err));
+        }
 
         // Sync photoURL from Firestore to keep profile photo up-to-date
         const currentUser = useAuthStore.getState().user;

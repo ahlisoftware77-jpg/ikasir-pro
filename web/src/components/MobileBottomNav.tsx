@@ -53,7 +53,7 @@ import toast from 'react-hot-toast';
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { role, user, permissions, newOrderCount, isSubscriptionExpired } = useAuthStore();
+  const { role, user, permissions, newOrderCount, isSubscriptionExpired, disabledMenus } = useAuthStore();
   const { branding } = useBranding();
   const { theme, setTheme } = useTheme();
 
@@ -71,10 +71,10 @@ export default function MobileBottomNav() {
 
   // MAIN TAB MAPPING
   const mainTabs = [
-    { name: 'Dasbor', path: '/', icon: LayoutDashboard, show: isAdmin || (permissions as any)?.canViewReports },
-    { name: 'Kasir', path: '/pos', icon: Calculator, show: isAdmin || (permissions as any)?.canAccessPOS },
-    { name: 'Pesanan', path: '/orders', icon: ClipboardList, show: isAdmin || (permissions as any)?.canManageOrders },
-    { name: 'Riwayat', path: '/transactions', icon: ShoppingCart, show: isAdmin || (permissions as any)?.canAccessPOS },
+    { name: 'Dasbor', path: '/', icon: LayoutDashboard, show: (isAdmin || (permissions as any)?.canViewReports) && !(disabledMenus || []).includes('/reports') },
+    { name: 'Kasir', path: '/pos', icon: Calculator, show: (isAdmin || (permissions as any)?.canAccessPOS) && !(disabledMenus || []).includes('/pos') },
+    { name: 'Pesanan', path: '/orders', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canManageOrders) && !(disabledMenus || []).includes('/orders') },
+    { name: 'Riwayat', path: '/transactions', icon: ShoppingCart, show: (isAdmin || (permissions as any)?.canAccessPOS) && !(disabledMenus || []).includes('/transactions') },
   ].filter(t => t.show !== false);
 
   // Take top 4 max for clean UI, leaving 1 slot for "Lainnya"
@@ -82,14 +82,14 @@ export default function MobileBottomNav() {
 
   // MORE SHEET MAPPING
   const moreMenus = [
-    { name: 'Estimasi Biaya', path: '/estimations', icon: FileText, show: isAdmin || (permissions as any)?.canManageEstimations },
-    { name: 'Hutang Piutang', path: '/debts', icon: BookOpen, show: isAdmin || (permissions as any)?.canManageDebts },
-    { name: 'Shift Karyawan', path: '/shifts', icon: History, show: isAdmin || (permissions as any)?.canAccessPOS },
+    { name: 'Estimasi Biaya', path: '/estimations', icon: FileText, show: (isAdmin || (permissions as any)?.canManageEstimations) && !(disabledMenus || []).includes('/estimations') },
+    { name: 'Hutang Piutang', path: '/debts', icon: BookOpen, show: (isAdmin || (permissions as any)?.canManageDebts) && !(disabledMenus || []).includes('/debts') },
+    { name: 'Shift Karyawan', path: '/shifts', icon: History, show: (isAdmin || (permissions as any)?.canAccessPOS) && !(disabledMenus || []).includes('/shifts') },
     { 
       name: 'Laporan', 
       path: '/reports', 
       icon: PieChart, 
-      show: isAdmin || (permissions as any)?.canViewReports,
+      show: (isAdmin || (permissions as any)?.canViewReports) && !(disabledMenus || []).includes('/reports'),
       subItems: [
         { name: 'Penjualan', path: '/reports/sales', icon: BarChart3 },
         { name: 'Omzet', path: '/reports/monthly', icon: TrendingUp },
@@ -103,7 +103,7 @@ export default function MobileBottomNav() {
       name: 'Manajemen Produk', 
       path: '/products', 
       icon: Package, 
-      show: isAdmin || (permissions as any)?.canManageProducts,
+      show: (isAdmin || (permissions as any)?.canManageProducts) && !(disabledMenus || []).includes('/products'),
       subItems: [
         { name: 'Produk', path: '/products', icon: List },
         { name: 'Gudang', path: '/products/warehouse', icon: Warehouse },
@@ -114,8 +114,8 @@ export default function MobileBottomNav() {
         { name: 'Expired', path: '/products/expiry', icon: Calendar },
       ]
     },
-    { name: 'Staf & User', path: '/users', icon: Users, show: isAdmin || (permissions as any)?.canManageUsers },
-    { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: isAdmin || (permissions as any)?.canViewLogs },
+    { name: 'Staf & User', path: '/users', icon: Users, show: (isAdmin || (permissions as any)?.canManageUsers) && !(disabledMenus || []).includes('/users') },
+    { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canViewLogs) && !(disabledMenus || []).includes('/logs') },
     { name: 'Profil', path: '/profile', icon: UserCircle },
     { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
     { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300', icon: HelpCircle },

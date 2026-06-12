@@ -727,6 +727,20 @@ function PublicOrderContent() {
     );
   }
 
+  if (storeSettings && storeSettings.isOnlineStoreActive === false) {
+    return (
+      <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-10 text-center text-white">
+        <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center mb-6">
+           <AlertTriangle size={40} />
+        </div>
+        <h2 className="text-xl font-black mb-2 uppercase tracking-tight">Toko Online Nonaktif</h2>
+        <p className="text-sm text-slate-400 font-medium max-w-xs leading-relaxed font-sans">
+           Maaf, toko online ini sedang dinonaktifkan oleh pemilik toko. Silakan hubungi toko secara langsung untuk pemesanan.
+        </p>
+      </div>
+    );
+  }
+
   const subtotalSum = cart.reduce((sum, item) => sum + ((item.displayPrice || 0) * (item.cartQty || 0)), 0);
   const totalCartItems = cart.reduce((sum, item) => sum + (item.cartQty || 0), 0);
   const deliveryFee = (fulfillmentType === 'delivery' && storeSettings?.allowDelivery !== false) ? (storeSettings?.deliveryFee || 0) : 0;

@@ -137,6 +137,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     allowPickup: true,
     allowDelivery: true,
     deliveryFee: 0,
+    isOnlineStoreActive: true,
     
     trxPrefix: 'TRX-',
     trxPadding: 4,
@@ -1081,6 +1082,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               allowPickup: data.allowPickup !== false,
               allowDelivery: data.allowDelivery !== false,
               deliveryFee: data.deliveryFee || 0,
+              isOnlineStoreActive: data.isOnlineStoreActive !== false,
               
               trxPrefix: data.trxPrefix || 'TRX-',
               trxPadding: data.trxPadding || 4,
@@ -1721,6 +1723,20 @@ export default function StoreSettingsScreen({ navigation }: any) {
                   {/* Konfigurasi Pemesanan Online Section */}
                   <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
                     <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Konfigurasi Pemesanan Online</Text>
+
+                    {/* isOnlineStoreActive Toggle */}
+                    <View 
+                      className="p-4 rounded-2xl border flex-row items-center justify-between"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    >
+                      <Text className="text-xs font-bold" style={{ color: colors.text }}>Aktifkan Toko Online (Visibility)</Text>
+                      <Switch
+                        value={storeSettings.isOnlineStoreActive}
+                        onValueChange={(val) => setStoreSettings(prev => ({ ...prev, isOnlineStoreActive: val }))}
+                        trackColor={{ false: colors.border, true: colors.accent }}
+                        thumbColor="#ffffff"
+                      />
+                    </View>
 
                     {/* allowPickup Toggle */}
                     <View 

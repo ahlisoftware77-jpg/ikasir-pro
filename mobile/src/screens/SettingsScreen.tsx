@@ -46,7 +46,7 @@ const getFontFamily = (id: string) => {
 
 export default function SettingsScreen({ navigation, route }: any) {
   const { colors, theme, setTheme } = useTheme();
-  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
+  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil, disabledMenus } = useAuthStore();
 
   const sisaHari = useMemo(() => {
     if (!subscriptionUntil) return null;
@@ -1032,8 +1032,9 @@ export default function SettingsScreen({ navigation, route }: any) {
   ];
 
   // Helper to render grid item
-  const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isDisabled = false, badgeCount = 0) => {
+  const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isDisabled = false, badgeCount = 0, path?: string) => {
     if (isAdminOnly && role !== 'admin') return null;
+    if (path && disabledMenus?.includes(path)) return null;
 
     return (
       <TouchableOpacity
@@ -1154,15 +1155,15 @@ export default function SettingsScreen({ navigation, route }: any) {
             {renderMenuItem('Estimasi Biaya', Calculator, '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'estimasi', title: 'Estimasi Biaya' });
-            }, false, isSubscriptionExpired)}
+            }, false, isSubscriptionExpired, 0, '/estimations')}
             {renderMenuItem('Hutang Piutang', CreditCard, '#f43f5e', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'piutang', title: 'Hutang Piutang' });
-            }, false, isSubscriptionExpired)}
+            }, false, isSubscriptionExpired, 0, '/debts')}
             {renderMenuItem('Riwayat Transaksi', History, colors.accent, () => {
               Vibration.vibrate(10);
               navigation.navigate('Transactions');
-            })}
+            }, false, false, 0, '/transactions')}
             {renderMenuItem('Notifikasi', Bell, '#fbbf24', () => {
               Vibration.vibrate(10);
               navigation.navigate('Notifications');
@@ -1179,31 +1180,31 @@ export default function SettingsScreen({ navigation, route }: any) {
             {renderMenuItem('Daftar Produk', Package, '#8b5cf6', () => {
               Vibration.vibrate(10);
               navigation.navigate('Products');
-            }, false)}
+            }, false, false, 0, '/products')}
             {renderMenuItem('Gudang', Home, '#3b82f6', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'gudang', title: 'Manajemen Gudang' });
-            })}
+            }, false, false, 0, '/products')}
             {renderMenuItem('Ekstra', PlusCircle, '#f59e0b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'ekstra', title: 'Kelola Ekstra' });
-            })}
+            }, false, false, 0, '/products')}
             {renderMenuItem('Diskon', Tag, '#ec4899', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'diskon', title: 'Kelola Diskon' });
-            })}
+            }, false, false, 0, '/products')}
             {renderMenuItem('Terjual', BadgePercent, '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'terjual', title: 'Analitik Terjual' });
-            })}
+            }, false, false, 0, '/products')}
             {renderMenuItem('Stok', Layers, '#06b6d4', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'stok', title: 'Mutasi Stok' });
-            })}
+            }, false, false, 0, '/products')}
             {renderMenuItem('Expired', CalendarRange, '#ef4444', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'expired', title: 'Stok Expired' });
-            })}
+            }, false, false, 0, '/products')}
           </View>
         </View>
 
@@ -1216,27 +1217,27 @@ export default function SettingsScreen({ navigation, route }: any) {
             {renderMenuItem('Laporan Penjualan', FileText, '#3b82f6', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'lap_penjualan', title: 'Laporan Penjualan' });
-            })}
+            }, false, false, 0, '/reports')}
             {renderMenuItem('Laporan Omzet', TrendingUp, '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'lap_omzet', title: 'Laporan Omzet' });
-            })}
+            }, false, false, 0, '/reports')}
             {renderMenuItem('Laporan Terlaris', Flame, '#f97316', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'lap_terlaris', title: 'Laporan Terlaris' });
-            })}
+            }, false, false, 0, '/reports')}
             {renderMenuItem('Arus Kas', Coins, '#fbbf24', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'arus_kas', title: 'Arus Kas (Cashflow)' });
-            })}
+            }, false, false, 0, '/reports')}
             {renderMenuItem('Pelanggan', Users, '#6366f1', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'pelanggan', title: 'Daftar Pelanggan' });
-            })}
+            }, false, false, 0, '/reports')}
             {renderMenuItem('Riwayat Tutup', Lock, '#64748b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'tutup_buku', title: 'Riwayat Tutup Buku' });
-            })}
+            }, false, false, 0, '/reports')}
           </View>
         </View>
 
@@ -1249,15 +1250,15 @@ export default function SettingsScreen({ navigation, route }: any) {
             {renderMenuItem('Shift Karyawan', Clock, '#06b6d4', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'shift', title: 'Shift Karyawan' });
-            })}
+            }, false, false, 0, '/shifts')}
             {renderMenuItem('Staff & User', UserCheck, '#6366f1', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'staff', title: 'Staff & User' });
-            }, false, isSubscriptionExpired)}
+            }, false, isSubscriptionExpired, 0, '/users')}
             {renderMenuItem('Log Aktifitas', ClipboardList, '#64748b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'activity_log', title: 'Log Aktifitas' });
-            })}
+            }, false, false, 0, '/logs')}
           </View>
         </View>
 
