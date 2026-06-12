@@ -7,7 +7,7 @@ export interface NotificationItem {
   body: string;
   timestamp: number;
   isRead: boolean;
-  type: 'order' | 'system' | 'debt';
+  type: 'order' | 'system' | 'debt' | 'subscription_warning' | 'stock_warning';
   metadata?: any;
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, ScrollView, Vibration, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Share, Linking } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, ScrollView, Vibration, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Share, Linking, Pressable } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
@@ -146,6 +146,11 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isShiftProcessing, setIsShiftProcessing] = useState(false);
   const [shiftTab, setShiftTab] = useState<'active' | 'history'>('active');
 
+  // Reset startingCash States
+  const [isResetShiftModalOpen, setIsResetShiftModalOpen] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [isResettingShift, setIsResettingShift] = useState(false);
+
   // --- DATA STATES ---
   const [estimations, setEstimations] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
@@ -179,6 +184,9 @@ export default function FeatureScreen({ route, navigation }: any) {
 
   // Laporan Omzet State
   const [omzetReportState, setOmzetReportState] = useState<any[]>([]);
+  const [omzetTransactions, setOmzetTransactions] = useState<any[]>([]);
+  const [omzetPeriodType, setOmzetPeriodType] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [omzetYearFilter, setOmzetYearFilter] = useState<string>('Semua');
 
   // --- FIRESTORE SUBSCRIPTIONS ---
   useEffect(() => {
@@ -413,34 +421,11 @@ export default function FeatureScreen({ route, navigation }: any) {
         case 'lap_omzet':
           q = query(collection(db, 'transactions'), where('storeId', '==', storeId));
           unsubscribe = onSnapshot(q, (snapshot) => {
-            const now = new Date();
-            const weeksData = [
-              { label: 'Minggu 4 (Terkini)', amount: 0, rangeStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
-              { label: 'Minggu 3', amount: 0, rangeStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
-              { label: 'Minggu 2', amount: 0, rangeStart: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) },
-              { label: 'Minggu 1', amount: 0, rangeStart: new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000) },
-            ];
-
+            const items: any[] = [];
             snapshot.forEach((doc) => {
-              const data = doc.data();
-              if (data.paymentStatus === 'paid' && data.timestamp) {
-                const date = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
-                for (const wk of weeksData) {
-                  if (date >= wk.rangeStart && (!('rangeEnd' in wk) || date < (wk as any).rangeEnd)) {
-                    wk.amount += data.total;
-                    break;
-                  }
-                }
-              }
+              items.push({ id: doc.id, ...doc.data() });
             });
-
-            const maxAmount = Math.max(...weeksData.map(w => w.amount), 1);
-            setOmzetReportState(weeksData.map((wk, idx) => ({
-              label: wk.label,
-              amount: wk.amount,
-              pct: Math.round((wk.amount / maxAmount) * 100),
-              active: idx === 0
-            })));
+            setOmzetTransactions(items);
             setLoading(false);
           }, (err) => {
             console.error("Error loading omzet report:", err);
@@ -636,6 +621,100 @@ export default function FeatureScreen({ route, navigation }: any) {
     return () => unsubscribe();
   }, [storeId, featureId]);
 
+  const omzetAvailableYears = useMemo(() => {
+    const years = new Set<string>();
+    omzetTransactions.forEach(t => {
+      if (!t.timestamp) return;
+      const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+      years.add(String(date.getFullYear()));
+    });
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [omzetTransactions]);
+
+  useEffect(() => {
+    if (featureId !== 'lap_omzet') return;
+    
+    let filtered = omzetTransactions.filter(t => t.paymentStatus === 'paid' && t.timestamp);
+
+    if (omzetPeriodType === 'weekly') {
+      const now = new Date();
+      const weeksData = [
+        { label: 'Minggu 4 (Terkini)', amount: 0, rangeStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+        { label: 'Minggu 3', amount: 0, rangeStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+        { label: 'Minggu 2', amount: 0, rangeStart: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) },
+        { label: 'Minggu 1', amount: 0, rangeStart: new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000) },
+      ];
+
+      filtered.forEach(t => {
+        const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        for (const wk of weeksData) {
+          if (date >= wk.rangeStart && (!('rangeEnd' in wk) || date < (wk as any).rangeEnd)) {
+            wk.amount += (t.total || 0);
+            break;
+          }
+        }
+      });
+
+      const maxAmount = Math.max(...weeksData.map(w => w.amount), 1);
+      setOmzetReportState(weeksData.map((wk, idx) => ({
+        label: wk.label,
+        amount: wk.amount,
+        pct: Math.round((wk.amount / maxAmount) * 100),
+        active: idx === 0
+      })));
+    } else if (omzetPeriodType === 'monthly') {
+      if (omzetYearFilter !== 'Semua') {
+        filtered = filtered.filter(t => {
+          const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+          return String(date.getFullYear()) === omzetYearFilter;
+        });
+      }
+
+      const stats: Record<string, { total: number; label: string; sortKey: string }> = {};
+      filtered.forEach(t => {
+        const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        const label = date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        const sortKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!stats[sortKey]) {
+          stats[sortKey] = { total: 0, label, sortKey };
+        }
+        stats[sortKey].total += (t.total || 0);
+      });
+
+      const list = Object.values(stats).sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+      const maxAmount = Math.max(...list.map(w => w.total), 1);
+      setOmzetReportState(list.map((item, idx) => ({
+        label: item.label,
+        amount: item.total,
+        pct: Math.round((item.total / maxAmount) * 100),
+        active: idx === 0
+      })));
+    } else if (omzetPeriodType === 'yearly') {
+      const stats: Record<string, { total: number; label: string; sortKey: string }> = {};
+      filtered.forEach(t => {
+        const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        const year = String(date.getFullYear());
+        const label = `Tahun ${year}`;
+        const sortKey = year;
+        
+        if (!stats[sortKey]) {
+          stats[sortKey] = { total: 0, label, sortKey };
+        }
+        stats[sortKey].total += (t.total || 0);
+      });
+
+      const list = Object.values(stats).sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+      const maxAmount = Math.max(...list.map(w => w.total), 1);
+      setOmzetReportState(list.map((item, idx) => ({
+        label: item.label,
+        amount: item.total,
+        pct: Math.round((item.total / maxAmount) * 100),
+        active: idx === 0
+      })));
+    }
+  }, [omzetTransactions, omzetPeriodType, omzetYearFilter, featureId]);
+
   const myActiveShift = useMemo(() => {
     return shifts.find(s => s.status === 'open' && s.userId === user?.uid);
   }, [shifts, user]);
@@ -793,6 +872,30 @@ export default function FeatureScreen({ route, navigation }: any) {
       setTempSelectedProductIds([]);
     }
     setIsAddModalVisible(true);
+  };
+
+  const handleResetStartingCashMobile = async () => {
+    if (resetConfirmText !== 'Kosongkan Saldo') {
+      Alert.alert('Eror', 'Teks konfirmasi salah!');
+      return;
+    }
+    if (!myActiveShift) return;
+
+    setIsResettingShift(true);
+    try {
+      const shiftRef = doc(db, 'shifts', myActiveShift.id);
+      await updateDoc(shiftRef, {
+        startingCash: 0
+      });
+      Alert.alert('Sukses', 'Modal awal berhasil dikosongkan!');
+      setIsResetShiftModalOpen(false);
+      setResetConfirmText('');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal mereset modal awal.');
+    } finally {
+      setIsResettingShift(false);
+    }
   };
 
   const handleStartShiftMobile = async () => {
@@ -2910,10 +3013,72 @@ export default function FeatureScreen({ route, navigation }: any) {
 
       case 'lap_omzet':
         return (
-          <ScrollView className="flex-1">
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            {/* Period Type Selector */}
+            <View className="flex-row bg-black/10 p-1 rounded-2xl gap-1 mb-4">
+              {(['weekly', 'monthly', 'yearly'] as const).map(type => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setOmzetPeriodType(type);
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-1 py-2.5 rounded-xl items-center justify-center"
+                  style={{ backgroundColor: omzetPeriodType === type ? colors.accent : 'transparent' }}
+                >
+                  <Text className="text-[10px] font-black uppercase tracking-wide" style={{ color: omzetPeriodType === type ? '#ffffff' : colors.text }}>
+                    {type === 'weekly' ? 'Mingguan' : type === 'monthly' ? 'Bulanan' : 'Tahunan'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Year Selector (Only for Bulanan period) */}
+            {omzetPeriodType === 'monthly' && omzetAvailableYears.length > 0 && (
+              <View className="mb-4">
+                <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Filter Tahun</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={() => {
+                      Vibration.vibrate(10);
+                      setOmzetYearFilter('Semua');
+                    }}
+                    className="px-4 py-2 rounded-xl border mr-2"
+                    style={{
+                      backgroundColor: omzetYearFilter === 'Semua' ? colors.accent : colors.surface,
+                      borderColor: omzetYearFilter === 'Semua' ? colors.accent : colors.border
+                    }}
+                  >
+                    <Text className="text-[10px] font-black" style={{ color: omzetYearFilter === 'Semua' ? '#ffffff' : colors.text }}>Semua</Text>
+                  </TouchableOpacity>
+                  {omzetAvailableYears.map(year => (
+                    <TouchableOpacity
+                      key={year}
+                      onPress={() => {
+                        Vibration.vibrate(10);
+                        setOmzetYearFilter(year);
+                      }}
+                      className="px-4 py-2 rounded-xl border mr-2"
+                      style={{
+                        backgroundColor: omzetYearFilter === year ? colors.accent : colors.surface,
+                        borderColor: omzetYearFilter === year ? colors.accent : colors.border
+                      }}
+                    >
+                      <Text className="text-[10px] font-black" style={{ color: omzetYearFilter === year ? '#ffffff' : colors.text }}>{year}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             <View className="p-6 rounded-[28px] border mb-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Perbandingan Omzet Bulanan</Text>
-              <Text className="text-3xl font-black text-emerald-400" style={{ color: colors.accent }}>Mei 2026</Text>
+              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                Perbandingan Omzet {omzetPeriodType === 'weekly' ? 'Mingguan' : omzetPeriodType === 'monthly' ? 'Bulanan' : 'Tahunan'}
+              </Text>
+              <Text className="text-3xl font-black text-emerald-400" style={{ color: colors.accent }}>
+                {omzetPeriodType === 'weekly' ? 'Mingguan' : omzetPeriodType === 'monthly' ? (omzetYearFilter === 'Semua' ? 'Bulanan (Semua)' : `Bulanan (${omzetYearFilter})`) : 'Tahunan'}
+              </Text>
               
               <View className="mt-6 flex gap-4">
                 {omzetReportState.map((item, idx) => (
@@ -3356,7 +3521,20 @@ export default function FeatureScreen({ route, navigation }: any) {
                     {/* Stats grid */}
                     <View className="flex-row flex-wrap mb-5">
                       <View className="w-[48%] p-3.5 rounded-2xl bg-black/10 border border-black/5 mb-3 mr-[4%]">
-                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Modal Awal</Text>
+                        <View className="flex-row justify-between items-start mb-1">
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Modal Awal</Text>
+                          <TouchableOpacity 
+                            onPress={() => {
+                              setResetConfirmText('');
+                              setIsResetShiftModalOpen(true);
+                            }}
+                            activeOpacity={0.7}
+                            className="flex-row items-center gap-1"
+                          >
+                            <Trash2 size={10} color="#f43f5e" />
+                            <Text className="text-[8px] font-black text-rose-500 uppercase">Reset</Text>
+                          </TouchableOpacity>
+                        </View>
                         <Text className="text-sm font-black" style={{ color: colors.text }}>Rp {myActiveShift.startingCash.toLocaleString('id-ID')}</Text>
                       </View>
                       
@@ -3635,6 +3813,66 @@ export default function FeatureScreen({ route, navigation }: any) {
                 </KeyboardAvoidingView>
               </Modal>
             )}
+
+            {/* RESET SHIFT MODAL */}
+            {isResetShiftModalOpen && myActiveShift && (
+              <Modal visible={isResetShiftModalOpen} animationType="fade" transparent onRequestClose={() => setIsResetShiftModalOpen(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+                  <Pressable className="flex-1 bg-black/60 justify-center items-center p-6" onPress={() => setIsResetShiftModalOpen(false)}>
+                    <Pressable className="w-full rounded-[2rem] p-6 space-y-5" style={{ backgroundColor: colors.surface }} onPress={() => {}}>
+                      <View className="flex-row justify-between items-center mb-2">
+                        <View className="flex-row items-center gap-3">
+                          <View className="w-10 h-10 rounded-2xl bg-rose-500/10 items-center justify-center">
+                            <Trash2 size={20} color="#f43f5e" />
+                          </View>
+                          <View>
+                            <Text className="text-sm font-black" style={{ color: colors.text }}>Reset Modal Awal</Text>
+                            <Text className="text-[10px] font-bold text-slate-400 mt-0.5">Kosongkan saldo sesi aktif</Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity onPress={() => setIsResetShiftModalOpen(false)} className="p-2 bg-black/10 rounded-full">
+                          <X size={16} color={colors.text} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl">
+                        <Text className="text-[10px] font-bold text-rose-500 leading-relaxed">
+                          Tindakan ini akan mengosongkan Modal Awal aktif menjadi Rp 0. Ketik "Kosongkan Saldo" di bawah untuk konfirmasi.
+                        </Text>
+                      </View>
+
+                      <View className="space-y-1.5">
+                        <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Teks Verifikasi</Text>
+                        <TextInput
+                          placeholder="Kosongkan Saldo"
+                          placeholderTextColor={colors.textMuted}
+                          value={resetConfirmText}
+                          onChangeText={setResetConfirmText}
+                          className="px-4 py-3 rounded-xl border font-bold text-xs"
+                          style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                        />
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={handleResetStartingCashMobile}
+                        disabled={isResettingShift || resetConfirmText !== 'Kosongkan Saldo'}
+                        activeOpacity={0.8}
+                        className="py-4 bg-rose-500 rounded-2xl items-center justify-center flex-row gap-2 disabled:opacity-50"
+                      >
+                        {isResettingShift ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <>
+                            <Check size={14} color="#ffffff" />
+                            <Text className="text-xs font-black text-white uppercase tracking-widest">KONFIRMASI KOSONGKAN SALDO</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </Pressable>
+                  </Pressable>
+                </KeyboardAvoidingView>
+              </Modal>
+            )}
           </View>
         );
 
@@ -3742,6 +3980,39 @@ export default function FeatureScreen({ route, navigation }: any) {
       <SafeAreaView className="flex-1 justify-center items-center" style={{ backgroundColor: colors.bg }}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Text className="text-xs font-black uppercase tracking-widest mt-4" style={{ color: colors.textMuted }}>Menyinkronkan Cloud...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (isSubscriptionExpired && featureId === 'staff' && role !== 'super-admin' && role !== 'superadmin') {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center px-6" style={{ backgroundColor: colors.bg }}>
+        <View 
+          className="w-20 h-20 rounded-3xl items-center justify-center mb-6 border"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+        >
+          <Lock color="#f43f5e" size={40} />
+        </View>
+        <Text className="text-lg font-black text-center uppercase tracking-wider mb-2" style={{ color: colors.text }}>Akses Terkunci</Text>
+        <Text className="text-xs font-bold text-center leading-normal mb-8" style={{ color: colors.textMuted }}>
+          Masa aktif langganan toko Anda telah berakhir. Silakan perpanjang untuk memulihkan akses manajemen staff & user.
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate('Lainnya', { openSubscription: true });
+          }}
+          activeOpacity={0.8}
+          className="w-full py-4 rounded-2xl items-center justify-center border"
+          style={{ backgroundColor: colors.accent, borderColor: colors.accent }}
+        >
+          <Text className="text-xs font-black text-white uppercase tracking-widest">Perpanjang Sekarang</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          className="mt-4 py-2"
+        >
+          <Text className="text-xs font-black uppercase tracking-wider" style={{ color: '#ef4444' }}>Kembali</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }

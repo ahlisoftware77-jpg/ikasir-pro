@@ -36,7 +36,9 @@ import {
   Archive,
   BookOpen,
   FileText,
-  UserCircle
+  UserCircle,
+  HelpCircle,
+  MessageSquare
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useTheme } from '@/context/ThemeContext';
@@ -115,6 +117,9 @@ export default function MobileBottomNav() {
     { name: 'Staf & User', path: '/users', icon: Users, show: isAdmin || (permissions as any)?.canManageUsers },
     { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: isAdmin || (permissions as any)?.canViewLogs },
     { name: 'Profil', path: '/profile', icon: UserCircle },
+    { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
+    { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300', icon: HelpCircle },
+    { name: 'Kritik & Saran', path: '#feedback', icon: MessageSquare },
     { name: 'Pengaturan', path: '/settings', icon: Settings, show: isAdmin || (permissions as any)?.canEditSettings },
     { name: 'Super Admin', path: '/super-admin', icon: ShieldCheck, show: role === 'super-admin' },
   ].filter(m => m.show !== false);
@@ -160,7 +165,7 @@ export default function MobileBottomNav() {
         <div className="flex justify-between items-center px-2 py-2">
           {displayTabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path !== '/' && pathname.startsWith(tab.path + '/'));
-            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts'].includes(tab.path);
+            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(tab.path);
             const Icon = tab.icon;
             return (
               <Link
@@ -245,9 +250,27 @@ export default function MobileBottomNav() {
                    <div key={menu.name} className="space-y-1 py-1">
                      <div
                        onClick={() => {
-                         const isBlocked = isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path);
+                          const isBlocked = isSubscriptionExpired && ['/estimations', '/debts', '/users'].includes(menu.path);
                          if (isBlocked) {
                            toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                           return;
+                         }
+
+                         if (menu.path === '#subscription') {
+                           setIsMoreOpen(false);
+                           window.dispatchEvent(new CustomEvent('open-subscription-modal'));
+                           return;
+                         }
+
+                         if (menu.path === '#feedback') {
+                           setIsMoreOpen(false);
+                           window.dispatchEvent(new CustomEvent('open-feedback-modal'));
+                           return;
+                         }
+
+                         if (menu.path.startsWith('http')) {
+                           setIsMoreOpen(false);
+                           window.open(menu.path, '_blank');
                            return;
                          }
 
@@ -258,7 +281,7 @@ export default function MobileBottomNav() {
                            router.push(menu.path);
                          }
                        }}
-                       className={`uiverse-btn ${isActive ? 'active-btn' : ''} ${isSubscriptionExpired && ['/estimations', '/debts'].includes(menu.path) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                       className={`uiverse-btn ${isActive ? 'active-btn' : ''} ${isSubscriptionExpired && ['/estimations', '/debts', '/users'].includes(menu.path) ? 'opacity-40 cursor-not-allowed' : ''}`}
                      >
                        <span className="uiverse-btn-top w-full justify-between">
                          <span className="flex items-center gap-3">

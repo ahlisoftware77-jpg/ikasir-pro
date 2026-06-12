@@ -260,14 +260,26 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
   };
 
-  const [brandingData, setBrandingData] = useState({ 
+  const [brandingData, setBrandingData] = useState<any>({ 
     appName: 'IKASIR PRO', 
     receiptWatermark: 'Powered by YadiApp', 
     showWatermark: true,
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
-    webAppUrl: ''
+    webAppUrl: '',
+    pkg_1m_price: 30000,
+    pkg_1m_discount_type: 'none',
+    pkg_1m_discount_val: 0,
+    pkg_3m_price: 84000,
+    pkg_3m_discount_type: 'none',
+    pkg_3m_discount_val: 0,
+    pkg_6m_price: 159000,
+    pkg_6m_discount_type: 'none',
+    pkg_6m_discount_val: 0,
+    pkg_12m_price: 306000,
+    pkg_12m_discount_type: 'none',
+    pkg_12m_discount_val: 0,
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -304,7 +316,19 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
-          webAppUrl: data.webAppUrl || ''
+          webAppUrl: data.webAppUrl || '',
+          pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
+          pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
+          pkg_1m_discount_val: Number(data.pkg_1m_discount_val ?? 0),
+          pkg_3m_price: Number(data.pkg_3m_price ?? 84000),
+          pkg_3m_discount_type: data.pkg_3m_discount_type || 'none',
+          pkg_3m_discount_val: Number(data.pkg_3m_discount_val ?? 0),
+          pkg_6m_price: Number(data.pkg_6m_price ?? 159000),
+          pkg_6m_discount_type: data.pkg_6m_discount_type || 'none',
+          pkg_6m_discount_val: Number(data.pkg_6m_discount_val ?? 0),
+          pkg_12m_price: Number(data.pkg_12m_price ?? 306000),
+          pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
+          pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
         });
       }
     });
@@ -815,7 +839,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
         const uploadResult = await uploadRes.json();
         if (uploadResult.secure_url) {
-          setBrandingData(prev => ({ ...prev, subscriptionQrisUrl: uploadResult.secure_url }));
+          setBrandingData((prev: any) => ({ ...prev, subscriptionQrisUrl: uploadResult.secure_url }));
           Alert.alert('Berhasil', 'Foto QRIS Langganan berhasil disiapkan, tekan Simpan Perubahan!');
         } else {
           Alert.alert('Gagal', 'Gagal menyiapkan QRIS ke server.');
@@ -1670,6 +1694,92 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* Pengaturan Harga & Diskon Paket */}
+                <View className="h-[1px] w-full bg-slate-200/10 my-4" />
+                <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3 ml-2" style={{ color: colors.textMuted }}>
+                  🏷️ Harga & Diskon Paket Langganan
+                </Text>
+
+                {[
+                  { id: '1m', name: 'Paket 1 Bulan', priceKey: 'pkg_1m_price', typeKey: 'pkg_1m_discount_type', valKey: 'pkg_1m_discount_val' },
+                  { id: '3m', name: 'Paket 3 Bulan', priceKey: 'pkg_3m_price', typeKey: 'pkg_3m_discount_type', valKey: 'pkg_3m_discount_val' },
+                  { id: '6m', name: 'Paket 6 Bulan', priceKey: 'pkg_6m_price', typeKey: 'pkg_6m_discount_type', valKey: 'pkg_6m_discount_val' },
+                  { id: '12m', name: 'Paket 12 Bulan', priceKey: 'pkg_12m_price', typeKey: 'pkg_12m_discount_type', valKey: 'pkg_12m_discount_val' },
+                ].map((pkg) => (
+                  <View key={pkg.id} className="p-4 rounded-2xl border mb-3 space-y-3" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>{pkg.name}</Text>
+                    
+                    {/* Harga Dasar */}
+                    <View className="space-y-1">
+                      <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Harga Dasar (Rp)</Text>
+                      <TextInput
+                        value={String(brandingData[pkg.priceKey] ?? 0)}
+                        onChangeText={(txt) => setBrandingData({ ...brandingData, [pkg.priceKey]: Number(txt) || 0 })}
+                        keyboardType="numeric"
+                        placeholder="30000"
+                        placeholderTextColor={colors.textMuted}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                      />
+                    </View>
+
+                    {/* Tipe Diskon */}
+                    <View className="space-y-1">
+                      <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Tipe Potongan/Diskon</Text>
+                      <View className="flex-row gap-1.5 flex-wrap">
+                        {['none', 'percent', 'nominal'].map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            onPress={() => setBrandingData({ ...brandingData, [pkg.typeKey]: type })}
+                            className="px-3 py-2 rounded-xl border"
+                            style={{ 
+                              backgroundColor: brandingData[pkg.typeKey] === type ? colors.accent + '20' : colors.surface,
+                              borderColor: brandingData[pkg.typeKey] === type ? colors.accent : colors.border
+                            }}
+                          >
+                            <Text className="text-[9px] font-black uppercase" style={{ color: brandingData[pkg.typeKey] === type ? colors.accent : colors.text }}>
+                              {type === 'none' ? 'Tanpa Diskon' : type === 'percent' ? 'Persen (%)' : 'Nominal (Rp)'}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    {/* Nilai Diskon */}
+                    {brandingData[pkg.typeKey] !== 'none' && (
+                      <View className="space-y-1">
+                        <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                          {brandingData[pkg.typeKey] === 'percent' ? 'Persentase Diskon (%)' : 'Nominal Potongan (Rp)'}
+                        </Text>
+                        <TextInput
+                          value={String(brandingData[pkg.valKey] ?? 0)}
+                          onChangeText={(txt) => setBrandingData({ ...brandingData, [pkg.valKey]: Number(txt) || 0 })}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor={colors.textMuted}
+                          className="p-3 rounded-xl border font-bold text-xs"
+                          style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                        />
+                      </View>
+                    )}
+
+                    {/* Preview Final Price */}
+                    <View className="flex-row items-center justify-between p-2 rounded-xl bg-slate-950/20">
+                      <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Harga Final:</Text>
+                      <Text className="text-xs font-black text-emerald-500">
+                        Rp {(() => {
+                          const base = Number(brandingData[pkg.priceKey] ?? 0);
+                          const type = brandingData[pkg.typeKey] || 'none';
+                          const val = Number(brandingData[pkg.valKey] ?? 0);
+                          if (type === 'percent') return Math.max(0, base * (1 - val / 100)).toLocaleString('id-ID');
+                          if (type === 'nominal') return Math.max(0, base - val).toLocaleString('id-ID');
+                          return base.toLocaleString('id-ID');
+                        })()}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
 
                 {/* Save Changes Button */}
                 <TouchableOpacity

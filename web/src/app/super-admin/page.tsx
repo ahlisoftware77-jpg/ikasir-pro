@@ -496,14 +496,26 @@ export default function SuperAdminPage() {
     }
   };
 
-  const [brandingData, setBrandingData] = useState({ 
+  const [brandingData, setBrandingData] = useState<any>({ 
     appName: 'IKASIR PRO', 
     receiptWatermark: 'Powered by YadiApp',
     showWatermark: true,
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
-    webAppUrl: ''
+    webAppUrl: '',
+    pkg_1m_price: 30000,
+    pkg_1m_discount_type: 'none',
+    pkg_1m_discount_val: 0,
+    pkg_3m_price: 84000,
+    pkg_3m_discount_type: 'none',
+    pkg_3m_discount_val: 0,
+    pkg_6m_price: 159000,
+    pkg_6m_discount_type: 'none',
+    pkg_6m_discount_val: 0,
+    pkg_12m_price: 306000,
+    pkg_12m_discount_type: 'none',
+    pkg_12m_discount_val: 0,
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -528,7 +540,19 @@ export default function SuperAdminPage() {
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
-          webAppUrl: data.webAppUrl || ''
+          webAppUrl: data.webAppUrl || '',
+          pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
+          pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
+          pkg_1m_discount_val: Number(data.pkg_1m_discount_val ?? 0),
+          pkg_3m_price: Number(data.pkg_3m_price ?? 84000),
+          pkg_3m_discount_type: data.pkg_3m_discount_type || 'none',
+          pkg_3m_discount_val: Number(data.pkg_3m_discount_val ?? 0),
+          pkg_6m_price: Number(data.pkg_6m_price ?? 159000),
+          pkg_6m_discount_type: data.pkg_6m_discount_type || 'none',
+          pkg_6m_discount_val: Number(data.pkg_6m_discount_val ?? 0),
+          pkg_12m_price: Number(data.pkg_12m_price ?? 306000),
+          pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
+          pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
         });
       }
     });
@@ -649,6 +673,18 @@ export default function SuperAdminPage() {
         subscriptionQrisUrl: brandingData.subscriptionQrisUrl || '',
         subscriptionBankInfo: brandingData.subscriptionBankInfo || '',
         subscriptionEwalletInfo: brandingData.subscriptionEwalletInfo || '',
+        pkg_1m_price: Number(brandingData.pkg_1m_price ?? 30000),
+        pkg_1m_discount_type: brandingData.pkg_1m_discount_type || 'none',
+        pkg_1m_discount_val: Number(brandingData.pkg_1m_discount_val ?? 0),
+        pkg_3m_price: Number(brandingData.pkg_3m_price ?? 84000),
+        pkg_3m_discount_type: brandingData.pkg_3m_discount_type || 'none',
+        pkg_3m_discount_val: Number(brandingData.pkg_3m_discount_val ?? 0),
+        pkg_6m_price: Number(brandingData.pkg_6m_price ?? 159000),
+        pkg_6m_discount_type: brandingData.pkg_6m_discount_type || 'none',
+        pkg_6m_discount_val: Number(brandingData.pkg_6m_discount_val ?? 0),
+        pkg_12m_price: Number(brandingData.pkg_12m_price ?? 306000),
+        pkg_12m_discount_type: brandingData.pkg_12m_discount_type || 'none',
+        pkg_12m_discount_val: Number(brandingData.pkg_12m_discount_val ?? 0),
         lastUpdated: new Date().toISOString()
       }, { merge: true });
       alert('Pengaturan Metode Pembayaran berhasil diperbarui!');
@@ -2024,6 +2060,83 @@ export default function SuperAdminPage() {
                     />
                  </div>
               </div>
+              
+               {/* PENGATURAN HARGA & DISKON PAKET */}
+               <div className="mt-8 border-t border-app-border/40 pt-8">
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                     <Tag className="text-emerald-500" size={16} /> Pengaturan Harga & Diskon Paket Langganan
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                     {[
+                       { id: '1m', name: 'Paket 1 Bulan', priceKey: 'pkg_1m_price', typeKey: 'pkg_1m_discount_type', valKey: 'pkg_1m_discount_val' },
+                       { id: '3m', name: 'Paket 3 Bulan', priceKey: 'pkg_3m_price', typeKey: 'pkg_3m_discount_type', valKey: 'pkg_3m_discount_val' },
+                       { id: '6m', name: 'Paket 6 Bulan', priceKey: 'pkg_6m_price', typeKey: 'pkg_6m_discount_type', valKey: 'pkg_6m_discount_val' },
+                       { id: '12m', name: 'Paket 12 Bulan', priceKey: 'pkg_12m_price', typeKey: 'pkg_12m_discount_type', valKey: 'pkg_12m_discount_val' },
+                     ].map((pkg) => (
+                        <div key={pkg.id} className="bg-background/40 p-5 rounded-2xl border border-app-border space-y-4">
+                           <p className="text-xs font-black text-foreground uppercase tracking-wide border-b border-app-border pb-2">{pkg.name}</p>
+                           
+                           {/* Harga Dasar */}
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Harga Dasar (Rp)</label>
+                              <input 
+                                type="number" 
+                                value={brandingData[pkg.priceKey] ?? 0}
+                                onChange={e => setBrandingData({...brandingData, [pkg.priceKey]: Number(e.target.value)})}
+                                className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                                placeholder="30000"
+                              />
+                           </div>
+
+                           {/* Tipe Diskon */}
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Tipe Potongan/Diskon</label>
+                              <select 
+                                value={brandingData[pkg.typeKey] || 'none'}
+                                onChange={e => setBrandingData({...brandingData, [pkg.typeKey]: e.target.value})}
+                                className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                              >
+                                 <option value="none">Tanpa Potongan</option>
+                                 <option value="percent">Persentase (%)</option>
+                                 <option value="nominal">Nominal Manual (Rp)</option>
+                              </select>
+                           </div>
+
+                           {/* Nilai Diskon */}
+                           {brandingData[pkg.typeKey] !== 'none' && (
+                              <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                                 <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">
+                                    {brandingData[pkg.typeKey] === 'percent' ? 'Persentase Diskon (%)' : 'Nominal Potongan (Rp)'}
+                                 </label>
+                                 <input 
+                                   type="number" 
+                                   value={brandingData[pkg.valKey] ?? 0}
+                                   onChange={e => setBrandingData({...brandingData, [pkg.valKey]: Number(e.target.value)})}
+                                   className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                                   placeholder="0"
+                                 />
+                              </div>
+                           )}
+
+                           {/* Preview Final Price */}
+                           <div className="bg-background/80 px-3 py-2 rounded-xl border border-app-border flex items-center justify-between">
+                              <span className="text-[8px] font-black text-app-text-muted uppercase tracking-widest">Harga Final:</span>
+                              <span className="text-[11px] font-black text-emerald-500">
+                                 Rp {(() => {
+                                    const base = Number(brandingData[pkg.priceKey] ?? 0);
+                                    const type = brandingData[pkg.typeKey] || 'none';
+                                    const val = Number(brandingData[pkg.valKey] ?? 0);
+                                    if (type === 'percent') return Math.max(0, base * (1 - val / 100)).toLocaleString('id-ID');
+                                    if (type === 'nominal') return Math.max(0, base - val).toLocaleString('id-ID');
+                                    return base.toLocaleString('id-ID');
+                                 })()}
+                              </span>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+
               <div className="mt-6 flex justify-end">
                  <button 
                    onClick={handleUpdateSubscriptionBranding}

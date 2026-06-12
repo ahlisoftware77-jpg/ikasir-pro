@@ -10,7 +10,9 @@ import {
   Calendar, BarChart3, TrendingUp, Star, ArrowRightLeft, Archive, Store, BookOpen,
   FileText,
   UserCircle,
-  Bell
+  Bell,
+  HelpCircle,
+  MessageSquare
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useNotificationStore } from '@/store/notifications';
@@ -63,6 +65,9 @@ const menuItems = [
   { name: 'Manajemen User', path: '/users', icon: Users, permission: 'canManageUsers' },
   { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, permission: 'canViewLogs' },
   { name: 'Profil Saya', path: '/profile', icon: UserCircle },
+  { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
+  { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300', icon: HelpCircle },
+  { name: 'Kritik & Saran', path: '#feedback', icon: MessageSquare },
   { name: 'Pengaturan', path: '/settings', icon: Settings, permission: 'canEditSettings' },
 ];
 
@@ -225,7 +230,63 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
               );
             }
 
-            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts'].includes(item.path);
+            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(item.path);
+
+            if (item.path === '#subscription') {
+              return (
+                <div key={item.path} className="py-1">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent('open-subscription-modal'));
+                    }}
+                    className="uiverse-btn border border-emerald-500/20 rounded-xl"
+                  >
+                    <span className="uiverse-btn-top w-full">
+                      <Icon size={18} className="text-emerald-400 animate-pulse" />
+                      <span className="text-sm flex-1 text-left text-emerald-400 font-black">{item.name}</span>
+                    </span>
+                  </button>
+                </div>
+              );
+            }
+
+            if (item.path === '#feedback') {
+              return (
+                <div key={item.path} className="py-1">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent('open-feedback-modal'));
+                    }}
+                    className="uiverse-btn"
+                  >
+                    <span className="uiverse-btn-top w-full">
+                      <Icon size={18} />
+                      <span className="text-sm flex-1 text-left">{item.name}</span>
+                    </span>
+                  </button>
+                </div>
+              );
+            }
+
+            if (item.path.startsWith('http')) {
+              return (
+                <div key={item.path} className="py-1">
+                  <a
+                    href={item.path}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="uiverse-btn"
+                  >
+                    <span className="uiverse-btn-top w-full">
+                      <Icon size={18} />
+                      <span className="text-sm flex-1 text-left">{item.name}</span>
+                    </span>
+                  </a>
+                </div>
+              );
+            }
 
             return (
               <div key={item.path} className="py-1">

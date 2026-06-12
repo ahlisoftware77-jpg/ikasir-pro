@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
@@ -19,7 +19,7 @@ import {
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
   Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save,
-  MessageCircle, QrCode, Landmark, Wallet
+  MessageCircle, QrCode, Landmark, Wallet, HelpCircle, MessageSquare
 } from 'lucide-react-native';
 import { db, auth, storage } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -264,13 +264,119 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isSubscriptionSuccess, setIsSubscriptionSuccess] = useState(false);
   const [subscriptionPaymentMethod, setSubscriptionPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [packageStats, setPackageStats] = useState<Record<string, number>>({ '1m': 0, '3m': 0, '6m': 0, '12m': 0 });
+  const [bestSellerId, setBestSellerId] = useState<string>('12m');
+  const [showFeedbackModalMobile, setShowFeedbackModalMobile] = useState(false);
+  const [feedbackTextMobile, setFeedbackTextMobile] = useState('');
+  const [isSubmittingFeedbackMobile, setIsSubmittingFeedbackMobile] = useState(false);
 
-  const SUBSCRIPTION_PACKAGES = [
-    { id: '1m', title: '1 Bulan', price: 30000, desc: '1 Bulan x Rp 30.000 = Rp 30.000' },
-    { id: '3m', title: '3 Bulan', price: 84000, desc: '3 Bulan x Rp 28.000 = Rp 84.000' },
-    { id: '6m', title: '6 Bulan', price: 159000, desc: '6 Bulan x Rp 26.500 = Rp 159.000' },
-    { id: '12m', title: '12 Bulan', price: 306000, desc: '12 Bulan x Rp 25.500 = Rp 306.000' },
-  ];
+  const handleSubmitFeedbackMobile = async () => {
+    if (!feedbackTextMobile.trim()) {
+      Alert.alert('Info', 'Harap isi kritik & saran Anda.');
+      return;
+    }
+    setIsSubmittingFeedbackMobile(true);
+    try {
+      await addDoc(collection(db, 'feedback'), {
+        storeId: storeId || 'unknown',
+        userEmail: user?.email || 'unknown',
+        content: feedbackTextMobile,
+        createdAt: serverTimestamp(),
+        platform: 'mobile'
+      });
+      Alert.alert('Terima Kasih', 'Kritik & saran Anda berhasil dikirim.');
+      setFeedbackTextMobile('');
+      setShowFeedbackModalMobile(false);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Error', 'Gagal mengirim feedback: ' + err.message);
+    } finally {
+      setIsSubmittingFeedbackMobile(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeModal !== 'subscriptionMenu') return;
+
+    const fetchStats = async () => {
+      try {
+        const q = query(
+          collection(db, 'subscription_requests'),
+          where('status', '==', 'approved')
+        );
+        const snapshot = await getDocs(q);
+        const counts: Record<string, number> = { '1m': 0, '3m': 0, '6m': 0, '12m': 0 };
+        
+        snapshot.forEach((doc) => {
+          const pkgId = doc.data().packageId;
+          if (pkgId && counts[pkgId] !== undefined) {
+            counts[pkgId]++;
+          }
+        });
+        
+        setPackageStats(counts);
+
+        let bestId = '12m';
+        let maxCount = 0;
+        Object.entries(counts).forEach(([pkgId, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            bestId = pkgId;
+          }
+        });
+        setBestSellerId(bestId);
+      } catch (err) {
+        console.error("Failed to fetch subscription stats on mobile:", err);
+      }
+    };
+
+    fetchStats();
+  }, [activeModal]);
+
+  const SUBSCRIPTION_PACKAGES = useMemo(() => {
+    const pkgs = [
+      { id: '1m', title: '1 Bulan', defaultPrice: 30000, months: 1 },
+      { id: '3m', title: '3 Bulan', defaultPrice: 84000, months: 3 },
+      { id: '6m', title: '6 Bulan', defaultPrice: 159000, months: 6 },
+      { id: '12m', title: '12 Bulan', defaultPrice: 306000, months: 12 },
+    ];
+
+    return pkgs.map(p => {
+      const priceKey = `pkg_${p.id}_price`;
+      const typeKey = `pkg_${p.id}_discount_type`;
+      const valKey = `pkg_${p.id}_discount_val`;
+
+      const basePrice = Number((brandingData as any)[priceKey] ?? p.defaultPrice);
+      const discountType = (brandingData as any)[typeKey] || 'none';
+      const discountVal = Number((brandingData as any)[valKey] ?? 0);
+
+      let finalPrice = basePrice;
+      let discountLabel = '';
+
+      if (discountType === 'percent') {
+        finalPrice = Math.max(0, basePrice * (1 - discountVal / 100));
+        discountLabel = `${discountVal}% OFF`;
+      } else if (discountType === 'nominal') {
+        finalPrice = Math.max(0, basePrice - discountVal);
+        discountLabel = `HEMAT Rp ${discountVal.toLocaleString('id-ID')}`;
+      }
+
+      const pricePerMonth = Math.round(finalPrice / p.months);
+
+      const desc = p.months === 1 
+        ? `1 Bulan = Rp ${finalPrice.toLocaleString('id-ID')}` 
+        : `${p.months} Bulan x Rp ${pricePerMonth.toLocaleString('id-ID')} = Rp ${finalPrice.toLocaleString('id-ID')}`;
+
+      return {
+        id: p.id,
+        title: p.title,
+        price: finalPrice,
+        basePrice,
+        discountLabel,
+        desc
+      };
+    });
+  }, [brandingData]);
 
 
 
@@ -1145,7 +1251,7 @@ export default function SettingsScreen({ navigation, route }: any) {
             {renderMenuItem('Staff & User', UserCheck, '#6366f1', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'staff', title: 'Staff & User' });
-            })}
+            }, false, isSubscriptionExpired)}
             {renderMenuItem('Log Aktifitas', ClipboardList, '#64748b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'activity_log', title: 'Log Aktifitas' });
@@ -1207,6 +1313,14 @@ export default function SettingsScreen({ navigation, route }: any) {
               navigation.navigate('StoreSettingsScreen');
             }, true)}
             {renderMenuItem('Notifikasi BG', ShieldAlert, '#f59e0b', handleOpenBatterySettings)}
+            {renderMenuItem('Pusat Bantuan', HelpCircle, '#10b981', () => {
+              Vibration.vibrate(10);
+              Linking.openURL('https://wa.me/6283815862300');
+            })}
+            {renderMenuItem('Kritik & Saran', MessageSquare, '#3b82f6', () => {
+              Vibration.vibrate(10);
+              setShowFeedbackModalMobile(true);
+            })}
           </View>
         </View>
 
@@ -2235,8 +2349,8 @@ export default function SettingsScreen({ navigation, route }: any) {
                 </View>
               ) : !selectedPackage ? (
                 <View className="space-y-4">
-                  {SUBSCRIPTION_PACKAGES.map((pkg, idx) => {
-                    const is12m = pkg.id === '12m';
+                  {SUBSCRIPTION_PACKAGES.map((pkg: any, idx: number) => {
+                    const isBestSeller = pkg.id === bestSellerId;
                     return (
                       <Animated.View
                         key={pkg.id}
@@ -2248,14 +2362,14 @@ export default function SettingsScreen({ navigation, route }: any) {
                         <TouchableOpacity
                           onPress={() => setSelectedPackage(pkg)}
                           activeOpacity={0.85}
-                          className="p-5 rounded-3xl border flex-row items-center justify-between relative"
+                          className="p-5 rounded-3xl border flex-row items-center justify-between relative overflow-hidden"
                           style={{ 
-                            backgroundColor: is12m ? 'rgba(16,185,129,0.06)' : colors.surface, 
-                            borderColor: is12m ? 'rgba(16,185,129,0.35)' : colors.border,
-                            borderWidth: is12m ? 1.5 : 1
+                            backgroundColor: isBestSeller ? 'rgba(16,185,129,0.06)' : colors.surface, 
+                            borderColor: isBestSeller ? 'rgba(16,185,129,0.35)' : colors.border,
+                            borderWidth: isBestSeller ? 1.5 : 1
                           }}
                         >
-                          {is12m && (
+                          {isBestSeller && (
                             <Animated.View 
                               style={{ 
                                 transform: [{ translateY: badgeBounceAnim }],
@@ -2275,12 +2389,31 @@ export default function SettingsScreen({ navigation, route }: any) {
                               }}
                             >
                               <Sparkles size={8} color="#ffffff" />
-                              <Text className="text-[7px] font-black text-white uppercase tracking-widest">HEMAT 15% / TERLARIS</Text>
+                              <Text className="text-[7px] font-black text-white uppercase tracking-widest">
+                                {pkg.discountLabel ? `${pkg.discountLabel} / TERLARIS` : 'HEMAT 15% / TERLARIS'}
+                              </Text>
                             </Animated.View>
                           )}
-                          <View>
-                            <Text className="text-sm font-black" style={{ color: is12m ? '#10b981' : colors.text }}>{pkg.title}</Text>
-                            <Text className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">{pkg.desc}</Text>
+                          <View className="flex-1 pr-4">
+                            <View className="flex-row items-center gap-2">
+                              <Text className="text-sm font-black" style={{ color: isBestSeller ? '#10b981' : colors.text }}>{pkg.title}</Text>
+                              {(pkg.discountLabel && !isBestSeller) && (
+                                <View className="bg-rose-500 px-2 py-0.5 rounded-full">
+                                  <Text className="text-[7.5px] font-black text-white uppercase">{pkg.discountLabel}</Text>
+                                </View>
+                              )}
+                            </View>
+                            <View className="flex-row items-center gap-2 flex-wrap mt-0.5">
+                              <Text className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">{pkg.desc}</Text>
+                              {pkg.basePrice > pkg.price && (
+                                <Text className="text-[9.5px] font-bold text-slate-400 line-through opacity-70">
+                                  Rp {pkg.basePrice.toLocaleString('id-ID')}
+                                </Text>
+                              )}
+                            </View>
+                            <Text className="text-[8.5px] font-bold text-slate-400 mt-1.5">
+                              📊 Dibeli {packageStats[pkg.id] || 0} kali oleh pengguna
+                            </Text>
                           </View>
                           <View className="bg-emerald-500/10 px-3 py-2 rounded-xl">
                             <Text className="text-[10px] font-black text-emerald-500">PILIH</Text>
@@ -2452,6 +2585,54 @@ export default function SettingsScreen({ navigation, route }: any) {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* 11. FEEDBACK MODAL */}
+      <Modal visible={showFeedbackModalMobile} animationType="slide" transparent onRequestClose={() => setShowFeedbackModalMobile(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+          <Pressable className="flex-1 bg-black/60 justify-end" onPress={() => setShowFeedbackModalMobile(false)}>
+            <Pressable className="rounded-t-[40px] p-6 pb-12" style={{ backgroundColor: colors.surface }} onPress={e => e.stopPropagation()}>
+              <View className="flex-row justify-between items-center mb-6">
+                <View>
+                  <Text className="text-xl font-black" style={{ color: colors.text }}>Kritik & Saran</Text>
+                  <Text className="text-xs font-bold text-slate-400">Kirim masukan Anda untuk pengembangan Kasir Pro</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowFeedbackModalMobile(false)} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
+                  <X color={colors.text} size={20} />
+                </TouchableOpacity>
+              </View>
+
+              <View className="space-y-4">
+                <TextInput
+                  value={feedbackTextMobile}
+                  onChangeText={setFeedbackTextMobile}
+                  placeholder="Ketik kritik & saran Anda di sini..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={6}
+                  className="p-4 rounded-2xl border font-bold text-xs h-32 text-start mb-4"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top' }}
+                />
+
+                <TouchableOpacity
+                  onPress={handleSubmitFeedbackMobile}
+                  disabled={isSubmittingFeedbackMobile}
+                  className="py-4 rounded-2xl items-center justify-center flex-row gap-2"
+                  style={{ backgroundColor: colors.accent }}
+                >
+                  {isSubmittingFeedbackMobile ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Check size={16} color="#ffffff" strokeWidth={3} />
+                      <Text className="font-black text-white text-xs uppercase tracking-wider">Kirim Masukan</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
     </SafeAreaView>

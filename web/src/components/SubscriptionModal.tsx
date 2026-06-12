@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
 import { X, Check, Camera, Loader2, Info, MessageCircle, QrCode, Landmark, Wallet, Download, ExternalLink, Sparkles } from 'lucide-react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { db, primaryDb } from '@/lib/firebase';
 import { getInfraConfig } from '@/lib/infraConfig';
 import toast from 'react-hot-toast';
@@ -14,17 +14,96 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
   const { branding } = useBranding();
   
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [packageStats, setPackageStats] = useState<Record<string, number>>({ '1m': 0, '3m': 0, '6m': 0, '12m': 0 });
+  const [bestSellerId, setBestSellerId] = useState<string>('12m');
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchStats = async () => {
+      try {
+        const q = query(
+          collection(primaryDb, 'subscription_requests'),
+          where('status', '==', 'approved')
+        );
+        const snapshot = await getDocs(q);
+        const counts: Record<string, number> = { '1m': 0, '3m': 0, '6m': 0, '12m': 0 };
+        
+        snapshot.forEach((doc) => {
+          const pkgId = doc.data().packageId;
+          if (pkgId && counts[pkgId] !== undefined) {
+            counts[pkgId]++;
+          }
+        });
+        
+        setPackageStats(counts);
+
+        let bestId = '12m';
+        let maxCount = 0;
+        Object.entries(counts).forEach(([pkgId, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            bestId = pkgId;
+          }
+        });
+        setBestSellerId(bestId);
+      } catch (err) {
+        console.error("Failed to fetch subscription stats:", err);
+      }
+    };
+
+    fetchStats();
+  }, [isOpen]);
+
   const [subscriptionProofBase64, setSubscriptionProofBase64] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
 
-  const SUBSCRIPTION_PACKAGES = [
-    { id: '1m', title: '1 Bulan', price: 30000, desc: '1 Bulan x Rp 30.000 = Rp 30.000' },
-    { id: '3m', title: '3 Bulan', price: 84000, desc: '3 Bulan x Rp 28.000 = Rp 84.000' },
-    { id: '6m', title: '6 Bulan', price: 159000, desc: '6 Bulan x Rp 26.500 = Rp 159.000' },
-    { id: '12m', title: '12 Bulan', price: 306000, desc: '12 Bulan x Rp 25.500 = Rp 306.000' },
-  ];
+  const SUBSCRIPTION_PACKAGES = React.useMemo(() => {
+    const pkgs = [
+      { id: '1m', title: '1 Bulan', defaultPrice: 30000, months: 1 },
+      { id: '3m', title: '3 Bulan', defaultPrice: 84000, months: 3 },
+      { id: '6m', title: '6 Bulan', defaultPrice: 159000, months: 6 },
+      { id: '12m', title: '12 Bulan', defaultPrice: 306000, months: 12 },
+    ];
+
+    return pkgs.map(p => {
+      const priceKey = `pkg_${p.id}_price`;
+      const typeKey = `pkg_${p.id}_discount_type`;
+      const valKey = `pkg_${p.id}_discount_val`;
+
+      const basePrice = Number((branding as any)[priceKey] ?? p.defaultPrice);
+      const discountType = (branding as any)[typeKey] || 'none';
+      const discountVal = Number((branding as any)[valKey] ?? 0);
+
+      let finalPrice = basePrice;
+      let discountLabel = '';
+
+      if (discountType === 'percent') {
+        finalPrice = Math.max(0, basePrice * (1 - discountVal / 100));
+        discountLabel = `${discountVal}% OFF`;
+      } else if (discountType === 'nominal') {
+        finalPrice = Math.max(0, basePrice - discountVal);
+        discountLabel = `HEMAT Rp ${discountVal.toLocaleString('id-ID')}`;
+      }
+
+      const pricePerMonth = Math.round(finalPrice / p.months);
+
+      const desc = p.months === 1 
+        ? `1 Bulan = Rp ${finalPrice.toLocaleString('id-ID')}` 
+        : `${p.months} Bulan x Rp ${pricePerMonth.toLocaleString('id-ID')} = Rp ${finalPrice.toLocaleString('id-ID')}`;
+
+      return {
+        id: p.id,
+        title: p.title,
+        price: finalPrice,
+        basePrice,
+        discountLabel,
+        desc
+      };
+    });
+  }, [branding]);
 
   if (!isOpen) return null;
 
@@ -148,31 +227,54 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
             </div>
           ) : !selectedPackage ? (
             <div className="space-y-4">
-              {SUBSCRIPTION_PACKAGES.map((pkg, idx) => (
-                <button
-                  key={pkg.id}
-                  onClick={() => setSelectedPackage(pkg)}
-                  style={{ animationDelay: `${idx * 100}ms` }}
-                  className={`w-full p-5 rounded-3xl border flex items-center justify-between group transition-all text-left animate-card-load relative ${
-                    pkg.id === '12m' 
-                      ? 'border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent animate-border-glow animate-shine-sweep' 
-                      : 'border-app-border bg-background hover:border-emerald-500/50 hover:bg-emerald-500/5'
-                  }`}
-                >
-                  {pkg.id === '12m' && (
-                    <div className="absolute -top-3.5 -right-1 bg-gradient-to-r from-amber-500 to-emerald-500 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-full shadow-lg border border-amber-400 animate-float-badge flex items-center gap-1 z-10">
-                      <Sparkles size={8} className="animate-pulse" /> HEMAT 15% / TERLARIS
+              {SUBSCRIPTION_PACKAGES.map((pkg, idx) => {
+                const isBestSeller = pkg.id === bestSellerId;
+                return (
+                  <button
+                    key={pkg.id}
+                    onClick={() => setSelectedPackage(pkg)}
+                    style={{ animationDelay: `${idx * 100}ms` }}
+                    className={`w-full p-5 rounded-3xl border flex items-center justify-between group transition-all text-left animate-card-load relative overflow-hidden ${
+                      isBestSeller 
+                        ? 'border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent animate-border-glow' 
+                        : 'border-app-border bg-background hover:border-emerald-500/50 hover:bg-emerald-500/5'
+                    }`}
+                  >
+                    {isBestSeller && (
+                      <div className="absolute inset-0 rounded-[22px] overflow-hidden pointer-events-none z-0 animate-shine-sweep" />
+                    )}
+                    {isBestSeller && (
+                      <div className="absolute -top-3.5 -right-1 bg-gradient-to-r from-amber-500 to-emerald-500 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-full shadow-lg border border-amber-400 animate-float-badge flex items-center gap-1 z-10">
+                        <Sparkles size={8} className="animate-pulse" /> {pkg.discountLabel ? `${pkg.discountLabel} / TERLARIS` : 'HEMAT 15% / TERLARIS'}
+                      </div>
+                    )}
+                    <div className="relative z-10 flex-1 pr-4">
+                      <h3 className={`text-base font-black transition-colors flex items-center gap-2 ${isBestSeller ? 'text-emerald-400 group-hover:text-emerald-300' : 'text-foreground group-hover:text-emerald-500'}`}>
+                        {pkg.title}
+                        {(pkg.discountLabel && !isBestSeller) && (
+                          <span className="text-[8px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                             {pkg.discountLabel}
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-0.5 flex items-center gap-2 flex-wrap">
+                        <span>{pkg.desc}</span>
+                        {pkg.basePrice > pkg.price && (
+                          <span className="text-app-text-muted line-through opacity-70 font-semibold text-[10px]">
+                            Rp {pkg.basePrice.toLocaleString('id-ID')}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[9px] font-bold text-app-text-muted/80 mt-1.5 flex items-center gap-1">
+                        📊 {packageStats[pkg.id] || 0} pengguna telah berlangganan
+                      </p>
                     </div>
-                  )}
-                  <div>
-                    <h3 className={`text-base font-black transition-colors ${pkg.id === '12m' ? 'text-emerald-400 group-hover:text-emerald-300' : 'text-foreground group-hover:text-emerald-500'}`}>{pkg.title}</h3>
-                    <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest mt-0.5">{pkg.desc}</p>
-                  </div>
-                  <div className="bg-emerald-500/10 px-4 py-2 rounded-xl group-hover:bg-emerald-500/20 transition-colors">
-                    <span className="text-[10px] font-black text-emerald-500 tracking-wider">PILIH</span>
-                  </div>
-                </button>
-              ))}
+                    <div className="bg-emerald-500/10 px-4 py-2 rounded-xl group-hover:bg-emerald-500/20 transition-colors relative z-10">
+                      <span className="text-[10px] font-black text-emerald-500 tracking-wider">PILIH</span>
+                    </div>
+                  </button>
+                );
+              })}
               <div className="flex items-start gap-3 mt-6 p-4 rounded-xl bg-background/50 border border-app-border">
                 <Info size={16} className="text-app-text-muted flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] text-app-text-muted italic leading-relaxed">

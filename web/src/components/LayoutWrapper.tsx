@@ -15,11 +15,12 @@ import { auth, db, primaryDb } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { handleExportJSON } from '@/lib/backupUtils';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import FeedbackModal from '@/components/FeedbackModal';
 import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired } = useAuthStore();
+  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const { branding } = useBranding();
@@ -29,6 +30,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const [showNotifications, setShowNotifications] = useState(false);
   const [isBackuping, setIsBackuping] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
   const addInternalNotification = useNotificationStore(state => state.addNotification);
   const unreadCount = useNotificationStore(state => state.getUnreadCount());
@@ -234,6 +236,191 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   }, [storeId]);
 
   useEffect(() => {
+    const handleOpenSub = () => setShowSubscriptionModal(true);
+    const handleOpenFeedback = () => setShowFeedbackModal(true);
+    window.addEventListener('open-subscription-modal', handleOpenSub);
+    window.addEventListener('open-feedback-modal', handleOpenFeedback);
+    return () => {
+      window.removeEventListener('open-subscription-modal', handleOpenSub);
+      window.removeEventListener('open-feedback-modal', handleOpenFeedback);
+    };
+  }, []);
+
+  // Subscription Expiry Warning Check
+  useEffect(() => {
+    if (!subscriptionUntil || !user || role === 'super-admin' || role === 'superadmin' || role === 'customer') return;
+
+    const expiryDate = new Date(subscriptionUntil);
+    const now = new Date();
+    
+    // Calculate difference in days (rounded up to nearest day)
+    const diffTime = expiryDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // We only care about 7, 3, and 1 days before expiration
+    if ([7, 3, 1].includes(diffDays)) {
+      const todayStr = now.toISOString().split('T')[0];
+      const storageKey = `sub_warned_${user.uid}_${diffDays}_${todayStr}`;
+      
+      if (!localStorage.getItem(storageKey)) {
+        // Mark as warned for today to avoid toast spam
+        localStorage.setItem(storageKey, 'true');
+
+        // Add to notification store
+        addInternalNotification({
+          title: 'Masa Aktif Hampir Habis',
+          body: `Masa aktif langganan Anda tersisa ${diffDays} hari lagi. Segera lakukan perpanjangan agar layanan tetap aktif.`,
+          type: 'subscription_warning'
+        });
+
+        // Show toast with action button
+        toast((t) => (
+          <div className="flex flex-col gap-2 p-1">
+            <div className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <span>⚠️ Peringatan Langganan</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+              Masa aktif langganan Anda tersisa <strong className="text-amber-500">{diffDays} hari</strong> lagi.
+            </p>
+            <div className="flex gap-2 justify-end mt-2">
+              <button 
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  setShowSubscriptionModal(true);
+                }}
+                className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm hover:bg-emerald-600 active:scale-95 transition-all"
+              >
+                Perpanjang
+              </button>
+              <button 
+                onClick={() => toast.dismiss(t.id)}
+                className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+              >
+                Nanti
+              </button>
+            </div>
+          </div>
+        ), {
+          duration: 10000,
+          position: 'top-right',
+          style: {
+            background: 'var(--surface, #ffffff)',
+            border: '1px solid var(--app-border, #e2e8f0)',
+            borderRadius: '16px',
+            padding: '12px'
+          }
+        });
+      }
+    }
+  }, [subscriptionUntil, user, role, addInternalNotification]);
+
+  // Expiring & Low Stock Product Notification Check
+  useEffect(() => {
+    if (!storeId || (role as string) === 'customer') return;
+
+    const q = query(
+      collection(db, 'products'),
+      where('storeId', '==', storeId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const lowStockProducts: string[] = [];
+      const expiringProducts: string[] = [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // 1. Check Low Stock
+        if (data.manageStock !== false && data.stock !== undefined && data.stock !== null) {
+          const stockNum = Number(data.stock);
+          if (stockNum <= 5) {
+            lowStockProducts.push(`${data.name} (Stok: ${stockNum})`);
+          }
+        }
+
+        // 2. Check Expiry
+        if (data.expiryDate) {
+          const expiryDate = new Date(data.expiryDate);
+          expiryDate.setHours(0, 0, 0, 0);
+          const diffTime = expiryDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 0 && diffDays <= 30) {
+            expiringProducts.push(`${data.name} (Expired: ${diffDays} hari lagi)`);
+          }
+        }
+      });
+
+      if (lowStockProducts.length > 0 || expiringProducts.length > 0) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const storageKey = `prod_warned_${storeId}_${todayStr}`;
+
+        if (!localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, 'true');
+
+          let warnMessage = '';
+          if (lowStockProducts.length > 0) {
+            warnMessage += `⚠️ Stok Menipis:\n${lowStockProducts.slice(0, 3).join('\n')}${lowStockProducts.length > 3 ? '\n...dan lainnya' : ''}\n\n`;
+          }
+          if (expiringProducts.length > 0) {
+            warnMessage += `🚨 Hampir Expired:\n${expiringProducts.slice(0, 3).join('\n')}${expiringProducts.length > 3 ? '\n...dan lainnya' : ''}`;
+          }
+
+          // Trigger internal notification
+          addInternalNotification({
+            title: 'Peringatan Stok & Expired',
+            body: `Terdapat ${lowStockProducts.length} produk menipis dan ${expiringProducts.length} hampir kadaluwarsa.`,
+            type: 'stock_warning'
+          });
+
+          // Show Toast Alert
+          toast((t) => (
+            <div className="flex flex-col gap-2 p-1 max-w-[280px]">
+              <div className="text-sm font-black text-rose-500 flex items-center gap-1.5">
+                <span>⚠️ Peringatan Persediaan</span>
+              </div>
+              <div className="text-xs font-bold text-slate-700 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+                {warnMessage}
+              </div>
+              <div className="flex gap-2 justify-end mt-2">
+                <button 
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    router.push('/products');
+                  }}
+                  className="px-3 py-1.5 bg-accent text-white text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm active:scale-95 transition-all"
+                >
+                  Cek Gudang
+                </button>
+                <button 
+                  onClick={() => toast.dismiss(t.id)}
+                  className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-black rounded-lg uppercase tracking-wider hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          ), {
+            duration: 12000,
+            position: 'top-right',
+            style: {
+              background: 'var(--surface, #ffffff)',
+              border: '1px solid var(--app-border, #e2e8f0)',
+              borderRadius: '16px',
+              padding: '12px'
+            }
+          });
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [storeId, role, addInternalNotification, router]);
+
+  useEffect(() => {
     if (!storeId) return;
     const fetchLogo = async () => {
       try {
@@ -311,7 +498,18 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         }
       }
 
-      // 3. Protection for Customer Routes: (Optional: Admins browsing TR can stay but handled differently in TR page)
+      // 3. Protection for Subscription Expiry
+      if (user && isSubscriptionExpired && role !== 'super-admin') {
+        const blockedPaths = ['/users', '/pos', '/estimations', '/debts'];
+        const isBlockedPath = blockedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+        if (isBlockedPath) {
+          router.push('/');
+          toast.error('Akses Terkunci. Masa aktif langganan habis.', { id: 'sub-expired-toast', style: { background: '#f43f5e', color: '#fff' } });
+          return;
+        }
+      }
+
+      // 4. Protection for Customer Routes: (Optional: Admins browsing TR can stay but handled differently in TR page)
       // We already handled this in the previous turn by ensuring routing guard redirects to home for admins if needed,
       // but here we focus on the USER's specific request about separation.
 
@@ -337,7 +535,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           router.push('/');
         }
         // Dashboard Check
-        else if (pathname === '/' && !permissions.canViewReports) {
+        else if (pathname === '/' && !permissions.canViewReports && !isSubscriptionExpired) {
           router.push('/pos');
         }
       }
@@ -615,6 +813,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           </>
         )}
         <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
+        <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
       </main>
       <MobileBottomNav />
       <PWAInstallButton />

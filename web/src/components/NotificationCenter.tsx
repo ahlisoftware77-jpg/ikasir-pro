@@ -1,7 +1,7 @@
 'use client';
 
 import { useNotificationStore } from '@/store/notifications';
-import { Bell, X, Trash2, CheckCheck, ShoppingBag, Info, AlertCircle, Clock } from 'lucide-react';
+import { Bell, X, Trash2, CheckCheck, ShoppingBag, Info, AlertCircle, Clock, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -76,7 +76,13 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
             notifications.map((item) => (
               <div 
                 key={item.id}
-                onClick={() => markAsRead(item.id)}
+                onClick={() => {
+                  markAsRead(item.id);
+                  if (item.type === 'subscription_warning') {
+                    onClose();
+                    window.dispatchEvent(new CustomEvent('open-subscription-modal'));
+                  }
+                }}
                 className={`p-4 rounded-3xl border transition-all cursor-pointer relative group ${
                   item.isRead 
                     ? 'bg-background/40 border-app-border' 
@@ -91,10 +97,14 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     item.type === 'order' ? 'bg-emerald-500/10 text-emerald-500' :
                     item.type === 'debt' ? 'bg-rose-500/10 text-rose-500' :
+                    item.type === 'stock_warning' ? 'bg-amber-500/10 text-amber-500' :
+                    item.type === 'subscription_warning' ? 'bg-amber-500/10 text-amber-500' :
                     'bg-blue-500/10 text-blue-500'
                   }`}>
                     {item.type === 'order' ? <ShoppingBag size={18} /> :
                      item.type === 'debt' ? <AlertCircle size={18} /> :
+                     item.type === 'stock_warning' ? <AlertCircle size={18} /> :
+                     item.type === 'subscription_warning' ? <Sparkles size={18} /> :
                      <Info size={18} />}
                   </div>
                   

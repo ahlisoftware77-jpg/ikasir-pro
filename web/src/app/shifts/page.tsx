@@ -20,7 +20,8 @@ import {
   TrendingUp,
   CreditCard,
   Wallet,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { Shift } from '@/types';
 import toast from 'react-hot-toast';
@@ -44,6 +45,11 @@ export default function ShiftsPage() {
   const [startingCash, setStartingCash] = useState('');
   const [actualCash, setActualCash] = useState('');
   const [closeNote, setCloseNote] = useState('');
+
+  // Reset startingCash States
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (!storeId || !user) return;
@@ -115,6 +121,31 @@ export default function ShiftsPage() {
 
     return () => unsubTrx();
   }, [activeShift, storeId]);
+
+  const handleResetStartingCash = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetConfirmText !== 'Kosongkan Saldo') {
+      toast.error('Teks konfirmasi salah!');
+      return;
+    }
+    if (!activeShift) return;
+
+    setIsResetting(true);
+    try {
+      const shiftRef = doc(db, 'shifts', activeShift.id!);
+      await updateDoc(shiftRef, {
+        startingCash: 0
+      });
+      toast.success('Modal awal berhasil dikosongkan!');
+      setIsResetModalOpen(false);
+      setResetConfirmText('');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal mereset modal awal.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handleStartShift = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +324,12 @@ export default function ShiftsPage() {
                                 <Wallet size={14} className="shrink-0 text-app-text-muted" /> 
                                 Modal: Rp {activeShift.startingCash.toLocaleString('id-ID')}
                             </div>
+                            <button
+                              onClick={() => setIsResetModalOpen(true)}
+                              className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors shrink-0"
+                            >
+                                <Trash2 size={14} /> Reset Saldo
+                            </button>
                         </div>
                     </div>
 
@@ -543,6 +580,53 @@ export default function ShiftsPage() {
                     </button>
                 </div>
              </form>
+          </div>
+        </div>
+      )}
+
+      {/* RESET SALDO MODAL */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-surface border-2 border-app-border rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <h3 className="text-xl font-black text-rose-500 uppercase tracking-tight">Reset Modal Awal</h3>
+                <p className="text-xs text-app-text-muted font-bold">Kosongkan saldo awal sesi shift aktif ini.</p>
+              </div>
+              <button 
+                onClick={() => { setIsResetModalOpen(false); setResetConfirmText(''); }}
+                className="w-8 h-8 rounded-lg bg-app-border/50 flex items-center justify-center text-app-text-muted hover:text-foreground transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetStartingCash} className="space-y-4">
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-xs font-bold text-rose-500 leading-relaxed">
+                Tindakan ini akan mengosongkan Modal Awal aktif menjadi <strong>Rp 0</strong>. Ketik <strong>Kosongkan Saldo</strong> di bawah untuk mengonfirmasi.
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest pl-2">Teks Konfirmasi</label>
+                <input 
+                  type="text"
+                  required
+                  value={resetConfirmText}
+                  onChange={e => setResetConfirmText(e.target.value)}
+                  placeholder="Kosongkan Saldo"
+                  className="w-full px-5 py-4 bg-background border border-app-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isResetting || resetConfirmText !== 'Kosongkan Saldo'}
+                className="w-full py-4 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white rounded-xl font-black shadow-lg shadow-rose-500/20 active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                {isResetting && <Loader2 size={16} className="animate-spin" />}
+                KONFIRMASI KOSONGKAN SALDO
+              </button>
+            </form>
           </div>
         </div>
       )}

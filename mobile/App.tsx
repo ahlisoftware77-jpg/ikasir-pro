@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
+
+export const navigationRef = createNavigationContainerRef();
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -153,7 +155,7 @@ function TabNavigator() {
 }
 
 function NavigationRoot() {
-  const { user, logout, role } = useAuthStore();
+  const { user, logout, role, storeId } = useAuthStore();
   const { colors, theme } = useTheme();
   const [maintenance, setMaintenance] = useState<{ isActive: boolean; message: string } | null>(null);
 
@@ -211,6 +213,47 @@ function NavigationRoot() {
         if (validUntil) {
           useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
           useAuthStore.getState().setIsSubscriptionExpired(now > validUntil);
+
+          // Expiry warning check
+          if (userData.role !== 'super-admin' && userData.role !== 'superadmin' && userData.role !== 'customer') {
+            const diffTime = validUntil.getTime() - now.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if ([7, 3, 1].includes(diffDays)) {
+              const todayStr = now.toISOString().split('T')[0];
+              const storageKey = `sub_warned_mobile_${user.uid}_${diffDays}_${todayStr}`;
+              
+              AsyncStorage.getItem(storageKey).then((val) => {
+                if (!val) {
+                  AsyncStorage.setItem(storageKey, 'true');
+                  
+                  // Add to local notification store
+                  useNotificationStore.getState().addNotification({
+                    title: 'Masa Aktif Hampir Habis',
+                    body: `Masa aktif langganan Anda tersisa ${diffDays} hari lagi. Segera lakukan perpanjangan agar layanan tetap aktif.`,
+                    data: { type: 'subscription_warning' }
+                  });
+
+                  // Show alert
+                  Alert.alert(
+                    'Peringatan Langganan',
+                    `Masa aktif langganan Anda tersisa ${diffDays} hari lagi. Segera perpanjang agar layanan tetap aktif.`,
+                    [
+                      {
+                        text: 'Perpanjang',
+                        onPress: () => {
+                          if (navigationRef.isReady()) {
+                            (navigationRef as any).navigate('Lainnya', { openSubscription: true });
+                          }
+                        }
+                      },
+                      { text: 'Nanti', style: 'cancel' }
+                    ]
+                  );
+                }
+              }).catch(err => console.error("Error reading sub warned AsyncStorage:", err));
+            }
+          }
         } else {
           useAuthStore.getState().setSubscriptionUntil(null);
           useAuthStore.getState().setIsSubscriptionExpired(false);
@@ -273,6 +316,85 @@ function NavigationRoot() {
       unsubBroadcasts();
     };
   }, [user?.uid]);
+
+  // Expiring & Low Stock Product Notification Check
+  useEffect(() => {
+    if (!storeId || (role as string) === 'customer') return;
+
+    const q = query(
+      collection(db, 'products'),
+      where('storeId', '==', storeId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const lowStockProducts: string[] = [];
+      const expiringProducts: string[] = [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // 1. Check Low Stock
+        if (data.manageStock !== false && data.stock !== undefined && data.stock !== null) {
+          const stockNum = Number(data.stock);
+          if (stockNum <= 5) {
+            lowStockProducts.push(`${data.name} (Stok: ${stockNum})`);
+          }
+        }
+
+        // 2. Check Expiry
+        if (data.expiryDate) {
+          const expiryDate = new Date(data.expiryDate);
+          expiryDate.setHours(0, 0, 0, 0);
+          const diffTime = expiryDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 0 && diffDays <= 30) {
+            expiringProducts.push(`${data.name} (Expired: ${diffDays} hari lagi)`);
+          }
+        }
+      });
+
+      if (lowStockProducts.length > 0 || expiringProducts.length > 0) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const storageKey = `prod_warned_mobile_${storeId}_${todayStr}`;
+
+        AsyncStorage.getItem(storageKey).then((val) => {
+          if (!val) {
+            AsyncStorage.setItem(storageKey, 'true');
+
+            let warnMessage = '';
+            if (lowStockProducts.length > 0) {
+              warnMessage += `⚠️ Stok Menipis:\n${lowStockProducts.slice(0, 3).join('\n')}${lowStockProducts.length > 3 ? '\n...dan lainnya' : ''}\n\n`;
+            }
+            if (expiringProducts.length > 0) {
+              warnMessage += `🚨 Hampir Expired:\n${expiringProducts.slice(0, 3).join('\n')}${expiringProducts.length > 3 ? '\n...dan lainnya' : ''}`;
+            }
+
+            // Trigger internal notification
+            useNotificationStore.getState().addNotification({
+              title: 'Peringatan Stok & Expired',
+              body: `Terdapat ${lowStockProducts.length} produk menipis dan ${expiringProducts.length} hampir kadaluwarsa.`,
+              data: { type: 'stock_warning' }
+            });
+
+            // Show native alert popup
+            Alert.alert(
+              '⚠️ Peringatan Persediaan',
+              warnMessage.trim(),
+              [{ text: 'OK', style: 'default' }]
+            );
+          }
+        }).catch(err => console.error("Error reading prod warned AsyncStorage:", err));
+      }
+    }, (err) => {
+      console.error("Error listening to products in App.tsx:", err);
+    });
+
+    return () => unsubscribe();
+  }, [storeId, role]);
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
@@ -364,7 +486,7 @@ function NavigationRoot() {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator 
         screenOptions={{ 
           headerShown: false,
