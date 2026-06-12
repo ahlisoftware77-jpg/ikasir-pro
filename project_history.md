@@ -69,6 +69,19 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
     *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi data hak akses dari Firestore, filter visibilitas Bottom Tab berdasarkan izin staf, dan menyamarkan tab yang diblokir SuperAdmin.
     *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Menyembunyikan menu berdasarkan izin staf dan menyamarkan menu yang diblokir SuperAdmin.
 
+#### Catatan Deployment & Perintah yang Dijalankan:
+1.  **Git Commit & Push**:
+    *   *Perintah*: `git add .` dan `git commit -m "feat: implement staff permissions on mobile & superadmin disabled menu dimming"`
+    *   *Hasil*: Commit `d088f0e6` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+2.  **Expo OTA Update**:
+    *   *Perintah*: `npx eas-cli update --channel production --message "feat: staff permissions and superadmin menu dimming" --non-interactive`
+    *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
+        *   **Runtime Version**: `1.0.0`
+        *   **Update Group ID**: `c56854ba-c744-472f-b8b2-6c1cdaa1a53d`
+        *   **Android Update ID**: `019ebc69-5ece-79ba-ae07-e4f7332ab6c4`
+        *   **iOS Update ID**: `019ebc69-5ece-7b63-9415-7136958a0afb`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/c56854ba-c744-472f-b8b2-6c1cdaa1a53d)
+
 ---
 
 ## 📌 Rencana Pengembangan Selanjutnya (Next Roadmap)
