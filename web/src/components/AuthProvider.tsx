@@ -10,7 +10,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const { 
     setUser, setRole, setLoading, setBlockingDetails, 
     setStoreId, setStoreName, setUserName, setLogoUrl, setPermissions, 
-    setOnline, setSyncing, isOnline, setDisabledMenus
+    setOnline, setSyncing, isOnline, setDisabledMenus, setExpiredDisabledMenus
   } = useAuthStore();
 
   useEffect(() => {
@@ -32,6 +32,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     let unsubscribeUser: (() => void) | null = null;
     let unsubscribeBroadcasts: (() => void) | null = null;
+    
+    // Monitor branding global settings
+    const unsubscribeBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setExpiredDisabledMenus(data.expiredDisabledMenus || []);
+      }
+    }, (error) => {
+      console.error("Error listening to branding global settings:", error);
+    });
 
     // 3. Monitor Auth State
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -374,11 +384,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       unsubscribeSync();
       unsubscribeAuth();
       unsubscribeMaintenance();
+      unsubscribeBranding();
       if (unsubscribeUser) {
         unsubscribeUser();
       }
     };
-  }, [setUser, setRole, setLoading, setBlockingDetails, setStoreId, setStoreName, setLogoUrl, setPermissions, setOnline, setSyncing]);
+  }, [setUser, setRole, setLoading, setBlockingDetails, setStoreId, setStoreName, setLogoUrl, setPermissions, setOnline, setSyncing, setExpiredDisabledMenus]);
 
   return <>{children}</>;
 }
