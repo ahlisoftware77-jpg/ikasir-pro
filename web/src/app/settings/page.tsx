@@ -715,18 +715,11 @@ export default function SettingsPage() {
             {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
           </p>
         </div>
-        {hasPendingSubscription ? (
+        {hasPendingSubscription && (
           <div className="bg-amber-500/20 px-6 py-3 rounded-2xl border border-amber-500/50 shadow-lg flex items-center gap-2">
             <History size={16} className="text-amber-500 animate-spin-slow" />
             <span className="text-xs font-black uppercase tracking-wider text-amber-500">Menunggu Verifikasi Pusat</span>
           </div>
-        ) : (
-          <button 
-            onClick={() => setShowSubscriptionModal(true)}
-            className="bg-white px-6 py-3 rounded-2xl border border-white/20 shadow-lg text-xs font-black uppercase tracking-wider text-accent hover:scale-105 active:scale-95 transition-all"
-          >
-            Perpanjang Sekarang
-          </button>
         )}
       </div>
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   LayoutDashboard, Package, ShoppingCart, Users, LogOut, Settings, Calculator, 
   ChevronDown, ChevronUp, Palette, Sun, Moon, Cloud, Sparkles, X, ClipboardList, 
@@ -80,9 +80,17 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications }: SidebarProps) {
   const pathname = usePathname();
-  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired } = useAuthStore();
+  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const { branding } = useBranding();
+
+  const sisaHari = useMemo(() => {
+    if (!subscriptionUntil) return null;
+    const expiryDate = new Date(subscriptionUntil);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [subscriptionUntil]);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ '/products': true });
   const unreadNotifications = useNotificationStore(state => state.getUnreadCount());
 
@@ -352,6 +360,22 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             </div>
           </div>
         </div>
+
+        {/* Active Period Warning Badge & Button */}
+        {sisaHari !== null && sisaHari <= 7 && role !== 'super-admin' && role !== 'superadmin' && role !== 'customer' && (
+          <div className="mb-4 mx-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
+            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-amber-500">
+              <span>Masa Aktif</span>
+              <span>{sisaHari <= 0 ? 'Habis' : `${sisaHari} Hari`}</span>
+            </div>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-subscription-modal'))}
+              className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 text-center"
+            >
+              Perpanjang Sekarang
+            </button>
+          </div>
+        )}
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-rose-500 hover:bg-rose-500/10 rounded-md transition-all font-bold group border border-transparent hover:border-rose-500/20"

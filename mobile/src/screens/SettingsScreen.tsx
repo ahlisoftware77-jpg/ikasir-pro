@@ -48,6 +48,14 @@ export default function SettingsScreen({ navigation, route }: any) {
   const { colors, theme, setTheme } = useTheme();
   const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
+  const sisaHari = useMemo(() => {
+    if (!subscriptionUntil) return null;
+    const expiryDate = new Date(subscriptionUntil);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [subscriptionUntil]);
+
   const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | 'superAdminSubscriptions' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
 
@@ -1099,49 +1107,35 @@ export default function SettingsScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
 
-        <View className="px-6 mt-4">
-          <TouchableOpacity 
-            onPress={() => {
-              if (hasPendingSubscription) {
-                Alert.alert(
-                  'Pengajuan Diproses',
-                  'Pengajuan perpanjangan langganan Anda sedang diverifikasi oleh admin. Silakan konfirmasi via WhatsApp untuk proses lebih cepat.',
-                  [
-                    { 
-                      text: 'Hubungi Admin', 
-                      onPress: () => Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20IKASIR%20PRO,%20saya%20sudah%20mengirim%20bukti%20pembayaran%20dan%20sedang%20menunggu%20verifikasi.') 
-                    },
-                    { text: 'Tutup', style: 'cancel' }
-                  ]
-                );
-              } else {
-                setActiveModal('subscriptionMenu');
-              }
-            }}
-            activeOpacity={0.8}
-            className="w-full rounded-3xl p-5 border flex-row items-center overflow-hidden relative shadow-lg shadow-emerald-500/20"
-            style={{ 
-              backgroundColor: hasPendingSubscription ? '#f59e0b' : colors.accent, 
-              borderColor: hasPendingSubscription ? '#f59e0b' : colors.accent 
-            }}
-          >
-            <View className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full" />
-            <View className="absolute -left-4 -top-4 w-16 h-16 bg-black/10 rounded-full" />
-            
-            <View className="flex-1">
-              <Text className="text-white font-black text-xs uppercase tracking-widest mb-1">Masa Aktif Akun</Text>
-              <Text className="text-white/80 font-bold text-[10px]">
-                {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
-                {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-              </Text>
+        {(isSubscriptionExpired || hasPendingSubscription || (sisaHari !== null && sisaHari <= 7)) && (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (
+          <View className="px-6 mt-4">
+            <View 
+              className="w-full rounded-3xl p-5 border flex-row items-center overflow-hidden relative shadow-lg shadow-emerald-500/20"
+              style={{ 
+                backgroundColor: hasPendingSubscription ? '#f59e0b' : colors.accent, 
+                borderColor: hasPendingSubscription ? '#f59e0b' : colors.accent 
+              }}
+            >
+              <View className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full" />
+              <View className="absolute -left-4 -top-4 w-16 h-16 bg-black/10 rounded-full" />
+              
+              <View className="flex-1">
+                <Text className="text-white font-black text-xs uppercase tracking-widest mb-1">Masa Aktif Akun</Text>
+                <Text className="text-white/80 font-bold text-[10px]">
+                  {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
+                  {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                </Text>
+              </View>
+              {hasPendingSubscription && (
+                <View className="bg-white px-3 py-2 rounded-xl border border-white/20">
+                  <Text className="text-[10px] font-black uppercase tracking-wider text-amber-500">
+                    Menunggu Verifikasi
+                  </Text>
+                </View>
+              )}
             </View>
-            <View className="bg-white px-3 py-2 rounded-xl border border-white/20">
-              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: hasPendingSubscription ? '#f59e0b' : colors.accent }}>
-                {hasPendingSubscription ? 'Menunggu Verifikasi' : 'Perpanjang'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
 
         {/* Section 1: Transaksi & Keuangan */}
         <View className="mt-6 px-6">

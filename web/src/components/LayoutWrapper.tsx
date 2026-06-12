@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/store/auth';
 import Sidebar from './Sidebar';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, ReactNode, useState } from 'react';
+import { useEffect, ReactNode, useState, useMemo } from 'react';
 import { Menu, LogOut, Cloud, ShieldCheck, User as UserIcon, X, Store, Loader2, Bell } from 'lucide-react';
 import { useBranding } from '@/context/BrandingContext';
 import PWAInstallButton from './PWAInstallButton';
@@ -23,6 +23,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  const sisaHari = useMemo(() => {
+    if (!subscriptionUntil) return null;
+    const expiryDate = new Date(subscriptionUntil);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [subscriptionUntil]);
   const { branding } = useBranding();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const setWasAuthenticated = useAuthStore(state => state.setWasAuthenticated);
@@ -758,6 +766,29 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           </div>
         )}
         
+        {!isSubscriptionExpired && !hasPendingSubscription && sisaHari !== null && sisaHari <= 7 && role !== 'super-admin' && role !== 'superadmin' && role !== 'customer' && (
+          <div className="mb-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-500">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-amber-500 uppercase tracking-widest">Masa Aktif Hampir Habis</h3>
+                <p className="text-xs text-app-text-muted mt-1 font-bold">
+                  Akun langganan Anda akan berakhir pada {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}.
+                  Tersisa <span className="text-amber-500 font-extrabold">{sisaHari <= 0 ? 'kurang dari 1' : sisaHari} hari</span> lagi.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowSubscriptionModal(true)}
+              className="w-full md:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors text-center whitespace-nowrap shrink-0"
+            >
+              Perpanjang Sekarang
+            </button>
+          </div>
+        )}
+
         {isSubscriptionExpired && (
           <div className="mb-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500">
             <div className="flex items-center gap-3">
