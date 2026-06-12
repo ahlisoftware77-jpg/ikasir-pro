@@ -184,9 +184,6 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
           {menuItems.filter(item => {
             if (item.superOnly) return role === 'super-admin';
             
-            // Check if disabled by superadmin
-            if (disabledMenus && disabledMenus.includes(item.path)) return false;
-            
             // Priority for granular permissions
             if ((item as any).permission) {
               const permKey = (item as any).permission;
@@ -201,11 +198,18 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             
             if (item.subItems) {
               const isOpen = openMenus[item.path];
+              const isSuperAdminBlocked = disabledMenus?.includes(item.path);
               return (
                 <div key={item.path} className="space-y-1 py-1">
                   <button
-                    onClick={() => toggleMenu(item.path)}
-                    className={`uiverse-btn ${isActive && !isOpen ? 'active-btn' : ''}`}
+                    onClick={() => {
+                      if (isSuperAdminBlocked) {
+                        toast.error('Akses Terkunci. Fitur dinonaktifkan oleh administrator.', { style: { background: '#f43f5e', color: '#fff' } });
+                      } else {
+                        toggleMenu(item.path);
+                      }
+                    }}
+                    className={`uiverse-btn ${isActive && !isOpen ? 'active-btn' : ''} ${isSuperAdminBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <span className="uiverse-btn-top w-full justify-between">
                       <span className="flex items-center gap-3">
@@ -216,7 +220,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                     </span>
                   </button>
                   
-                  {isOpen && (
+                  {isOpen && !isSuperAdminBlocked && (
                     <div className="pl-6 space-y-1 mt-1.5 border-l border-app-border ml-4">
                       {item.subItems.map(sub => {
                         const isSubActive = pathname === sub.path;
@@ -241,7 +245,8 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
               );
             }
 
-            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(item.path);
+            const isSuperAdminBlocked = disabledMenus?.includes(item.path);
+            const isBlocked = (isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(item.path)) || isSuperAdminBlocked;
 
             if (item.path === '#subscription') {
               return (
@@ -306,7 +311,11 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                   onClick={(e) => {
                     if (isBlocked) {
                       e.preventDefault();
-                      toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                      if (isSuperAdminBlocked) {
+                        toast.error('Akses Terkunci. Fitur dinonaktifkan oleh administrator.', { style: { background: '#f43f5e', color: '#fff' } });
+                      } else {
+                        toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                      }
                     }
                   }}
                   className={`uiverse-btn ${pathname === item.path ? 'active-btn' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}

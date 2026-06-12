@@ -42,7 +42,7 @@ const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
   const { colors } = useTheme();
-  const { role, storeId, subscriptionUntil, isSubscriptionExpired, disabledMenus } = useAuthStore();
+  const { role, storeId, subscriptionUntil, isSubscriptionExpired, disabledMenus, permissions } = useAuthStore();
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const insets = useSafeAreaInsets();
 
@@ -73,6 +73,37 @@ function TabNavigator() {
 
     return () => unsubscribe();
   }, [storeId]);
+
+  const getTabOptions = (title: string, path: string, iconComponent: any, extraOptions = {}) => {
+    const isMenuDisabled = disabledMenus?.includes(path);
+    return {
+      tabBarIcon: ({ color }: any) => {
+        const Icon = iconComponent;
+        return <Icon color={color} size={26} strokeWidth={2.5} />;
+      },
+      title,
+      tabBarButton: (props: any) => (
+        <TouchableOpacity
+          {...props}
+          activeOpacity={isMenuDisabled ? 1 : 0.2}
+          style={[props.style, isMenuDisabled && { opacity: 0.4 }]}
+          onPress={(e) => {
+            if (isMenuDisabled) {
+              Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
+            } else {
+              props.onPress?.(e);
+            }
+          }}
+        />
+      ),
+      ...extraOptions
+    };
+  };
+
+  const isBerandaVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canViewReports;
+  const isKasirVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canAccessPOS;
+  const isPesananVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canManageOrders;
+  const isTransaksiVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canAccessPOS;
 
   return (
     <Tab.Navigator
@@ -109,33 +140,25 @@ function TabNavigator() {
         }
       }}
     >
-      {!disabledMenus?.includes('/reports') && (
+      {isBerandaVisible && (
         <Tab.Screen 
           name="Beranda" 
           component={DashboardScreen} 
-          options={{
-            tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={26} strokeWidth={2.5} />,
-            title: 'DASBOR UTAMA'
-          }}
+          options={getTabOptions('DASBOR UTAMA', '/reports', LayoutDashboard)}
         />
       )}
-      {!disabledMenus?.includes('/pos') && (
+      {isKasirVisible && (
         <Tab.Screen 
           name="Kasir" 
           component={POSScreen} 
-          options={{
-            tabBarIcon: ({ color }) => <Calculator color={color} size={26} strokeWidth={2.5} />,
-            title: 'IKASIR PRO'
-          }}
+          options={getTabOptions('IKASIR PRO', '/pos', Calculator)}
         />
       )}
-      {!disabledMenus?.includes('/orders') && (
+      {isPesananVisible && (
         <Tab.Screen 
           name="Pesanan" 
           component={OrdersScreen} 
-          options={{
-            tabBarIcon: ({ color }) => <ShoppingBag color={color} size={26} strokeWidth={2.5} />,
-            title: 'PESANAN ONLINE',
+          options={getTabOptions('PESANAN ONLINE', '/orders', ShoppingBag, {
             tabBarBadge: newOrdersCount > 0 ? newOrdersCount : undefined,
             tabBarBadgeStyle: {
               backgroundColor: '#ef4444',
@@ -147,17 +170,14 @@ function TabNavigator() {
               borderRadius: 10,
               lineHeight: 20,
             }
-          }}
+          })}
         />
       )}
-      {!disabledMenus?.includes('/transactions') && (
+      {isTransaksiVisible && (
         <Tab.Screen 
           name="Transaksi" 
           component={TransactionsScreen} 
-          options={{
-            tabBarIcon: ({ color }) => <History color={color} size={26} strokeWidth={2.5} />,
-            title: 'RIWAYAT TRANSAKSI'
-          }}
+          options={getTabOptions('RIWAYAT TRANSAKSI', '/transactions', History)}
         />
       )}
       <Tab.Screen 
@@ -288,7 +308,43 @@ function NavigationRoot() {
           useAuthStore.getState().setIsSubscriptionExpired(false);
         }
 
-        if (userData.role) useAuthStore.getState().setRole(userData.role);
+        if (userData.role) {
+          useAuthStore.getState().setRole(userData.role);
+          let userPermissions = null;
+          if (userData.role === 'admin' || userData.role === 'super-admin' || userData.role === 'superadmin') {
+            userPermissions = {
+              canAccessPOS: true,
+              canManageProducts: true,
+              canCreateProducts: true,
+              canEditProducts: true,
+              canDeleteProducts: true,
+              canViewReports: true,
+              canManageUsers: true,
+              canEditSettings: true,
+              canManageEstimations: true,
+              canManageDebts: true,
+              canManageOrders: true,
+              canViewLogs: true
+            };
+          } else {
+            userPermissions = {
+              canAccessPOS: userData.permissions?.canAccessPOS ?? true,
+              canManageProducts: userData.permissions?.canManageProducts ?? false,
+              canCreateProducts: userData.permissions?.canCreateProducts ?? userData.permissions?.canManageProducts ?? false,
+              canEditProducts: userData.permissions?.canEditProducts ?? userData.permissions?.canManageProducts ?? false,
+              canDeleteProducts: userData.permissions?.canDeleteProducts ?? userData.permissions?.canManageProducts ?? false,
+              canViewReports: userData.permissions?.canViewReports ?? false,
+              canManageUsers: userData.permissions?.canManageUsers ?? false,
+              canEditSettings: userData.permissions?.canEditSettings ?? false,
+              canManageEstimations: userData.permissions?.canManageEstimations ?? false,
+              canManageDebts: userData.permissions?.canManageDebts ?? false,
+              canManageOrders: userData.permissions?.canManageOrders ?? false,
+              canViewLogs: userData.permissions?.canViewLogs ?? false,
+              ...userData.permissions
+            };
+          }
+          useAuthStore.getState().setPermissions(userPermissions);
+        }
         if (userData.storeId) {
           useAuthStore.getState().setStoreId(userData.storeId);
           getDoc(doc(db, 'stores', userData.storeId)).then((storeSnap) => {

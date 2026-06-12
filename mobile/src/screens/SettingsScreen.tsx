@@ -46,7 +46,7 @@ const getFontFamily = (id: string) => {
 
 export default function SettingsScreen({ navigation, route }: any) {
   const { colors, theme, setTheme } = useTheme();
-  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil, disabledMenus } = useAuthStore();
+  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil, disabledMenus, permissions } = useAuthStore();
 
   const sisaHari = useMemo(() => {
     if (!subscriptionUntil) return null;
@@ -1032,14 +1032,45 @@ export default function SettingsScreen({ navigation, route }: any) {
   ];
 
   // Helper to render grid item
-  const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isDisabled = false, badgeCount = 0, path?: string) => {
+  const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isExpiredBlocked = false, badgeCount = 0, path?: string) => {
     if (isAdminOnly && role !== 'admin') return null;
-    if (path && disabledMenus?.includes(path)) return null;
+
+    // 1. Check Cashier Permissions: Hide completely if no permission
+    if (path) {
+      const permMap: Record<string, string> = {
+        '/pos': 'canAccessPOS',
+        '/orders': 'canManageOrders',
+        '/estimations': 'canManageEstimations',
+        '/shifts': 'canAccessPOS',
+        '/products': 'canManageProducts',
+        '/transactions': 'canAccessPOS',
+        '/debts': 'canManageDebts',
+        '/reports': 'canViewReports',
+        '/users': 'canManageUsers',
+        '/logs': 'canViewLogs',
+      };
+      const requiredPerm = permMap[path];
+      if (requiredPerm && permissions && !permissions[requiredPerm] && role !== 'admin' && role !== 'super-admin' && role !== 'superadmin') {
+        return null;
+      }
+    }
+
+    // 2. Check blocks
+    const isSuperAdminBlocked = path ? disabledMenus?.includes(path) : false;
+    const isDisabled = isExpiredBlocked || isSuperAdminBlocked;
 
     return (
       <TouchableOpacity
         key={label}
-        onPress={isDisabled ? () => Alert.alert('Akses Terkunci', 'Masa aktif langganan Anda telah habis. Harap perpanjang untuk mengakses fitur ini.') : onPress}
+        onPress={() => {
+          if (isSuperAdminBlocked) {
+            Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
+          } else if (isExpiredBlocked) {
+            Alert.alert('Akses Terkunci', 'Masa aktif langganan Anda telah habis. Harap perpanjang untuk mengakses fitur ini.');
+          } else {
+            onPress();
+          }
+        }}
         activeOpacity={isDisabled ? 1 : 0.7}
         className="w-[30%] aspect-square m-[1.5%] p-3 rounded-2xl border items-center justify-center text-center relative"
         style={{ 

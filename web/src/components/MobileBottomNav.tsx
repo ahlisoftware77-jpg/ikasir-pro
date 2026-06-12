@@ -71,10 +71,10 @@ export default function MobileBottomNav() {
 
   // MAIN TAB MAPPING
   const mainTabs = [
-    { name: 'Dasbor', path: '/', icon: LayoutDashboard, show: (isAdmin || (permissions as any)?.canViewReports) && !(disabledMenus || []).includes('/reports') },
-    { name: 'Kasir', path: '/pos', icon: Calculator, show: (isAdmin || (permissions as any)?.canAccessPOS) && !(disabledMenus || []).includes('/pos') },
-    { name: 'Pesanan', path: '/orders', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canManageOrders) && !(disabledMenus || []).includes('/orders') },
-    { name: 'Riwayat', path: '/transactions', icon: ShoppingCart, show: (isAdmin || (permissions as any)?.canAccessPOS) && !(disabledMenus || []).includes('/transactions') },
+    { name: 'Dasbor', path: '/', icon: LayoutDashboard, show: (isAdmin || (permissions as any)?.canViewReports) },
+    { name: 'Kasir', path: '/pos', icon: Calculator, show: (isAdmin || (permissions as any)?.canAccessPOS) },
+    { name: 'Pesanan', path: '/orders', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canManageOrders) },
+    { name: 'Riwayat', path: '/transactions', icon: ShoppingCart, show: (isAdmin || (permissions as any)?.canAccessPOS) },
   ].filter(t => t.show !== false);
 
   // Take top 4 max for clean UI, leaving 1 slot for "Lainnya"
@@ -82,14 +82,14 @@ export default function MobileBottomNav() {
 
   // MORE SHEET MAPPING
   const moreMenus = [
-    { name: 'Estimasi Biaya', path: '/estimations', icon: FileText, show: (isAdmin || (permissions as any)?.canManageEstimations) && !(disabledMenus || []).includes('/estimations') },
-    { name: 'Hutang Piutang', path: '/debts', icon: BookOpen, show: (isAdmin || (permissions as any)?.canManageDebts) && !(disabledMenus || []).includes('/debts') },
-    { name: 'Shift Karyawan', path: '/shifts', icon: History, show: (isAdmin || (permissions as any)?.canAccessPOS) && !(disabledMenus || []).includes('/shifts') },
+    { name: 'Estimasi Biaya', path: '/estimations', icon: FileText, show: (isAdmin || (permissions as any)?.canManageEstimations) },
+    { name: 'Hutang Piutang', path: '/debts', icon: BookOpen, show: (isAdmin || (permissions as any)?.canManageDebts) },
+    { name: 'Shift Karyawan', path: '/shifts', icon: History, show: (isAdmin || (permissions as any)?.canAccessPOS) },
     { 
       name: 'Laporan', 
       path: '/reports', 
       icon: PieChart, 
-      show: (isAdmin || (permissions as any)?.canViewReports) && !(disabledMenus || []).includes('/reports'),
+      show: (isAdmin || (permissions as any)?.canViewReports),
       subItems: [
         { name: 'Penjualan', path: '/reports/sales', icon: BarChart3 },
         { name: 'Omzet', path: '/reports/monthly', icon: TrendingUp },
@@ -103,7 +103,7 @@ export default function MobileBottomNav() {
       name: 'Manajemen Produk', 
       path: '/products', 
       icon: Package, 
-      show: (isAdmin || (permissions as any)?.canManageProducts) && !(disabledMenus || []).includes('/products'),
+      show: (isAdmin || (permissions as any)?.canManageProducts),
       subItems: [
         { name: 'Produk', path: '/products', icon: List },
         { name: 'Gudang', path: '/products/warehouse', icon: Warehouse },
@@ -114,8 +114,8 @@ export default function MobileBottomNav() {
         { name: 'Expired', path: '/products/expiry', icon: Calendar },
       ]
     },
-    { name: 'Staf & User', path: '/users', icon: Users, show: (isAdmin || (permissions as any)?.canManageUsers) && !(disabledMenus || []).includes('/users') },
-    { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canViewLogs) && !(disabledMenus || []).includes('/logs') },
+    { name: 'Staf & User', path: '/users', icon: Users, show: (isAdmin || (permissions as any)?.canManageUsers) },
+    { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canViewLogs) },
     { name: 'Profil', path: '/profile', icon: UserCircle },
     { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
     { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300', icon: HelpCircle },
@@ -165,7 +165,8 @@ export default function MobileBottomNav() {
         <div className="flex justify-between items-center px-2 py-2">
           {displayTabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path !== '/' && pathname.startsWith(tab.path + '/'));
-            const isBlocked = isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(tab.path);
+            const isSuperAdminBlocked = disabledMenus?.includes(tab.path === '/' ? '/reports' : tab.path);
+            const isBlocked = (isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(tab.path)) || isSuperAdminBlocked;
             const Icon = tab.icon;
             return (
               <Link
@@ -174,7 +175,11 @@ export default function MobileBottomNav() {
                 onClick={(e) => {
                   if (isBlocked) {
                     e.preventDefault();
-                    toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                    if (isSuperAdminBlocked) {
+                      toast.error('Akses Terkunci. Fitur dinonaktifkan oleh administrator.', { style: { background: '#f43f5e', color: '#fff' } });
+                    } else {
+                      toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                    }
                   } else {
                     setIsMoreOpen(false);
                   }
@@ -245,16 +250,21 @@ export default function MobileBottomNav() {
                  const isActive = pathname.startsWith(menu.path);
                  const isExpanded = expandedMenu === menu.name;
                  const hasSubItems = (menu as any).subItems && (menu as any).subItems.length > 0;
+                 const isSuperAdminBlocked = disabledMenus?.includes(menu.path);
+                 const isBlocked = (isSubscriptionExpired && ['/estimations', '/debts', '/users'].includes(menu.path)) || isSuperAdminBlocked;
 
                  return (
                    <div key={menu.name} className="space-y-1 py-1">
                      <div
                        onClick={() => {
-                          const isBlocked = isSubscriptionExpired && ['/estimations', '/debts', '/users'].includes(menu.path);
-                         if (isBlocked) {
-                           toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
-                           return;
-                         }
+                          if (isBlocked) {
+                            if (isSuperAdminBlocked) {
+                              toast.error('Akses Terkunci. Fitur dinonaktifkan oleh administrator.', { style: { background: '#f43f5e', color: '#fff' } });
+                            } else {
+                              toast.error('Akses Terkunci. Masa aktif langganan habis.', { style: { background: '#f43f5e', color: '#fff' } });
+                            }
+                            return;
+                          }
 
                          if (menu.path === '#subscription') {
                            setIsMoreOpen(false);
@@ -281,7 +291,7 @@ export default function MobileBottomNav() {
                            router.push(menu.path);
                          }
                        }}
-                       className={`uiverse-btn ${isActive ? 'active-btn' : ''} ${isSubscriptionExpired && ['/estimations', '/debts', '/users'].includes(menu.path) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                       className={`uiverse-btn ${isActive ? 'active-btn' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                      >
                        <span className="uiverse-btn-top w-full justify-between">
                          <span className="flex items-center gap-3">
