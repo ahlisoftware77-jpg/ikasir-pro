@@ -72,22 +72,24 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
     *   [AuthProvider.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/AuthProvider.tsx) - Menambahkan real-time snapshot listener untuk branding global dan sinkronisasi `expiredDisabledMenus`.
 *   **Mobile**:
     *   [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Mengubah popup modal edit menjadi inline full screen form, menambahkan checklist branding global expired menu, memuat daftar projects database target saat mengelola toko.
-    *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store dan menghapus fallback expired menu bawaan.
+    *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store, menghapus fallback expired menu bawaan, dan mengubah tombol popup expired tab menjadi Ok & Langganan.
     *   [authStore.ts](file:///e:/yadiapp-project/KASIR/mobile/src/store/authStore.ts) - Menambahkan state store `expiredDisabledMenus`.
-    *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Mengintegrasikan penegakan pemblokiran menu secara dinamis, menghapus fallback bawaan, dan memperbarui URL WhatsApp Pusat Bantuan.
+    *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Mengintegrasikan penegakan pemblokiran menu secara dinamis, menghapus fallback bawaan, memperbarui URL WhatsApp Pusat Bantuan, dan mengubah tombol popup expired menu menjadi Ok & Langganan.
+    *   [POSScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/POSScreen.tsx) - Mengubah overlay akses terkunci kasir agar berbasis pengaturan branding global (bukan hardcoded) dan memperbarui tombol perpanjangan langganan.
+    *   [DashboardScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/DashboardScreen.tsx) - Mengubah tombol popup Alert masa aktif habis menjadi Ok & Langganan.
 
 #### Catatan Deployment & Perintah yang Dijalankan:
 1.  **Git Commit & Push**:
-    *   *Perintah*: `git add .` dan `git commit -m "fix: remove hardcoded default expired fallback menus from web and mobile"`
-    *   *Hasil*: Commit `16c409fa` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+    *   *Perintah*: `git add .` dan `git commit -m "fix: make POSScreen overlay check global settings and update expired alerts with Ok and Langganan buttons"`
+    *   *Hasil*: Commit `cd7be67a` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
 2.  **Expo OTA Update**:
-    *   *Perintah*: `npx eas-cli update --channel production --message "fix: remove hardcoded default expired fallback menus from web and mobile" --non-interactive`
+    *   *Perintah*: `npx eas-cli update --channel production --message "fix: POSScreen expired check based on branding & custom Ok/Langganan alert buttons" --non-interactive`
     *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
         *   **Runtime Version**: `1.0.0`
-        *   **Update Group ID**: `ca97847e-0a9a-43ea-9ea2-2db2b2c4b954`
-        *   **Android Update ID**: `019ebd00-db7b-7468-855a-fbd72e932a7e`
-        *   **iOS Update ID**: `019ebd00-db7b-795c-b54a-74b97c4b31f2`
-        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/ca97847e-0a9a-43ea-9ea2-2db2b2c4b954)
+        *   **Update Group ID**: `1cad89c5-14b7-4d0f-9301-14381af328a3`
+        *   **Android Update ID**: `019ebd0c-97b5-7daa-aabe-173010add672`
+        *   **iOS Update ID**: `019ebd0c-97b5-7d3a-95dc-3ba7a36df40a`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/1cad89c5-14b7-4d0f-9301-14381af328a3)
 
 ---
 
