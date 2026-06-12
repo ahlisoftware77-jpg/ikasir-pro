@@ -72,15 +72,15 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 #### Catatan Deployment & Perintah yang Dijalankan:
 1.  **Git Commit & Push**:
     *   *Perintah*: `git add .` dan `git commit -m "fix: restore dynamic locking for dropdown sub-menus on web and complete store db migration projects on mobile"`
-    *   *Hasil*: Commit `b2e9a1a3` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+    *   *Hasil*: Commit `56d76b99` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
 2.  **Expo OTA Update**:
     *   *Perintah*: `npx eas-cli update --channel production --message "fix: restore dynamic locking for dropdown sub-menus on web and complete store db migration projects on mobile" --non-interactive`
     *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
         *   **Runtime Version**: `1.0.0`
-        *   **Update Group ID**: `65163152-6a6c-4861-a83a-4f51bc7291fa`
-        *   **Android Update ID**: `019ebcd4-dd78-79e5-b108-9df8df3c08f4`
-        *   **iOS Update ID**: `019ebcd4-dd78-7b96-b072-bcad66d4db7a`
-        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/65163152-6a6c-4861-a83a-4f51bc7291fa)
+        *   **Update Group ID**: `edcac42e-7838-4bbf-be39-b707481a1c87`
+        *   **Android Update ID**: `019ebce6-1338-7924-bc93-d57a6923ec1d`
+        *   **iOS Update ID**: `019ebce6-1338-7b40-9d77-2fec9cef35f6`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/edcac42e-7838-4bbf-be39-b707481a1c87)
 
 ---
 
