@@ -116,7 +116,9 @@ interface CartItem extends Product {
 
 export default function POSScreen({ route, navigation }: any) {
   const { colors } = useTheme();
-  const { user, storeId, isSubscriptionExpired } = useAuthStore();
+  const { user, storeId, isSubscriptionExpired, expiredDisabledMenus } = useAuthStore();
+  const blockedWhenExpired = expiredDisabledMenus || [];
+  const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes('/pos');
   
   const [products, setProducts] = useState<Product[]>([]);
   const [discounts, setDiscounts] = useState<any[]>([]);
@@ -1144,7 +1146,7 @@ export default function POSScreen({ route, navigation }: any) {
         <View className={isTabletOrLandscape ? 'flex-[2] border-r border-slate-800/40 relative overflow-hidden' : 'flex-1 relative'}>
       
       {/* SUBSCRIPTION EXPIRED OVERLAY */}
-      {isSubscriptionExpired && (
+      {isExpiredBlocked && (
         <View className="absolute inset-0 z-[100] bg-slate-950/95 justify-center p-6">
           <View className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 items-center shadow-2xl">
             <View className="bg-rose-500/10 p-5 rounded-full mb-6">
@@ -1156,7 +1158,7 @@ export default function POSScreen({ route, navigation }: any) {
             </Text>
 
             <TouchableOpacity 
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => navigation.navigate('Lainnya', { openSubscription: true })}
               className="w-full bg-accent py-4 rounded-2xl items-center justify-center flex-row gap-2 active:opacity-90 mb-3"
             >
               <Text className="font-black text-xs uppercase tracking-widest text-white">Buka Menu Langganan</Text>

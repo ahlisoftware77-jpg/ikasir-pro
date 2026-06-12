@@ -74,9 +74,9 @@ export default function DashboardScreen({ navigation }: any) {
         '🚨 Masa Aktif Akun Habis',
         `Masa aktif langganan akun Anda telah berakhir pada ${formattedDate}. Silakan lakukan perpanjangan agar tetap dapat mengakses semua fitur iKasir Pro secara lengkap.`,
         [
-          { text: 'Nanti', style: 'cancel' },
+          { text: 'Ok', style: 'cancel' },
           { 
-            text: 'Perpanjang Sekarang', 
+            text: 'Langganan', 
             onPress: () => {
               Vibration.vibrate(10);
               navigation.navigate('Lainnya', { openSubscription: true });

@@ -1070,7 +1070,20 @@ export default function SettingsScreen({ navigation, route }: any) {
           if (isSuperAdminBlocked) {
             Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
           } else if (isExpiredBlockedComputed) {
-            Alert.alert('Masa Aktif Habis', 'Masa aktif akun Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.');
+            Alert.alert(
+              'Masa Aktif Habis',
+              'Masa aktif akun Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.',
+              [
+                { text: 'Ok', style: 'cancel' },
+                {
+                  text: 'Langganan',
+                  onPress: () => {
+                    Vibration.vibrate(10);
+                    setActiveModal('subscriptionMenu');
+                  }
+                }
+              ]
+            );
           } else {
             onPress();
           }

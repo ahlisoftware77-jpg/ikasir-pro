@@ -11,7 +11,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { useAuthStore } from './src/store/authStore';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
-import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing } from 'react-native';
+import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
 
@@ -95,7 +95,22 @@ function TabNavigator() {
             if (isSuperAdminBlocked) {
               Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
             } else if (isExpiredBlocked) {
-              Alert.alert('Masa Aktif Habis', 'Masa aktif akun Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.');
+              Alert.alert(
+                'Masa Aktif Habis',
+                'Masa aktif akun Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.',
+                [
+                  { text: 'Ok', style: 'cancel' },
+                  {
+                    text: 'Langganan',
+                    onPress: () => {
+                      Vibration.vibrate(10);
+                      if (navigationRef.isReady()) {
+                        (navigationRef as any).navigate('Lainnya', { openSubscription: true });
+                      }
+                    }
+                  }
+                ]
+              );
             } else {
               props.onPress?.(e);
             }
