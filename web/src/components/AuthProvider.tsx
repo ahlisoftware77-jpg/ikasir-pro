@@ -34,7 +34,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     let unsubscribeBroadcasts: (() => void) | null = null;
     
     // Monitor branding global settings
-    const unsubscribeBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+    const unsubscribeBranding = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setExpiredDisabledMenus(data.expiredDisabledMenus || []);
