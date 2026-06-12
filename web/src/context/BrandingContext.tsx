@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, primaryDb } from '@/lib/firebase';
+import { useAuthStore } from '@/store/auth';
 
 interface BrandingData {
   appName: string;
@@ -23,6 +24,7 @@ interface BrandingData {
   pkg_12m_price: number;
   pkg_12m_discount_type: 'none' | 'percent' | 'nominal';
   pkg_12m_discount_val: number;
+  expiredDisabledMenus?: string[];
 }
 
 interface BrandingContextType {
@@ -101,8 +103,10 @@ export const BrandingProvider = ({ children }: { children: React.ReactNode }) =>
           pkg_12m_price: Number(data.pkg_12m_price ?? defaultBranding.pkg_12m_price),
           pkg_12m_discount_type: data.pkg_12m_discount_type || defaultBranding.pkg_12m_discount_type,
           pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? defaultBranding.pkg_12m_discount_val),
+          expiredDisabledMenus: data.expiredDisabledMenus || [],
         };
         setBranding(newBranding);
+        useAuthStore.getState().setExpiredDisabledMenus(data.expiredDisabledMenus || []);
         if (typeof window !== 'undefined') {
           localStorage.setItem('kasir-pro-branding', JSON.stringify(newBranding));
         }

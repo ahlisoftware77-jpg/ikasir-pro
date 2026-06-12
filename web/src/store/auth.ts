@@ -31,6 +31,7 @@ interface AuthState {
   subscriptionUntil: string | null;
   isSubscriptionExpired: boolean;
   disabledMenus: string[] | null;
+  expiredDisabledMenus: string[] | null;
   blockingDetails: {
     isBlocked: boolean;
     reason: string;
@@ -52,6 +53,7 @@ interface AuthState {
   setIsSubscriptionExpired: (val: boolean) => void;
   setLogoUrl: (url: string | null) => void;
   setDisabledMenus: (disabledMenus: string[] | null) => void;
+  setExpiredDisabledMenus: (expiredDisabledMenus: string[] | null) => void;
   setWasAuthenticated: (val: boolean) => void;
   setBlockingDetails: (details: any) => void;
   setOnline: (val: boolean) => void;
@@ -78,6 +80,7 @@ export const useAuthStore = create<AuthState>()(
       isSubscriptionExpired: false,
       logoUrl: null,
       disabledMenus: null,
+      expiredDisabledMenus: null,
       newOrderCount: 0,
       blockingDetails: null,
       setUser: (user) => set({ user }),
@@ -90,6 +93,7 @@ export const useAuthStore = create<AuthState>()(
       setIsSubscriptionExpired: (val) => set({ isSubscriptionExpired: val }),
       setLogoUrl: (logoUrl) => set({ logoUrl }),
       setDisabledMenus: (disabledMenus) => set({ disabledMenus }),
+      setExpiredDisabledMenus: (expiredDisabledMenus) => set({ expiredDisabledMenus }),
       setWasAuthenticated: (wasAuthenticated) => set({ wasAuthenticated }),
       setBlockingDetails: (blockingDetails) => set({ blockingDetails }),
       setOnline: (isOnline) => set({ isOnline }),
@@ -108,6 +112,7 @@ export const useAuthStore = create<AuthState>()(
         isSubscriptionExpired: false,
         logoUrl: null,
         disabledMenus: null,
+        expiredDisabledMenus: null,
         blockingDetails: null 
       }),
     }),
@@ -125,6 +130,7 @@ export const useAuthStore = create<AuthState>()(
         isSubscriptionExpired: state.isSubscriptionExpired,
         logoUrl: state.logoUrl,
         disabledMenus: state.disabledMenus,
+        expiredDisabledMenus: state.expiredDisabledMenus,
         wasAuthenticated: state.wasAuthenticated,
         blockingDetails: state.blockingDetails
       }),

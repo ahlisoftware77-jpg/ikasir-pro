@@ -11,6 +11,7 @@ interface AuthState {
   subscriptionUntil: string | null;
   isSubscriptionExpired: boolean;
   disabledMenus: string[] | null;
+  expiredDisabledMenus: string[] | null;
   setUser: (user: any | null) => void;
   setRole: (role: 'admin' | 'cashier' | 'super-admin' | 'superadmin' | null) => void;
   setPermissions: (permissions: any | null) => void;
@@ -19,6 +20,7 @@ interface AuthState {
   setSubscriptionUntil: (val: string | null) => void;
   setIsSubscriptionExpired: (val: boolean) => void;
   setDisabledMenus: (disabledMenus: string[] | null) => void;
+  setExpiredDisabledMenus: (expiredDisabledMenus: string[] | null) => void;
   logout: () => void;
 }
 
@@ -33,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
       subscriptionUntil: null,
       isSubscriptionExpired: false,
       disabledMenus: null,
+      expiredDisabledMenus: null,
       setUser: (user) => set({ user }),
       setRole: (role) => set({ role }),
       setPermissions: (permissions) => set({ permissions }),
@@ -41,7 +44,8 @@ export const useAuthStore = create<AuthState>()(
       setSubscriptionUntil: (val) => set({ subscriptionUntil: val }),
       setIsSubscriptionExpired: (val) => set({ isSubscriptionExpired: val }),
       setDisabledMenus: (disabledMenus) => set({ disabledMenus }),
-      logout: () => set({ user: null, role: null, permissions: null, storeId: null, subscriptionUntil: null, isSubscriptionExpired: false, disabledMenus: null }),
+      setExpiredDisabledMenus: (expiredDisabledMenus) => set({ expiredDisabledMenus }),
+      logout: () => set({ user: null, role: null, permissions: null, storeId: null, subscriptionUntil: null, isSubscriptionExpired: false, disabledMenus: null, expiredDisabledMenus: null }),
     }),
     {
       name: 'auth-storage',

@@ -42,7 +42,7 @@ const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
   const { colors } = useTheme();
-  const { role, storeId, subscriptionUntil, isSubscriptionExpired, disabledMenus, permissions } = useAuthStore();
+  const { role, storeId, subscriptionUntil, isSubscriptionExpired, disabledMenus, expiredDisabledMenus, permissions } = useAuthStore();
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const insets = useSafeAreaInsets();
 
@@ -75,7 +75,11 @@ function TabNavigator() {
   }, [storeId]);
 
   const getTabOptions = (title: string, path: string, iconComponent: any, extraOptions = {}) => {
-    const isMenuDisabled = disabledMenus?.includes(path);
+    const isSuperAdminBlocked = disabledMenus?.includes(path);
+    const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+    const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes(path);
+    const isMenuDisabled = isSuperAdminBlocked || isExpiredBlocked;
+
     return {
       tabBarIcon: ({ color }: any) => {
         const Icon = iconComponent;
@@ -88,8 +92,10 @@ function TabNavigator() {
           activeOpacity={isMenuDisabled ? 1 : 0.2}
           style={[props.style, isMenuDisabled && { opacity: 0.4 }]}
           onPress={(e) => {
-            if (isMenuDisabled) {
+            if (isSuperAdminBlocked) {
               Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
+            } else if (isExpiredBlocked) {
+              Alert.alert('Masa Aktif Habis', 'Masa aktif akun Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.');
             } else {
               props.onPress?.(e);
             }
@@ -225,7 +231,19 @@ function NavigationRoot() {
       console.error("Error listening to maintenance status in App.tsx:", err);
     });
 
-    return () => unsubMaintenance();
+    const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        useAuthStore.getState().setExpiredDisabledMenus(data.expiredDisabledMenus || []);
+      }
+    }, (err) => {
+      console.error("Error listening to branding global settings in App.tsx:", err);
+    });
+
+    return () => {
+      unsubMaintenance();
+      unsubBranding();
+    };
   }, []);
 
   useEffect(() => {

@@ -53,7 +53,7 @@ import toast from 'react-hot-toast';
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { role, user, permissions, newOrderCount, isSubscriptionExpired, disabledMenus } = useAuthStore();
+  const { role, user, permissions, newOrderCount, isSubscriptionExpired, disabledMenus, expiredDisabledMenus } = useAuthStore();
   const { branding } = useBranding();
   const { theme, setTheme } = useTheme();
 
@@ -118,7 +118,7 @@ export default function MobileBottomNav() {
     { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canViewLogs) },
     { name: 'Profil', path: '/profile', icon: UserCircle },
     { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
-    { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300', icon: HelpCircle },
+    { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: HelpCircle },
     { name: 'Kritik & Saran', path: '#feedback', icon: MessageSquare },
     { name: 'Pengaturan', path: '/settings', icon: Settings, show: isAdmin || (permissions as any)?.canEditSettings },
     { name: 'Super Admin', path: '/super-admin', icon: ShieldCheck, show: role === 'super-admin' },
@@ -166,7 +166,8 @@ export default function MobileBottomNav() {
           {displayTabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path !== '/' && pathname.startsWith(tab.path + '/'));
             const isSuperAdminBlocked = disabledMenus?.includes(tab.path === '/' ? '/reports' : tab.path);
-            const isBlocked = (isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(tab.path)) || isSuperAdminBlocked;
+            const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+            const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(tab.path)) || isSuperAdminBlocked;
             const Icon = tab.icon;
             return (
               <Link
@@ -251,7 +252,8 @@ export default function MobileBottomNav() {
                  const isExpanded = expandedMenu === menu.name;
                  const hasSubItems = (menu as any).subItems && (menu as any).subItems.length > 0;
                  const isSuperAdminBlocked = disabledMenus?.includes(menu.path);
-                 const isBlocked = (isSubscriptionExpired && ['/estimations', '/debts', '/users'].includes(menu.path)) || isSuperAdminBlocked;
+                 const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+                 const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(menu.path)) || isSuperAdminBlocked;
 
                  return (
                    <div key={menu.name} className="space-y-1 py-1">

@@ -46,7 +46,7 @@ const getFontFamily = (id: string) => {
 
 export default function SettingsScreen({ navigation, route }: any) {
   const { colors, theme, setTheme } = useTheme();
-  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil, disabledMenus, permissions } = useAuthStore();
+  const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil, disabledMenus, expiredDisabledMenus, permissions } = useAuthStore();
 
   const sisaHari = useMemo(() => {
     if (!subscriptionUntil) return null;
@@ -1057,7 +1057,11 @@ export default function SettingsScreen({ navigation, route }: any) {
 
     // 2. Check blocks
     const isSuperAdminBlocked = path ? disabledMenus?.includes(path) : false;
-    const isDisabled = isExpiredBlocked || isSuperAdminBlocked;
+    const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+    const isExpiredBlockedComputed = path 
+      ? (isSubscriptionExpired && blockedWhenExpired.includes(path))
+      : isExpiredBlocked;
+    const isDisabled = isExpiredBlockedComputed || isSuperAdminBlocked;
 
     return (
       <TouchableOpacity
@@ -1065,8 +1069,8 @@ export default function SettingsScreen({ navigation, route }: any) {
         onPress={() => {
           if (isSuperAdminBlocked) {
             Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
-          } else if (isExpiredBlocked) {
-            Alert.alert('Akses Terkunci', 'Masa aktif langganan Anda telah habis. Harap perpanjang untuk mengakses fitur ini.');
+          } else if (isExpiredBlockedComputed) {
+            Alert.alert('Masa Aktif Habis', 'Masa aktif akun Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.');
           } else {
             onPress();
           }
@@ -1353,7 +1357,7 @@ export default function SettingsScreen({ navigation, route }: any) {
             })}
             {renderMenuItem('Pusat Bantuan', HelpCircle, '#10b981', () => {
               Vibration.vibrate(10);
-              Linking.openURL('https://wa.me/6283815862300');
+              Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.');
             })}
             {renderMenuItem('Kritik & Saran', MessageSquare, '#3b82f6', () => {
               Vibration.vibrate(10);

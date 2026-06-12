@@ -517,6 +517,7 @@ export default function SuperAdminPage() {
     pkg_12m_price: 306000,
     pkg_12m_discount_type: 'none',
     pkg_12m_discount_val: 0,
+    expiredDisabledMenus: [],
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -554,6 +555,7 @@ export default function SuperAdminPage() {
           pkg_12m_price: Number(data.pkg_12m_price ?? 306000),
           pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
           pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
+          expiredDisabledMenus: data.expiredDisabledMenus || [],
         });
       }
     });
@@ -589,6 +591,30 @@ export default function SuperAdminPage() {
     } catch (err: any) {
       console.error(err);
       alert('Gagal update branding: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleExpiredMenu = (path: string) => {
+    const current = brandingData.expiredDisabledMenus || [];
+    const next = current.includes(path) 
+      ? current.filter((p: string) => p !== path) 
+      : [...current, path];
+    setBrandingData({ ...brandingData, expiredDisabledMenus: next });
+  };
+
+  const handleSaveExpiredMenus = async () => {
+    setIsSaving(true);
+    try {
+      await setDoc(doc(db, 'system_settings', 'branding'), {
+        expiredDisabledMenus: brandingData.expiredDisabledMenus || [],
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+      alert('Pengaturan Menu Kedaluwarsa global berhasil diperbarui!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal memperbarui menu kedaluwarsa: ' + err.message);
     } finally {
       setIsSaving(false);
     }
@@ -1830,30 +1856,92 @@ export default function SuperAdminPage() {
                    className="w-full py-5 bg-accent hover:bg-accent-hover text-foreground rounded-2xl font-black shadow-xl shadow-accent/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 mt-4"
                  >
                     {isSaving ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                    SIMPAN PERUBAHAN BRANDING
+                    SIMPAN PERUBAHAN
                  </button>
               </form>
            </div>
 
-            <div className="bg-accent/5 border border-accent/10 rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 flex flex-col justify-center items-center text-center">
-              <div className="w-20 h-20 bg-accent/20 text-accent rounded-full flex items-center justify-center mb-6">
-                 <Sparkles size={32} />
-              </div>
-              <h4 className="text-xl font-black text-foreground mb-4">Preview Identitas</h4>
-              <div className="bg-surface border border-app-border rounded-2xl p-6 w-full max-w-xs shadow-xl">
-                 <div className="flex items-center gap-3 border-b border-app-border pb-4 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-accent" />
-                    <span className="font-black text-sm tracking-widest uppercase italic">{brandingData.appName}</span>
-                 </div>
-                 <div className="space-y-2 mb-4">
-                    <div className="h-2 w-full bg-app-text-muted/10 rounded" />
-                    <div className="h-2 w-3/4 bg-app-text-muted/10 rounded" />
-                 </div>
-                 <div className="border-t border-dashed border-app-border pt-4 text-[8px] font-bold text-app-text-muted uppercase tracking-widest opacity-60">
-                    {brandingData.receiptWatermark}
-                 </div>
-              </div>
-           </div>
+             <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+               {/* Kontrol Menu Kedaluwarsa Global */}
+               <div className="bg-surface border border-app-border rounded-[2rem] p-6 md:p-8 shadow-2xl">
+                  <div className="mb-6">
+                     <h3 className="text-xl font-black text-foreground mb-2 flex items-center gap-3">
+                        <ShieldAlert className="text-rose-500" /> Menu Kedaluwarsa (Global)
+                     </h3>
+                     <p className="text-xs text-app-text-muted font-medium">
+                        Pilih menu mana saja yang dinonaktifkan (samar & tidak bisa diklik) di seluruh toko ketika masa aktif habis.
+                     </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                     {[
+                       { name: 'Kasir (POS)', path: '/pos' },
+                       { name: 'Daftar Pesanan', path: '/orders' },
+                       { name: 'Estimasi Biaya', path: '/estimations' },
+                       { name: 'Shift Karyawan', path: '/shifts' },
+                       { name: 'Manajemen Produk', path: '/products' },
+                       { name: 'Transaksi', path: '/transactions' },
+                       { name: 'Hutang Piutang', path: '/debts' },
+                       { name: 'Laporan', path: '/reports' },
+                       { name: 'Manajemen User', path: '/users' },
+                       { name: 'Log Aktifitas', path: '/logs' },
+                       { name: 'Pengaturan Toko', path: '/settings' },
+                     ].map((menu) => {
+                       const isChecked = (brandingData.expiredDisabledMenus || []).includes(menu.path);
+                       return (
+                         <button
+                           key={menu.path}
+                           type="button"
+                           onClick={() => handleToggleExpiredMenu(menu.path)}
+                           className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all duration-300 active:scale-95 ${
+                             isChecked 
+                               ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' 
+                               : 'bg-background border-app-border text-app-text-muted hover:border-app-border-hover'
+                           }`}
+                         >
+                           <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
+                             isChecked ? 'bg-rose-500 border-rose-500 text-white' : 'border-app-border bg-surface'
+                           }`}>
+                             {isChecked && <span className="text-xs font-black">✓</span>}
+                           </div>
+                           <span className="text-xs font-black uppercase tracking-tight truncate">{menu.name}</span>
+                         </button>
+                       );
+                     })}
+                  </div>
+                  
+                  <button 
+                    type="button"
+                    onClick={handleSaveExpiredMenus}
+                    disabled={isSaving}
+                    className="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black shadow-xl shadow-rose-500/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95"
+                  >
+                     {isSaving ? <Loader2 className="animate-spin" /> : <Save size={16} />}
+                     SIMPAN BLOKIR MENU KEDALUWARSA
+                  </button>
+               </div>
+
+               {/* Preview Identitas */}
+               <div className="bg-accent/5 border border-accent/10 rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 flex flex-col justify-center items-center text-center">
+                  <div className="w-20 h-20 bg-accent/20 text-accent rounded-full flex items-center justify-center mb-6">
+                     <Sparkles size={32} />
+                  </div>
+                  <h4 className="text-xl font-black text-foreground mb-4">Preview Identitas</h4>
+                  <div className="bg-surface border border-app-border rounded-2xl p-6 w-full max-w-xs shadow-xl">
+                     <div className="flex items-center gap-3 border-b border-app-border pb-4 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-accent" />
+                        <span className="font-black text-sm tracking-widest uppercase italic">{brandingData.appName}</span>
+                     </div>
+                     <div className="space-y-2 mb-4">
+                        <div className="h-2 w-full bg-app-text-muted/10 rounded" />
+                        <div className="h-2 w-3/4 bg-app-text-muted/10 rounded" />
+                     </div>
+                     <div className="border-t border-dashed border-app-border pt-4 text-[8px] font-bold text-app-text-muted uppercase tracking-widest opacity-60">
+                        {brandingData.receiptWatermark}
+                     </div>
+                  </div>
+               </div>
+             </div>
         </div>
       ) : activeTab === 'infrastructure' ? (
         <div className="animate-in fade-in zoom-in-95 duration-500 space-y-8">

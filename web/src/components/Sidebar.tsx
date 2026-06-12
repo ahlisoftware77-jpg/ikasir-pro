@@ -66,7 +66,7 @@ const menuItems = [
   { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, permission: 'canViewLogs' },
   { name: 'Profil Saya', path: '/profile', icon: UserCircle },
   { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
-  { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300', icon: HelpCircle },
+  { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: HelpCircle },
   { name: 'Kritik & Saran', path: '#feedback', icon: MessageSquare },
   { name: 'Pengaturan', path: '/settings', icon: Settings, permission: 'canEditSettings' },
 ];
@@ -80,7 +80,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications }: SidebarProps) {
   const pathname = usePathname();
-  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired, subscriptionUntil, disabledMenus } = useAuthStore();
+  const { user, role, permissions, newOrderCount, storeName, userName, isSubscriptionExpired, subscriptionUntil, disabledMenus, expiredDisabledMenus } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const { branding } = useBranding();
 
@@ -246,7 +246,8 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             }
 
             const isSuperAdminBlocked = disabledMenus?.includes(item.path);
-            const isBlocked = (isSubscriptionExpired && ['/pos', '/estimations', '/debts', '/users'].includes(item.path)) || isSuperAdminBlocked;
+            const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+            const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(item.path)) || isSuperAdminBlocked;
 
             if (item.path === '#subscription') {
               return (

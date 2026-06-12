@@ -280,6 +280,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     pkg_12m_price: 306000,
     pkg_12m_discount_type: 'none',
     pkg_12m_discount_val: 0,
+    expiredDisabledMenus: [],
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -329,6 +330,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           pkg_12m_price: Number(data.pkg_12m_price ?? 306000),
           pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
           pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
+          expiredDisabledMenus: data.expiredDisabledMenus || [],
         });
       }
     });
@@ -867,6 +869,14 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
   };
 
+  const handleToggleExpiredMenu = (path: string) => {
+    const current = brandingData.expiredDisabledMenus || [];
+    const next = current.includes(path) 
+      ? current.filter((p: string) => p !== path) 
+      : [...current, path];
+    setBrandingData({ ...brandingData, expiredDisabledMenus: next });
+  };
+
   const handlePickSubscriptionQris = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -1387,8 +1397,289 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const renderEditUserForm = () => {
+    if (!editingUser) return null;
+    return (
+      <View className="flex-1">
+        {/* Header Kembali */}
+        <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
+          <TouchableOpacity 
+            onPress={() => setEditingUser(null)}
+            className="p-2.5 rounded-xl border animate-in fade-in active:scale-95"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+          >
+            <ArrowLeft size={16} color={colors.text} />
+          </TouchableOpacity>
+          <Text className="text-xs font-black uppercase tracking-widest" style={{ color: colors.text }}>Edit User</Text>
+        </View>
+
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View className="space-y-5 pb-20">
+            {/* Display Name Input */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nama Tampilan</Text>
+              <TextInput
+                value={editingUser.name || ''}
+                onChangeText={(txt) => setEditingUser({ ...editingUser, name: txt })}
+                className="p-3.5 rounded-2xl border font-bold text-xs"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+              />
+            </View>
+
+            {/* Role Selector */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Role Akun</Text>
+              <View className="flex-row gap-2">
+                {['cashier', 'admin', 'super-admin'].map((r) => {
+                  const isSelected = editingUser.role === r || (r === 'super-admin' && editingUser.role === 'superadmin');
+                  return (
+                    <TouchableOpacity
+                      key={r}
+                      onPress={() => setEditingUser({ ...editingUser, role: r })}
+                      className="flex-1 py-2.5 rounded-xl border items-center justify-center"
+                      style={{ 
+                        backgroundColor: isSelected ? colors.accent : colors.surface, 
+                        borderColor: isSelected ? colors.accent : colors.border 
+                      }}
+                    >
+                      <Text className="text-[9px] font-black uppercase" style={{ color: isSelected ? '#ffffff' : colors.text }}>{r.replace('-', '')}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Store Mappings Selector */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Pilih Outlet Toko</Text>
+              <ScrollView className="max-h-[140px] border rounded-2xl p-2" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <TouchableOpacity 
+                  onPress={() => setEditingUser({ ...editingUser, storeId: 'default-store' })}
+                  className="py-2.5 px-3 border-b flex-row justify-between items-center" 
+                  style={{ borderColor: colors.border + '20' }}
+                >
+                  <Text className="text-[10px] font-bold" style={{ color: editingUser.storeId === 'default-store' ? colors.accent : colors.text }}>Toko Default (default-store)</Text>
+                  {editingUser.storeId === 'default-store' && <Check size={10} color={colors.accent} />}
+                </TouchableOpacity>
+                {superAdminStores.map((s) => (
+                  <TouchableOpacity 
+                    key={s.id}
+                    onPress={() => setEditingUser({ ...editingUser, storeId: s.id })}
+                    className="py-2.5 px-3 border-b flex-row justify-between items-center"
+                    style={{ borderColor: colors.border + '20' }}
+                  >
+                    <Text className="text-[10px] font-bold" style={{ color: editingUser.storeId === s.id ? colors.accent : colors.text }}>{s.name} ({s.id})</Text>
+                    {editingUser.storeId === s.id && <Check size={10} color={colors.accent} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Subscription and Expiry Date Inputs */}
+            <View className="flex-row gap-3">
+              <View className="space-y-1 flex-1">
+                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Daftar</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker({visible: true, field: 'createdAt'})}
+                  className="p-3.5 rounded-2xl border flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-xs" style={{ color: editingUser.createdAt ? colors.text : colors.textMuted }}>
+                    {editingUser.createdAt ? (editingUser.createdAt.includes('T') ? editingUser.createdAt.substring(0, 10) : editingUser.createdAt) : 'Pilih Tanggal'}
+                  </Text>
+                  <CalendarRange size={14} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View className="space-y-1 flex-1">
+                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Expired</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker({visible: true, field: 'validUntil'})}
+                  className="p-3.5 rounded-2xl border flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-xs" style={{ color: editingUser.validUntil ? colors.text : colors.textMuted }}>
+                    {editingUser.validUntil ? (editingUser.validUntil.includes('T') ? editingUser.validUntil.substring(0, 10) : editingUser.validUntil) : 'Pilih Tanggal'}
+                  </Text>
+                  <CalendarRange size={14} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Freeze and Subscription Toggles */}
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setEditingUser({ ...editingUser, isActive: editingUser.isActive === false })}
+                className="flex-1 py-3.5 rounded-2xl border items-center justify-center"
+                style={{ backgroundColor: editingUser.isActive !== false ? 'rgba(244,63,94,0.1)' : 'rgba(16,185,129,0.1)', borderColor: editingUser.isActive !== false ? 'rgba(244,63,94,0.2)' : 'rgba(16,185,129,0.2)' }}
+              >
+                <Text className="text-[9px] font-black uppercase" style={{ color: editingUser.isActive !== false ? '#f43f5e' : '#10b981' }}>
+                  {editingUser.isActive !== false ? 'BEKUKAN AKSES' : 'AKTIFKAN AKSES'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setEditingUser({ ...editingUser, isSubscribed: !editingUser.isSubscribed })}
+                className="flex-1 py-3.5 rounded-2xl border items-center justify-center"
+                style={{ backgroundColor: editingUser.isSubscribed ? 'rgba(148,163,184,0.1)' : 'rgba(139,92,246,0.1)', borderColor: editingUser.isSubscribed ? 'rgba(148,163,184,0.2)' : 'rgba(139,92,246,0.2)' }}
+              >
+                <Text className="text-[9px] font-black uppercase" style={{ color: editingUser.isSubscribed ? colors.text : '#8b5cf6' }}>
+                  {editingUser.isSubscribed ? 'BATAL PRO' : 'SET PRO'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Save Changes */}
+            <TouchableOpacity
+              onPress={handleUpdateUser}
+              disabled={isSaving}
+              className="py-4.5 rounded-2xl items-center justify-center mt-3"
+              style={{ backgroundColor: colors.accent }}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text className="font-black text-white text-xs uppercase tracking-wider">Simpan Perubahan</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderEditStoreForm = () => {
+    if (!editingStore) return null;
+    return (
+      <View className="flex-1">
+        {/* Header Kembali */}
+        <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
+          <TouchableOpacity 
+            onPress={() => setEditingStore(null)}
+            className="p-2.5 rounded-xl border animate-in fade-in active:scale-95"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+          >
+            <ArrowLeft size={16} color={colors.text} />
+          </TouchableOpacity>
+          <Text className="text-sm font-black uppercase tracking-widest" style={{ color: colors.text }}>Edit Toko</Text>
+        </View>
+
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View className="space-y-5 pb-20">
+            {/* Store Name */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nama Toko</Text>
+              <TextInput
+                value={editingStore.name}
+                onChangeText={(txt) => setEditingStore({ ...editingStore, name: txt.toUpperCase() })}
+                className="p-3.5 rounded-2xl border font-bold text-xs"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+              />
+            </View>
+
+            {/* Owner Email */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Email Pemilik</Text>
+              <TextInput
+                value={editingStore.ownerEmail}
+                onChangeText={(txt) => setEditingStore({ ...editingStore, ownerEmail: txt })}
+                className="p-3.5 rounded-2xl border font-bold text-xs"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+              />
+            </View>
+
+            {/* Max Quota */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Kuota Maksimal User Staff</Text>
+              <TextInput
+                value={String(editingStore.maxUsers)}
+                onChangeText={(txt) => setEditingStore({ ...editingStore, maxUsers: txt.replace(/[^0-9]/g, '') as any })}
+                keyboardType="numeric"
+                className="p-3.5 rounded-2xl border font-bold text-xs"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+              />
+            </View>
+
+            {/* Disabled Menus */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Menu yang Dinonaktifkan</Text>
+              <ScrollView 
+                style={{ maxHeight: 200, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 8, backgroundColor: colors.surface }}
+                showsVerticalScrollIndicator={true}
+              >
+                {[
+                  { key: '/pos', name: 'Kasir (POS)' },
+                  { key: '/orders', name: 'Daftar Pesanan' },
+                  { key: '/estimations', name: 'Estimasi Biaya' },
+                  { key: '/shifts', name: 'Shift Karyawan' },
+                  { key: '/products', name: 'Manajemen Produk' },
+                  { key: '/transactions', name: 'Transaksi' },
+                  { key: '/debts', name: 'Hutang Piutang' },
+                  { key: '/reports', name: 'Laporan' },
+                  { key: '/users', name: 'Manajemen User' },
+                  { key: '/logs', name: 'Log Aktifitas' },
+                ].map((item) => {
+                  const isDisabled = (editingStore.disabledMenus || []).includes(item.key);
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      onPress={() => {
+                        const current = editingStore.disabledMenus || [];
+                        const next = isDisabled
+                          ? current.filter((path: string) => path !== item.key)
+                          : [...current, item.key];
+                        setEditingStore({ ...editingStore, disabledMenus: next });
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 }}
+                    >
+                      <View
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 4,
+                          borderWidth: 1,
+                          borderColor: isDisabled ? colors.accent : colors.text + '40',
+                          backgroundColor: isDisabled ? colors.accent : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isDisabled && <Check size={12} color="#ffffff" />}
+                      </View>
+                      <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text }}>
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Save Changes */}
+            <TouchableOpacity
+              onPress={handleUpdateStoreDetails}
+              disabled={isSaving}
+              className="py-4.5 rounded-2xl items-center justify-center mt-3"
+              style={{ backgroundColor: colors.accent }}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text className="font-black text-white text-xs uppercase tracking-wider">Simpan Perubahan Toko</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  };
+
   // --- RENDER CONTENT BY FEATURE ID ---
   const renderContent = () => {
+    if (editingUser) {
+      return renderEditUserForm();
+    }
+    if (editingStore) {
+      return renderEditStoreForm();
+    }
     switch (featureId) {
       case 'superAdminUsers': {
         // Group users by store for hierarchical display
@@ -1836,6 +2127,59 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     </View>
                   </View>
                 ))}
+
+                <View className="h-[1px] w-full bg-slate-200/10 my-4" />
+                <Text className="text-[9px] font-black uppercase tracking-[2px] mb-3 ml-2" style={{ color: colors.textMuted }}>
+                  🚫 Blokir Menu Kedaluwarsa (Global)
+                </Text>
+                
+                <View className="p-4 rounded-3xl border mb-4 space-y-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <Text className="text-[8px] font-bold text-slate-400 mb-2 leading-relaxed">
+                    Pilih menu yang dinonaktifkan (samar & tidak bisa diakses) di seluruh toko ketika masa aktif habis.
+                  </Text>
+                  <View className="flex-row flex-wrap justify-between gap-y-2">
+                    {[
+                      { name: 'Kasir (POS)', path: '/pos' },
+                      { name: 'Daftar Pesanan', path: '/orders' },
+                      { name: 'Estimasi Biaya', path: '/estimations' },
+                      { name: 'Shift Karyawan', path: '/shifts' },
+                      { name: 'Manajemen Produk', path: '/products' },
+                      { name: 'Transaksi', path: '/transactions' },
+                      { name: 'Hutang Piutang', path: '/debts' },
+                      { name: 'Laporan', path: '/reports' },
+                      { name: 'Manajemen User', path: '/users' },
+                      { name: 'Log Aktifitas', path: '/logs' },
+                      { name: 'Pengaturan Toko', path: '/settings' },
+                    ].map((menu) => {
+                      const isChecked = (brandingData.expiredDisabledMenus || []).includes(menu.path);
+                      return (
+                        <TouchableOpacity
+                          key={menu.path}
+                          onPress={() => handleToggleExpiredMenu(menu.path)}
+                          className="px-3 py-2.5 rounded-xl border flex-row items-center gap-2"
+                          style={{
+                            backgroundColor: isChecked ? 'rgba(244,63,94,0.1)' : colors.surface,
+                            borderColor: isChecked ? '#f43f5e' : colors.border,
+                            width: '48%',
+                          }}
+                        >
+                          <View 
+                            className="w-4 h-4 rounded border items-center justify-center" 
+                            style={{ 
+                              backgroundColor: isChecked ? '#f43f5e' : colors.bg, 
+                              borderColor: isChecked ? '#f43f5e' : colors.border 
+                            }}
+                          >
+                            {isChecked && <Check size={10} color="#ffffff" strokeWidth={4} />}
+                          </View>
+                          <Text className="text-[9px] font-black uppercase tracking-tight truncate flex-1" style={{ color: isChecked ? '#f43f5e' : colors.text }}>
+                            {menu.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
 
                 {/* Save Changes Button */}
                 <TouchableOpacity
@@ -2348,147 +2692,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
       {/* --- SUB-MODALS OVERLAYS --- */}
 
-      {/* 1. USER EDIT DIALOG OVERLAY */}
-      {editingUser && (
-        <Modal visible={true} animationType="fade" transparent>
-          <View className="flex-1 bg-black/80 justify-center p-6">
-            <View className="w-full max-w-sm rounded-[36px] p-6 space-y-5" style={{ backgroundColor: colors.surface }}>
-              <View className="flex-row justify-between items-center pb-3 border-b" style={{ borderColor: colors.border + '30' }}>
-                <Text className="text-base font-black" style={{ color: colors.text }}>Edit User</Text>
-                <TouchableOpacity onPress={() => setEditingUser(null)}>
-                  <X size={20} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Display Name Input */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nama Tampilan</Text>
-                <TextInput
-                  value={editingUser.name || ''}
-                  onChangeText={(txt) => setEditingUser({ ...editingUser, name: txt })}
-                  className="p-3.5 rounded-2xl border font-bold text-xs"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                />
-              </View>
-
-              {/* Role Selector */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Role Akun</Text>
-                <View className="flex-row gap-2">
-                  {['cashier', 'admin', 'super-admin'].map((r) => {
-                    const isSelected = editingUser.role === r || (r === 'super-admin' && editingUser.role === 'superadmin');
-                    return (
-                      <TouchableOpacity
-                        key={r}
-                        onPress={() => setEditingUser({ ...editingUser, role: r })}
-                        className="flex-1 py-2.5 rounded-xl border items-center justify-center"
-                        style={{ 
-                          backgroundColor: isSelected ? colors.accent : colors.bg, 
-                          borderColor: isSelected ? colors.accent : colors.border 
-                        }}
-                      >
-                        <Text className="text-[9px] font-black uppercase" style={{ color: isSelected ? '#ffffff' : colors.text }}>{r.replace('-', '')}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              {/* Store Mappings Selector */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Pilih Outlet Toko</Text>
-                <ScrollView className="max-h-[100px] border rounded-2xl p-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
-                  <TouchableOpacity 
-                    onPress={() => setEditingUser({ ...editingUser, storeId: 'default-store' })}
-                    className="py-2 px-3 border-b flex-row justify-between items-center" 
-                    style={{ borderColor: colors.border + '20' }}
-                  >
-                    <Text className="text-[10px] font-bold" style={{ color: editingUser.storeId === 'default-store' ? colors.accent : colors.text }}>Toko Default (default-store)</Text>
-                    {editingUser.storeId === 'default-store' && <Check size={10} color={colors.accent} />}
-                  </TouchableOpacity>
-                  {superAdminStores.map((s) => (
-                    <TouchableOpacity 
-                      key={s.id}
-                      onPress={() => setEditingUser({ ...editingUser, storeId: s.id })}
-                      className="py-2 px-3 border-b flex-row justify-between items-center"
-                      style={{ borderColor: colors.border + '20' }}
-                    >
-                      <Text className="text-[10px] font-bold" style={{ color: editingUser.storeId === s.id ? colors.accent : colors.text }}>{s.name} ({s.id})</Text>
-                      {editingUser.storeId === s.id && <Check size={10} color={colors.accent} />}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Subscription and Expiry Date Inputs */}
-              <View className="flex-row gap-3">
-                <View className="space-y-1 flex-1">
-                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Daftar</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker({visible: true, field: 'createdAt'})}
-                    className="p-3.5 rounded-2xl border flex-row items-center justify-between"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
-                  >
-                    <Text className="font-bold text-xs" style={{ color: editingUser.createdAt ? colors.text : colors.textMuted }}>
-                      {editingUser.createdAt ? (editingUser.createdAt.includes('T') ? editingUser.createdAt.substring(0, 10) : editingUser.createdAt) : 'Pilih Tanggal'}
-                    </Text>
-                    <CalendarRange size={14} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-                <View className="space-y-1 flex-1">
-                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Tanggal Expired</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowDatePicker({visible: true, field: 'validUntil'})}
-                    className="p-3.5 rounded-2xl border flex-row items-center justify-between"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
-                  >
-                    <Text className="font-bold text-xs" style={{ color: editingUser.validUntil ? colors.text : colors.textMuted }}>
-                      {editingUser.validUntil ? (editingUser.validUntil.includes('T') ? editingUser.validUntil.substring(0, 10) : editingUser.validUntil) : 'Pilih Tanggal'}
-                    </Text>
-                    <CalendarRange size={14} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Freeze and Subscription Toggles */}
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  onPress={() => setEditingUser({ ...editingUser, isActive: editingUser.isActive === false })}
-                  className="flex-1 py-3 rounded-xl border items-center justify-center"
-                  style={{ backgroundColor: editingUser.isActive !== false ? 'rgba(244,63,94,0.1)' : 'rgba(16,185,129,0.1)', borderColor: editingUser.isActive !== false ? 'rgba(244,63,94,0.2)' : 'rgba(16,185,129,0.2)' }}
-                >
-                  <Text className="text-[9px] font-black uppercase" style={{ color: editingUser.isActive !== false ? '#f43f5e' : '#10b981' }}>
-                    {editingUser.isActive !== false ? 'BEKUKAN AKSES' : 'AKTIFKAN AKSES'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setEditingUser({ ...editingUser, isSubscribed: !editingUser.isSubscribed })}
-                  className="flex-1 py-3 rounded-xl border items-center justify-center"
-                  style={{ backgroundColor: editingUser.isSubscribed ? 'rgba(148,163,184,0.1)' : 'rgba(139,92,246,0.1)', borderColor: editingUser.isSubscribed ? 'rgba(148,163,184,0.2)' : 'rgba(139,92,246,0.2)' }}
-                >
-                  <Text className="text-[9px] font-black uppercase" style={{ color: editingUser.isSubscribed ? colors.text : '#8b5cf6' }}>
-                    {editingUser.isSubscribed ? 'BATAL PRO' : 'SET PRO'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Save Changes */}
-              <TouchableOpacity
-                onPress={handleUpdateUser}
-                disabled={isSaving}
-                className="py-4 rounded-2xl items-center justify-center"
-                style={{ backgroundColor: colors.accent }}
-              >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text className="font-black text-white text-xs uppercase tracking-wider">Simpan Perubahan</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
+      {/* 1. USER EDIT DIALOG OVERLAY (REMOVED: Now inline) */}
 
       {/* 2. CALENDAR DATE PICKER MODAL */}
       {showDatePicker.visible && (
@@ -2727,124 +2931,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         </Modal>
       )}
 
-      {/* 5. EDIT TOKO DETAIL MODAL OVERLAY */}
-      {editingStore && (
-        <Modal visible={true} animationType="fade" transparent>
-          <View className="flex-1 bg-black/80 justify-center p-6">
-            <View className="w-full max-w-sm rounded-[36px] p-6 space-y-4" style={{ backgroundColor: colors.surface }}>
-              <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '30' }}>
-                <Text className="text-base font-black" style={{ color: colors.text }}>Edit Toko</Text>
-                <TouchableOpacity onPress={() => setEditingStore(null)}>
-                  <X size={20} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Store Name */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nama Toko</Text>
-                <TextInput
-                  value={editingStore.name}
-                  onChangeText={(txt) => setEditingStore({ ...editingStore, name: txt.toUpperCase() })}
-                  className="p-3.5 rounded-2xl border font-bold text-xs"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                />
-              </View>
-
-              {/* Owner Email */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Email Pemilik</Text>
-                <TextInput
-                  value={editingStore.ownerEmail}
-                  onChangeText={(txt) => setEditingStore({ ...editingStore, ownerEmail: txt })}
-                  className="p-3.5 rounded-2xl border font-bold text-xs"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                />
-              </View>
-
-              {/* Max Quota */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Kuota Maksimal User Staff</Text>
-                <TextInput
-                  value={String(editingStore.maxUsers)}
-                  onChangeText={(txt) => setEditingStore({ ...editingStore, maxUsers: txt.replace(/[^0-9]/g, '') as any })}
-                  keyboardType="numeric"
-                  className="p-3.5 rounded-2xl border font-bold text-xs"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                />
-              </View>
-
-              {/* Disabled Menus */}
-              <View className="space-y-1">
-                <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Menu yang Dinonaktifkan</Text>
-                <ScrollView 
-                  style={{ maxHeight: 120, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 8, backgroundColor: colors.bg }}
-                  showsVerticalScrollIndicator={true}
-                >
-                  {[
-                    { key: '/pos', name: 'Kasir (POS)' },
-                    { key: '/orders', name: 'Daftar Pesanan' },
-                    { key: '/estimations', name: 'Estimasi Biaya' },
-                    { key: '/shifts', name: 'Shift Karyawan' },
-                    { key: '/products', name: 'Manajemen Produk' },
-                    { key: '/transactions', name: 'Transaksi' },
-                    { key: '/debts', name: 'Hutang Piutang' },
-                    { key: '/reports', name: 'Laporan' },
-                    { key: '/users', name: 'Manajemen User' },
-                    { key: '/logs', name: 'Log Aktifitas' },
-                  ].map((item) => {
-                    const isDisabled = (editingStore.disabledMenus || []).includes(item.key);
-                    return (
-                      <TouchableOpacity
-                        key={item.key}
-                        onPress={() => {
-                          const current = editingStore.disabledMenus || [];
-                          const next = isDisabled
-                            ? current.filter((path: string) => path !== item.key)
-                            : [...current, item.key];
-                          setEditingStore({ ...editingStore, disabledMenus: next });
-                        }}
-                        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 8 }}
-                      >
-                        <View
-                          style={{
-                            width: 16,
-                            height: 16,
-                            borderRadius: 4,
-                            borderWidth: 1,
-                            borderColor: isDisabled ? colors.accent : colors.text + '40',
-                            backgroundColor: isDisabled ? colors.accent : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {isDisabled && <Check size={10} color="#ffffff" />}
-                        </View>
-                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>
-                          {item.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* Save Changes */}
-              <TouchableOpacity
-                onPress={handleUpdateStoreDetails}
-                disabled={isSaving}
-                className="py-4 rounded-2xl items-center justify-center"
-                style={{ backgroundColor: colors.accent }}
-              >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text className="font-black text-white text-xs uppercase tracking-wider">Simpan Perubahan Toko</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
+      {/* 5. EDIT TOKO DETAIL MODAL OVERLAY (REMOVED: Now inline) */}
 
       {/* 6. SHARD ADD/EDIT OVERLAY */}
       {isAddingProject && (
