@@ -561,7 +561,11 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               }
 
               // 5. Migrate Data Elements
-              const collectionsToMigrate = ['products', 'categories', 'product_extras', 'discounts', 'transactions', 'customers', 'expenses', 'estimations'];
+              const collectionsToMigrate = [
+                 'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+                 'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
+                 'cash_flow', 'stock_history', 'activity_logs'
+              ];
               let totalDocsMigrated = 0;
 
               for (const collName of collectionsToMigrate) {
@@ -599,7 +603,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     targetProjectId: isResetting ? null : targetProj.fb_project_id,
                     infraConfig: isResetting ? null : targetProj,
                     lastMigration: new Date().toISOString()
-                 };
+                  };
 
                  await fSet(fDoc(targetDb, 'users', u.id), updatedUserData);
 
@@ -614,7 +618,58 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               
               Alert.alert(
                 'Migrasi Berhasil',
-                `Toko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.`
+                `Toko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.\n\nApakah Anda ingin menghapus database/data lama toko ini di proyek asal (${sourceInfra ? sourceInfra.fb_project_id : 'DEFAULT (Internal)'}) secara PERMANEN?`,
+                [
+                  { text: 'Jangan Hapus', style: 'cancel' },
+                  {
+                    text: 'Ya, Hapus Permanen',
+                    style: 'destructive',
+                    onPress: async () => {
+                      setIsSaving(true);
+                      try {
+                        const { deleteDoc: fDeleteDoc } = await import('firebase/firestore');
+                        await fDeleteDoc(fDoc(sourceDb, 'stores', storeToMigrate.id)).catch(() => {});
+                        await fDeleteDoc(fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`)).catch(() => {});
+
+                        const collectionsToDelete = [
+                          'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+                          'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
+                          'cash_flow', 'stock_history', 'activity_logs', 'users'
+                        ];
+
+                        let totalDeleted = 0;
+                        for (const collName of collectionsToDelete) {
+                          const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', storeToMigrate.id));
+                          const snap = await fGetDocs(q);
+                          if (!snap.empty) {
+                            let batch = writeBatch(sourceDb);
+                            let count = 0;
+                            for (const docSnap of snap.docs) {
+                              batch.delete(docSnap.ref);
+                              count++;
+                              totalDeleted++;
+                              if (count === 400) {
+                                await batch.commit();
+                                batch = writeBatch(sourceDb);
+                                count = 0;
+                              }
+                            }
+                            if (count > 0) {
+                              await batch.commit();
+                            }
+                          }
+                        }
+
+                        Alert.alert('Sukses', `Data lama toko beserta ${totalDeleted} dokumen berhasil dihapus secara permanen dari proyek asal.`);
+                      } catch (delErr: any) {
+                        console.error(delErr);
+                        Alert.alert('Gagal', 'Terjadi kesalahan saat menghapus data lama: ' + delErr.message);
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }
+                  }
+                ]
               );
               setMigratingStoreData(null);
             } catch (err: any) {

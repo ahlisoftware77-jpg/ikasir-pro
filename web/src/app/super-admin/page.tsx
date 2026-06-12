@@ -761,7 +761,18 @@ export default function SuperAdminPage() {
     setIsSaving(true);
     try {
       const { initializeApp: initApp } = await import('firebase/app');
-      const { getFirestore: gFirestore, doc: fDoc, setDoc: fSet, getDoc: fGet, deleteDoc: fDel } = await import('firebase/firestore');
+      const { 
+         getFirestore: gFirestore, 
+         doc: fDoc, 
+         setDoc: fSet, 
+         getDoc: fGet, 
+         collection: fColl, 
+         getDocs: fGetDocs, 
+         query: fQuery, 
+         where: fWhere, 
+         writeBatch, 
+         deleteDoc: fDeleteDoc 
+      } = await import('firebase/firestore');
       
       // 1. Initialize Source DB (Detect if user is already migrated)
       const sourceDb = userToMigrate.infraConfig 
@@ -788,6 +799,7 @@ export default function SuperAdminPage() {
           }, `target-${Date.now()}`));
 
       // 3. Transfer Data
+      let totalDocsMigrated = 0;
       // A. User Doc (Always update mapping metadata)
       const userRef = fDoc(targetDb, 'users', userToMigrate.id);
       const migratedUser = {
@@ -812,11 +824,13 @@ export default function SuperAdminPage() {
 
         // C. Mass Migration Data Elements
         if (migrationMode === 'mass') {
-           const collectionsToMigrate = ['products', 'categories', 'product_extras', 'discounts', 'transactions', 'customers'];
-           let totalDocsMigrated = 0;
+           const collectionsToMigrate = [
+              'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+              'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
+              'cash_flow', 'stock_history', 'activity_logs'
+           ];
            
            for (const collName of collectionsToMigrate) {
-              const { collection: fColl, getDocs: fGetDocs, query: fQuery, where: fWhere, writeBatch } = await import('firebase/firestore');
               const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', userToMigrate.storeId));
               const snap = await fGetDocs(q);
               
@@ -850,7 +864,50 @@ export default function SuperAdminPage() {
       });
 
       if (migrationMode === 'mass') {
-         alert(`Berhasil! Data ${userToMigrate.email} dipindahkan secara massal ke ${targetId}.`);
+         alert(`Berhasil! Data ${userToMigrate.email} dipindahkan secara massal ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.`);
+         if (userToMigrate.storeId) {
+            const shouldDeleteOld = confirm(`⚠️ PERINGATAN HAPUS DATA ASAL ⚠️\n\nApakah Anda ingin menghapus database/data lama toko ini di proyek asal (${userToMigrate.infraConfig ? userToMigrate.infraConfig.fb_project_id : 'DEFAULT (Internal)'}) secara PERMANEN?`);
+            if (shouldDeleteOld) {
+               setIsSaving(true);
+               try {
+                  await fDeleteDoc(fDoc(sourceDb, 'stores', userToMigrate.storeId)).catch(() => {});
+                  await fDeleteDoc(fDoc(sourceDb, 'settings', `store_${userToMigrate.storeId}`)).catch(() => {});
+
+                  const collectionsToDelete = [
+                     'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+                     'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
+                     'cash_flow', 'stock_history', 'activity_logs', 'users'
+                  ];
+
+                  let totalDeleted = 0;
+                  for (const collName of collectionsToDelete) {
+                     const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', userToMigrate.storeId));
+                     const snap = await fGetDocs(q);
+                     if (!snap.empty) {
+                        let batch = writeBatch(sourceDb);
+                        let count = 0;
+                        for (const docSnap of snap.docs) {
+                           batch.delete(docSnap.ref);
+                           count++;
+                           totalDeleted++;
+                           if (count === 400) {
+                              await batch.commit();
+                              batch = writeBatch(sourceDb);
+                              count = 0;
+                           }
+                        }
+                        if (count > 0) {
+                           await batch.commit();
+                        }
+                     }
+                  }
+                  alert(`Data lama toko beserta ${totalDeleted} dokumen berhasil dihapus secara permanen dari proyek asal.`);
+               } catch (delErr: any) {
+                  console.error(delErr);
+                  alert('Gagal menghapus data lama: ' + delErr.message);
+               }
+            }
+         }
       } else {
          alert(`Berhasil! Data ${userToMigrate.email} telah dipindahkan ke ${targetId}.`);
       }
@@ -924,7 +981,11 @@ export default function SuperAdminPage() {
       }
 
       // 5. Migrate Data Elements
-      const collectionsToMigrate = ['products', 'categories', 'product_extras', 'discounts', 'transactions', 'customers', 'expenses', 'estimations'];
+      const collectionsToMigrate = [
+         'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+         'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
+         'cash_flow', 'stock_history', 'activity_logs'
+      ];
       let totalDocsMigrated = 0;
 
       for (const collName of collectionsToMigrate) {
@@ -975,7 +1036,51 @@ export default function SuperAdminPage() {
 
       await primaryBatch.commit();
       
-      alert(`✅ MIGRASI BERHASIL!\n\nToko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.`);
+      const shouldDeleteOld = confirm(
+         `✅ MIGRASI BERHASIL!\n\nToko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.\n\nApakah Anda ingin menghapus database/data lama toko ini di proyek asal (${sourceInfra ? sourceInfra.fb_project_id : 'DEFAULT (Internal)'}) secara PERMANEN?`
+      );
+
+      if (shouldDeleteOld) {
+         setIsSaving(true);
+         try {
+            const { deleteDoc: fDeleteDoc } = await import('firebase/firestore');
+            await fDeleteDoc(fDoc(sourceDb, 'stores', storeToMigrate.id)).catch(() => {});
+            await fDeleteDoc(fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`)).catch(() => {});
+
+            const collectionsToDelete = [
+               'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+               'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
+               'cash_flow', 'stock_history', 'activity_logs', 'users'
+            ];
+
+            let totalDeleted = 0;
+            for (const collName of collectionsToDelete) {
+               const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', storeToMigrate.id));
+               const snap = await fGetDocs(q);
+               if (!snap.empty) {
+                  let batch = writeBatch(sourceDb);
+                  let count = 0;
+                  for (const docSnap of snap.docs) {
+                     batch.delete(docSnap.ref);
+                     count++;
+                     totalDeleted++;
+                     if (count === 400) {
+                        await batch.commit();
+                        batch = writeBatch(sourceDb);
+                        count = 0;
+                     }
+                  }
+                  if (count > 0) {
+                     await batch.commit();
+                  }
+               }
+            }
+            alert(`Data lama toko beserta ${totalDeleted} dokumen berhasil dihapus secara permanen dari proyek asal.`);
+         } catch (delErr: any) {
+            console.error(delErr);
+            alert('Gagal menghapus data lama: ' + delErr.message);
+         }
+      }
       setMigratingStoreData(null);
     } catch (err: any) {
       console.error(err);
