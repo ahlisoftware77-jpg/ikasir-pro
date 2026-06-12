@@ -52,32 +52,35 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
     *   Menambahkan pengaturan checklist global di tab Branding SuperAdmin (Web & Mobile).
     *   Menyimpan daftar menu yang dinonaktifkan ketika masa aktif akun pengguna habis ke Firestore `system_settings/branding`.
     *   Mengimplementasikan penegakan dinamis di Mobile Tab Navigator (`App.tsx`) dan Menu Lainnya (`SettingsScreen.tsx`) berdasarkan data global tersebut.
-2.  **Optimalisasi UI Form Edit SuperAdmin (Mobile)**
+    *   **Perbaikan Web Sidebar Dropdown**: Memperbaiki bug pada [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) di mana menu bertipe dropdown/subItems (seperti *Manajemen Produk* dan *Laporan*) lolos dari pemblokiran masa aktif habis. Menu-menu tersebut kini ikut disamarkan (opasitas 40%) dan menampilkan toast error ketika diklik.
+2.  **Optimalisasi UI Form Edit SuperAdmin & Migrasi Lengkap (Mobile)**
     *   Mengubah modal popup melayang untuk "Edit User" dan "Kelola Toko" di `SuperAdminScreen.tsx` menjadi render halaman penuh (full screen) dengan header navigasi tombol Kembali yang lebih intuitif dan nyaman.
+    *   **Perbaikan Tombol Migrasi Database Toko**: Memperbaiki hilangnya opsi database proyek eksternal pada modal migrasi toko di `SuperAdminScreen.tsx`. Hal ini disebabkan oleh tidak adanya snapshot listener untuk `database_projects/list` ketika membuka fitur `superAdminStores` (Kelola Toko). Pilihan target database kini tampil lengkap seperti di web.
 3.  **Pesan WhatsApp Pusat Bantuan Profesional**
     *   Memperbarui tautan WhatsApp Pusat Bantuan di mobile (`SettingsScreen.tsx`) dengan pesan pembuka profesional yang terenkode.
 
 #### Berkas yang Dimodifikasi:
 *   **Web**:
     *   [page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/super-admin/page.tsx) - Menambahkan antarmuka checklist branding global expired menu.
+    *   [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) - Menambahkan pengecekan pemblokiran kedaluwarsa pada menu dropdown/subItems.
 *   **Mobile**:
-    *   [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Mengubah popup modal edit menjadi inline full screen form, menambahkan checklist branding global expired menu.
+    *   [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Mengubah popup modal edit menjadi inline full screen form, menambahkan checklist branding global expired menu, memuat daftar projects database target saat mengelola toko.
     *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store.
     *   [authStore.ts](file:///e:/yadiapp-project/KASIR/mobile/src/store/authStore.ts) - Menambahkan state store `expiredDisabledMenus`.
     *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Mengintegrasikan penegakan pemblokiran menu secara dinamis dan memperbarui URL WhatsApp Pusat Bantuan.
 
 #### Catatan Deployment & Perintah yang Dijalankan:
 1.  **Git Commit & Push**:
-    *   *Perintah*: `git add .` dan `git commit -m "feat: implement global expired disabled menus checklist and full-screen mobile forms"`
-    *   *Hasil*: Commit `92244e9e` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+    *   *Perintah*: `git add .` dan `git commit -m "fix: restore dynamic locking for dropdown sub-menus on web and complete store db migration projects on mobile"`
+    *   *Hasil*: Commit `b2e9a1a3` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
 2.  **Expo OTA Update**:
-    *   *Perintah*: `npx eas-cli update --channel production --message "feat: global expired disabled menus and full screen mobile forms" --non-interactive`
+    *   *Perintah*: `npx eas-cli update --channel production --message "fix: restore dynamic locking for dropdown sub-menus on web and complete store db migration projects on mobile" --non-interactive`
     *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
         *   **Runtime Version**: `1.0.0`
-        *   **Update Group ID**: `a80adfd5-1dae-4a93-874e-2cb6b5000cc7`
-        *   **Android Update ID**: `019ebcd2-55b3-70f4-a4ee-fc89b84a96f2`
-        *   **iOS Update ID**: `019ebcd2-55b3-7dd2-81a8-241c54eb8d64`
-        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/a80adfd5-1dae-4a93-874e-2cb6b5000cc7)
+        *   **Update Group ID**: `65163152-6a6c-4861-a83a-4f51bc7291fa`
+        *   **Android Update ID**: `019ebcd4-dd78-79e5-b108-9df8df3c08f4`
+        *   **iOS Update ID**: `019ebcd4-dd78-7b96-b072-bcad66d4db7a`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/65163152-6a6c-4861-a83a-4f51bc7291fa)
 
 ---
 
