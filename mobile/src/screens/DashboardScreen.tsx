@@ -1,17 +1,69 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable } from 'react-native';
-import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput } from 'react-native';
+import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell } from 'lucide-react-native';
+import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
 
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useTheme();
-  const { user, storeId, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
+  const { user, storeId, isSubscriptionExpired, subscriptionUntil, role } = useAuthStore();
+
+  const sisaHari = useMemo(() => {
+    if (!subscriptionUntil) return null;
+    const expiryDate = new Date(subscriptionUntil);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [subscriptionUntil]);
+
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetRevenueMobile = async () => {
+    if (resetConfirmText !== 'Kosongkan Saldo') {
+      Alert.alert('Eror', 'Teks konfirmasi salah!');
+      return;
+    }
+    if (!storeId) return;
+
+    setIsResetting(true);
+    try {
+      const q = query(collection(db, 'transactions'), where('storeId', '==', storeId));
+      const snap = await getDocs(q);
+      let batch = writeBatch(db);
+      let count = 0;
+      let totalDeleted = 0;
+      
+      for (const docSnap of snap.docs) {
+        batch.delete(docSnap.ref);
+        count++;
+        totalDeleted++;
+        if (count === 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+
+      Alert.alert('Sukses', `Berhasil menghapus ${totalDeleted} transaksi. Pendapatan kotor berhasil di-reset!`);
+      setIsResetModalOpen(false);
+      setResetConfirmText('');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal mereset pendapatan kotor: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   useEffect(() => {
     if (isSubscriptionExpired) {
@@ -212,6 +264,29 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* WARNING BANNER FOR EXPIRING SUBSCRIPTION */}
+        {sisaHari !== null && sisaHari <= 7 && !isSubscriptionExpired && (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (
+          <TouchableOpacity
+            onPress={() => {
+              Vibration.vibrate(10);
+              navigation.navigate('Lainnya', { openSubscription: true });
+            }}
+            activeOpacity={0.9}
+            className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex-row items-center gap-3"
+          >
+            <View className="w-8 h-8 rounded-xl bg-amber-500/20 items-center justify-center">
+              <AlertCircle color="#f59e0b" size={18} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Masa Aktif Akun Hampir Habis</Text>
+              <Text className="text-xs font-bold mt-0.5" style={{ color: colors.text }}>
+                Tinggal <Text className="text-amber-500">{sisaHari} hari</Text> lagi. Ketuk untuk perpanjang.
+              </Text>
+            </View>
+            <ChevronRight color={colors.textMuted} size={16} />
+          </TouchableOpacity>
+        )}
+
         {/* HERO CARD - OMZET TOKO */}
         <View 
           className="p-6 rounded-[32px] border mb-6 relative overflow-hidden shadow-2xl shadow-emerald-500/5"
@@ -221,10 +296,23 @@ export default function DashboardScreen({ navigation }: any) {
           <View className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full filter blur-xl" />
           
           <View className="flex-row justify-between items-start mb-4">
-            <View>
-              <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: colors.textMuted }}>
-                TOTAL PENDAPATAN KOTOR
-              </Text>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: colors.textMuted }}>
+                  TOTAL PENDAPATAN KOTOR
+                </Text>
+                {(role as string) !== 'customer' && (role as string) !== 'cashier' && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Vibration.vibrate(15);
+                      setIsResetModalOpen(true);
+                    }}
+                    className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20"
+                  >
+                    <Text className="text-[8px] font-black text-rose-500 uppercase tracking-widest">Reset</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text className="text-3xl font-black mt-2 tracking-tight text-emerald-400">
                 Rp {totalRevenue.toLocaleString('id-ID')}
               </Text>
@@ -403,6 +491,92 @@ export default function DashboardScreen({ navigation }: any) {
         </View>
 
       </View>
+
+      {/* Reset Revenue Confirmation Modal */}
+      <Modal
+        visible={isResetModalOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setIsResetModalOpen(false);
+          setResetConfirmText('');
+        }}
+      >
+        <Pressable 
+          className="flex-1 justify-center items-center bg-black/60 px-6"
+          onPress={() => {
+            setIsResetModalOpen(false);
+            setResetConfirmText('');
+          }}
+        >
+          <Pressable 
+            className="w-full max-w-sm rounded-[32px] p-6 border shadow-2xl"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            onPress={() => {}} // prevent closing
+          >
+            {/* Modal Header */}
+            <View className="flex-row justify-between items-center mb-6">
+              <View>
+                <Text className="text-base font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                  Reset Pendapatan
+                </Text>
+                <Text className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: colors.textMuted }}>
+                  Konfirmasi Penghapusan
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => {
+                  setIsResetModalOpen(false);
+                  setResetConfirmText('');
+                }}
+                className="w-8 h-8 rounded-lg bg-black/10 items-center justify-center"
+              >
+                <X size={16} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Warning Box */}
+            <View className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 mb-4">
+              <Text className="text-[10px] font-bold text-rose-500 leading-4">
+                Tindakan ini akan <Text className="font-black">menghapus secara permanen semua transaksi</Text> pada toko ini dari database. Pendapatan kotor pada dashboard akan kembali ke <Text className="font-black">Rp 0</Text>. Ketik <Text className="font-black">Kosongkan Saldo</Text> di bawah untuk mengonfirmasi.
+              </Text>
+            </View>
+
+            {/* Input Field */}
+            <View className="mb-4">
+              <Text className="text-[9px] font-black uppercase tracking-wider mb-2 ml-1" style={{ color: colors.textMuted }}>
+                Teks Konfirmasi
+              </Text>
+              <TextInput
+                value={resetConfirmText}
+                onChangeText={setResetConfirmText}
+                placeholder="Kosongkan Saldo"
+                placeholderTextColor={colors.textMuted + '80'}
+                autoCapitalize="none"
+                style={{ 
+                  color: colors.text, 
+                  backgroundColor: colors.bg, 
+                  borderColor: colors.border 
+                }}
+                className="w-full h-12 px-4 rounded-xl border font-bold text-xs"
+              />
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              onPress={handleResetRevenueMobile}
+              disabled={isResetting || resetConfirmText !== 'Kosongkan Saldo'}
+              className="w-full h-12 rounded-xl items-center justify-center flex-row gap-2 bg-rose-500"
+              style={{ opacity: (isResetting || resetConfirmText !== 'Kosongkan Saldo') ? 0.5 : 1 }}
+            >
+              {isResetting && <ActivityIndicator size="small" color="#ffffff" />}
+              <Text className="text-xs font-black text-white uppercase tracking-wider">
+                KONFIRMASI KOSONGKAN SALDO
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   </SafeAreaView>
 );

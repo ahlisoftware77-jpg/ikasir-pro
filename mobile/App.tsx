@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
 
 export const navigationRef = createNavigationContainerRef();
@@ -42,9 +42,19 @@ const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
   const { colors } = useTheme();
-  const { role, storeId } = useAuthStore();
+  const { role, storeId, subscriptionUntil, isSubscriptionExpired } = useAuthStore();
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const insets = useSafeAreaInsets();
+
+  const sisaHari = useMemo(() => {
+    if (!subscriptionUntil) return null;
+    const expiryDate = new Date(subscriptionUntil);
+    const now = new Date();
+    const diffTime = expiryDate.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [subscriptionUntil]);
+
+  const showExpiredOrWarningBadge = (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (isSubscriptionExpired || (sisaHari !== null && sisaHari <= 7));
 
   useEffect(() => {
     if (!storeId) return;
@@ -147,7 +157,18 @@ function TabNavigator() {
         component={SettingsScreen} 
         options={{
           tabBarIcon: ({ color }) => <LayoutGrid color={color} size={26} strokeWidth={2.5} />,
-          title: 'MENU LAINNYA'
+          title: 'MENU LAINNYA',
+          tabBarBadge: showExpiredOrWarningBadge ? '!' : undefined,
+          tabBarBadgeStyle: showExpiredOrWarningBadge ? {
+            backgroundColor: '#fbbf24',
+            color: '#ffffff',
+            fontSize: 10,
+            fontWeight: 'bold',
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
+            lineHeight: 16,
+          } : undefined
         }}
       />
     </Tab.Navigator>
@@ -219,7 +240,7 @@ function NavigationRoot() {
             const diffTime = validUntil.getTime() - now.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            if ([7, 3, 1].includes(diffDays)) {
+            if (diffDays <= 7 && diffDays > 0) {
               const todayStr = now.toISOString().split('T')[0];
               const storageKey = `sub_warned_mobile_${user.uid}_${diffDays}_${todayStr}`;
               

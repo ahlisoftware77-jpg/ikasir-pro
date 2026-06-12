@@ -1107,31 +1107,39 @@ export default function SettingsScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
 
-        {(isSubscriptionExpired || hasPendingSubscription || (sisaHari !== null && sisaHari <= 7)) && (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (
+        {(role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (
           <View className="px-6 mt-4">
             <View 
-              className="w-full rounded-3xl p-5 border flex-row items-center overflow-hidden relative shadow-lg shadow-emerald-500/20"
+              className="w-full rounded-2xl py-3 px-4 border flex-row items-center justify-between"
               style={{ 
-                backgroundColor: hasPendingSubscription ? '#f59e0b' : colors.accent, 
-                borderColor: hasPendingSubscription ? '#f59e0b' : colors.accent 
+                backgroundColor: colors.surface, 
+                borderColor: colors.border,
               }}
             >
-              <View className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full" />
-              <View className="absolute -left-4 -top-4 w-16 h-16 bg-black/10 rounded-full" />
-              
-              <View className="flex-1">
-                <Text className="text-white font-black text-xs uppercase tracking-widest mb-1">Masa Aktif Akun</Text>
-                <Text className="text-white/80 font-bold text-[10px]">
-                  {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
-                  {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                </Text>
+              <View className="flex-row items-center gap-3">
+                <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: isSubscriptionExpired ? '#f43f5e' : (hasPendingSubscription ? '#f59e0b' : '#10b981') }} />
+                <View>
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Masa Aktif Akun</Text>
+                  <Text className="font-bold text-[10px] mt-0.5" style={{ color: colors.textMuted }}>
+                    {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
+                    {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                  </Text>
+                </View>
               </View>
-              {hasPendingSubscription && (
-                <View className="bg-white px-3 py-2 rounded-xl border border-white/20">
-                  <Text className="text-[10px] font-black uppercase tracking-wider text-amber-500">
+              {hasPendingSubscription ? (
+                <View className="bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                  <Text className="text-[8px] font-black uppercase text-amber-500">
                     Menunggu Verifikasi
                   </Text>
                 </View>
+              ) : (
+                sisaHari !== null && (
+                  <View className={`px-2.5 py-1 rounded-lg border ${sisaHari <= 7 ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                    <Text className={`text-[8px] font-black uppercase tracking-wider ${sisaHari <= 7 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {sisaHari <= 0 ? 'Habis' : `${sisaHari} Hari`}
+                    </Text>
+                  </View>
+                )
               )}
             </View>
           </View>
@@ -1307,6 +1315,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               navigation.navigate('StoreSettingsScreen');
             }, true)}
             {renderMenuItem('Notifikasi BG', ShieldAlert, '#f59e0b', handleOpenBatterySettings)}
+            {renderMenuItem('Paket Langganan', Sparkles, '#8b5cf6', () => {
+              Vibration.vibrate(10);
+              setActiveModal('subscriptionMenu');
+            })}
             {renderMenuItem('Pusat Bantuan', HelpCircle, '#10b981', () => {
               Vibration.vibrate(10);
               Linking.openURL('https://wa.me/6283815862300');

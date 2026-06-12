@@ -2,15 +2,60 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth';
-import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink } from 'lucide-react';
+import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Home() {
   const { user, role, storeId } = useAuthStore();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customersCount, setCustomersCount] = useState(0);
+
+  const [isResetRevenueModalOpen, setIsResetRevenueModalOpen] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetRevenue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetConfirmText !== 'Kosongkan Saldo') {
+      toast.error('Teks konfirmasi salah!');
+      return;
+    }
+    if (!storeId) return;
+
+    setIsResetting(true);
+    try {
+      const q = query(collection(db, 'transactions'), where('storeId', '==', storeId));
+      const snap = await getDocs(q);
+      let batch = writeBatch(db);
+      let count = 0;
+      let totalDeleted = 0;
+      
+      for (const docSnap of snap.docs) {
+        batch.delete(docSnap.ref);
+        count++;
+        totalDeleted++;
+        if (count === 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+
+      toast.success(`Berhasil menghapus ${totalDeleted} transaksi. Pendapatan kotor berhasil di-reset!`);
+      setIsResetRevenueModalOpen(false);
+      setResetConfirmText('');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal mereset pendapatan kotor: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   useEffect(() => {
     if (!storeId) return;
@@ -134,7 +179,20 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <p className="text-[10px] font-black text-app-text-muted mb-1 md:mb-2 uppercase tracking-widest">{stat.name}</p>
+              <div className="flex items-center justify-between mb-1 md:mb-2">
+                <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest">{stat.name}</p>
+                {stat.name === 'Total Pendapatan' && (role === 'admin' || role === 'super-admin' || role === 'superadmin') && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsResetRevenueModalOpen(true);
+                    }}
+                    className="text-[9px] font-bold text-rose-500 hover:text-rose-600 transition-colors uppercase tracking-wider px-2 py-0.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-md"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
               <h3 className="text-lg md:text-3xl font-black text-foreground tracking-tight truncate">{stat.value}</h3>
             </div>
           </div>
@@ -178,6 +236,53 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Reset Revenue Confirmation Modal */}
+      {isResetRevenueModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-surface border border-app-border rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl relative animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-black text-foreground tracking-tight">RESET PENDAPATAN KOTOR</h3>
+                <p className="text-[10px] text-app-text-muted font-bold uppercase tracking-widest mt-1">Konfirmasi Penghapusan</p>
+              </div>
+              <button 
+                onClick={() => { setIsResetRevenueModalOpen(false); setResetConfirmText(''); }}
+                className="w-8 h-8 rounded-lg bg-app-border/50 flex items-center justify-center text-app-text-muted hover:text-foreground transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetRevenue} className="space-y-4">
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-xs font-bold text-rose-500 leading-relaxed">
+                Tindakan ini akan <strong>menghapus secara permanen semua transaksi</strong> pada toko ini dari database. Pendapatan kotor pada dashboard akan kembali ke <strong>Rp 0</strong>. Ketik <strong>Kosongkan Saldo</strong> di bawah untuk mengonfirmasi.
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest pl-2">Teks Konfirmasi</label>
+                <input 
+                  type="text"
+                  required
+                  value={resetConfirmText}
+                  onChange={e => setResetConfirmText(e.target.value)}
+                  placeholder="Kosongkan Saldo"
+                  className="w-full px-5 py-4 bg-background border border-app-border rounded-xl text-sm font-bold text-foreground focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isResetting || resetConfirmText !== 'Kosongkan Saldo'}
+                className="w-full py-4 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white rounded-xl font-black shadow-lg shadow-rose-500/20 active:scale-95 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                {isResetting && <Loader2 size={16} className="animate-spin" />}
+                KONFIRMASI KOSONGKAN SALDO
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

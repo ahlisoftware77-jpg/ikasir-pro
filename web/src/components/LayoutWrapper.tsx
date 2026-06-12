@@ -265,8 +265,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     const diffTime = expiryDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    // We only care about 7, 3, and 1 days before expiration
-    if ([7, 3, 1].includes(diffDays)) {
+    // We only care about the last 7 days before expiration
+    if (diffDays <= 7 && diffDays > 0) {
       const todayStr = now.toISOString().split('T')[0];
       const storageKey = `sub_warned_${user.uid}_${diffDays}_${todayStr}`;
       
