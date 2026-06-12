@@ -363,6 +363,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
         setSuperAdminUsers(usr);
       });
+      unsubProjects = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
+        const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setDbProjects(projects);
+      });
     }
 
     if (featureId === 'superAdminInfra') {

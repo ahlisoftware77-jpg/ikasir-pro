@@ -199,17 +199,22 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             if (item.subItems) {
               const isOpen = openMenus[item.path];
               const isSuperAdminBlocked = disabledMenus?.includes(item.path);
+              const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+              const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes(item.path);
+              const isBlocked = isSuperAdminBlocked || isExpiredBlocked;
               return (
                 <div key={item.path} className="space-y-1 py-1">
                   <button
                     onClick={() => {
                       if (isSuperAdminBlocked) {
                         toast.error('Akses Terkunci. Fitur dinonaktifkan oleh administrator.', { style: { background: '#f43f5e', color: '#fff' } });
+                      } else if (isExpiredBlocked) {
+                        toast.error('Masa Aktif Habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.', { style: { background: '#fbbf24', color: '#fff' } });
                       } else {
                         toggleMenu(item.path);
                       }
                     }}
-                    className={`uiverse-btn ${isActive && !isOpen ? 'active-btn' : ''} ${isSuperAdminBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    className={`uiverse-btn ${isActive && !isOpen ? 'active-btn' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <span className="uiverse-btn-top w-full justify-between">
                       <span className="flex items-center gap-3">
