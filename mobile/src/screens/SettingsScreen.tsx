@@ -1057,7 +1057,7 @@ export default function SettingsScreen({ navigation, route }: any) {
 
     // 2. Check blocks
     const isSuperAdminBlocked = path ? disabledMenus?.includes(path) : false;
-    const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+    const blockedWhenExpired = expiredDisabledMenus || [];
     const isExpiredBlockedComputed = path 
       ? (isSubscriptionExpired && blockedWhenExpired.includes(path))
       : isExpiredBlocked;

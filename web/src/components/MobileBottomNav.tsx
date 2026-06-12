@@ -166,7 +166,7 @@ export default function MobileBottomNav() {
           {displayTabs.map((tab) => {
             const isActive = pathname === tab.path || (tab.path !== '/' && pathname.startsWith(tab.path + '/'));
             const isSuperAdminBlocked = disabledMenus?.includes(tab.path === '/' ? '/reports' : tab.path);
-            const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+            const blockedWhenExpired = expiredDisabledMenus || [];
             const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(tab.path)) || isSuperAdminBlocked;
             const Icon = tab.icon;
             return (
@@ -252,7 +252,7 @@ export default function MobileBottomNav() {
                  const isExpanded = expandedMenu === menu.name;
                  const hasSubItems = (menu as any).subItems && (menu as any).subItems.length > 0;
                  const isSuperAdminBlocked = disabledMenus?.includes(menu.path);
-                 const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+                 const blockedWhenExpired = expiredDisabledMenus || [];
                  const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(menu.path)) || isSuperAdminBlocked;
 
                  return (

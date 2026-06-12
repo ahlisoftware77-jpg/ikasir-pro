@@ -76,7 +76,7 @@ function TabNavigator() {
 
   const getTabOptions = (title: string, path: string, iconComponent: any, extraOptions = {}) => {
     const isSuperAdminBlocked = disabledMenus?.includes(path);
-    const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+    const blockedWhenExpired = expiredDisabledMenus || [];
     const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes(path);
     const isMenuDisabled = isSuperAdminBlocked || isExpiredBlocked;
 

@@ -197,11 +197,11 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             const Icon = item.icon;
             
             if (item.subItems) {
-              const isOpen = openMenus[item.path];
-              const isSuperAdminBlocked = disabledMenus?.includes(item.path);
-              const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
-              const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes(item.path);
-              const isBlocked = isSuperAdminBlocked || isExpiredBlocked;
+               const isOpen = openMenus[item.path];
+               const isSuperAdminBlocked = disabledMenus?.includes(item.path);
+               const blockedWhenExpired = expiredDisabledMenus || [];
+               const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes(item.path);
+               const isBlocked = isSuperAdminBlocked || isExpiredBlocked;
               return (
                 <div key={item.path} className="space-y-1 py-1">
                   <button
@@ -251,7 +251,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             }
 
             const isSuperAdminBlocked = disabledMenus?.includes(item.path);
-            const blockedWhenExpired = expiredDisabledMenus || ['/pos', '/estimations', '/debts', '/users'];
+            const blockedWhenExpired = expiredDisabledMenus || [];
             const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(item.path)) || isSuperAdminBlocked;
 
             if (item.path === '#subscription') {
