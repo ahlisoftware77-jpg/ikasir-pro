@@ -59,30 +59,35 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
     *   **Perbaikan Tombol Migrasi Database Toko**: Memperbaiki hilangnya opsi database proyek eksternal pada modal migrasi toko di `SuperAdminScreen.tsx`. Hal ini disebabkan oleh tidak adanya snapshot listener untuk `database_projects/list` ketika membuka fitur `superAdminStores` (Kelola Toko). Pilihan target database kini tampil lengkap seperti di web.
 3.  **Pesan WhatsApp Pusat Bantuan Profesional**
     *   Memperbarui tautan WhatsApp Pusat Bantuan di mobile (`SettingsScreen.tsx`) dengan pesan pembuka profesional yang terenkode.
+4.  **Penghapusan Pemblokiran Bawaan / Default (Fail-safe Fallback)**
+    *   Menghapus sepenuhnya daftar menu bawaan default (`['/pos', '/estimations', '/debts', '/users']`) ketika masa aktif habis di seluruh aplikasi.
+    *   Pemblokiran menu kedaluwarsa kini 100% didasarkan pada pengaturan checklist global branding SuperAdmin.
 
 #### Berkas yang Dimodifikasi:
 *   **Web**:
     *   [page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/super-admin/page.tsx) - Menambahkan antarmuka checklist branding global expired menu.
-    *   [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) - Menambahkan pengecekan pemblokiran kedaluwarsa pada menu dropdown/subItems.
+    *   [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) - Menambahkan pengecekan pemblokiran kedaluwarsa pada menu dropdown/subItems dan menghapus fallback bawaan.
+    *   [MobileBottomNav.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/MobileBottomNav.tsx) - Menghapus list menu default dan menggunakan config dynamic.
+    *   [LayoutWrapper.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/LayoutWrapper.tsx) - Menghapus fallback list dari routing guard dan menggunakan dynamic `expiredDisabledMenus`.
     *   [AuthProvider.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/AuthProvider.tsx) - Menambahkan real-time snapshot listener untuk branding global dan sinkronisasi `expiredDisabledMenus`.
 *   **Mobile**:
     *   [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Mengubah popup modal edit menjadi inline full screen form, menambahkan checklist branding global expired menu, memuat daftar projects database target saat mengelola toko.
-    *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store.
+    *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store dan menghapus fallback expired menu bawaan.
     *   [authStore.ts](file:///e:/yadiapp-project/KASIR/mobile/src/store/authStore.ts) - Menambahkan state store `expiredDisabledMenus`.
-    *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Mengintegrasikan penegakan pemblokiran menu secara dinamis dan memperbarui URL WhatsApp Pusat Bantuan.
+    *   [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Mengintegrasikan penegakan pemblokiran menu secara dinamis, menghapus fallback bawaan, dan memperbarui URL WhatsApp Pusat Bantuan.
 
 #### Catatan Deployment & Perintah yang Dijalankan:
 1.  **Git Commit & Push**:
-    *   *Perintah*: `git add .` dan `git commit -m "fix: use primaryDb for branding config sync to allow multi-tenant stores to load custom expired menus"`
-    *   *Hasil*: Commit `fa32d362` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+    *   *Perintah*: `git add .` dan `git commit -m "fix: remove hardcoded default expired fallback menus from web and mobile"`
+    *   *Hasil*: Commit `16c409fa` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
 2.  **Expo OTA Update**:
-    *   *Perintah*: `npx eas-cli update --channel production --message "fix: use primaryDb for branding config sync to allow multi-tenant stores to load custom expired menus" --non-interactive`
+    *   *Perintah*: `npx eas-cli update --channel production --message "fix: remove hardcoded default expired fallback menus from web and mobile" --non-interactive`
     *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
         *   **Runtime Version**: `1.0.0`
-        *   **Update Group ID**: `6db7374b-e666-419b-a010-85dd4760a92d`
-        *   **Android Update ID**: `019ebcf3-5750-705b-80df-8fe0a96a3cb8`
-        *   **iOS Update ID**: `019ebcf3-5750-7dc5-a131-b6d4fe7fb0b9`
-        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/6db7374b-e666-419b-a010-85dd4760a92d)
+        *   **Update Group ID**: `ca97847e-0a9a-43ea-9ea2-2db2b2c4b954`
+        *   **Android Update ID**: `019ebd00-db7b-7468-855a-fbd72e932a7e`
+        *   **iOS Update ID**: `019ebd00-db7b-795c-b54a-74b97c4b31f2`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/ca97847e-0a9a-43ea-9ea2-2db2b2c4b954)
 
 ---
 

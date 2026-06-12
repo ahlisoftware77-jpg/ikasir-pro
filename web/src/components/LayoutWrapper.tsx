@@ -20,7 +20,7 @@ import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/fire
 import toast from 'react-hot-toast';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
+  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil, expiredDisabledMenus } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -508,7 +508,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
       // 3. Protection for Subscription Expiry
       if (user && isSubscriptionExpired && role !== 'super-admin') {
-        const blockedPaths = ['/users', '/pos', '/estimations', '/debts'];
+        const blockedPaths = expiredDisabledMenus || [];
         const isBlockedPath = blockedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
         if (isBlockedPath) {
           router.push('/');
