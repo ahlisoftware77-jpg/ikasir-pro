@@ -73,16 +73,16 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 #### Catatan Deployment & Perintah yang Dijalankan:
 1.  **Git Commit & Push**:
-    *   *Perintah*: `git add .` dan `git commit -m "docs: finalize project history with web AuthProvider sync logs"`
-    *   *Hasil*: Commit `2665deef` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+    *   *Perintah*: `git add .` dan `git commit -m "fix: use primaryDb for branding config sync to allow multi-tenant stores to load custom expired menus"`
+    *   *Hasil*: Commit `fa32d362` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
 2.  **Expo OTA Update**:
-    *   *Perintah*: `npx eas-cli update --channel production --message "fix: implement real-time global expiredDisabledMenus synchronization in web AuthProvider" --non-interactive`
+    *   *Perintah*: `npx eas-cli update --channel production --message "fix: use primaryDb for branding config sync to allow multi-tenant stores to load custom expired menus" --non-interactive`
     *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
         *   **Runtime Version**: `1.0.0`
-        *   **Update Group ID**: `f408b34a-5bac-4081-bd4f-669fe1a78ef6`
-        *   **Android Update ID**: `019ebcf1-a1c1-7f28-802a-17e96ffb0e94`
-        *   **iOS Update ID**: `019ebcf1-a1c1-7875-bd74-7676bbbb6c02`
-        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/f408b34a-5bac-4081-bd4f-669fe1a78ef6)
+        *   **Update Group ID**: `6db7374b-e666-419b-a010-85dd4760a92d`
+        *   **Android Update ID**: `019ebcf3-5750-705b-80df-8fe0a96a3cb8`
+        *   **iOS Update ID**: `019ebcf3-5750-7dc5-a131-b6d4fe7fb0b9`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/6db7374b-e666-419b-a010-85dd4760a92d)
 
 ---
 
