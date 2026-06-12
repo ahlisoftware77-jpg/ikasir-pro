@@ -53,6 +53,7 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
     *   Menyimpan daftar menu yang dinonaktifkan ketika masa aktif akun pengguna habis ke Firestore `system_settings/branding`.
     *   Mengimplementasikan penegakan dinamis di Mobile Tab Navigator (`App.tsx`) dan Menu Lainnya (`SettingsScreen.tsx`) berdasarkan data global tersebut.
     *   **Perbaikan Web Sidebar Dropdown**: Memperbaiki bug pada [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) di mana menu bertipe dropdown/subItems (seperti *Manajemen Produk* dan *Laporan*) lolos dari pemblokiran masa aktif habis. Menu-menu tersebut kini ikut disamarkan (opasitas 40%) dan menampilkan toast error ketika diklik.
+    *   **Perbaikan Web AuthProvider**: Memperbaiki bug pada [AuthProvider.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/AuthProvider.tsx) di mana data checklist kedaluwarsa global (`expiredDisabledMenus`) tidak disinkronkan ke client Web, sehingga pemblokiran jatuh kembali (fallback) ke nilai default. Pilihan custom checklist kini tersinkronisasi secara real-time dan efektif di sisi Web client.
 2.  **Optimalisasi UI Form Edit SuperAdmin & Migrasi Lengkap (Mobile)**
     *   Mengubah modal popup melayang untuk "Edit User" dan "Kelola Toko" di `SuperAdminScreen.tsx` menjadi render halaman penuh (full screen) dengan header navigasi tombol Kembali yang lebih intuitif dan nyaman.
     *   **Perbaikan Tombol Migrasi Database Toko**: Memperbaiki hilangnya opsi database proyek eksternal pada modal migrasi toko di `SuperAdminScreen.tsx`. Hal ini disebabkan oleh tidak adanya snapshot listener untuk `database_projects/list` ketika membuka fitur `superAdminStores` (Kelola Toko). Pilihan target database kini tampil lengkap seperti di web.
@@ -63,6 +64,7 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 *   **Web**:
     *   [page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/super-admin/page.tsx) - Menambahkan antarmuka checklist branding global expired menu.
     *   [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) - Menambahkan pengecekan pemblokiran kedaluwarsa pada menu dropdown/subItems.
+    *   [AuthProvider.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/AuthProvider.tsx) - Menambahkan real-time snapshot listener untuk branding global dan sinkronisasi `expiredDisabledMenus`.
 *   **Mobile**:
     *   [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Mengubah popup modal edit menjadi inline full screen form, menambahkan checklist branding global expired menu, memuat daftar projects database target saat mengelola toko.
     *   [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Sinkronisasi status `expiredDisabledMenus` global ke store.
@@ -71,16 +73,16 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 #### Catatan Deployment & Perintah yang Dijalankan:
 1.  **Git Commit & Push**:
-    *   *Perintah*: `git add .` dan `git commit -m "fix: restore dynamic locking for dropdown sub-menus on web and complete store db migration projects on mobile"`
-    *   *Hasil*: Commit `56d76b99` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+    *   *Perintah*: `git add .` dan `git commit -m "fix: implement real-time global expiredDisabledMenus synchronization in web AuthProvider"`
+    *   *Hasil*: Commit `79a02822` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
 2.  **Expo OTA Update**:
-    *   *Perintah*: `npx eas-cli update --channel production --message "fix: restore dynamic locking for dropdown sub-menus on web and complete store db migration projects on mobile" --non-interactive`
+    *   *Perintah*: `npx eas-cli update --channel production --message "fix: implement real-time global expiredDisabledMenus synchronization in web AuthProvider" --non-interactive`
     *   *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
         *   **Runtime Version**: `1.0.0`
-        *   **Update Group ID**: `edcac42e-7838-4bbf-be39-b707481a1c87`
-        *   **Android Update ID**: `019ebce6-1338-7924-bc93-d57a6923ec1d`
-        *   **iOS Update ID**: `019ebce6-1338-7b40-9d77-2fec9cef35f6`
-        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/edcac42e-7838-4bbf-be39-b707481a1c87)
+        *   **Update Group ID**: `fcdad1b0-13f6-4993-8fe5-12cf24c4ad9b`
+        *   **Android Update ID**: `019ebce8-cf40-7f24-a78d-9da4b2be72c6`
+        *   **iOS Update ID**: `019ebce8-cf40-7e47-8a42-70bfa3f80c65`
+        *   **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/fcdad1b0-13f6-4993-8fe5-12cf24c4ad9b)
 
 ---
 
