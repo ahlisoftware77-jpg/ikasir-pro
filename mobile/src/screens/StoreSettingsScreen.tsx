@@ -1973,6 +1973,29 @@ export default function StoreSettingsScreen({ navigation }: any) {
               </ScrollView>
             )}
           </View>
+
+          {/* MOBILE SIGNATURE DRAWING MODAL */}
+          <Modal visible={showSignaturePadMobile} animationType="slide" transparent onRequestClose={() => setShowSignaturePadMobile(false)}>
+            <View className="flex-1 bg-black/60 justify-end">
+              <View className="h-[55%] rounded-t-[40px] p-6 pb-10" style={{ backgroundColor: colors.bg }}>
+                <View className="flex-row justify-between items-center mb-4">
+                  <View>
+                    <Text className="text-base font-black" style={{ color: colors.text }}>Gambar Tanda Tangan Toko</Text>
+                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Gunakan jari Anda di area gambar</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowSignaturePadMobile(false)} className="w-8 h-8 rounded-full bg-black/10 items-center justify-center">
+                    <X color={colors.text} size={16} />
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-1 bg-white rounded-2xl overflow-hidden border border-slate-200">
+                   <SignaturePad 
+                      onOK={handleSaveSignatureMobile}
+                      onCancel={() => setShowSignaturePadMobile(false)}
+                   />
+                </View>
+              </View>
+            </View>
+          </Modal>
         </SafeAreaView>
   );
 }

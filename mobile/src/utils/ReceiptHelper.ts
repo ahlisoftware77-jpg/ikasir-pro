@@ -163,7 +163,7 @@ export const generateA4Html = (trx: any, storeSettings?: any) => {
         .grand-total-box { display: flex; justify-content: space-between; background-color: #0f172a; color: #ffffff; padding: 15px; border-radius: 8px; font-weight: 900; font-size: 15px; margin-top: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .grand-total-label { font-size: 11px; letter-spacing: 1px; align-self: center; }
         .signatures { display: flex; justify-content: space-between; padding: 0 50px; margin-top: 60px; text-align: center; }
-        .signature-box { width: 150px; }
+        .signature-box { width: 150px; position: relative; }
         .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 70px; }
         .sig-name { font-size: 12px; font-weight: 900; color: #1e293b; text-transform: uppercase; border-top: 1.5px solid #0f172a; padding-top: 5px; }
         .watermark { text-align: center; font-size: 9px; font-weight: 900; color: #cbd5e1; letter-spacing: 4px; margin-top: 80px; text-transform: uppercase; }
@@ -297,10 +297,20 @@ export const generateA4Html = (trx: any, storeSettings?: any) => {
       <div class="signatures">
         <div class="signature-box">
           <p class="sig-label">Hormat Kami,</p>
+          ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
+            <div style="position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
+              <img src="${storeSettings.signatureUrl}" style="max-height: 55px; width: auto; object-fit: contain; mix-blend-multiply: multiply;" />
+            </div>
+          ` : ''}
           <p class="sig-name">${trx.cashierName || 'Store Admin'}</p>
         </div>
         <div class="signature-box">
           <p class="sig-label">Penerima,</p>
+          ${trx.signatureBase64 ? `
+            <div style="position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
+              <img src="${trx.signatureBase64}" style="max-height: 55px; width: auto; object-fit: contain; mix-blend-multiply: multiply;" />
+            </div>
+          ` : ''}
           <p class="sig-name">${trx.customerName || 'Pelanggan'}</p>
         </div>
       </div>
@@ -738,6 +748,22 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
     settings = { ...settings, logoUrl: base64Logo };
   }
 
+  let base64Signature = '';
+  if (settings?.showSignature !== false && settings?.signatureUrl) {
+    try {
+      const tempFile = FileSystem.cacheDirectory + 'temp_a4_signature.png';
+      const { uri } = await FileSystem.downloadAsync(settings.signatureUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      base64Signature = `data:image/png;base64,${base64Image}`;
+    } catch (err) {
+      console.warn("Failed to convert A4 signature to base64:", err);
+    }
+  }
+
+  if (base64Signature) {
+    settings = { ...settings, signatureUrl: base64Signature };
+  }
+
   try {
     const html = generateA4Html(trx, settings);
     await Print.printAsync({
@@ -803,7 +829,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
         .items-table th { background-color: #0f172a; color: #ffffff; font-size: 10px; font-weight: 900; text-transform: uppercase; padding: 12px 10px; letter-spacing: 1px; }
         .items-table td { padding: 12px 10px; font-size: 12px; }
         .signatures { display: flex; justify-content: space-between; padding: 0 50px; margin-top: 60px; text-align: center; }
-        .signature-box { width: 150px; }
+        .signature-box { width: 150px; position: relative; }
         .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 70px; }
         .sig-name { font-size: 10px; font-weight: 900; color: #1e293b; text-transform: uppercase; border-top: 1.5px solid #0f172a; padding-top: 5px; }
         .watermark { text-align: center; font-size: 9px; font-weight: 900; color: #cbd5e1; letter-spacing: 4px; margin-top: 80px; text-transform: uppercase; }
@@ -873,6 +899,11 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
         </div>
         <div class="signature-box">
           <p class="sig-label">Hormat Kami,</p>
+          ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
+            <div style="position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
+              <img src="${storeSettings.signatureUrl}" style="max-height: 55px; width: auto; object-fit: contain; mix-blend-multiply: multiply;" />
+            </div>
+          ` : ''}
           <p class="sig-name" style="font-size: 12px;">${(trx.cashierName || 'Store Admin').split('@')[0]}</p>
         </div>
       </div>
@@ -914,6 +945,22 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
 
   if (base64Logo) {
     settings = { ...settings, logoUrl: base64Logo };
+  }
+
+  let base64Signature = '';
+  if (settings?.showSignature !== false && settings?.signatureUrl) {
+    try {
+      const tempFile = FileSystem.cacheDirectory + 'temp_a4_delivery_signature.png';
+      const { uri } = await FileSystem.downloadAsync(settings.signatureUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      base64Signature = `data:image/png;base64,${base64Image}`;
+    } catch (err) {
+      console.warn("Failed to convert A4 delivery signature to base64:", err);
+    }
+  }
+
+  if (base64Signature) {
+    settings = { ...settings, signatureUrl: base64Signature };
   }
 
   try {
