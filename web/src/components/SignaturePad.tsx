@@ -62,14 +62,7 @@ export default function SignaturePad({ onSave, initialImage, className, hideButt
     };
 
     if (isDrawing) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
       window.addEventListener('touchmove', handleGlobalTouch, { passive: false });
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
     }
 
     return () => {
@@ -77,9 +70,6 @@ export default function SignaturePad({ onSave, initialImage, className, hideButt
       canvas.removeEventListener('touchmove', preventDefault);
       canvas.removeEventListener('touchend', preventDefault);
       window.removeEventListener('touchmove', handleGlobalTouch);
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
     };
   }, [initialImage, isDrawing]);
 
