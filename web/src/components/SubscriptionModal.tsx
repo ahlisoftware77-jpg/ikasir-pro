@@ -60,12 +60,19 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
   const [isSuccess, setIsSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
   const [selectedBankId, setSelectedBankId] = useState<string>('');
+  const [selectedEwalletId, setSelectedEwalletId] = useState<string>('');
 
   useEffect(() => {
     if (branding.subscriptionBanks && branding.subscriptionBanks.length > 0) {
       setSelectedBankId(branding.subscriptionBanks[0].id);
     }
   }, [branding.subscriptionBanks]);
+
+  useEffect(() => {
+    if (branding.subscriptionEwallets && branding.subscriptionEwallets.length > 0) {
+      setSelectedEwalletId(branding.subscriptionEwallets[0].id);
+    }
+  }, [branding.subscriptionEwallets]);
 
   const SUBSCRIPTION_PACKAGES = React.useMemo(() => {
     const pkgs = [
@@ -157,6 +164,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
           price: selectedPackage.price,
           paymentMethod: paymentMethod,
           selectedBankInfo: paymentMethod === 'bank' ? (branding.subscriptionBanks?.find((b: any) => b.id === selectedBankId) || branding.subscriptionBanks?.[0] || null) : null,
+          selectedEwalletInfo: paymentMethod === 'ewallet' ? (branding.subscriptionEwallets?.find((ew: any) => ew.id === selectedEwalletId) || branding.subscriptionEwallets?.[0] || null) : null,
           proofUrl: uploadResult.secure_url,
           status: 'pending',
           createdAt: serverTimestamp()
@@ -437,7 +445,57 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
                   )}
 
                   {paymentMethod === 'ewallet' && (
-                    branding.subscriptionEwalletInfo ? (
+                    branding.subscriptionEwallets && branding.subscriptionEwallets.length > 0 ? (
+                      <div className="w-full text-left space-y-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest">Pilih E-Wallet</label>
+                          <select
+                            value={selectedEwalletId}
+                            onChange={(e) => setSelectedEwalletId(e.target.value)}
+                            className="w-full p-3 bg-background border border-app-border rounded-xl text-xs font-bold text-foreground focus:outline-none focus:border-accent"
+                          >
+                            {branding.subscriptionEwallets.map((ew: any) => (
+                              <option key={ew.id} value={ew.id}>
+                                {ew.ewalletName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {(() => {
+                          const activeEwallet = branding.subscriptionEwallets.find((ew: any) => ew.id === selectedEwalletId) || branding.subscriptionEwallets[0];
+                          if (!activeEwallet) return null;
+                          return (
+                            <div className="p-4 bg-background border border-app-border rounded-2xl space-y-2 w-full">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-[9px] font-black text-app-text-muted uppercase">E-Wallet:</span>
+                                <span className="font-black text-foreground">{activeEwallet.ewalletName}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-[9px] font-black text-app-text-muted uppercase">Nomor HP / Akun:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-black text-emerald-500 font-mono">{activeEwallet.phoneNumber}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(activeEwallet.phoneNumber);
+                                      toast.success('Nomor E-Wallet disalin!');
+                                    }}
+                                    className="px-2 py-0.5 text-[9px] font-black uppercase text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 rounded transition-colors"
+                                    title="Salin Nomor HP"
+                                  >
+                                    Salin
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center border-t border-app-border/40 pt-2 text-xs">
+                                <span className="text-[9px] font-black text-app-text-muted uppercase">Atas Nama (Pemilik):</span>
+                                <span className="font-black text-foreground">{activeEwallet.accountHolder}</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : branding.subscriptionEwalletInfo ? (
                       <>
                         <p className="text-[10px] font-bold text-app-text-muted uppercase mb-3">Transfer ke E-Wallet</p>
                         <p className="text-sm font-black text-foreground whitespace-pre-wrap">{branding.subscriptionEwalletInfo}</p>

@@ -12,6 +12,13 @@ interface BankAccount {
   accountHolder: string;
 }
 
+interface EwalletAccount {
+  id: string;
+  ewalletName: string;
+  phoneNumber: string;
+  accountHolder: string;
+}
+
 interface BrandingData {
   appName: string;
   receiptWatermark: string;
@@ -20,6 +27,7 @@ interface BrandingData {
   subscriptionBankInfo: string;
   subscriptionEwalletInfo: string;
   subscriptionBanks?: BankAccount[];
+  subscriptionEwallets?: EwalletAccount[];
   pkg_1m_price: number;
   pkg_1m_discount_type: 'none' | 'percent' | 'nominal';
   pkg_1m_discount_val: number;
@@ -48,6 +56,7 @@ const defaultBranding: BrandingData = {
   subscriptionBankInfo: '',
   subscriptionEwalletInfo: '',
   subscriptionBanks: [],
+  subscriptionEwallets: [],
   pkg_1m_price: 30000,
   pkg_1m_discount_type: 'none',
   pkg_1m_discount_val: 0,
@@ -101,6 +110,7 @@ export const BrandingProvider = ({ children }: { children: React.ReactNode }) =>
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
           subscriptionBanks: data.subscriptionBanks || [],
+          subscriptionEwallets: data.subscriptionEwallets || [],
           pkg_1m_price: Number(data.pkg_1m_price ?? defaultBranding.pkg_1m_price),
           pkg_1m_discount_type: data.pkg_1m_discount_type || defaultBranding.pkg_1m_discount_type,
           pkg_1m_discount_val: Number(data.pkg_1m_discount_val ?? defaultBranding.pkg_1m_discount_val),

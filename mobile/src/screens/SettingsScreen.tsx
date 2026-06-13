@@ -232,6 +232,8 @@ export default function SettingsScreen({ navigation, route }: any) {
     a4EstimationNote: '',
     a4DebtNote: '',
     qrisUrl: '',
+    storeBanks: [] as any[],
+    storeEwallets: [] as any[]
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -240,6 +242,14 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [isUploadingQris, setIsUploadingQris] = useState(false);
   const [showSignaturePadMobile, setShowSignaturePadMobile] = useState(false);
+
+  const [newStoreBankName, setNewStoreBankName] = useState('');
+  const [newStoreBankAccount, setNewStoreBankAccount] = useState('');
+  const [newStoreBankHolder, setNewStoreBankHolder] = useState('');
+
+  const [newStoreEwalletName, setNewStoreEwalletName] = useState('');
+  const [newStoreEwalletPhone, setNewStoreEwalletPhone] = useState('');
+  const [newStoreEwalletHolder, setNewStoreEwalletHolder] = useState('');
 
   // Password change states
   const [oldPassword, setOldPassword] = useState('');
@@ -263,6 +273,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
     subscriptionBanks: [],
+    subscriptionEwallets: [],
     webAppUrl: ''
   });
 
@@ -273,6 +284,7 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isSubscriptionSuccess, setIsSubscriptionSuccess] = useState(false);
   const [subscriptionPaymentMethod, setSubscriptionPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
   const [selectedBankId, setSelectedBankId] = useState('');
+  const [selectedEwalletId, setSelectedEwalletId] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [packageStats, setPackageStats] = useState<Record<string, number>>({ '1m': 0, '3m': 0, '6m': 0, '12m': 0 });
   const [bestSellerId, setBestSellerId] = useState<string>('12m');
@@ -395,6 +407,7 @@ export default function SettingsScreen({ navigation, route }: any) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         const banks = data.subscriptionBanks || [];
+        const ewallets = data.subscriptionEwallets || [];
         setBrandingData({
           appName: data.appName || 'IKASIR PRO',
           receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
@@ -403,10 +416,14 @@ export default function SettingsScreen({ navigation, route }: any) {
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
           subscriptionBanks: banks,
+          subscriptionEwallets: ewallets,
           webAppUrl: data.webAppUrl || ''
         });
         if (banks.length > 0) {
           setSelectedBankId(banks[0].id);
+        }
+        if (ewallets.length > 0) {
+          setSelectedEwalletId(ewallets[0].id);
         }
       }
     });
@@ -508,6 +525,7 @@ export default function SettingsScreen({ navigation, route }: any) {
           price: selectedPackage.price,
           paymentMethod: subscriptionPaymentMethod,
           selectedBankInfo: subscriptionPaymentMethod === 'bank' ? (brandingData.subscriptionBanks?.find((b: any) => b.id === selectedBankId) || brandingData.subscriptionBanks?.[0] || null) : null,
+          selectedEwalletInfo: subscriptionPaymentMethod === 'ewallet' ? (brandingData.subscriptionEwallets?.find((ew: any) => ew.id === selectedEwalletId) || brandingData.subscriptionEwallets?.[0] || null) : null,
           proofUrl: uploadResult.secure_url,
           status: 'pending',
           createdAt: serverTimestamp()
@@ -961,6 +979,8 @@ export default function SettingsScreen({ navigation, route }: any) {
               a4EstimationNote: data.a4EstimationNote || '',
               a4DebtNote: data.a4DebtNote || '',
               qrisUrl: data.qrisUrl || '',
+              storeBanks: data.storeBanks || [],
+              storeEwallets: data.storeEwallets || []
             });
           }
         } catch (err) {
@@ -2182,6 +2202,176 @@ export default function SettingsScreen({ navigation, route }: any) {
                     />
                   </View>
 
+                  {/* MULTI-BANK TOKO ONLINE */}
+                  <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
+                    <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Daftar Rekening Bank (Multi-Bank Toko)</Text>
+                    <Text className="text-[8px] font-bold text-slate-400 italic pl-1 leading-normal">Pelanggan Anda dapat memilih rekening ini saat checkout Transfer Bank di toko online.</Text>
+                    
+                    <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <TextInput
+                        value={newStoreBankName}
+                        onChangeText={setNewStoreBankName}
+                        placeholder="Nama Bank (e.g. BCA, MANDIRI)"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreBankAccount}
+                        onChangeText={setNewStoreBankAccount}
+                        placeholder="Nomor Rekening"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreBankHolder}
+                        onChangeText={setNewStoreBankHolder}
+                        placeholder="Atas Nama Pemilik"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!newStoreBankName.trim() || !newStoreBankAccount.trim() || !newStoreBankHolder.trim()) {
+                            Alert.alert('Error', 'Semua kolom rekening bank harus diisi!');
+                            return;
+                          }
+                          const newBank = {
+                            id: Date.now().toString(),
+                            bankName: newStoreBankName.trim().toUpperCase(),
+                            accountNumber: newStoreBankAccount.trim(),
+                            accountHolder: newStoreBankHolder.trim().toUpperCase()
+                          };
+                          setStoreSettings(prev => ({
+                            ...prev,
+                            storeBanks: [...(prev.storeBanks || []), newBank]
+                          }));
+                          setNewStoreBankName('');
+                          setNewStoreBankAccount('');
+                          setNewStoreBankHolder('');
+                        }}
+                        className="py-3 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        <Text className="text-white text-xs font-black uppercase tracking-wider">+ Tambah Rekening</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* List of Store Banks */}
+                    <View className="space-y-2 mt-2 pl-1">
+                      {(storeSettings.storeBanks || []).map((bank: any) => (
+                        <View key={bank.id} className="p-3 rounded-2xl border flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                          <View className="flex-1 pr-2">
+                             <Text className="text-[9px] font-black uppercase text-emerald-500">{bank.bankName}</Text>
+                             <Text className="text-xs font-black mt-1" style={{ color: colors.text }}>{bank.accountNumber}</Text>
+                             <Text className="text-[9px] font-bold text-slate-400">a.n. {bank.accountHolder}</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setStoreSettings(prev => ({
+                                ...prev,
+                                storeBanks: (prev.storeBanks || []).filter((b: any) => b.id !== bank.id)
+                              }));
+                            }}
+                            className="p-2 bg-rose-500/10 rounded-xl"
+                          >
+                            <Trash2 size={14} color="#f43f5e" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      {(storeSettings.storeBanks || []).length === 0 && (
+                        <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada daftar rekening bank toko. Pembayaran transfer akan fall back ke Info Rekening di tab struk.</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* MULTI E-WALLET TOKO ONLINE */}
+                  <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
+                    <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Daftar Akun E-Wallet (Multi E-Wallet Toko)</Text>
+                    <Text className="text-[8px] font-bold text-slate-400 italic pl-1 leading-normal">Pelanggan Anda dapat memilih e-wallet ini saat checkout QRIS/E-Wallet di toko online.</Text>
+                    
+                    <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <TextInput
+                        value={newStoreEwalletName}
+                        onChangeText={setNewStoreEwalletName}
+                        placeholder="Nama E-Wallet (e.g. DANA, OVO)"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreEwalletPhone}
+                        onChangeText={setNewStoreEwalletPhone}
+                        placeholder="Nomor HP / Akun"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreEwalletHolder}
+                        onChangeText={setNewStoreEwalletHolder}
+                        placeholder="Atas Nama Pemilik"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!newStoreEwalletName.trim() || !newStoreEwalletPhone.trim() || !newStoreEwalletHolder.trim()) {
+                            Alert.alert('Error', 'Semua kolom e-wallet harus diisi!');
+                            return;
+                          }
+                          const newEwallet = {
+                            id: Date.now().toString(),
+                            ewalletName: newStoreEwalletName.trim().toUpperCase(),
+                            phoneNumber: newStoreEwalletPhone.trim(),
+                            accountHolder: newStoreEwalletHolder.trim().toUpperCase()
+                          };
+                          setStoreSettings(prev => ({
+                            ...prev,
+                            storeEwallets: [...(prev.storeEwallets || []), newEwallet]
+                          }));
+                          setNewStoreEwalletName('');
+                          setNewStoreEwalletPhone('');
+                          setNewStoreEwalletHolder('');
+                        }}
+                        className="py-3 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        <Text className="text-white text-xs font-black uppercase tracking-wider">+ Tambah E-Wallet</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* List of Store E-Wallets */}
+                    <View className="space-y-2 mt-2 pl-1">
+                      {(storeSettings.storeEwallets || []).map((ewallet: any) => (
+                        <View key={ewallet.id} className="p-3 rounded-2xl border flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                          <View className="flex-1 pr-2">
+                             <Text className="text-[9px] font-black uppercase text-emerald-500">{ewallet.ewalletName}</Text>
+                             <Text className="text-xs font-black mt-1" style={{ color: colors.text }}>{ewallet.phoneNumber}</Text>
+                             <Text className="text-[9px] font-bold text-slate-400">a.n. {ewallet.accountHolder}</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setStoreSettings(prev => ({
+                                ...prev,
+                                storeEwallets: (prev.storeEwallets || []).filter((ew: any) => ew.id !== ewallet.id)
+                              }));
+                            }}
+                            className="p-2 bg-rose-500/10 rounded-xl"
+                          >
+                            <Trash2 size={14} color="#f43f5e" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      {(storeSettings.storeEwallets || []).length === 0 && (
+                        <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada daftar e-wallet toko. Pembayaran e-wallet akan fall back ke QRIS Toko di atas.</Text>
+                      )}
+                    </View>
+                  </View>
+
                   {/* Keamanan / Ubah Sandi Section */}
                   <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
                     <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Keamanan (Ubah Sandi Akun)</Text>
@@ -2657,7 +2847,62 @@ export default function SettingsScreen({ navigation, route }: any) {
                       )}
 
                       {subscriptionPaymentMethod === 'ewallet' && (
-                        brandingData.subscriptionEwalletInfo ? (
+                        brandingData.subscriptionEwallets && brandingData.subscriptionEwallets.length > 0 ? (
+                          <View className="w-full">
+                            <Text className="text-[9px] font-black uppercase mb-2 text-center" style={{ color: colors.textMuted }}>Pilih E-Wallet</Text>
+                            
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-3 py-1">
+                              {brandingData.subscriptionEwallets.map((ew: any) => {
+                                const isSelected = ew.id === selectedEwalletId;
+                                return (
+                                  <TouchableOpacity
+                                    key={ew.id}
+                                    onPress={() => setSelectedEwalletId(ew.id)}
+                                    className="px-4 py-2 rounded-xl border mr-2"
+                                    style={{
+                                      backgroundColor: isSelected ? colors.accent + '15' : colors.surface,
+                                      borderColor: isSelected ? colors.accent : colors.border
+                                    }}
+                                  >
+                                    <Text className="text-[10px] font-black uppercase" style={{ color: isSelected ? colors.accent : colors.text }}>{ew.ewalletName}</Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+
+                            {(() => {
+                              const activeEwallet = brandingData.subscriptionEwallets.find((ew: any) => ew.id === selectedEwalletId) || brandingData.subscriptionEwallets[0];
+                              if (!activeEwallet) return null;
+                              return (
+                                <View className="p-4 rounded-2xl border space-y-2 w-full mt-1" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                                  <View className="flex-row justify-between items-center">
+                                    <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>E-Wallet:</Text>
+                                    <Text className="text-xs font-black" style={{ color: colors.text }}>{activeEwallet.ewalletName}</Text>
+                                  </View>
+                                  <View className="flex-row justify-between items-center">
+                                    <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>Nomor HP / Akun:</Text>
+                                    <View className="flex-row items-center gap-2">
+                                      <Text className="text-sm font-black text-emerald-500 font-mono">{activeEwallet.phoneNumber}</Text>
+                                      <TouchableOpacity
+                                        onPress={() => {
+                                          Clipboard.setString(activeEwallet.phoneNumber);
+                                          Alert.alert('Sukses', 'Nomor E-Wallet disalin ke clipboard.');
+                                        }}
+                                        className="px-2.5 py-1 bg-black/10 rounded-lg"
+                                      >
+                                        <Text className="text-[8px] font-black uppercase" style={{ color: colors.text }}>Salin</Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+                                  <View className="flex-row justify-between items-center border-t pt-2" style={{ borderColor: colors.border + '30' }}>
+                                    <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>Atas Nama Pemilik:</Text>
+                                    <Text className="text-xs font-black" style={{ color: colors.text }}>{activeEwallet.accountHolder}</Text>
+                                  </View>
+                                </View>
+                              );
+                            })()}
+                          </View>
+                        ) : brandingData.subscriptionEwalletInfo ? (
                           <View className="w-full items-center">
                             <Text className="text-[9px] font-black uppercase mb-2" style={{ color: colors.textMuted }}>Kirim ke Info E-Wallet</Text>
                             <Text className="text-xs font-black text-center leading-relaxed" style={{ color: colors.text }}>{brandingData.subscriptionEwalletInfo}</Text>

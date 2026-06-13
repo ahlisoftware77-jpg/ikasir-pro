@@ -122,6 +122,8 @@ function PublicOrderContent() {
   const [fulfillmentType, setFulfillmentType] = useState<'pickup' | 'delivery'>('pickup');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'qris'>('cash');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [selectedStoreBankId, setSelectedStoreBankId] = useState<string>('');
+  const [selectedStoreEwalletId, setSelectedStoreEwalletId] = useState<string>('');
 
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -271,6 +273,18 @@ function PublicOrderContent() {
       localStorage.setItem('last_public_store_id', storeId);
     }
   }, [storeId]);
+
+  useEffect(() => {
+    if (storeSettings?.storeBanks && storeSettings.storeBanks.length > 0) {
+      setSelectedStoreBankId(storeSettings.storeBanks[0].id);
+    }
+  }, [storeSettings?.storeBanks]);
+
+  useEffect(() => {
+    if (storeSettings?.storeEwallets && storeSettings.storeEwallets.length > 0) {
+      setSelectedStoreEwalletId(storeSettings.storeEwallets[0].id);
+    }
+  }, [storeSettings?.storeEwallets]);
 
   // Persistent Cart Logic: Load
   useEffect(() => {
@@ -635,6 +649,11 @@ function PublicOrderContent() {
         deliveryFee: fee,
         total: finalTotal,
         paymentMethod: paymentMethod,
+        selectedPaymentDetails: paymentMethod === 'transfer' 
+          ? (storeSettings?.storeBanks?.find((b: any) => b.id === selectedStoreBankId) || storeSettings?.storeBanks?.[0] || null)
+          : paymentMethod === 'qris' 
+            ? (storeSettings?.storeEwallets?.find((ew: any) => ew.id === selectedStoreEwalletId) || storeSettings?.storeEwallets?.[0] || null)
+            : null,
         orderStatus: 'new',
         paymentStatus: 'pending',
         deliveryType: fulfillmentType,
@@ -1416,20 +1435,120 @@ function PublicOrderContent() {
                                   <AlertTriangle size={18} className="shrink-0" />
                                   <p className="text-[10px] font-black uppercase leading-relaxed">Instruksi pembayaran {paymentMethod === 'transfer' ? 'Transfer Bank' : 'QRIS E-Wallet'} akan diinformasikan oleh staf kami melalui WhatsApp untuk konfirmasi pesanan.</p>
                                 </div>
-                                {paymentMethod === 'qris' && storeSettings?.qrisUrl && (
-                                  <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-3 border border-tr/10 shadow-inner">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Scan QRIS Ini untuk Membayar</h4>
-                                    <img src={storeSettings.qrisUrl} alt="QRIS Pembayaran" className="w-40 h-40 object-contain rounded-lg border border-slate-100" />
-                                    <p className="text-[8px] text-slate-400 font-bold mt-2 text-center">Harap simpan bukti transfer/scan dan kirimkan ke staf kami via WhatsApp.</p>
-                                  </div>
-                                )}
-                                {paymentMethod === 'transfer' && storeSettings?.bankInfo && (
-                                  <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-4 border border-tr/10 shadow-inner">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Transfer ke Rekening Berikut</h4>
-                                    <p className="text-sm font-black text-slate-900 whitespace-pre-line text-center bg-slate-50 p-3 rounded-lg border border-slate-200 w-full">{storeSettings.bankInfo}</p>
-                                    <p className="text-[8px] text-slate-400 font-bold mt-3 text-center">Harap simpan bukti transfer dan kirimkan ke staf kami via WhatsApp.</p>
-                                  </div>
-                                )}
+                                {paymentMethod === 'qris' && (
+                                   storeSettings?.storeEwallets && storeSettings.storeEwallets.length > 0 ? (
+                                     <div className="mt-2 flex flex-col bg-white rounded-xl p-4 border border-tr/10 shadow-inner w-full text-left space-y-3">
+                                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pilih E-Wallet Pembayaran</label>
+                                       <select
+                                         value={selectedStoreEwalletId}
+                                         onChange={(e) => setSelectedStoreEwalletId(e.target.value)}
+                                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-tr"
+                                       >
+                                         {storeSettings.storeEwallets.map((ew: any) => (
+                                           <option key={ew.id} value={ew.id}>
+                                             {ew.ewalletName}
+                                           </option>
+                                         ))}
+                                       </select>
+                                       {(() => {
+                                         const activeEwallet = storeSettings.storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeSettings.storeEwallets[0];
+                                         if (!activeEwallet) return null;
+                                         return (
+                                           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 w-full text-xs">
+                                             <div className="flex justify-between items-center">
+                                               <span className="text-[8px] font-black text-slate-400 uppercase">E-Wallet:</span>
+                                               <span className="font-black text-slate-900">{activeEwallet.ewalletName}</span>
+                                             </div>
+                                             <div className="flex justify-between items-center">
+                                               <span className="text-[8px] font-black text-slate-400 uppercase">Nomor HP:</span>
+                                               <div className="flex items-center gap-1.5">
+                                                 <span className="font-black text-tr font-mono">{activeEwallet.phoneNumber}</span>
+                                                 <button
+                                                   type="button"
+                                                   onClick={() => {
+                                                     navigator.clipboard.writeText(activeEwallet.phoneNumber);
+                                                     toast.success('Nomor e-wallet disalin!');
+                                                   }}
+                                                   className="px-2 py-0.5 text-[8px] font-black uppercase text-tr bg-tr/10 hover:bg-tr/20 rounded transition-colors"
+                                                 >
+                                                   Salin
+                                                 </button>
+                                               </div>
+                                             </div>
+                                             <div className="flex justify-between items-center border-t border-slate-100 pt-1.5">
+                                               <span className="text-[8px] font-black text-slate-400 uppercase">Atas Nama:</span>
+                                               <span className="font-black text-slate-900">{activeEwallet.accountHolder}</span>
+                                             </div>
+                                           </div>
+                                         );
+                                       })()}
+                                       <p className="text-[8px] text-slate-400 font-bold text-center mt-1">Harap simpan bukti transfer/scan dan kirimkan ke staf kami via WhatsApp.</p>
+                                     </div>
+                                   ) : storeSettings?.qrisUrl ? (
+                                     <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-3 border border-tr/10 shadow-inner">
+                                       <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Scan QRIS Ini untuk Membayar</h4>
+                                       <img src={storeSettings.qrisUrl} alt="QRIS Pembayaran" className="w-40 h-40 object-contain rounded-lg border border-slate-100" />
+                                       <p className="text-[8px] text-slate-400 font-bold mt-2 text-center">Harap simpan bukti transfer/scan dan kirimkan ke staf kami via WhatsApp.</p>
+                                     </div>
+                                   ) : null
+                                 )}
+                                 {paymentMethod === 'transfer' && (
+                                   storeSettings?.storeBanks && storeSettings.storeBanks.length > 0 ? (
+                                     <div className="mt-2 flex flex-col bg-white rounded-xl p-4 border border-tr/10 shadow-inner w-full text-left space-y-3">
+                                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pilih Rekening Bank</label>
+                                       <select
+                                         value={selectedStoreBankId}
+                                         onChange={(e) => setSelectedStoreBankId(e.target.value)}
+                                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-tr"
+                                       >
+                                         {storeSettings.storeBanks.map((bank: any) => (
+                                           <option key={bank.id} value={bank.id}>
+                                             {bank.bankName}
+                                           </option>
+                                         ))}
+                                       </select>
+                                       {(() => {
+                                         const activeBank = storeSettings.storeBanks.find((b: any) => b.id === selectedStoreBankId) || storeSettings.storeBanks[0];
+                                         if (!activeBank) return null;
+                                         return (
+                                           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 w-full text-xs">
+                                             <div className="flex justify-between items-center">
+                                               <span className="text-[8px] font-black text-slate-400 uppercase">Nama Bank:</span>
+                                               <span className="font-black text-slate-900">{activeBank.bankName}</span>
+                                             </div>
+                                             <div className="flex justify-between items-center">
+                                               <span className="text-[8px] font-black text-slate-400 uppercase">Nomor Rekening:</span>
+                                               <div className="flex items-center gap-1.5">
+                                                 <span className="font-black text-tr font-mono">{activeBank.accountNumber}</span>
+                                                 <button
+                                                   type="button"
+                                                   onClick={() => {
+                                                     navigator.clipboard.writeText(activeBank.accountNumber);
+                                                     toast.success('Nomor rekening disalin!');
+                                                   }}
+                                                   className="px-2 py-0.5 text-[8px] font-black uppercase text-tr bg-tr/10 hover:bg-tr/20 rounded transition-colors"
+                                                 >
+                                                   Salin
+                                                 </button>
+                                               </div>
+                                             </div>
+                                             <div className="flex justify-between items-center border-t border-slate-100 pt-1.5">
+                                               <span className="text-[8px] font-black text-slate-400 uppercase">Atas Nama:</span>
+                                               <span className="font-black text-slate-900">{activeBank.accountHolder}</span>
+                                             </div>
+                                           </div>
+                                         );
+                                       })()}
+                                       <p className="text-[8px] text-slate-400 font-bold text-center mt-1">Harap simpan bukti transfer dan kirimkan ke staf kami via WhatsApp.</p>
+                                     </div>
+                                   ) : storeSettings?.bankInfo ? (
+                                     <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-4 border border-tr/10 shadow-inner">
+                                       <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Transfer ke Rekening Berikut</h4>
+                                       <p className="text-sm font-black text-slate-900 whitespace-pre-line text-center bg-slate-50 p-3 rounded-lg border border-slate-200 w-full">{storeSettings.bankInfo}</p>
+                                       <p className="text-[8px] text-slate-400 font-bold mt-3 text-center">Harap simpan bukti transfer dan kirimkan ke staf kami via WhatsApp.</p>
+                                     </div>
+                                   ) : null
+                                 )}
                               </div>
                           )}
                        </div>

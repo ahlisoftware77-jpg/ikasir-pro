@@ -626,6 +626,7 @@ export default function SuperAdminPage() {
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
     subscriptionBanks: [],
+    subscriptionEwallets: [],
     webAppUrl: '',
     pkg_1m_price: 30000,
     pkg_1m_discount_type: 'none',
@@ -665,6 +666,7 @@ export default function SuperAdminPage() {
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
           subscriptionBanks: data.subscriptionBanks || [],
+          subscriptionEwallets: data.subscriptionEwallets || [],
           webAppUrl: data.webAppUrl || '',
           pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
           pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
@@ -824,6 +826,7 @@ export default function SuperAdminPage() {
         subscriptionBankInfo: brandingData.subscriptionBankInfo || '',
         subscriptionEwalletInfo: brandingData.subscriptionEwalletInfo || '',
         subscriptionBanks: brandingData.subscriptionBanks || [],
+        subscriptionEwallets: brandingData.subscriptionEwallets || [],
         pkg_1m_price: Number(brandingData.pkg_1m_price ?? 30000),
         pkg_1m_discount_type: brandingData.pkg_1m_discount_type || 'none',
         pkg_1m_discount_val: Number(brandingData.pkg_1m_discount_val ?? 0),
@@ -2489,7 +2492,101 @@ export default function SuperAdminPage() {
                      )}
                   </div>
                </div>
-               
+
+               {/* DAFTAR AKUN E-WALLET LANGGANAN (MULTI E-WALLET) */}
+               <div className="mt-8 border-t border-app-border/40 pt-8">
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                     <Wallet className="text-emerald-500" size={16} /> Daftar Akun E-Wallet Langganan (Multi E-Wallet)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 items-end bg-background/30 p-5 rounded-2xl border border-app-border">
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nama E-Wallet</label>
+                        <input 
+                          type="text" 
+                          id="new-ewallet-name"
+                          placeholder="e.g. DANA, OVO, GOPAY"
+                          className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                        />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nomor HP / Akun</label>
+                        <input 
+                          type="text" 
+                          id="new-ewallet-phone"
+                          placeholder="e.g. 081234567890"
+                          className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                        />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Atas Nama (Pemilik)</label>
+                        <input 
+                          type="text" 
+                          id="new-ewallet-holder"
+                          placeholder="e.g. a/n IKASIR PRO"
+                          className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                        />
+                     </div>
+                     <div className="col-span-full flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nameEl = document.getElementById('new-ewallet-name') as HTMLInputElement;
+                            const phoneEl = document.getElementById('new-ewallet-phone') as HTMLInputElement;
+                            const holderEl = document.getElementById('new-ewallet-holder') as HTMLInputElement;
+                            if (!nameEl.value || !phoneEl.value || !holderEl.value) {
+                              alert('Semua kolom akun e-wallet harus diisi!');
+                              return;
+                            }
+                            const newEwallet = {
+                              id: Date.now().toString(),
+                              ewalletName: nameEl.value.trim(),
+                              phoneNumber: phoneEl.value.trim(),
+                              accountHolder: holderEl.value.trim()
+                            };
+                            setBrandingData({
+                              ...brandingData,
+                              subscriptionEwallets: [...(brandingData.subscriptionEwallets || []), newEwallet]
+                            });
+                            nameEl.value = '';
+                            phoneEl.value = '';
+                            holderEl.value = '';
+                          }}
+                          className="py-2.5 px-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black transition-all flex items-center gap-1 active:scale-95 text-[10px] uppercase tracking-widest shadow-md shadow-emerald-500/10"
+                        >
+                           <Plus size={14} /> Tambah E-Wallet
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* List of Added E-Wallets */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {(brandingData.subscriptionEwallets || []).map((ewallet: any) => (
+                        <div key={ewallet.id} className="p-4 bg-background border border-app-border rounded-2xl flex items-center justify-between group hover:border-emerald-500/20 transition-all">
+                           <div className="min-w-0">
+                              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-wider">{ewallet.ewalletName}</span>
+                              <p className="text-xs font-black text-foreground mt-2 truncate">{ewallet.phoneNumber}</p>
+                              <p className="text-[10px] font-bold text-app-text-muted mt-0.5 truncate">a.n. {ewallet.accountHolder}</p>
+                           </div>
+                           <button
+                             type="button"
+                             onClick={() => {
+                               setBrandingData({
+                                 ...brandingData,
+                                 subscriptionEwallets: (brandingData.subscriptionEwallets || []).filter((ew: any) => ew.id !== ewallet.id)
+                               });
+                             }}
+                             className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                           >
+                              <Trash2 size={16} />
+                           </button>
+                        </div>
+                     ))}
+                     {(brandingData.subscriptionEwallets || []).length === 0 && (
+                        <p className="text-[10px] font-bold text-app-text-muted italic col-span-full">Belum ada daftar akun e-wallet yang ditambahkan. Menggunakan info teks default di atas jika ada.</p>
+                     )}
+                  </div>
+               </div>
+
                {/* PENGATURAN HARGA & DISKON PAKET */}
                <div className="mt-8 border-t border-app-border/40 pt-8">
                   <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -2587,7 +2684,7 @@ export default function SuperAdminPage() {
                              <p className="text-xs font-black text-foreground uppercase tracking-widest">{req.packageTitle}</p>
                              <p className="text-[10px] text-app-text-muted font-bold mt-1">{req.ownerEmail}</p>
                              <p className="text-[9px] text-emerald-500 font-bold">Harga: Rp {req.price?.toLocaleString('id-ID')}</p>
-                             <p className="text-[9px] text-app-text-muted font-bold mt-0.5">Metode: <span className="text-foreground uppercase font-black">{req.paymentMethod || 'qris'}</span>{req.selectedBankInfo ? ` (${req.selectedBankInfo.bankName})` : ''}</p>
+                             <p className="text-[9px] text-app-text-muted font-bold mt-0.5">Metode: <span className="text-foreground uppercase font-black">{req.paymentMethod || 'qris'}</span>{req.selectedBankInfo ? ` (${req.selectedBankInfo.bankName})` : req.selectedEwalletInfo ? ` (${req.selectedEwalletInfo.ewalletName})` : ''}</p>
                           </div>
                           <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider ${req.status === 'pending' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500'}`}>
                              {req.status}

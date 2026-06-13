@@ -271,6 +271,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
     subscriptionBanks: [],
+    subscriptionEwallets: [],
     webAppUrl: '',
     pkg_1m_price: 30000,
     pkg_1m_discount_type: 'none',
@@ -290,6 +291,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [newBankName, setNewBankName] = useState('');
   const [newBankAccount, setNewBankAccount] = useState('');
   const [newBankHolder, setNewBankHolder] = useState('');
+
+  const [newEwalletName, setNewEwalletName] = useState('');
+  const [newEwalletPhone, setNewEwalletPhone] = useState('');
+  const [newEwalletHolder, setNewEwalletHolder] = useState('');
 
   const [infraData, setInfraData] = useState<any>({
     cloudinary_cloud_name: '',
@@ -327,6 +332,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
           subscriptionBanks: data.subscriptionBanks || [],
+          subscriptionEwallets: data.subscriptionEwallets || [],
           webAppUrl: data.webAppUrl || '',
           pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
           pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
@@ -2258,6 +2264,91 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   </View>
                 </View>
 
+                {/* Multi-Ewallet Accounts Section */}
+                <View className="space-y-2 mt-4 p-4 rounded-3xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400">Daftar Akun E-Wallet (Multi E-Wallet)</Text>
+                  
+                  {/* Form to add an ewallet */}
+                  <View className="space-y-2.5 mt-2">
+                    <TextInput
+                      value={newEwalletName}
+                      onChangeText={setNewEwalletName}
+                      placeholder="Nama E-Wallet (e.g. DANA, OVO)"
+                      placeholderTextColor={colors.textMuted + '80'}
+                      className="p-3 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TextInput
+                      value={newEwalletPhone}
+                      onChangeText={setNewEwalletPhone}
+                      placeholder="Nomor HP / Akun"
+                      placeholderTextColor={colors.textMuted + '80'}
+                      className="p-3 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TextInput
+                      value={newEwalletHolder}
+                      onChangeText={setNewEwalletHolder}
+                      placeholder="Atas Nama Pemilik"
+                      placeholderTextColor={colors.textMuted + '80'}
+                      className="p-3 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (!newEwalletName.trim() || !newEwalletPhone.trim() || !newEwalletHolder.trim()) {
+                          Alert.alert('Error', 'Semua kolom akun e-wallet harus diisi!');
+                          return;
+                        }
+                        const newEwallet = {
+                          id: Date.now().toString(),
+                          ewalletName: newEwalletName.trim().toUpperCase(),
+                          phoneNumber: newEwalletPhone.trim(),
+                          accountHolder: newEwalletHolder.trim().toUpperCase()
+                        };
+                        setBrandingData({
+                          ...brandingData,
+                          subscriptionEwallets: [...(brandingData.subscriptionEwallets || []), newEwallet]
+                        });
+                        setNewEwalletName('');
+                        setNewEwalletPhone('');
+                        setNewEwalletHolder('');
+                      }}
+                      className="py-3.5 rounded-xl items-center justify-center"
+                      style={{ backgroundColor: colors.accent }}
+                    >
+                      <Text className="text-white text-xs font-black uppercase tracking-wider">+ Tambah E-Wallet</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* List of ewallets */}
+                  <View className="space-y-2 mt-3">
+                    {(brandingData.subscriptionEwallets || []).map((ewallet: any) => (
+                      <View key={ewallet.id} className="p-3 rounded-2xl border flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                        <View className="flex-1 pr-2">
+                           <Text className="text-[9px] font-black uppercase text-emerald-500">{ewallet.ewalletName}</Text>
+                           <Text className="text-xs font-black mt-1" style={{ color: colors.text }}>{ewallet.phoneNumber}</Text>
+                           <Text className="text-[9px] font-bold text-slate-400">a.n. {ewallet.accountHolder}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setBrandingData({
+                              ...brandingData,
+                              subscriptionEwallets: (brandingData.subscriptionEwallets || []).filter((ew: any) => ew.id !== ewallet.id)
+                            });
+                          }}
+                          className="p-2 bg-rose-500/10 rounded-xl"
+                        >
+                          <Trash2 size={14} color="#f43f5e" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {(brandingData.subscriptionEwallets || []).length === 0 && (
+                      <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada daftar akun e-wallet tambahan.</Text>
+                    )}
+                  </View>
+                </View>
+
                 {/* subscriptionQrisUrl */}
                 <View className="space-y-2 mt-2">
                   <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">QRIS Pembayaran Langganan (Pusat)</Text>
@@ -2737,7 +2828,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     </View>
                   </View>
                   <Text className="text-[10px] font-bold" style={{ color: colors.accent }}>Harga: Rp {req.price?.toLocaleString('id-ID')}</Text>
-                  <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>Metode: <Text className="uppercase" style={{ color: colors.text }}>{req.paymentMethod || 'qris'}</Text></Text>
+                  <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>Metode: <Text className="uppercase" style={{ color: colors.text }}>{req.paymentMethod || 'qris'}</Text>{req.selectedBankInfo ? ` (${req.selectedBankInfo.bankName})` : req.selectedEwalletInfo ? ` (${req.selectedEwalletInfo.ewalletName})` : ''}</Text>
                   
                   {req.proofUrl && (
                     <TouchableOpacity 

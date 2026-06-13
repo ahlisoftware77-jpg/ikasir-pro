@@ -18,7 +18,7 @@ import {
   LogOut, Check, X, Calculator, CreditCard, History, Package, Home, PlusCircle, 
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
-  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save
+  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save, Landmark, Wallet
 } from 'lucide-react-native';
 import { db, auth, storage } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
@@ -160,6 +160,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
     a4InvoiceNote: '',
     a4EstimationNote: '',
     a4DebtNote: '',
+    storeBanks: [] as any[],
+    storeEwallets: [] as any[]
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -167,6 +169,14 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const [isUploadingThermalLogo, setIsUploadingThermalLogo] = useState(false);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [showSignaturePadMobile, setShowSignaturePadMobile] = useState(false);
+
+  const [newStoreBankName, setNewStoreBankName] = useState('');
+  const [newStoreBankAccount, setNewStoreBankAccount] = useState('');
+  const [newStoreBankHolder, setNewStoreBankHolder] = useState('');
+
+  const [newStoreEwalletName, setNewStoreEwalletName] = useState('');
+  const [newStoreEwalletPhone, setNewStoreEwalletPhone] = useState('');
+  const [newStoreEwalletHolder, setNewStoreEwalletHolder] = useState('');
 
   // Password change states
   const [oldPassword, setOldPassword] = useState('');
@@ -1108,6 +1118,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
               a4InvoiceNote: data.a4InvoiceNote || '',
               a4EstimationNote: data.a4EstimationNote || '',
               a4DebtNote: data.a4DebtNote || '',
+              storeBanks: data.storeBanks || [],
+              storeEwallets: data.storeEwallets || []
             });
           }
         } catch (err) {
@@ -1831,6 +1843,176 @@ export default function StoreSettingsScreen({ navigation }: any) {
                       className="p-4 rounded-2xl border font-mono text-xs min-h-[140px] leading-relaxed"
                       style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, textAlignVertical: 'top' }}
                     />
+                  </View>
+
+                  {/* MULTI-BANK TOKO ONLINE */}
+                  <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
+                    <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Daftar Rekening Bank (Multi-Bank Toko)</Text>
+                    <Text className="text-[8px] font-bold text-slate-400 italic pl-1 leading-normal">Pelanggan Anda dapat memilih rekening ini saat checkout Transfer Bank di toko online.</Text>
+                    
+                    <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <TextInput
+                        value={newStoreBankName}
+                        onChangeText={setNewStoreBankName}
+                        placeholder="Nama Bank (e.g. BCA, MANDIRI)"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreBankAccount}
+                        onChangeText={setNewStoreBankAccount}
+                        placeholder="Nomor Rekening"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreBankHolder}
+                        onChangeText={setNewStoreBankHolder}
+                        placeholder="Atas Nama Pemilik"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!newStoreBankName.trim() || !newStoreBankAccount.trim() || !newStoreBankHolder.trim()) {
+                            Alert.alert('Error', 'Semua kolom rekening bank harus diisi!');
+                            return;
+                          }
+                          const newBank = {
+                            id: Date.now().toString(),
+                            bankName: newStoreBankName.trim().toUpperCase(),
+                            accountNumber: newStoreBankAccount.trim(),
+                            accountHolder: newStoreBankHolder.trim().toUpperCase()
+                          };
+                          setStoreSettings(prev => ({
+                            ...prev,
+                            storeBanks: [...(prev.storeBanks || []), newBank]
+                          }));
+                          setNewStoreBankName('');
+                          setNewStoreBankAccount('');
+                          setNewStoreBankHolder('');
+                        }}
+                        className="py-3 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        <Text className="text-white text-xs font-black uppercase tracking-wider">+ Tambah Rekening</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* List of Store Banks */}
+                    <View className="space-y-2 mt-2 pl-1">
+                      {(storeSettings.storeBanks || []).map((bank: any) => (
+                        <View key={bank.id} className="p-3 rounded-2xl border flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                          <View className="flex-1 pr-2">
+                             <Text className="text-[9px] font-black uppercase text-emerald-500">{bank.bankName}</Text>
+                             <Text className="text-xs font-black mt-1" style={{ color: colors.text }}>{bank.accountNumber}</Text>
+                             <Text className="text-[9px] font-bold text-slate-400">a.n. {bank.accountHolder}</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setStoreSettings(prev => ({
+                                ...prev,
+                                storeBanks: (prev.storeBanks || []).filter((b: any) => b.id !== bank.id)
+                              }));
+                            }}
+                            className="p-2 bg-rose-500/10 rounded-xl"
+                          >
+                            <Trash2 size={14} color="#f43f5e" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      {(storeSettings.storeBanks || []).length === 0 && (
+                        <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada daftar rekening bank toko. Pembayaran transfer akan fall back ke Info Rekening di tab struk.</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* MULTI E-WALLET TOKO ONLINE */}
+                  <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
+                    <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Daftar Akun E-Wallet (Multi E-Wallet Toko)</Text>
+                    <Text className="text-[8px] font-bold text-slate-400 italic pl-1 leading-normal">Pelanggan Anda dapat memilih e-wallet ini saat checkout QRIS/E-Wallet di toko online.</Text>
+                    
+                    <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <TextInput
+                        value={newStoreEwalletName}
+                        onChangeText={setNewStoreEwalletName}
+                        placeholder="Nama E-Wallet (e.g. DANA, OVO)"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreEwalletPhone}
+                        onChangeText={setNewStoreEwalletPhone}
+                        placeholder="Nomor HP / Akun"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TextInput
+                        value={newStoreEwalletHolder}
+                        onChangeText={setNewStoreEwalletHolder}
+                        placeholder="Atas Nama Pemilik"
+                        placeholderTextColor={colors.textMuted + '80'}
+                        className="p-3 rounded-xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!newStoreEwalletName.trim() || !newStoreEwalletPhone.trim() || !newStoreEwalletHolder.trim()) {
+                            Alert.alert('Error', 'Semua kolom e-wallet harus diisi!');
+                            return;
+                          }
+                          const newEwallet = {
+                            id: Date.now().toString(),
+                            ewalletName: newStoreEwalletName.trim().toUpperCase(),
+                            phoneNumber: newStoreEwalletPhone.trim(),
+                            accountHolder: newStoreEwalletHolder.trim().toUpperCase()
+                          };
+                          setStoreSettings(prev => ({
+                            ...prev,
+                            storeEwallets: [...(prev.storeEwallets || []), newEwallet]
+                          }));
+                          setNewStoreEwalletName('');
+                          setNewStoreEwalletPhone('');
+                          setNewStoreEwalletHolder('');
+                        }}
+                        className="py-3 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        <Text className="text-white text-xs font-black uppercase tracking-wider">+ Tambah E-Wallet</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* List of Store E-Wallets */}
+                    <View className="space-y-2 mt-2 pl-1">
+                      {(storeSettings.storeEwallets || []).map((ewallet: any) => (
+                        <View key={ewallet.id} className="p-3 rounded-2xl border flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                          <View className="flex-1 pr-2">
+                             <Text className="text-[9px] font-black uppercase text-emerald-500">{ewallet.ewalletName}</Text>
+                             <Text className="text-xs font-black mt-1" style={{ color: colors.text }}>{ewallet.phoneNumber}</Text>
+                             <Text className="text-[9px] font-bold text-slate-400">a.n. {ewallet.accountHolder}</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setStoreSettings(prev => ({
+                                ...prev,
+                                storeEwallets: (prev.storeEwallets || []).filter((ew: any) => ew.id !== ewallet.id)
+                              }));
+                            }}
+                            className="p-2 bg-rose-500/10 rounded-xl"
+                          >
+                            <Trash2 size={14} color="#f43f5e" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      {(storeSettings.storeEwallets || []).length === 0 && (
+                        <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada daftar e-wallet toko. Pembayaran e-wallet akan fall back ke QRIS Toko di atas.</Text>
+                      )}
+                    </View>
                   </View>
 
                   {/* Keamanan / Ubah Sandi Section */}

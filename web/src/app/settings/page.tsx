@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History, Plus, Wallet, Landmark } from 'lucide-react';
 import { getInfraConfig } from '@/lib/infraConfig';
 import { doc, getDoc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db, auth, primaryDb } from '@/lib/firebase';
@@ -98,7 +98,9 @@ export default function SettingsPage() {
     signatureUrl: '',
     showSignature: true,
     thermalLogoUrl: '',
-    qrisUrl: ''
+    qrisUrl: '',
+    storeBanks: [] as any[],
+    storeEwallets: [] as any[]
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -161,7 +163,9 @@ export default function SettingsPage() {
             signatureUrl: data.signatureUrl || '',
             showSignature: data.showSignature !== false,
             thermalLogoUrl: data.thermalLogoUrl || '',
-            qrisUrl: data.qrisUrl || ''
+            qrisUrl: data.qrisUrl || '',
+            storeBanks: data.storeBanks || [],
+            storeEwallets: data.storeEwallets || []
           });
           setLogoPreview(data.logoUrl || null);
           setLogoUrl(data.logoUrl || null);
@@ -211,6 +215,8 @@ export default function SettingsPage() {
             a4DebtNote: '',
             thermalLogoUrl: '',
             qrisUrl: '',
+            storeBanks: [],
+            storeEwallets: [],
           });
         }
       } catch (err) {
@@ -1447,7 +1453,201 @@ export default function SettingsPage() {
                     </div>
                  </div>
                )}
-            </div>
+             </div>
+
+             {/* MULTI-BANK TOKO ONLINE */}
+             <div className="mt-8 pt-8 border-t border-app-border space-y-4">
+               <h3 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                 <Landmark className="text-accent" size={16} /> Daftar Rekening Bank Toko (Multi-Bank Toko Online)
+               </h3>
+               <p className="text-[10px] text-app-text-muted font-medium mb-4">Merchant dapat mendaftarkan beberapa nomor rekening bank untuk metode pembayaran transfer pada toko online.</p>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-end bg-background/30 p-5 rounded-2xl border border-app-border">
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nama Bank</label>
+                     <input 
+                       type="text" 
+                       id="new-store-bank-name"
+                       placeholder="e.g. BCA, MANDIRI"
+                       className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                     />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nomor Rekening</label>
+                     <input 
+                       type="text" 
+                       id="new-store-bank-account"
+                       placeholder="e.g. 12345678"
+                       className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                     />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Atas Nama (Pemilik)</label>
+                     <input 
+                       type="text" 
+                       id="new-store-bank-holder"
+                       placeholder="e.g. Budi"
+                       className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                     />
+                  </div>
+                  <div className="col-span-full flex justify-end">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         const nameEl = document.getElementById('new-store-bank-name') as HTMLInputElement;
+                         const accEl = document.getElementById('new-store-bank-account') as HTMLInputElement;
+                         const holderEl = document.getElementById('new-store-bank-holder') as HTMLInputElement;
+                         if (!nameEl.value || !accEl.value || !holderEl.value) {
+                           toast.error('Semua kolom rekening bank harus diisi!');
+                           return;
+                         }
+                         const newBank = {
+                           id: Date.now().toString(),
+                           bankName: nameEl.value.trim(),
+                           accountNumber: accEl.value.trim(),
+                           accountHolder: holderEl.value.trim()
+                         };
+                         setSettings(prev => ({
+                           ...prev,
+                           storeBanks: [...(prev.storeBanks || []), newBank]
+                         }));
+                         nameEl.value = '';
+                         accEl.value = '';
+                         holderEl.value = '';
+                         toast.success('Rekening bank berhasil ditambahkan ke daftar');
+                       }}
+                       className="py-2.5 px-5 bg-accent hover:bg-accent/80 text-foreground rounded-xl font-black transition-all flex items-center gap-1 active:scale-95 text-[10px] uppercase tracking-widest shadow-md"
+                     >
+                        <Plus size={14} /> Tambah Rekening
+                     </button>
+                  </div>
+               </div>
+
+               {/* List of Added Store Banks */}
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(settings.storeBanks || []).map((bank: any) => (
+                     <div key={bank.id} className="p-4 bg-background border border-app-border rounded-2xl flex items-center justify-between group hover:border-accent/20 transition-all">
+                        <div className="min-w-0">
+                           <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-black uppercase tracking-wider">{bank.bankName}</span>
+                           <p className="text-xs font-black text-foreground mt-2 truncate">{bank.accountNumber}</p>
+                           <p className="text-[10px] font-bold text-app-text-muted mt-0.5 truncate">a.n. {bank.accountHolder}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettings(prev => ({
+                              ...prev,
+                              storeBanks: (prev.storeBanks || []).filter((b: any) => b.id !== bank.id)
+                            }));
+                            toast.success('Rekening bank dihapus');
+                          }}
+                          className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                        >
+                           <Trash2 size={16} />
+                        </button>
+                     </div>
+                  ))}
+                  {(settings.storeBanks || []).length === 0 && (
+                     <p className="text-[10px] font-bold text-app-text-muted italic col-span-full">Belum ada daftar rekening bank toko. Pembayaran transfer akan fall back menggunakan Info Rekening struk di atas.</p>
+                  )}
+               </div>
+             </div>
+
+             {/* MULTI E-WALLET TOKO ONLINE */}
+             <div className="mt-8 pt-8 border-t border-app-border space-y-4">
+               <h3 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
+                 <Wallet className="text-accent" size={16} /> Daftar Akun E-Wallet Toko (Multi E-Wallet Toko Online)
+               </h3>
+               <p className="text-[10px] text-app-text-muted font-medium mb-4">Merchant dapat mendaftarkan beberapa nomor akun e-wallet untuk metode pembayaran e-wallet pada toko online.</p>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-end bg-background/30 p-5 rounded-2xl border border-app-border">
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nama E-Wallet</label>
+                     <input 
+                       type="text" 
+                       id="new-store-ewallet-name"
+                       placeholder="e.g. DANA, OVO, GOPAY"
+                       className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                     />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nomor HP / Akun</label>
+                     <input 
+                       type="text" 
+                       id="new-store-ewallet-phone"
+                       placeholder="e.g. 08123456789"
+                       className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                     />
+                  </div>
+                  <div className="space-y-1">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Atas Nama (Pemilik)</label>
+                     <input 
+                       type="text" 
+                       id="new-store-ewallet-holder"
+                       placeholder="e.g. Budi"
+                       className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                     />
+                  </div>
+                  <div className="col-span-full flex justify-end">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         const nameEl = document.getElementById('new-store-ewallet-name') as HTMLInputElement;
+                         const phoneEl = document.getElementById('new-store-ewallet-phone') as HTMLInputElement;
+                         const holderEl = document.getElementById('new-store-ewallet-holder') as HTMLInputElement;
+                         if (!nameEl.value || !phoneEl.value || !holderEl.value) {
+                           toast.error('Semua kolom e-wallet harus diisi!');
+                           return;
+                         }
+                         const newEwallet = {
+                           id: Date.now().toString(),
+                           ewalletName: nameEl.value.trim(),
+                           phoneNumber: phoneEl.value.trim(),
+                           accountHolder: holderEl.value.trim()
+                         };
+                         setSettings(prev => ({
+                           ...prev,
+                           storeEwallets: [...(prev.storeEwallets || []), newEwallet]
+                         }));
+                         nameEl.value = '';
+                         phoneEl.value = '';
+                         holderEl.value = '';
+                         toast.success('Akun e-wallet berhasil ditambahkan ke daftar');
+                       }}
+                       className="py-2.5 px-5 bg-accent hover:bg-accent/80 text-foreground rounded-xl font-black transition-all flex items-center gap-1 active:scale-95 text-[10px] uppercase tracking-widest shadow-md"
+                     >
+                        <Plus size={14} /> Tambah E-Wallet
+                     </button>
+                  </div>
+               </div>
+
+               {/* List of Added Store E-Wallets */}
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(settings.storeEwallets || []).map((ewallet: any) => (
+                     <div key={ewallet.id} className="p-4 bg-background border border-app-border rounded-2xl flex items-center justify-between group hover:border-accent/20 transition-all">
+                        <div className="min-w-0">
+                           <span className="px-2 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-black uppercase tracking-wider">{ewallet.ewalletName}</span>
+                           <p className="text-xs font-black text-foreground mt-2 truncate">{ewallet.phoneNumber}</p>
+                           <p className="text-[10px] font-bold text-app-text-muted mt-0.5 truncate">a.n. {ewallet.accountHolder}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettings(prev => ({
+                              ...prev,
+                              storeEwallets: (prev.storeEwallets || []).filter((ew: any) => ew.id !== ewallet.id)
+                            }));
+                            toast.success('Akun e-wallet dihapus');
+                          }}
+                          className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                        >
+                           <Trash2 size={16} />
+                        </button>
+                     </div>
+                  ))}
+                  {(settings.storeEwallets || []).length === 0 && (
+                     <p className="text-[10px] font-bold text-app-text-muted italic col-span-full">Belum ada daftar e-wallet toko. Pembayaran e-wallet akan fall back menggunakan foto QRIS toko di atas.</p>
+                  )}
+               </div>
+             </div>
           </div>
 
           <div className="mt-8 pt-8 border-t border-app-border space-y-6">
