@@ -8,97 +8,28 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signatureBase64', 'updatedAt', 'isSignatureLinkActive']);
     }
 
-    // Fungsi pembantu untuk mengecek apakah user adalah Super Admin
-    function isSuperAdmin() {
-      return request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['super-admin', 'superadmin'];
-    }
-
-    // Fungsi pembantu untuk memvalidasi bahwa field admin tidak diubah oleh user biasa
-    function isNotModifyingAdminFields() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['validUntil', 'role', 'storeId', 'targetProjectId', 'infraConfig']);
-    }
-
-    // Fungsi pembantu untuk memvalidasi apakah pengguna memiliki langganan aktif
-    function hasActiveSubscription() {
-      return request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          isSuperAdmin() || 
-          !('validUntil' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.validUntil == "" ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.validUntil >= string(request.time)
-        );
-    }
-
     // Aturan untuk Koleksi Transaksi
     match /transactions/{transactionId} {
-      allow read: if true;
-      allow update: if (resource.data.isSignatureLinkActive == true && isOnlySigning()) || hasActiveSubscription();
-      allow create, delete: if hasActiveSubscription(); 
+      // Hanya izinkan baca/update jika admin telah mengaktifkan link (isSignatureLinkActive)
+      allow read: if resource.data.isSignatureLinkActive == true;
+      allow update: if resource.data.isSignatureLinkActive == true && isOnlySigning();
+      
+      // Untuk operasi lainnya (create/delete), diizinkan (arsitektur multi-project)
+      allow create, delete: if true; 
     }
 
     // Aturan untuk Koleksi Estimasi
     match /estimations/{estimationId} {
-      allow read: if true;
-      allow update: if (resource.data.isSignatureLinkActive == true && isOnlySigning()) || hasActiveSubscription();
-      allow create, delete: if hasActiveSubscription();
+      allow read: if resource.data.isSignatureLinkActive == true;
+      allow update: if resource.data.isSignatureLinkActive == true && isOnlySigning();
+      allow create, delete: if true;
     }
 
-    // Aturan untuk Koleksi Produk
-    match /products/{productId} {
-      allow read: if true;
-      allow write: if hasActiveSubscription();
-    }
-
-    // Aturan untuk Koleksi Settings/Pengaturan Toko
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if hasActiveSubscription();
-    }
-
-    // Aturan untuk Koleksi Users (Manajemen Karyawan/Admin)
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null; // Mengizinkan registrasi awal
-      allow update: if hasActiveSubscription() && (
-        isSuperAdmin() || 
-        (request.auth.uid == userId && isNotModifyingAdminFields()) ||
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == resource.data.storeId &&
-         isNotModifyingAdminFields())
-      );
-      allow delete: if hasActiveSubscription() && (
-        isSuperAdmin() || 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.storeId == resource.data.storeId)
-      );
-    }
-
-    // Aturan untuk Koleksi Kritik & Saran (Feedback)
-    match /feedback/{feedbackId} {
-      allow read: if isSuperAdmin();
-      allow create: if request.auth != null; // Tetap izinkan kirim saran walau expired
-      allow delete: if isSuperAdmin();
-    }
-
-    // Aturan untuk Broadcasts
-    match /broadcasts/{broadcastId} {
-      allow read: if true;
-      allow write: if isSuperAdmin();
-    }
-
-    // Aturan untuk koleksi pembantu lainnya
-    match /product_extras/{extraId} { allow read: if true; allow write: if hasActiveSubscription(); }
-    match /discounts/{discountId} { allow read: if true; allow write: if hasActiveSubscription(); }
-    match /expenses/{expenseId} { allow read: if true; allow write: if hasActiveSubscription(); }
-    match /categories/{categoryId} { allow read: if true; allow write: if hasActiveSubscription(); }
-    match /shifts/{shiftId} { allow read: if true; allow write: if hasActiveSubscription(); }
-    match /customers/{customerId} { allow read: if true; allow write: if hasActiveSubscription(); }
-
-    // Aturan fallback default keamanan ketat
+    // Aturan default untuk koleksi lainnya (produk, settings, users, dll)
+    // Dibiarkan terbuka karena arsitektur Multi-Database (Tenant) 
+    // tidak membawa status request.auth dari project utama.
     match /{document=**} {
-      allow read, write: if hasActiveSubscription();
+      allow read, write: if true;
     }
   }
 }
