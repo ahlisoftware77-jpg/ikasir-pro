@@ -667,7 +667,37 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
   }
 
   try {
-    const html = generateReceiptHtml(transaction, settings);
+    let finalSettings = settings;
+    if ((!finalSettings || !finalSettings.storeName) && transaction?.storeId) {
+      try {
+        const { db } = require('../lib/firebase');
+        const { doc, getDoc } = require('firebase/firestore');
+        const docSnap = await getDoc(doc(db, 'settings', `store_${transaction.storeId}`));
+        if (docSnap.exists()) {
+          finalSettings = docSnap.data();
+        }
+      } catch (err) {
+        console.warn("Failed to fetch settings from Firestore in printReceipt PDF fallback:", err);
+      }
+    }
+
+    let base64Logo = '';
+    if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
+      try {
+        const tempFile = FileSystem.cacheDirectory + 'temp_receipt_logo_pdf.jpg';
+        const { uri } = await FileSystem.downloadAsync(finalSettings.logoUrl, tempFile);
+        const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        base64Logo = `data:image/jpeg;base64,${base64Image}`;
+      } catch (err) {
+        console.warn("Failed to convert receipt logo to base64:", err);
+      }
+    }
+
+    if (base64Logo) {
+      finalSettings = { ...finalSettings, logoUrl: base64Logo };
+    }
+
+    const html = generateReceiptHtml(transaction, finalSettings);
     await Print.printAsync({
       html,
     });
@@ -678,8 +708,38 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
 };
 
 export const printA4 = async (trx: any, storeSettings?: any) => {
+  let settings = storeSettings;
+  if ((!settings || !settings.storeName) && trx?.storeId) {
+    try {
+      const { db } = require('../lib/firebase');
+      const { doc, getDoc } = require('firebase/firestore');
+      const docSnap = await getDoc(doc(db, 'settings', `store_${trx.storeId}`));
+      if (docSnap.exists()) {
+        settings = docSnap.data();
+      }
+    } catch (err) {
+      console.warn("Failed to fetch settings from Firestore in printA4:", err);
+    }
+  }
+
+  let base64Logo = '';
+  if (settings?.showLogoOnReceipt !== false && settings?.logoUrl) {
+    try {
+      const tempFile = FileSystem.cacheDirectory + 'temp_a4_logo.jpg';
+      const { uri } = await FileSystem.downloadAsync(settings.logoUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      base64Logo = `data:image/jpeg;base64,${base64Image}`;
+    } catch (err) {
+      console.warn("Failed to convert A4 logo to base64:", err);
+    }
+  }
+
+  if (base64Logo) {
+    settings = { ...settings, logoUrl: base64Logo };
+  }
+
   try {
-    const html = generateA4Html(trx, storeSettings);
+    const html = generateA4Html(trx, settings);
     await Print.printAsync({
       html,
     });
@@ -826,8 +886,38 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
 };
 
 export const printA4Delivery = async (trx: any, storeSettings?: any) => {
+  let settings = storeSettings;
+  if ((!settings || !settings.storeName) && trx?.storeId) {
+    try {
+      const { db } = require('../lib/firebase');
+      const { doc, getDoc } = require('firebase/firestore');
+      const docSnap = await getDoc(doc(db, 'settings', `store_${trx.storeId}`));
+      if (docSnap.exists()) {
+        settings = docSnap.data();
+      }
+    } catch (err) {
+      console.warn("Failed to fetch settings from Firestore in printA4Delivery:", err);
+    }
+  }
+
+  let base64Logo = '';
+  if (settings?.showLogoOnReceipt !== false && settings?.logoUrl) {
+    try {
+      const tempFile = FileSystem.cacheDirectory + 'temp_a4_delivery_logo.jpg';
+      const { uri } = await FileSystem.downloadAsync(settings.logoUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      base64Logo = `data:image/jpeg;base64,${base64Image}`;
+    } catch (err) {
+      console.warn("Failed to convert A4 delivery logo to base64:", err);
+    }
+  }
+
+  if (base64Logo) {
+    settings = { ...settings, logoUrl: base64Logo };
+  }
+
   try {
-    const html = generateA4DeliveryHtml(trx, storeSettings);
+    const html = generateA4DeliveryHtml(trx, settings);
     await Print.printAsync({
       html,
     });
