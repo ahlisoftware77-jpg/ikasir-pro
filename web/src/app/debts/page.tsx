@@ -339,7 +339,7 @@ export default function DebtsPage() {
                         </span>
                      </div>
 
-                     {debt.dueDate && (
+                     {debt.dueDate && debt.paymentStatus !== 'paid' && (
                         <div className="flex items-center gap-2 text-[10px] font-bold">
                            <Calendar size={12} className={isOverdue ? "text-rose-500" : "text-app-text-muted"} />
                            <span className={isOverdue ? "text-rose-500" : "text-app-text-muted"}>

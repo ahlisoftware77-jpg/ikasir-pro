@@ -669,7 +669,7 @@ export default function TransactionsPage() {
                         {selectedTrx.timestamp?.toDate ? selectedTrx.timestamp.toDate().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' }).replace(/\./g, ':') : '-'}
                       </p>
                     </div>
-                    {selectedTrx.dueDate && (
+                    {selectedTrx.dueDate && selectedTrx.paymentStatus !== 'paid' && (
                       <div className="space-y-1">
                         <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Jatuh Tempo</p>
                         <p className="text-rose-500 font-bold">

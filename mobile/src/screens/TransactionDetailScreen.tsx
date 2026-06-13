@@ -575,7 +575,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     </View>
                   </View>
 
-                  {selectedTrx.dueDate ? (
+                  {selectedTrx.dueDate && selectedTrx.paymentStatus !== 'paid' ? (
                     <View className="flex-row items-center justify-between p-4 rounded-[24px] border mb-5 bg-rose-500/10" style={{ borderColor: 'rgba(244,63,94,0.15)' }}>
                       <View className="flex-row items-center gap-2">
                         <Calendar color="#f43f5e" size={14} />
@@ -680,7 +680,12 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                           await printA4(selectedTrx, storeSettings);
                         } catch (err: any) {
                           console.error(err);
-                          Alert.alert('Gagal Cetak', 'Gagal memproses pratinjau cetak A4: ' + (err.message || String(err)));
+                          const errMsg = (err.message || String(err));
+                          if (errMsg.includes('already in progress')) {
+                            Alert.alert('Sistem Sibuk', 'Sistem cetak perangkat Anda sedang memproses dokumen. Harap tunggu beberapa detik lalu coba kembali.');
+                          } else {
+                            Alert.alert('Gagal Cetak', 'Gagal memproses pratinjau cetak A4: ' + errMsg);
+                          }
                         } finally {
                           setActivePrintJob(null);
                         }
@@ -707,7 +712,12 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                           await printA4Delivery(selectedTrx, storeSettings);
                         } catch (err: any) {
                           console.error(err);
-                          Alert.alert('Gagal Cetak', 'Gagal memproses pratinjau Surat Jalan: ' + (err.message || String(err)));
+                          const errMsg = (err.message || String(err));
+                          if (errMsg.includes('already in progress')) {
+                            Alert.alert('Sistem Sibuk', 'Sistem cetak perangkat Anda sedang memproses dokumen. Harap tunggu beberapa detik lalu coba kembali.');
+                          } else {
+                            Alert.alert('Gagal Cetak', 'Gagal memproses pratinjau Surat Jalan: ' + errMsg);
+                          }
                         } finally {
                           setActivePrintJob(null);
                         }

@@ -221,7 +221,7 @@ function InvoiceA4Content() {
                   </div>
                 )}
              </div>
-             {trx.dueDate && !isEstimation && (
+             {trx.dueDate && !isEstimation && trx.paymentStatus !== 'paid' && (
                <div className="text-right leading-none">
                   <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">Jatuh Tempo:</p>
                   <p className="text-[10px] font-black text-rose-600">{new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>

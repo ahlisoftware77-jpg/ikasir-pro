@@ -201,7 +201,7 @@ export const generateA4Html = (trx: any, storeSettings?: any) => {
           <p class="info-value" style="color: #10b981;">
             ${isEstimation ? `s/d ${validUntilStr}` : (trx.paymentStatus === 'paid' ? 'LUNAS' : 'PENDING')}
           </p>
-          ${trx.dueDate && !isEstimation ? `<p class="info-subvalue" style="color: #f43f5e; font-weight: bold;">Jatuh Tempo: ${new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>` : ''}
+          ${trx.dueDate && !isEstimation && trx.paymentStatus !== 'paid' ? `<p class="info-subvalue" style="color: #f43f5e; font-weight: bold;">Jatuh Tempo: ${new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>` : ''}
         </div>
       </div>
 

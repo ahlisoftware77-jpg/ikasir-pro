@@ -1265,9 +1265,14 @@ export default function FeatureScreen({ route, navigation }: any) {
       const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
       const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
       await printA4(item, settingsData);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak A4.');
+      const errMsg = (err.message || String(err));
+      if (errMsg.includes('already in progress')) {
+        Alert.alert('Sistem Sibuk', 'Sistem cetak perangkat Anda sedang memproses dokumen. Harap tunggu beberapa detik lalu coba kembali.');
+      } else {
+        Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak A4: ' + errMsg);
+      }
     }
   };
 
@@ -2603,7 +2608,7 @@ export default function FeatureScreen({ route, navigation }: any) {
                       </View>
                     </View>
 
-                    {item.dueDate && (
+                    {item.dueDate && item.paymentStatus !== 'paid' && (
                       <View className="flex-row items-center gap-1 mb-3">
                         <CalendarRange size={12} color={isOverdue ? "#f43f5e" : colors.textMuted} />
                         <Text className="text-[9px] font-bold" style={{ color: isOverdue ? "#f43f5e" : colors.textMuted }}>
