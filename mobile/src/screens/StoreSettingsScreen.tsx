@@ -959,6 +959,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
         const uploadResult = await uploadRes.json();
         if (uploadRes.ok && uploadResult.secure_url) {
           setStoreSettings(prev => ({ ...prev, logoUrl: uploadResult.secure_url }));
+          const settingsRef = doc(db, 'settings', `store_${storeId}`);
+          await setDoc(settingsRef, { logoUrl: uploadResult.secure_url }, { merge: true });
           Alert.alert('Berhasil', 'Logo berhasil diunggah!');
         } else {
           console.error(uploadResult);
@@ -1004,6 +1006,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
         const uploadResult = await uploadRes.json();
         if (uploadRes.ok && uploadResult.secure_url) {
           setStoreSettings(prev => ({ ...prev, thermalLogoUrl: uploadResult.secure_url }));
+          const settingsRef = doc(db, 'settings', `store_${storeId}`);
+          await setDoc(settingsRef, { thermalLogoUrl: uploadResult.secure_url }, { merge: true });
           Alert.alert('Berhasil', 'Logo thermal berhasil diunggah!');
         } else {
           console.error(uploadResult);
@@ -1034,6 +1038,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
       const uploadResult = await uploadRes.json();
       if (uploadRes.ok && uploadResult.secure_url) {
         setStoreSettings(prev => ({ ...prev, signatureUrl: uploadResult.secure_url }));
+        const settingsRef = doc(db, 'settings', `store_${storeId}`);
+        await setDoc(settingsRef, { signatureUrl: uploadResult.secure_url }, { merge: true });
         Alert.alert('Berhasil', 'Tanda tangan berhasil disimpan!');
       } else {
         console.error(uploadResult);

@@ -23,13 +23,6 @@ export default function SignaturePad({ onSave, initialImage, className, hideButt
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set drawing styles
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#000000';
-
-    // Handle existing image if any
     if (initialImage) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -40,7 +33,25 @@ export default function SignaturePad({ onSave, initialImage, className, hideButt
         setIsEmpty(false);
         setCurrentSignature(initialImage);
       };
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setIsEmpty(true);
+      setCurrentSignature('');
     }
+  }, [initialImage]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set drawing styles
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000000';
 
     // Prevent scrolling when touching the canvas
     const preventDefault = (e: TouchEvent) => {
@@ -71,7 +82,7 @@ export default function SignaturePad({ onSave, initialImage, className, hideButt
       canvas.removeEventListener('touchend', preventDefault);
       window.removeEventListener('touchmove', handleGlobalTouch);
     };
-  }, [initialImage, isDrawing]);
+  }, [isDrawing]);
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
