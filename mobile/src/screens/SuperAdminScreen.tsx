@@ -12,7 +12,7 @@ import {
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
-  Wrench, ExternalLink, MessageSquare
+  Wrench, ExternalLink, MessageSquare, Landmark
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -270,6 +270,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
+    subscriptionBanks: [],
     webAppUrl: '',
     pkg_1m_price: 30000,
     pkg_1m_discount_type: 'none',
@@ -285,6 +286,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     pkg_12m_discount_val: 0,
     expiredDisabledMenus: [],
   });
+
+  const [newBankName, setNewBankName] = useState('');
+  const [newBankAccount, setNewBankAccount] = useState('');
+  const [newBankHolder, setNewBankHolder] = useState('');
 
   const [infraData, setInfraData] = useState<any>({
     cloudinary_cloud_name: '',
@@ -321,6 +326,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
+          subscriptionBanks: data.subscriptionBanks || [],
           webAppUrl: data.webAppUrl || '',
           pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
           pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
@@ -2165,6 +2171,91 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     className="p-4 rounded-2xl border font-bold text-xs"
                     style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top', minHeight: 80 }}
                   />
+                </View>
+
+                {/* Multi-Bank Accounts Section */}
+                <View className="space-y-2 mt-4 p-4 rounded-3xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400">Daftar Rekening Bank (Multi-Bank)</Text>
+                  
+                  {/* Form to add a bank */}
+                  <View className="space-y-2.5 mt-2">
+                    <TextInput
+                      value={newBankName}
+                      onChangeText={setNewBankName}
+                      placeholder="Nama Bank (e.g. BCA)"
+                      placeholderTextColor={colors.textMuted + '80'}
+                      className="p-3 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TextInput
+                      value={newBankAccount}
+                      onChangeText={setNewBankAccount}
+                      placeholder="Nomor Rekening"
+                      placeholderTextColor={colors.textMuted + '80'}
+                      className="p-3 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TextInput
+                      value={newBankHolder}
+                      onChangeText={setNewBankHolder}
+                      placeholder="Atas Nama Pemilik"
+                      placeholderTextColor={colors.textMuted + '80'}
+                      className="p-3 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (!newBankName.trim() || !newBankAccount.trim() || !newBankHolder.trim()) {
+                          Alert.alert('Error', 'Semua kolom rekening bank harus diisi!');
+                          return;
+                        }
+                        const newBank = {
+                          id: Date.now().toString(),
+                          bankName: newBankName.trim().toUpperCase(),
+                          accountNumber: newBankAccount.trim(),
+                          accountHolder: newBankHolder.trim().toUpperCase()
+                        };
+                        setBrandingData({
+                          ...brandingData,
+                          subscriptionBanks: [...(brandingData.subscriptionBanks || []), newBank]
+                        });
+                        setNewBankName('');
+                        setNewBankAccount('');
+                        setNewBankHolder('');
+                      }}
+                      className="py-3.5 rounded-xl items-center justify-center"
+                      style={{ backgroundColor: colors.accent }}
+                    >
+                      <Text className="text-white text-xs font-black uppercase tracking-wider">+ Tambah Rekening</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* List of banks */}
+                  <View className="space-y-2 mt-3">
+                    {(brandingData.subscriptionBanks || []).map((bank: any) => (
+                      <View key={bank.id} className="p-3 rounded-2xl border flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                        <View className="flex-1 pr-2">
+                          <Text className="text-[9px] font-black uppercase text-emerald-500">{bank.bankName}</Text>
+                          <Text className="text-xs font-black mt-1" style={{ color: colors.text }}>{bank.accountNumber}</Text>
+                          <Text className="text-[9px] font-bold text-slate-400">a.n. {bank.accountHolder}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setBrandingData({
+                              ...brandingData,
+                              subscriptionBanks: (brandingData.subscriptionBanks || []).filter((b: any) => b.id !== bank.id)
+                            });
+                          }}
+                          className="p-2 bg-rose-500/10 rounded-xl"
+                        >
+                          <Trash2 size={14} color="#f43f5e" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {(brandingData.subscriptionBanks || []).length === 0 && (
+                      <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada daftar rekening bank tambahan.</Text>
+                    )}
+                  </View>
                 </View>
 
                 {/* subscriptionQrisUrl */}

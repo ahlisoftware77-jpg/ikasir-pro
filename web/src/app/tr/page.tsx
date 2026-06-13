@@ -45,7 +45,7 @@ import {
   HelpCircle,
   ShoppingBag,
   Truck,
-  Utensils
+  Store
 } from 'lucide-react';
 
 interface Product {
@@ -808,7 +808,7 @@ function PublicOrderContent() {
                           <img src={p.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                        ) : (
                           <div className="w-full h-full flex items-center justify-center opacity-10">
-                             <Utensils size={32} />
+                             <ShoppingBag size={32} />
                           </div>
                        )}
                     </div>
@@ -1337,7 +1337,7 @@ function PublicOrderContent() {
                                   onClick={() => setFulfillmentType('pickup')}
                                   className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 active:scale-[0.98] ${fulfillmentType === 'pickup' ? 'border-tr bg-tr/10 text-slate-950 shadow-md shadow-tr/10 font-black' : 'border-slate-100 bg-white text-slate-400'}`}
                                 >
-                                   <Utensils size={24} className={fulfillmentType === 'pickup' ? 'animate-bounce' : ''} />
+                                   <Store size={24} className={fulfillmentType === 'pickup' ? 'animate-bounce' : ''} />
                                    <span className="text-[10px] font-black uppercase tracking-wider">Ambil di Tempat</span>
                                 </button>
                               )}

@@ -5,6 +5,13 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db, primaryDb } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 
+interface BankAccount {
+  id: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+}
+
 interface BrandingData {
   appName: string;
   receiptWatermark: string;
@@ -12,6 +19,7 @@ interface BrandingData {
   subscriptionQrisUrl: string;
   subscriptionBankInfo: string;
   subscriptionEwalletInfo: string;
+  subscriptionBanks?: BankAccount[];
   pkg_1m_price: number;
   pkg_1m_discount_type: 'none' | 'percent' | 'nominal';
   pkg_1m_discount_val: number;
@@ -39,6 +47,7 @@ const defaultBranding: BrandingData = {
   subscriptionQrisUrl: '',
   subscriptionBankInfo: '',
   subscriptionEwalletInfo: '',
+  subscriptionBanks: [],
   pkg_1m_price: 30000,
   pkg_1m_discount_type: 'none',
   pkg_1m_discount_val: 0,
@@ -91,6 +100,7 @@ export const BrandingProvider = ({ children }: { children: React.ReactNode }) =>
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
+          subscriptionBanks: data.subscriptionBanks || [],
           pkg_1m_price: Number(data.pkg_1m_price ?? defaultBranding.pkg_1m_price),
           pkg_1m_discount_type: data.pkg_1m_discount_type || defaultBranding.pkg_1m_discount_type,
           pkg_1m_discount_val: Number(data.pkg_1m_discount_val ?? defaultBranding.pkg_1m_discount_val),

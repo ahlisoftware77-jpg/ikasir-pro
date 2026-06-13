@@ -41,7 +41,8 @@ import {
   Wallet,
   Upload,
   Bell,
-  MessageSquare
+  MessageSquare,
+  Landmark
 } from 'lucide-react';
 import { handleExportJSON, handleImportJSON, handleImportStoreJSON } from '@/lib/backupUtils';
 
@@ -624,6 +625,7 @@ export default function SuperAdminPage() {
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
+    subscriptionBanks: [],
     webAppUrl: '',
     pkg_1m_price: 30000,
     pkg_1m_discount_type: 'none',
@@ -662,6 +664,7 @@ export default function SuperAdminPage() {
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
+          subscriptionBanks: data.subscriptionBanks || [],
           webAppUrl: data.webAppUrl || '',
           pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
           pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
@@ -820,6 +823,7 @@ export default function SuperAdminPage() {
         subscriptionQrisUrl: brandingData.subscriptionQrisUrl || '',
         subscriptionBankInfo: brandingData.subscriptionBankInfo || '',
         subscriptionEwalletInfo: brandingData.subscriptionEwalletInfo || '',
+        subscriptionBanks: brandingData.subscriptionBanks || [],
         pkg_1m_price: Number(brandingData.pkg_1m_price ?? 30000),
         pkg_1m_discount_type: brandingData.pkg_1m_discount_type || 'none',
         pkg_1m_discount_val: Number(brandingData.pkg_1m_discount_val ?? 0),
@@ -2390,8 +2394,102 @@ export default function SuperAdminPage() {
                       className="w-full h-40 p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all resize-none text-sm"
                     />
                  </div>
-              </div>
-              
+               </div>
+
+               {/* DAFTAR REKENING TRANSFER BANK (MULTI-BANK) */}
+               <div className="mt-8 border-t border-app-border/40 pt-8">
+                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                     <Landmark className="text-emerald-500" size={16} /> Daftar Rekening Bank Langganan (Multi-Bank)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 items-end bg-background/30 p-5 rounded-2xl border border-app-border">
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nama Bank</label>
+                        <input 
+                          type="text" 
+                          id="new-bank-name"
+                          placeholder="e.g. BCA, MANDIRI, BRI"
+                          className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                        />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nomor Rekening</label>
+                        <input 
+                          type="text" 
+                          id="new-bank-account"
+                          placeholder="e.g. 1234567890"
+                          className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                        />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Atas Nama (Pemilik)</label>
+                        <input 
+                          type="text" 
+                          id="new-bank-holder"
+                          placeholder="e.g. PT AHLI SOFTWARE INDONESIA"
+                          className="w-full p-2.5 bg-background border border-app-border rounded-xl text-xs text-foreground font-bold focus:outline-none focus:border-accent"
+                        />
+                     </div>
+                     <div className="col-span-full flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nameEl = document.getElementById('new-bank-name') as HTMLInputElement;
+                            const accEl = document.getElementById('new-bank-account') as HTMLInputElement;
+                            const holderEl = document.getElementById('new-bank-holder') as HTMLInputElement;
+                            if (!nameEl.value || !accEl.value || !holderEl.value) {
+                              alert('Semua kolom rekening bank harus diisi!');
+                              return;
+                            }
+                            const newBank = {
+                              id: Date.now().toString(),
+                              bankName: nameEl.value.trim(),
+                              accountNumber: accEl.value.trim(),
+                              accountHolder: holderEl.value.trim()
+                            };
+                            setBrandingData({
+                              ...brandingData,
+                              subscriptionBanks: [...(brandingData.subscriptionBanks || []), newBank]
+                            });
+                            nameEl.value = '';
+                            accEl.value = '';
+                            holderEl.value = '';
+                          }}
+                          className="py-2.5 px-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black transition-all flex items-center gap-1 active:scale-95 text-[10px] uppercase tracking-widest shadow-md shadow-emerald-500/10"
+                        >
+                           <Plus size={14} /> Tambah Rekening
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* List of Added Banks */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {(brandingData.subscriptionBanks || []).map((bank: any) => (
+                        <div key={bank.id} className="p-4 bg-background border border-app-border rounded-2xl flex items-center justify-between group hover:border-emerald-500/20 transition-all">
+                           <div className="min-w-0">
+                              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-wider">{bank.bankName}</span>
+                              <p className="text-xs font-black text-foreground mt-2 truncate">{bank.accountNumber}</p>
+                              <p className="text-[10px] font-bold text-app-text-muted mt-0.5 truncate">a.n. {bank.accountHolder}</p>
+                           </div>
+                           <button
+                             type="button"
+                             onClick={() => {
+                               setBrandingData({
+                                 ...brandingData,
+                                 subscriptionBanks: (brandingData.subscriptionBanks || []).filter((b: any) => b.id !== bank.id)
+                               });
+                             }}
+                             className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                           >
+                              <Trash2 size={16} />
+                           </button>
+                        </div>
+                     ))}
+                     {(brandingData.subscriptionBanks || []).length === 0 && (
+                        <p className="text-[10px] font-bold text-app-text-muted italic col-span-full">Belum ada daftar rekening bank yang ditambahkan. Menggunakan info teks default di atas jika ada.</p>
+                     )}
+                  </div>
+               </div>
+               
                {/* PENGATURAN HARGA & DISKON PAKET */}
                <div className="mt-8 border-t border-app-border/40 pt-8">
                   <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -2489,7 +2587,7 @@ export default function SuperAdminPage() {
                              <p className="text-xs font-black text-foreground uppercase tracking-widest">{req.packageTitle}</p>
                              <p className="text-[10px] text-app-text-muted font-bold mt-1">{req.ownerEmail}</p>
                              <p className="text-[9px] text-emerald-500 font-bold">Harga: Rp {req.price?.toLocaleString('id-ID')}</p>
-                             <p className="text-[9px] text-app-text-muted font-bold mt-0.5">Metode: <span className="text-foreground uppercase font-black">{req.paymentMethod || 'qris'}</span></p>
+                             <p className="text-[9px] text-app-text-muted font-bold mt-0.5">Metode: <span className="text-foreground uppercase font-black">{req.paymentMethod || 'qris'}</span>{req.selectedBankInfo ? ` (${req.selectedBankInfo.bankName})` : ''}</p>
                           </div>
                           <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider ${req.status === 'pending' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500'}`}>
                              {req.status}

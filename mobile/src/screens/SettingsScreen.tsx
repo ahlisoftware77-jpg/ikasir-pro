@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing, Clipboard } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
 LocaleConfig.locales['id'] = {
@@ -255,13 +255,14 @@ export default function SettingsScreen({ navigation, route }: any) {
 
 
   
-  const [brandingData, setBrandingData] = useState({ 
+  const [brandingData, setBrandingData] = useState<any>({ 
     appName: 'IKASIR PRO', 
     receiptWatermark: 'Powered by YadiApp', 
     showWatermark: true,
     subscriptionQrisUrl: '',
     subscriptionBankInfo: '',
     subscriptionEwalletInfo: '',
+    subscriptionBanks: [],
     webAppUrl: ''
   });
 
@@ -271,6 +272,7 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isSubmittingSubscription, setIsSubmittingSubscription] = useState(false);
   const [isSubscriptionSuccess, setIsSubscriptionSuccess] = useState(false);
   const [subscriptionPaymentMethod, setSubscriptionPaymentMethod] = useState<'qris' | 'bank' | 'ewallet'>('qris');
+  const [selectedBankId, setSelectedBankId] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [packageStats, setPackageStats] = useState<Record<string, number>>({ '1m': 0, '3m': 0, '6m': 0, '12m': 0 });
   const [bestSellerId, setBestSellerId] = useState<string>('12m');
@@ -392,6 +394,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        const banks = data.subscriptionBanks || [];
         setBrandingData({
           appName: data.appName || 'IKASIR PRO',
           receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
@@ -399,8 +402,12 @@ export default function SettingsScreen({ navigation, route }: any) {
           subscriptionQrisUrl: data.subscriptionQrisUrl || '',
           subscriptionBankInfo: data.subscriptionBankInfo || '',
           subscriptionEwalletInfo: data.subscriptionEwalletInfo || '',
+          subscriptionBanks: banks,
           webAppUrl: data.webAppUrl || ''
         });
+        if (banks.length > 0) {
+          setSelectedBankId(banks[0].id);
+        }
       }
     });
     return () => unsubBranding();
@@ -500,6 +507,7 @@ export default function SettingsScreen({ navigation, route }: any) {
           packageTitle: selectedPackage.title,
           price: selectedPackage.price,
           paymentMethod: subscriptionPaymentMethod,
+          selectedBankInfo: subscriptionPaymentMethod === 'bank' ? (brandingData.subscriptionBanks?.find((b: any) => b.id === selectedBankId) || brandingData.subscriptionBanks?.[0] || null) : null,
           proofUrl: uploadResult.secure_url,
           status: 'pending',
           createdAt: serverTimestamp()
@@ -2583,7 +2591,62 @@ export default function SettingsScreen({ navigation, route }: any) {
                       )}
 
                       {subscriptionPaymentMethod === 'bank' && (
-                        brandingData.subscriptionBankInfo ? (
+                        brandingData.subscriptionBanks && brandingData.subscriptionBanks.length > 0 ? (
+                          <View className="w-full">
+                            <Text className="text-[9px] font-black uppercase mb-2 text-center" style={{ color: colors.textMuted }}>Pilih Bank Transfer</Text>
+                            
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row mb-3 py-1">
+                              {brandingData.subscriptionBanks.map((bank: any) => {
+                                const isSelected = bank.id === selectedBankId;
+                                return (
+                                  <TouchableOpacity
+                                    key={bank.id}
+                                    onPress={() => setSelectedBankId(bank.id)}
+                                    className="px-4 py-2 rounded-xl border mr-2"
+                                    style={{
+                                      backgroundColor: isSelected ? colors.accent + '15' : colors.surface,
+                                      borderColor: isSelected ? colors.accent : colors.border
+                                    }}
+                                  >
+                                    <Text className="text-[10px] font-black uppercase" style={{ color: isSelected ? colors.accent : colors.text }}>{bank.bankName}</Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+
+                            {(() => {
+                              const activeBank = brandingData.subscriptionBanks.find((b: any) => b.id === selectedBankId) || brandingData.subscriptionBanks[0];
+                              if (!activeBank) return null;
+                              return (
+                                <View className="p-4 rounded-2xl border space-y-2 w-full mt-1" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                                  <View className="flex-row justify-between items-center">
+                                    <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>Nama Bank:</Text>
+                                    <Text className="text-xs font-black" style={{ color: colors.text }}>{activeBank.bankName}</Text>
+                                  </View>
+                                  <View className="flex-row justify-between items-center">
+                                    <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>Nomor Rekening:</Text>
+                                    <View className="flex-row items-center gap-2">
+                                      <Text className="text-sm font-black text-emerald-500 font-mono">{activeBank.accountNumber}</Text>
+                                      <TouchableOpacity
+                                        onPress={() => {
+                                          Clipboard.setString(activeBank.accountNumber);
+                                          Alert.alert('Sukses', 'Nomor rekening disalin ke clipboard.');
+                                        }}
+                                        className="px-2.5 py-1 bg-black/10 rounded-lg"
+                                      >
+                                        <Text className="text-[8px] font-black uppercase" style={{ color: colors.text }}>Salin</Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+                                  <View className="flex-row justify-between items-center border-t pt-2" style={{ borderColor: colors.border + '30' }}>
+                                    <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>Atas Nama Pemilik:</Text>
+                                    <Text className="text-xs font-black" style={{ color: colors.text }}>{activeBank.accountHolder}</Text>
+                                  </View>
+                                </View>
+                              );
+                            })()}
+                          </View>
+                        ) : brandingData.subscriptionBankInfo ? (
                           <View className="w-full items-center">
                             <Text className="text-[9px] font-black uppercase mb-2" style={{ color: colors.textMuted }}>Transfer ke Nomor Rekening</Text>
                             <Text className="text-xs font-black text-center leading-relaxed" style={{ color: colors.text }}>{brandingData.subscriptionBankInfo}</Text>
