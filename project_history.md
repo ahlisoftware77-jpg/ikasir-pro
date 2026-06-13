@@ -46,6 +46,35 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 ## 📝 Catatan Perubahan & Fitur (Changelog)
 
+### [2026-06-13] - Penambahan Tombol Buat Akun Baru di SuperAdmin (Web & Mobile)
+#### Perubahan / Penambahan Fitur:
+1. **Fitur Buat Akun Baru di SuperAdmin (Web & Mobile)**
+   - Menambahkan tombol "BUAT AKUN" di UI navigasi Data User SuperAdmin Web dan tombol "+" di mobile.
+   - Menggunakan *secondary Firebase App instance* temporer di client-side untuk pendaftaran agar tidak memutus sesi login SuperAdmin.
+   - Menyimpan user ke Firestore `users` dengan detail nama, email, role (CASHIER/ADMIN/SUPER-ADMIN), storeId, validUntil (30 hari), dan permission default sesuai role.
+   - Menyediakan form modal lengkap dengan pilihan outlet toko aktif.
+
+#### Berkas yang Dimodifikasi:
+* **Web**:
+  - [page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/super-admin/page.tsx) - Menambahkan state pendukung, tombol buat akun, logika secondary app, dan modal form registrasi.
+* **Mobile**:
+  - [SuperAdminScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SuperAdminScreen.tsx) - Menambahkan state pendukung, tombol +, logika secondary app (dengan dynamic imports), dan modal overlay form.
+
+#### Catatan Deployment & Perintah yang Dijalankan:
+1. **Git Commit & Push**:
+   - *Perintah*: `git add .` dan `git commit -m "feat: add create account button in superadmin panel"` dan `git push origin main`
+   - *Hasil*: Commit `2226786e` berhasil dipush ke repositori GitHub `ahlisoftware77-jpg/ikasir-pro` (cabang `main`).
+2. **Expo OTA Update**:
+   - *Perintah*: `npx eas-cli update --channel production --message "feat: add create account button in superadmin panel" --non-interactive`
+   - *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
+     - **Runtime Version**: `1.0.0`
+     - **Update Group ID**: `07315652-1433-4af1-a47e-01a53648a412`
+     - **Android Update ID**: `019ec0fb-aa29-75ce-9d1a-60e3ae114a72`
+     - **iOS Update ID**: `019ec0fb-aa29-7eb0-a36b-169238b5f926`
+     - **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/07315652-1433-4af1-a47e-01a53648a412)
+
+---
+
 ### [2026-06-13] - Kontrol Menu Kedaluwarsa Global & Optimalisasi UI Mobile
 #### Perubahan / Penambahan Fitur:
 1.  **Checklist Menu Kedaluwarsa Global (expiredDisabledMenus)**
