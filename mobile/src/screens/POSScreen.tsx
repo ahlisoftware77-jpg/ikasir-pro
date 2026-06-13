@@ -1031,8 +1031,6 @@ export default function POSScreen({ route, navigation }: any) {
       }
 
       // Decrement stock and save transaction in a batch write
-      const batch = writeBatch(db);
-      
       let counterKey = 'trxCounter';
       let prefix = 'TRX-';
       if (paymentCategory === 'debt') {
@@ -1045,9 +1043,16 @@ export default function POSScreen({ route, navigation }: any) {
 
       let currentCounter = 0;
       let padding = 4;
+      let isOnline = true;
+
       try {
         const settingsRef = doc(db, 'settings', `store_${storeId}`);
-        const settingsSnap = await getDoc(settingsRef);
+        // Batasi getDoc dengan batas waktu 1.5 detik. Jika lewat, anggap offline
+        const settingsSnap = await Promise.race([
+          getDoc(settingsRef),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500))
+        ]) as any;
+
         if (settingsSnap.exists()) {
           const data = settingsSnap.data();
           currentCounter = Number(data[counterKey]) || 0;
@@ -1055,7 +1060,35 @@ export default function POSScreen({ route, navigation }: any) {
           padding = Number(data[counterKey + 'Padding']) || 4;
         }
       } catch (err) {
-        console.error("Error reading settings counter:", err);
+        console.warn("Connection slow or offline, using offline checkout:", err);
+        isOnline = false;
+      }
+
+      const batch = writeBatch(db);
+
+      if (!isOnline) {
+        const randomId = doc(collection(db, 'transactions')).id;
+        const finalDocId = `OFF-${randomId.substring(0, 8).toUpperCase()}`;
+        transactionData.id = finalDocId;
+        transactionData.offline = true;
+        transactionData.isOfflineTemp = true;
+
+        batch.set(doc(db, 'transactions', finalDocId), transactionData);
+        for (const item of cart) {
+          if (item.manageStock !== false && item.id) {
+            batch.update(doc(db, 'products', item.id), { stock: increment(-item.cartQty) });
+          }
+        }
+
+        await batch.commit();
+
+        Vibration.vibrate([0, 15, 80, 15]);
+        setSuccessTrx({ id: finalDocId, ...transactionData });
+        resetPOSState();
+        setShowCheckout(false);
+        setShowSignature(false);
+        setIsProcessing(false);
+        return;
       }
 
       currentCounter += 1;

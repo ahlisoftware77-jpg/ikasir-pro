@@ -1,7 +1,9 @@
 {
   "projects": {
     "kasir-app": "kasir-3d12b",
-    "default": "kasir-3d12b"
+    "default": "kasir-3d12b",
+    "kasir-sub1": "kasir-sub1",
+    "kasir": "kasir-3d12b"
   },
   "targets": {
     "kasir-3d12b": {
