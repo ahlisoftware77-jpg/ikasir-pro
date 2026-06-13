@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, where, getDocs, writeBatch } from 'firebase/firestore';
+import { initializeApp, getApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db, primaryDb, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { useRouter } from 'next/navigation';
@@ -51,6 +53,14 @@ export default function SuperAdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'admin',
+    storeId: '',
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast' | 'feedback'>('users');
   const [stores, setStores] = useState<any[]>([]);
@@ -391,6 +401,91 @@ export default function SuperAdminPage() {
       alert('Migrasi gagal: ' + err.message);
     } finally {
       setIsMigrating(false);
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserData.name || !newUserData.email || !newUserData.password) {
+      alert('Nama, Email, dan Password tidak boleh kosong!');
+      return;
+    }
+
+    setIsSaving(true);
+    let secondaryApp;
+    try {
+      // 1. Dapatkan config dari primary app
+      const primaryApp = getApp();
+      const firebaseConfig = primaryApp.options;
+
+      // 2. Buat secondary app instance dengan nama unik
+      secondaryApp = initializeApp(firebaseConfig, `SuperAdminUserCreation-${Date.now()}`);
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // 3. Buat user baru di Firebase Auth menggunakan secondary app
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth, 
+        newUserData.email, 
+        newUserData.password
+      );
+
+      // 4. Logout secondary user & bersihkan app instance
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+      secondaryApp = null;
+
+      // 5. Simpan hak akses role ke koleksi Firestore (`users`)
+      const selectedStore = stores.find(s => s.id === newUserData.storeId);
+      
+      await setDoc(doc(primaryDb, 'users', userCredential.user.uid), {
+        name: newUserData.name,
+        email: newUserData.email,
+        role: newUserData.role,
+        storeId: newUserData.storeId || 'default-store',
+        storeName: selectedStore?.name || (newUserData.storeId === 'default-store' ? 'Toko Utama' : ''),
+        permissions: {
+          canAccessPOS: true,
+          canManageProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canCreateProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canEditProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canDeleteProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canViewReports: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canManageUsers: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canEditSettings: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canManageEstimations: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canManageDebts: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canManageOrders: newUserData.role === 'admin' || newUserData.role === 'super-admin',
+          canViewLogs: newUserData.role === 'admin' || newUserData.role === 'super-admin'
+        },
+        isActive: true,
+        isSubscribed: true,
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 hari dari sekarang
+        createdAt: new Date().toISOString()
+      });
+
+      alert('Akun pengguna berhasil dibuat!');
+      setIsAddingUser(false);
+      setNewUserData({ name: '', email: '', password: '', role: 'admin', storeId: '' });
+    } catch (err: any) {
+      console.error(err);
+      if (secondaryApp) {
+        try {
+          await deleteApp(secondaryApp);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      let errorMessage = 'Gagal mendaftarkan akun baru';
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'Email sudah terdaftar.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Kata sandi terlalu lemah. Minimal 6 karakter.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Format email tidak valid.';
+      }
+      alert(errorMessage + ': ' + err.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1403,14 +1498,25 @@ export default function SuperAdminPage() {
              </button>
           </div>
 
-          {activeTab === 'stores' && (
-             <button 
-               onClick={() => setIsAddingStore(true)}
-               className="flex items-center justify-center gap-2 px-6 py-4 md:py-3 bg-emerald-500 text-white rounded-2xl md:rounded-xl font-black text-xs hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-             >
-                <Plus size={18} /> TAMBAH TOKO
-             </button>
-          )}
+          <div className="flex gap-2">
+            {activeTab === 'stores' && (
+               <button 
+                 onClick={() => setIsAddingStore(true)}
+                 className="flex items-center justify-center gap-2 px-6 py-4 md:py-3 bg-emerald-500 text-white rounded-2xl md:rounded-xl font-black text-xs hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+               >
+                  <Plus size={18} /> TAMBAH TOKO
+               </button>
+            )}
+
+            {activeTab === 'users' && (
+               <button 
+                  onClick={() => setIsAddingUser(true)}
+                  className="flex items-center justify-center gap-2 px-6 py-4 md:py-3 bg-accent text-foreground rounded-2xl md:rounded-xl font-black text-xs hover:bg-accent-hover transition-all shadow-lg shadow-accent/20 animate-in fade-in duration-300"
+               >
+                  <Plus size={18} /> BUAT AKUN
+               </button>
+            )}
+          </div>
       </div>
 
       {/* DASHBOARD STATS */}
@@ -2723,6 +2829,99 @@ export default function SuperAdminPage() {
                        {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Global'}
                     </button>
                  </div>
+              </form>
+           </div>
+        </div>
+      )}
+
+      {/* ADD USER MODAL */}
+      {isAddingUser && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-xl p-0 md:p-4">
+           <div className="bg-surface border-t md:border border-app-border rounded-t-[2rem] md:rounded-[3rem] w-full max-w-lg overflow-y-auto max-h-[90vh] md:max-h-none shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300">
+              <div className="p-6 md:p-8 border-b border-app-border flex items-center justify-between sticky top-0 bg-surface/80 backdrop-blur-md z-10">
+                 <h2 className="text-lg md:text-xl font-black text-foreground flex items-center gap-3">
+                    <UserPlus className="text-accent" /> Buat Akun Pengguna
+                 </h2>
+                 <button onClick={() => setIsAddingUser(false)} className="text-app-text-muted hover:text-rose-500 transition-colors">
+                    <X size={28} />
+                 </button>
+              </div>
+
+              <form onSubmit={handleCreateUser} className="p-6 md:p-10 space-y-6 pb-12 md:pb-10">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nama Lengkap</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Contoh: Budi Santoso"
+                      value={newUserData.name} 
+                      onChange={e => setNewUserData({...newUserData, name: e.target.value})}
+                      className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all"
+                    />
+                 </div>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Alamat Email</label>
+                    <input 
+                      type="email" 
+                      required
+                      placeholder="budi@domain.com"
+                      value={newUserData.email} 
+                      onChange={e => setNewUserData({...newUserData, email: e.target.value})}
+                      className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all"
+                    />
+                 </div>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Password</label>
+                    <input 
+                      type="password" 
+                      required
+                      minLength={6}
+                      placeholder="Minimal 6 karakter"
+                      value={newUserData.password} 
+                      onChange={e => setNewUserData({...newUserData, password: e.target.value})}
+                      className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all"
+                    />
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Role Akun</label>
+                        <select 
+                          value={newUserData.role}
+                          onChange={e => setNewUserData({...newUserData, role: e.target.value})}
+                          className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none appearance-none cursor-pointer"
+                        >
+                           <option value="cashier">CASHIER</option>
+                           <option value="admin">ADMIN</option>
+                           <option value="super-admin">SUPER-ADMIN</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Pilih Toko (Store)</label>
+                        <select 
+                          value={newUserData.storeId}
+                          onChange={e => setNewUserData({...newUserData, storeId: e.target.value})}
+                          className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none appearance-none cursor-pointer"
+                        >
+                           <option value="">-- Tanpa Toko --</option>
+                           <option value="default-store">Toko Utama (default-store)</option>
+                           {stores.map(s => (
+                              <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
+                           ))}
+                        </select>
+                    </div>
+                 </div>
+
+                 <button 
+                   type="submit" 
+                   disabled={isSaving}
+                   className="w-full py-5 bg-accent hover:bg-accent-hover text-foreground rounded-2xl font-black shadow-xl shadow-accent/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95 mt-4"
+                 >
+                    {isSaving ? <Loader2 className="animate-spin" /> : <Plus size={20} />}
+                    BUAT AKUN BARU
+                 </button>
               </form>
            </div>
         </div>

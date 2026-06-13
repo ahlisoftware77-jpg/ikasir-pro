@@ -129,6 +129,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
   
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [newUserData, setNewUserData] = useState({ name: '', email: '', password: '', role: 'admin', storeId: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [migratingUser, setMigratingUser] = useState<any>(null);
   const [migratingStoreData, setMigratingStoreData] = useState<any>(null);
@@ -468,7 +470,94 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
   };
 
-  // --- ACTIONS HANDLERS ---
+  const handleCreateUser = async () => {
+    if (!newUserData.name || !newUserData.email || !newUserData.password) {
+      Alert.alert('Error', 'Nama, Email, dan Password wajib diisi!');
+      return;
+    }
+
+    setIsSaving(true);
+    let secondaryApp;
+    try {
+      const { getApp, initializeApp: initApp, deleteApp } = await import('firebase/app');
+      const { getAuth, createUserWithEmailAndPassword, signOut } = await import('firebase/auth');
+
+      // 1. Dapatkan config dari primary app
+      const primaryApp = getApp();
+      const firebaseConfig = primaryApp.options;
+
+      // 2. Buat secondary app instance dengan nama unik
+      secondaryApp = initApp(firebaseConfig, `SuperAdminUserCreation-${Date.now()}`);
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // 3. Buat user baru di Firebase Auth menggunakan secondary app
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth,
+        newUserData.email.trim(),
+        newUserData.password
+      );
+
+      // 4. Logout secondary user & bersihkan app instance
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+      secondaryApp = null;
+
+      // 5. Simpan hak akses role ke koleksi Firestore (`users`)
+      const selectedStore = superAdminStores.find(s => s.id === newUserData.storeId);
+
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        name: newUserData.name.trim(),
+        email: newUserData.email.trim(),
+        role: newUserData.role,
+        storeId: newUserData.storeId || 'default-store',
+        storeName: selectedStore?.name || (newUserData.storeId === 'default-store' ? 'Toko Utama' : ''),
+        isActive: true,
+        isSubscribed: true,
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 hari
+        createdAt: new Date().toISOString(),
+        permissions: {
+          canAccessPOS: true,
+          canManageProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canCreateProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canEditProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canDeleteProducts: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canViewReports: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canManageUsers: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canEditSettings: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canManageEstimations: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canManageDebts: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canManageOrders: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin',
+          canViewLogs: newUserData.role === 'admin' || newUserData.role === 'super-admin' || newUserData.role === 'superadmin'
+        }
+      });
+
+      Alert.alert('Sukses', 'Berhasil membuat akun pengguna baru!');
+      setIsAddingUser(false);
+      setNewUserData({ name: '', email: '', password: '', role: 'admin', storeId: '' });
+    } catch (err: any) {
+      console.error(err);
+      if (secondaryApp) {
+        try {
+          const { deleteApp } = await import('firebase/app');
+          await deleteApp(secondaryApp);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      let errorMessage = 'Gagal mendaftarkan akun baru';
+      if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'Email sudah terdaftar.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Kata sandi terlalu lemah. Minimal 6 karakter.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Format email tidak valid.';
+      }
+      Alert.alert('Gagal', errorMessage + ': ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleUpdateUser = async () => {
     if (!editingUser) return;
     setIsSaving(true);
@@ -1756,21 +1845,30 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
         return (
           <View className="flex-1">
-            {/* Search Input */}
-            <View className="flex-row items-center border rounded-2xl px-4 py-1 mb-4" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
-              <TextInput
-                placeholder="Cari user berdasarkan nama/email..."
-                placeholderTextColor={colors.textMuted + '80'}
-                value={superAdminSearchQuery}
-                onChangeText={setSuperAdminSearchQuery}
-                className="flex-1 h-12 font-bold text-xs"
-                style={{ color: colors.text }}
-              />
-              {superAdminSearchQuery !== '' && (
-                <TouchableOpacity onPress={() => setSuperAdminSearchQuery('')}>
-                  <X size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-              )}
+            {/* Search & Buat Akun */}
+            <View className="flex-row gap-3 mb-4">
+              <View className="flex-1 flex-row items-center border rounded-2xl px-4 py-1" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+                <TextInput
+                  placeholder="Cari user berdasarkan nama/email..."
+                  placeholderTextColor={colors.textMuted + '80'}
+                  value={superAdminSearchQuery}
+                  onChangeText={setSuperAdminSearchQuery}
+                  className="flex-1 h-12 font-bold text-xs"
+                  style={{ color: colors.text }}
+                />
+                {superAdminSearchQuery !== '' && (
+                  <TouchableOpacity onPress={() => setSuperAdminSearchQuery('')}>
+                    <X size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsAddingUser(true)}
+                className="px-4 py-3 rounded-2xl items-center justify-center"
+                style={{ backgroundColor: colors.accent }}
+              >
+                <Plus size={20} color="#ffffff" />
+              </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -2940,6 +3038,138 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 })()}
               </ScrollView>
             </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 8. MODAL BUAT AKUN USER */}
+      {isAddingUser && (
+        <Modal visible={true} animationType="slide" transparent>
+          <View className="flex-1 bg-black/80 justify-end">
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View className="w-full rounded-t-[36px] p-6 space-y-4 pb-12" style={{ backgroundColor: colors.surface }}>
+                <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '30' }}>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>Buat Akun Pengguna</Text>
+                  <TouchableOpacity onPress={() => setIsAddingUser(false)}>
+                    <X size={20} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Nama Lengkap Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Nama Lengkap</Text>
+                  <TextInput
+                    value={newUserData.name}
+                    onChangeText={(txt) => setNewUserData({ ...newUserData, name: txt })}
+                    placeholder="Contoh: Budi Santoso"
+                    placeholderTextColor={colors.textMuted}
+                    className="p-3.5 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
+                {/* Email Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Alamat Email</Text>
+                  <TextInput
+                    value={newUserData.email}
+                    onChangeText={(txt) => setNewUserData({ ...newUserData, email: txt })}
+                    placeholder="budi@domain.com"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    className="p-3.5 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
+                {/* Password Input */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Password</Text>
+                  <TextInput
+                    value={newUserData.password}
+                    onChangeText={(txt) => setNewUserData({ ...newUserData, password: txt })}
+                    placeholder="Minimal 6 karakter"
+                    placeholderTextColor={colors.textMuted}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    className="p-3.5 rounded-2xl border font-bold text-xs"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                </View>
+
+                {/* Role Selector */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Role Akun</Text>
+                  <View className="flex-row gap-2">
+                    {['cashier', 'admin', 'super-admin'].map((r) => {
+                      const isSelected = newUserData.role === r;
+                      return (
+                        <TouchableOpacity
+                          key={r}
+                          onPress={() => setNewUserData({ ...newUserData, role: r })}
+                          className="flex-1 py-2.5 rounded-xl border items-center justify-center"
+                          style={{ 
+                            backgroundColor: isSelected ? colors.accent : colors.bg, 
+                            borderColor: isSelected ? colors.accent : colors.border 
+                          }}
+                        >
+                          <Text className="text-[9px] font-black uppercase" style={{ color: isSelected ? '#ffffff' : colors.text }}>{r.replace('-', '')}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Store Selector */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Pilih Outlet Toko</Text>
+                  <ScrollView className="max-h-[120px] border rounded-2xl p-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                    <TouchableOpacity 
+                      onPress={() => setNewUserData({ ...newUserData, storeId: '' })}
+                      className="py-2.5 px-3 border-b flex-row justify-between items-center" 
+                      style={{ borderColor: colors.border + '20' }}
+                    >
+                      <Text className="text-[10px] font-bold" style={{ color: newUserData.storeId === '' ? colors.accent : colors.text }}>-- Tanpa Toko --</Text>
+                      {newUserData.storeId === '' && <Check size={10} color={colors.accent} />}
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => setNewUserData({ ...newUserData, storeId: 'default-store' })}
+                      className="py-2.5 px-3 border-b flex-row justify-between items-center" 
+                      style={{ borderColor: colors.border + '20' }}
+                    >
+                      <Text className="text-[10px] font-bold" style={{ color: newUserData.storeId === 'default-store' ? colors.accent : colors.text }}>Toko Default (default-store)</Text>
+                      {newUserData.storeId === 'default-store' && <Check size={10} color={colors.accent} />}
+                    </TouchableOpacity>
+                    {superAdminStores.map((s) => (
+                      <TouchableOpacity 
+                        key={s.id}
+                        onPress={() => setNewUserData({ ...newUserData, storeId: s.id })}
+                        className="py-2.5 px-3 border-b flex-row justify-between items-center"
+                        style={{ borderColor: colors.border + '20' }}
+                      >
+                        <Text className="text-[10px] font-bold" style={{ color: newUserData.storeId === s.id ? colors.accent : colors.text }}>{s.name} ({s.id})</Text>
+                        {newUserData.storeId === s.id && <Check size={10} color={colors.accent} />}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {/* Submit Button */}
+                <TouchableOpacity
+                  onPress={handleCreateUser}
+                  disabled={isSaving}
+                  className="py-4 rounded-2xl items-center justify-center mt-3"
+                  style={{ backgroundColor: colors.accent }}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="font-black text-white text-xs uppercase tracking-wider">Buat Akun Baru</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
       )}
