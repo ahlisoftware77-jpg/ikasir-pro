@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, query, onSnapshot, orderBy, doc, getDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { ShoppingCart, TrendingUp, Loader2, Download, Filter, X, ReceiptText, Printer, MessageCircle, Truck } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Loader2, Download, Filter, X, ReceiptText, Printer, MessageCircle, Truck, Coins, Package, CheckCircle2, AlertTriangle, DollarSign, ArrowUpRight } from 'lucide-react';
 import { exportToExcel } from '@/lib/exportToExcel';
 import { printReceipt } from '@/lib/printReceipt';
 import toast from 'react-hot-toast';
@@ -35,6 +35,7 @@ export default function SalesReportPage() {
   // Detail Modal States
   const [selectedTrx, setSelectedTrx] = useState<any>(null);
   const [storeSettings, setStoreSettings] = useState<any>({});
+  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -64,6 +65,17 @@ export default function SalesReportPage() {
     fetchSettings();
 
     return () => unsubscribe();
+  }, [storeId]);
+  
+  useEffect(() => {
+    if (!storeId) return;
+    const qProd = query(collection(db, 'products'), where('storeId', '==', storeId));
+    const unsubProd = onSnapshot(qProd, (snapshot) => {
+      const items: any[] = [];
+      snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+      setProducts(items);
+    });
+    return () => unsubProd();
   }, [storeId]);
 
   // --- ANDROID BACK BUTTON SUPPORT ---
@@ -132,7 +144,81 @@ export default function SalesReportPage() {
     });
   }, [data, statusTab, period, selectedDate, selectedMonth, selectedYear, customDate]);
 
-  const totalSales = filteredData.reduce((sum, item) => sum + (item.total || 0), 0);
+  const stats = useMemo(() => {
+    let transaksiPiutangCount = 0;
+    let totalPiutangAwal = 0;
+    let totalPiutangTerbayar = 0;
+    let totalSisaPiutang = 0;
+    
+    let transaksiLunasCount = 0;
+    let nominalLunas = 0;
+    
+    let totalProdukTerjual = 0;
+    let totalOmzet = 0;
+    let totalProfit = 0;
+    
+    const productsMap = products.reduce((acc: any, p: any) => {
+      acc[p.id] = p;
+      return acc;
+    }, {});
+
+    filteredData.forEach(trx => {
+      const isDebt = trx.paymentCategory === 'debt';
+      const dp = (isDebt && trx.paymentHistory && trx.paymentHistory.length > 0 && trx.paymentHistory[0].note?.includes('DP')) 
+        ? (trx.paymentHistory[0].amount || 0) 
+        : 0;
+
+      // 1. Piutang metrics
+      if (isDebt) {
+        transaksiPiutangCount++;
+        const piutangAwal = Math.max(0, (trx.total || 0) - dp);
+        const paid = trx.paidAmount || 0;
+        const piutangTerbayar = Math.max(0, paid - dp);
+        const sisaPiutang = trx.debtAmount !== undefined ? trx.debtAmount : Math.max(0, (trx.total || 0) - paid);
+        
+        totalPiutangAwal += piutangAwal;
+        totalPiutangTerbayar += piutangTerbayar;
+        totalSisaPiutang += sisaPiutang;
+      }
+
+      // 2. Lunas metrics
+      if (trx.paymentStatus === 'paid') {
+        transaksiLunasCount++;
+        nominalLunas += trx.total || 0;
+      }
+
+      // 3. Omzet
+      totalOmzet += trx.total || 0;
+
+      // 4. Qty & Profit
+      let trxHpp = 0;
+      if (trx.items && Array.isArray(trx.items)) {
+        trx.items.forEach((item: any) => {
+          totalProdukTerjual += item.qty || 0;
+          const pPrice = item.purchasePrice !== undefined 
+            ? item.purchasePrice 
+            : (productsMap[item.productId]?.purchasePrice || 0);
+          trxHpp += pPrice * (item.qty || 0);
+        });
+      }
+      const trxSubtotal = trx.subtotal !== undefined ? trx.subtotal : ((trx.total || 0) - (trx.tax || 0));
+      totalProfit += (trxSubtotal - trxHpp);
+    });
+
+    return {
+      transaksiPiutangCount,
+      totalPiutangAwal,
+      totalPiutangTerbayar,
+      totalSisaPiutang,
+      transaksiLunasCount,
+      nominalLunas,
+      totalProdukTerjual,
+      totalOmzet,
+      totalProfit
+    };
+  }, [filteredData, products]);
+
+  const totalSales = stats.totalOmzet;
   const totalTrx = filteredData.length;
 
   const handleExport = () => {
@@ -315,23 +401,93 @@ export default function SalesReportPage() {
          </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
-            <div className={`p-4 rounded-2xl bg-surface text-emerald-500 shadow-md`}>
-               <TrendingUp size={32} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+         {/* Card 1: Omzet */}
+         <div className="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-emerald-500 shadow-md">
+               <TrendingUp size={28} />
             </div>
             <div>
-               <p className="text-[10px] text-emerald-600/70 font-black uppercase tracking-widest">Total Nominal</p>
-               <h3 className={`text-2xl font-black text-emerald-500 tracking-tighter`}>Rp {totalSales.toLocaleString('id-ID')}</h3>
+               <p className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70 font-black uppercase tracking-widest">OMZET (KOTOR)</p>
+               <h3 className="text-xl font-black text-emerald-500 dark:text-emerald-400 tracking-tighter">Rp {stats.totalOmzet.toLocaleString('id-ID')}</h3>
             </div>
          </div>
-         <div className="bg-accent/10 border border-accent/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
-            <div className="p-4 bg-surface rounded-2xl text-accent shadow-md">
-               <ShoppingCart size={32} />
+
+         {/* Card 2: Profit */}
+         <div className="bg-violet-500/5 dark:bg-violet-500/10 border border-violet-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-violet-500 shadow-md">
+               <Coins size={28} />
             </div>
             <div>
-               <p className="text-[10px] text-accent/70 font-black uppercase tracking-widest">Jumlah Transaksi</p>
-               <h3 className="text-2xl font-black text-accent tracking-tighter">{totalTrx} Trx</h3>
+               <p className="text-[10px] text-violet-600/70 dark:text-violet-500/70 font-black uppercase tracking-widest">PROFIT (LABA)</p>
+               <h3 className="text-xl font-black text-violet-500 dark:text-violet-400 tracking-tighter">Rp {stats.totalProfit.toLocaleString('id-ID')}</h3>
+            </div>
+         </div>
+
+         {/* Card 3: Produk Terjual */}
+         <div className="bg-sky-500/5 dark:bg-sky-500/10 border border-sky-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-sky-500 shadow-md">
+               <Package size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] text-sky-600/70 dark:text-sky-500/70 font-black uppercase tracking-widest">PRODUK TERJUAL</p>
+               <h3 className="text-xl font-black text-sky-500 dark:text-sky-400 tracking-tighter">{stats.totalProdukTerjual} Qty</h3>
+            </div>
+         </div>
+
+         {/* Card 4: Transaksi Lunas */}
+         <div className="bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-teal-500 shadow-md">
+               <CheckCircle2 size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] text-teal-600/70 dark:text-teal-500/70 font-black uppercase tracking-widest">TRANSAKSI LUNAS</p>
+               <h3 className="text-xl font-black text-teal-500 dark:text-teal-400 tracking-tighter">{stats.transaksiLunasCount} Trx</h3>
+               <p className="text-[10px] text-app-text-muted mt-0.5 font-bold">Rp {stats.nominalLunas.toLocaleString('id-ID')}</p>
+            </div>
+         </div>
+
+         {/* Card 5: Transaksi Piutang */}
+         <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-amber-500 shadow-md">
+               <ShoppingCart size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70 font-black uppercase tracking-widest">TRANSAKSI PIUTANG</p>
+               <h3 className="text-xl font-black text-amber-500 dark:text-amber-400 tracking-tighter">{stats.transaksiPiutangCount} Trx</h3>
+            </div>
+         </div>
+
+         {/* Card 6: Piutang Awal */}
+         <div className="bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-rose-500 shadow-md">
+               <DollarSign size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] text-rose-600/70 dark:text-rose-500/70 font-black uppercase tracking-widest">TOTAL PIUTANG AWAL</p>
+               <h3 className="text-xl font-black text-rose-500 dark:text-rose-400 tracking-tighter">Rp {stats.totalPiutangAwal.toLocaleString('id-ID')}</h3>
+            </div>
+         </div>
+
+         {/* Card 7: Piutang Terbayar */}
+         <div className="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-emerald-500 shadow-md">
+               <ArrowUpRight size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] text-emerald-600/70 dark:text-emerald-500/70 font-black uppercase tracking-widest">PIUTANG TERBAYAR</p>
+               <h3 className="text-xl font-black text-emerald-500 dark:text-emerald-400 tracking-tighter">Rp {stats.totalPiutangTerbayar.toLocaleString('id-ID')}</h3>
+            </div>
+         </div>
+
+         {/* Card 8: Sisa Piutang */}
+         <div className="bg-red-500/5 dark:bg-red-500/10 border border-red-500/20 p-6 rounded-[2rem] flex items-center gap-5 shadow-sm transform transition-all hover:scale-[1.01]">
+            <div className="p-4 rounded-2xl bg-surface text-red-500 shadow-md">
+               <AlertTriangle size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] text-red-600/70 dark:text-red-500/70 font-black uppercase tracking-widest">SISA PIUTANG</p>
+               <h3 className="text-xl font-black text-red-500 dark:text-red-400 tracking-tighter">Rp {stats.totalSisaPiutang.toLocaleString('id-ID')}</h3>
             </div>
          </div>
       </div>

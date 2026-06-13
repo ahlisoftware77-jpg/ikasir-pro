@@ -185,6 +185,10 @@ export default function FeatureScreen({ route, navigation }: any) {
     paymentMethods: {} as Record<string, number>
   });
 
+  const [salesDateRange, setSalesDateRange] = useState<'today' | '7days' | '30days' | 'custom'>('today');
+  const [salesCustomStartDate, setSalesCustomStartDate] = useState('');
+  const [salesCustomEndDate, setSalesCustomEndDate] = useState('');
+
   // Laporan Omzet State
   const [omzetReportState, setOmzetReportState] = useState<any[]>([]);
   const [omzetTransactions, setOmzetTransactions] = useState<any[]>([]);
@@ -277,7 +281,7 @@ export default function FeatureScreen({ route, navigation }: any) {
           });
           break;
 
-        case 'diskon':
+        case 'diskon': {
           q = query(collection(db, 'discounts'), where('storeId', '==', storeId));
           const unsubDisc = onSnapshot(q, (snapshot) => {
             const docs: any[] = [];
@@ -311,6 +315,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             unsubProds();
           };
           break;
+        }
 
         case 'terjual':
         case 'lap_terlaris':
@@ -388,41 +393,33 @@ export default function FeatureScreen({ route, navigation }: any) {
           });
           break;
 
-        case 'lap_penjualan':
+        case 'lap_penjualan': {
+          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const unsubProds = onSnapshot(qProds, (prodSnapshot) => {
+            const prods: any[] = [];
+            prodSnapshot.forEach(d => prods.push({ id: d.id, ...d.data() }));
+            setAllProducts(prods);
+          });
+
           q = query(collection(db, 'transactions'), where('storeId', '==', storeId));
-          unsubscribe = onSnapshot(q, (snapshot) => {
-            let gSales = 0;
-            let orderCount = 0;
-            let discGiven = 0;
-            const payMethods: Record<string, number> = {};
+          const unsubTrx = onSnapshot(q, (snapshot) => {
             const allTrx: any[] = [];
-
             snapshot.forEach((doc) => {
-              const data = doc.data();
-              if (data.paymentStatus === 'paid') {
-                allTrx.push({ id: doc.id, ...data });
-                gSales += data.total;
-                orderCount++;
-                discGiven += data.discount || 0;
-                const method = data.paymentMethod || 'cash';
-                payMethods[method] = (payMethods[method] || 0) + 1;
-              }
+              allTrx.push({ id: doc.id, ...doc.data() });
             });
-
             setSalesTransactions(allTrx);
-            setReportsPenjualanState({
-              grossSales: gSales,
-              totalOrders: orderCount,
-              avgBasket: orderCount > 0 ? Math.round(gSales / orderCount) : 0,
-              discountGiven: discGiven,
-              paymentMethods: payMethods
-            });
             setLoading(false);
           }, (err) => {
             console.error("Error loading sales stats:", err);
             setLoading(false);
           });
+
+          unsubscribe = () => {
+            unsubProds();
+            unsubTrx();
+          };
           break;
+        }
 
         case 'lap_omzet':
           q = query(collection(db, 'transactions'), where('storeId', '==', storeId));
@@ -439,7 +436,7 @@ export default function FeatureScreen({ route, navigation }: any) {
           });
           break;
 
-        case 'arus_kas':
+        case 'arus_kas': {
           let currentCF: any[] = [];
           let currentTrx: any[] = [];
           
@@ -504,6 +501,7 @@ export default function FeatureScreen({ route, navigation }: any) {
 
           unsubscribe = () => { unsubCF(); unsubTrx(); };
           break;
+        }
 
         case 'pelanggan':
           q = query(collection(db, 'customers'), where('storeId', '==', storeId));
@@ -801,17 +799,77 @@ export default function FeatureScreen({ route, navigation }: any) {
     switch (featureId) {
       case 'lap_penjualan':
         fileName = 'Laporan_Penjualan';
-        headers = ['ID Transaksi', 'Waktu', 'Metode', 'Kasir', 'Subtotal', 'Diskon', 'Total'];
-        rows = salesTransactions.map(t => {
+        headers = ['ID Transaksi', 'Waktu', 'Kasir', 'Pelanggan', 'Metode', 'Status', 'Subtotal', 'Diskon', 'Pajak', 'Total', 'Piutang Awal', 'Piutang Terbayar', 'Sisa Piutang'];
+        
+        // Apply period filter first
+        const now = new Date();
+        let startDate: Date | null = null;
+        if (salesDateRange === 'today') {
+          startDate = new Date();
+          startDate.setHours(0, 0, 0, 0);
+        } else if (salesDateRange === '7days') {
+          startDate = new Date();
+          startDate.setDate(now.getDate() - 7);
+          startDate.setHours(0, 0, 0, 0);
+        } else if (salesDateRange === '30days') {
+          startDate = new Date();
+          startDate.setDate(now.getDate() - 30);
+          startDate.setHours(0, 0, 0, 0);
+        } else if (salesDateRange === 'custom') {
+          if (salesCustomStartDate) {
+            startDate = new Date(salesCustomStartDate);
+            startDate.setHours(0, 0, 0, 0);
+          }
+        }
+
+        let filteredExportTrx = [...salesTransactions];
+        if (startDate) {
+          filteredExportTrx = filteredExportTrx.filter(item => {
+            const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : (item.timestamp ? new Date(item.timestamp) : new Date());
+            return itemDate >= startDate!;
+          });
+        }
+        if (salesDateRange === 'custom' && salesCustomEndDate) {
+          const endDate = new Date(salesCustomEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          filteredExportTrx = filteredExportTrx.filter(item => {
+            const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : (item.timestamp ? new Date(item.timestamp) : new Date());
+            return itemDate <= endDate;
+          });
+        }
+
+        rows = filteredExportTrx.map(t => {
           const date = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+          const isDebt = t.paymentCategory === 'debt';
+          const dp = (isDebt && t.paymentHistory && t.paymentHistory.length > 0 && t.paymentHistory[0].note?.includes('DP')) 
+            ? (t.paymentHistory[0].amount || 0) 
+            : 0;
+          
+          const piutangAwal = isDebt ? Math.max(0, (t.total || 0) - dp) : 0;
+          const paid = t.paidAmount || 0;
+          const piutangTerbayar = isDebt ? Math.max(0, paid - dp) : 0;
+          const sisaPiutang = isDebt ? (t.debtAmount !== undefined ? t.debtAmount : Math.max(0, (t.total || 0) - paid)) : 0;
+
+          let statusStr = 'Lunas';
+          if (t.paymentStatus === 'unpaid') statusStr = 'Belum Lunas';
+          else if (t.paymentStatus === 'partially_paid') statusStr = 'Dicicil';
+          else if (t.paymentStatus === 'pending') statusStr = 'Pending';
+          else if (t.paymentStatus === 'cancelled') statusStr = 'Batal';
+
           return [
             t.id,
             date.toLocaleString('id-ID'),
-            t.paymentMethod || 'Cash',
             t.cashierName || 'Kasir',
+            t.customerName || 'Umum',
+            t.paymentMethod || t.paymentCategory || 'Cash',
+            statusStr,
             t.subtotal || 0,
-            t.discountAmount || 0,
-            t.total || 0
+            t.discount || 0,
+            t.tax || 0,
+            t.total || 0,
+            piutangAwal,
+            piutangTerbayar,
+            sisaPiutang
           ];
         });
         break;
@@ -3145,49 +3203,230 @@ export default function FeatureScreen({ route, navigation }: any) {
         );
 
       case 'lap_penjualan':
+        const salesNow = new Date();
+        let salesStartDate: Date | null = null;
+
+        if (salesDateRange === 'today') {
+          salesStartDate = new Date();
+          salesStartDate.setHours(0, 0, 0, 0);
+        } else if (salesDateRange === '7days') {
+          salesStartDate = new Date();
+          salesStartDate.setDate(salesNow.getDate() - 7);
+          salesStartDate.setHours(0, 0, 0, 0);
+        } else if (salesDateRange === '30days') {
+          salesStartDate = new Date();
+          salesStartDate.setDate(salesNow.getDate() - 30);
+          salesStartDate.setHours(0, 0, 0, 0);
+        } else if (salesDateRange === 'custom') {
+          if (salesCustomStartDate) {
+            salesStartDate = new Date(salesCustomStartDate);
+            salesStartDate.setHours(0, 0, 0, 0);
+          }
+        }
+
+        let filteredSalesTrx = [...salesTransactions];
+
+        if (salesStartDate) {
+          filteredSalesTrx = filteredSalesTrx.filter(item => {
+            const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : (item.timestamp ? new Date(item.timestamp) : new Date());
+            return itemDate >= salesStartDate!;
+          });
+        }
+
+        if (salesDateRange === 'custom' && salesCustomEndDate) {
+          const endDate = new Date(salesCustomEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          filteredSalesTrx = filteredSalesTrx.filter(item => {
+            const itemDate = item.timestamp?.toDate ? item.timestamp.toDate() : (item.timestamp ? new Date(item.timestamp) : new Date());
+            return itemDate <= endDate;
+          });
+        }
+
+        // Metrics calculations
+        let totalOmzet = 0;
+        let totalProfit = 0;
+        let totalProdukTerjual = 0;
+        
+        let transaksiLunasCount = 0;
+        let nominalLunas = 0;
+        
+        let transaksiPiutangCount = 0;
+        let totalPiutangAwal = 0;
+        let totalPiutangTerbayar = 0;
+        let totalSisaPiutang = 0;
+
+        const mobileProductsMap = allProducts.reduce((acc: any, p: any) => {
+          acc[p.id] = p;
+          return acc;
+        }, {});
+
+        filteredSalesTrx.forEach(trx => {
+          const isDebt = trx.paymentCategory === 'debt';
+          const dp = (isDebt && trx.paymentHistory && trx.paymentHistory.length > 0 && trx.paymentHistory[0].note?.includes('DP')) 
+            ? (trx.paymentHistory[0].amount || 0) 
+            : 0;
+
+          // 1. Piutang metrics
+          if (isDebt) {
+            transaksiPiutangCount++;
+            const piutangAwal = Math.max(0, (trx.total || 0) - dp);
+            const paid = trx.paidAmount || 0;
+            const piutangTerbayar = Math.max(0, paid - dp);
+            const sisaPiutang = trx.debtAmount !== undefined ? trx.debtAmount : Math.max(0, (trx.total || 0) - paid);
+            
+            totalPiutangAwal += piutangAwal;
+            totalPiutangTerbayar += piutangTerbayar;
+            totalSisaPiutang += sisaPiutang;
+          }
+
+          // 2. Lunas metrics
+          if (trx.paymentStatus === 'paid') {
+            transaksiLunasCount++;
+            nominalLunas += trx.total || 0;
+          }
+
+          // 3. Omzet
+          totalOmzet += trx.total || 0;
+
+          // 4. Qty & Profit
+          let trxHpp = 0;
+          if (trx.items && Array.isArray(trx.items)) {
+            trx.items.forEach((item: any) => {
+              totalProdukTerjual += item.qty || 0;
+              const pPrice = item.purchasePrice !== undefined 
+                ? item.purchasePrice 
+                : (mobileProductsMap[item.productId]?.purchasePrice || 0);
+              trxHpp += pPrice * (item.qty || 0);
+            });
+          }
+          const trxSubtotal = trx.subtotal !== undefined ? trx.subtotal : ((trx.total || 0) - (trx.tax || 0));
+          totalProfit += (trxSubtotal - trxHpp);
+        });
+
         return (
-          <ScrollView className="flex-1">
-            <View className="p-6 rounded-[28px] border mb-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Transaksi Penjualan</Text>
-              <Text className="text-3xl font-black text-emerald-400">Rp {reportsPenjualanState.grossSales.toLocaleString('id-ID')}</Text>
-              <View className="border-t border-slate-800/30 mt-4 pt-4 flex gap-3">
-                <View className="flex-row justify-between">
-                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Pesanan Sukses</Text>
-                  <Text className="text-xs font-black" style={{ color: colors.text }}>{reportsPenjualanState.totalOrders} Transaksi</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Rata-rata Keranjang</Text>
-                  <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {reportsPenjualanState.avgBasket.toLocaleString('id-ID')}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Total Diskon Diberikan</Text>
-                  <Text className="text-xs font-black text-rose-500">-Rp {reportsPenjualanState.discountGiven.toLocaleString('id-ID')}</Text>
-                </View>
-              </View>
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            {/* Filter Periode */}
+            <View className="flex-row bg-black/10 p-1 rounded-2xl gap-1 mb-3">
+              {(['today', '7days', '30days', 'custom'] as const).map(preset => (
+                <TouchableOpacity
+                  key={preset}
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setSalesDateRange(preset);
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-1 py-2.5 rounded-xl items-center justify-center"
+                  style={{ backgroundColor: salesDateRange === preset ? colors.accent : 'transparent' }}
+                >
+                  <Text className="text-[9px] font-black uppercase tracking-wide" style={{ color: salesDateRange === preset ? '#ffffff' : colors.text }}>
+                    {preset === 'today' ? 'Hari Ini' : preset === '7days' ? '7 Hari' : preset === '30days' ? '30 Hari' : 'Kustom'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            <View className="p-6 rounded-[28px] border mb-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              <Text className="text-sm font-black mb-3" style={{ color: colors.text }}>Metode Pembayaran Terfavorit</Text>
-              <View className="flex gap-2">
-                <View className="flex-row justify-between items-center py-2 border-b border-slate-800/20">
-                  <Text className="text-xs font-bold" style={{ color: colors.text }}>1. Uang Tunai (Cash)</Text>
-                  <Text className="text-xs font-black" style={{ color: colors.text }}>
-                    {reportsPenjualanState.paymentMethods?.cash || 0} Transaksi
-                  </Text>
+            {/* Custom Dates Inputs */}
+            {salesDateRange === 'custom' && (
+              <View className="flex-row gap-2 mb-3.5 p-3 rounded-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="flex-1">
+                  <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 pl-1">Dari (YYYY-MM-DD)</Text>
+                  <TextInput
+                    placeholder="2026-05-01"
+                    placeholderTextColor={colors.textMuted}
+                    value={salesCustomStartDate}
+                    onChangeText={setSalesCustomStartDate}
+                    className="p-2.5 rounded-xl border text-xs font-bold text-center"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
                 </View>
-                <View className="flex-row justify-between items-center py-2 border-b border-slate-800/20">
-                  <Text className="text-xs font-bold" style={{ color: colors.text }}>2. QRIS Digital</Text>
-                  <Text className="text-xs font-black" style={{ color: colors.text }}>
-                    {reportsPenjualanState.paymentMethods?.qris || 0} Transaksi
-                  </Text>
-                </View>
-                <View className="flex-row justify-between items-center py-2">
-                  <Text className="text-xs font-bold" style={{ color: colors.text }}>3. Transfer Bank</Text>
-                  <Text className="text-xs font-black" style={{ color: colors.text }}>
-                    {reportsPenjualanState.paymentMethods?.transfer || 0} Transaksi
-                  </Text>
+                <View className="flex-1">
+                  <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 pl-1">Sampai (YYYY-MM-DD)</Text>
+                  <TextInput
+                    placeholder="2026-05-30"
+                    placeholderTextColor={colors.textMuted}
+                    value={salesCustomEndDate}
+                    onChangeText={setSalesCustomEndDate}
+                    className="p-2.5 rounded-xl border text-xs font-bold text-center"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
                 </View>
               </View>
+            )}
+
+            {/* Grid 8 Kartu Ringkasan Penjualan */}
+            <View className="flex-row flex-wrap justify-between mt-2 mb-4">
+               {/* Card 1: Omzet */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <TrendingUp size={14} color="#34d399" />
+                   <Text className="text-[8px] font-black uppercase text-emerald-400">OMZET (KOTOR)</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {totalOmzet.toLocaleString('id-ID')}</Text>
+               </View>
+
+               {/* Card 2: Profit */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <Coins size={14} color="#a78bfa" />
+                   <Text className="text-[8px] font-black uppercase text-violet-400">PROFIT (LABA)</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {totalProfit.toLocaleString('id-ID')}</Text>
+               </View>
+
+               {/* Card 3: Produk Terjual */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <Package size={14} color="#38bdf8" />
+                   <Text className="text-[8px] font-black uppercase text-sky-400">PRODUK TERJUAL</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>{totalProdukTerjual} Qty</Text>
+               </View>
+
+               {/* Card 4: Transaksi Lunas */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <CheckCircle size={14} color="#2dd4bf" />
+                   <Text className="text-[8px] font-black uppercase text-teal-400">TRANSAKSI LUNAS</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>{transaksiLunasCount} Trx</Text>
+                 <Text className="text-[8px] mt-0.5 font-bold" style={{ color: colors.textMuted }}>Rp {nominalLunas.toLocaleString('id-ID')}</Text>
+               </View>
+
+               {/* Card 5: Transaksi Piutang */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <CreditCard size={14} color="#fbbf24" />
+                   <Text className="text-[8px] font-black uppercase text-amber-400">TRANSAKSI PIUTANG</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>{transaksiPiutangCount} Trx</Text>
+               </View>
+
+               {/* Card 6: Piutang Awal */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <ArrowUpCircle size={14} color="#fb7185" />
+                   <Text className="text-[8px] font-black uppercase text-rose-400">PIUTANG AWAL</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {totalPiutangAwal.toLocaleString('id-ID')}</Text>
+               </View>
+
+               {/* Card 7: Piutang Terbayar */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <ArrowUpCircle size={14} color="#34d399" />
+                   <Text className="text-[8px] font-black uppercase text-emerald-400">PIUTANG TERBAYAR</Text>
+                 </View>
+                 <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {totalPiutangTerbayar.toLocaleString('id-ID')}</Text>
+               </View>
+
+               {/* Card 8: Sisa Piutang */}
+               <View className="p-4 rounded-2xl border mb-3 w-[48%]" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                 <View className="flex-row items-center gap-1.5 mb-1">
+                   <AlertTriangle size={14} color="#f43f5e" />
+                   <Text className="text-[8px] font-black uppercase text-rose-500">SISA PIUTANG</Text>
+                 </View>
+                 <Text className="text-xs font-black text-rose-500">Rp {totalSisaPiutang.toLocaleString('id-ID')}</Text>
+               </View>
             </View>
           </ScrollView>
         );

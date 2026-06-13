@@ -71,6 +71,7 @@ interface Product {
   id?: string;
   name: string;
   price: number;
+  purchasePrice?: number;
   stock: number;
   category: string;
   imageUrl?: string;
@@ -922,6 +923,7 @@ export default function POSScreen({ route, navigation }: any) {
           price: item.displayPrice,
           subtotal: item.displayPrice * item.cartQty,
           originalPrice: item.originalPrice || item.price,
+          purchasePrice: item.purchasePrice || 0,
           discountName: item.discountName || null,
           selectedExtras: item.selectedExtras || [],
           note: item.note?.trim() || null
@@ -981,6 +983,7 @@ export default function POSScreen({ route, navigation }: any) {
             price: item.displayPrice,
             subtotal: item.displayPrice * item.cartQty,
             originalPrice: item.originalPrice || item.price,
+            purchasePrice: item.purchasePrice || 0,
             discountName: item.discountName || null,
             selectedExtras: item.selectedExtras || [],
             note: item.note?.trim() || null,

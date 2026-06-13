@@ -785,6 +785,7 @@ export default function POSPage() {
             price: item.displayPrice,
             subtotal: item.displayPrice * item.cartQty,
             originalPrice: item.originalPrice,
+            purchasePrice: item.purchasePrice || 0,
             discountName: item.discountName,
             selectedExtras: item.selectedExtras || [],
             note: item.note?.trim() || null,
