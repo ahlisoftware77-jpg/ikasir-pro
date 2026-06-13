@@ -865,16 +865,15 @@ export default function SettingsScreen({ navigation, route }: any) {
     setShowSignaturePadMobile(false);
     setIsUploadingSignature(true);
     try {
-      const formDataUpload = new FormData();
-      formDataUpload.append('file', base64);
-      formDataUpload.append('upload_preset', 'kasirpos');
-
       const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
         method: 'POST',
-        body: formDataUpload,
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          file: base64,
+          upload_preset: 'kasirpos',
+        }),
       });
 
       const uploadResult = await uploadRes.json();
