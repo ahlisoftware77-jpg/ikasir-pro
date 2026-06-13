@@ -95,6 +95,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [selectedTrx, setSelectedTrx] = useState<Transaction | null>(trx);
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
+  const [activePrintJob, setActivePrintJob] = useState<'a4' | 'delivery' | null>(null);
 
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
@@ -671,22 +672,56 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                 <View className="p-5 border-t" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   <View className="flex-row gap-2 mb-3">
                     <TouchableOpacity 
-                      onPress={() => printA4(selectedTrx, storeSettings)}
+                      onPress={async () => {
+                        if (activePrintJob) return;
+                        setActivePrintJob('a4');
+                        Vibration.vibrate(15);
+                        try {
+                          await printA4(selectedTrx, storeSettings);
+                        } catch (err: any) {
+                          console.error(err);
+                          Alert.alert('Gagal Cetak', 'Gagal memproses pratinjau cetak A4: ' + (err.message || String(err)));
+                        } finally {
+                          setActivePrintJob(null);
+                        }
+                      }}
+                      disabled={activePrintJob !== null}
                       activeOpacity={0.7}
                       className="flex-1 items-center justify-center py-2.5 rounded-xl border"
-                      style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, opacity: activePrintJob !== null ? 0.5 : 1 }}
                     >
-                      <Printer size={16} color="#10b981" />
+                      {activePrintJob === 'a4' ? (
+                        <ActivityIndicator size="small" color="#10b981" style={{ height: 16 }} />
+                      ) : (
+                        <Printer size={16} color="#10b981" />
+                      )}
                       <Text className="text-[8px] font-black uppercase mt-1.5" style={{ color: colors.text }}>INVOICE</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                      onPress={() => printA4Delivery(selectedTrx, storeSettings)}
+                      onPress={async () => {
+                        if (activePrintJob) return;
+                        setActivePrintJob('delivery');
+                        Vibration.vibrate(15);
+                        try {
+                          await printA4Delivery(selectedTrx, storeSettings);
+                        } catch (err: any) {
+                          console.error(err);
+                          Alert.alert('Gagal Cetak', 'Gagal memproses pratinjau Surat Jalan: ' + (err.message || String(err)));
+                        } finally {
+                          setActivePrintJob(null);
+                        }
+                      }}
+                      disabled={activePrintJob !== null}
                       activeOpacity={0.7}
                       className="flex-1 items-center justify-center py-2.5 rounded-xl border"
-                      style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, opacity: activePrintJob !== null ? 0.5 : 1 }}
                     >
-                      <Truck size={16} color="#3b82f6" />
+                      {activePrintJob === 'delivery' ? (
+                        <ActivityIndicator size="small" color="#3b82f6" style={{ height: 16 }} />
+                      ) : (
+                        <Truck size={16} color="#3b82f6" />
+                      )}
                       <Text className="text-[8px] font-black uppercase mt-1.5" style={{ color: colors.text }}>SURAT JLN</Text>
                     </TouchableOpacity>
                     

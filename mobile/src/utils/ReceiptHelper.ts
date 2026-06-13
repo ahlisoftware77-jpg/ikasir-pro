@@ -57,7 +57,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any) => {
           ${address ? `<div class="info">${address}</div>` : ''}
           ${phone ? `<div class="info">Telp: ${phone}</div>` : ''}
           <div style="margin: 10px 0; border-top: 1px solid #eee; padding-top: 5px;"></div>
-          <div class="info">${isEstimation ? 'ID Estimasi' : 'ID Transaksi'}: #${transaction.id?.substring(0, 8).toUpperCase()}</div>
+          <div class="info">${isEstimation ? 'ID Estimasi' : 'ID Transaksi'}: #${(transaction.id || '').substring(0, 8).toUpperCase()}</div>
           <div class="info">${dateStr}</div>
           <div class="info">${isEstimation ? 'Pelanggan: ' + (transaction.customerName || 'Umum') : 'Kasir: ' + (transaction.cashierName || 'Kasir')}</div>
           ${isEstimation && transaction.validUntil ? `<div class="info" style="color: #f59e0b; font-weight: bold; margin-top: 5px;">Berlaku s/d: ${new Date(transaction.validUntil).toLocaleDateString('id-ID')}</div>` : ''}
@@ -184,7 +184,7 @@ export const generateA4Html = (trx: any, storeSettings?: any) => {
           </td>
           <td style="text-align: right; padding-bottom: 20px; vertical-align: top;">
             <h2 class="doc-title">${isEstimation ? 'ESTIMASI BIAYA' : 'INVOICE'}</h2>
-            <p class="doc-meta" style="color: #0f172a;">${isEstimation ? 'NO. PENAWARAN' : 'NO. INVOICE'} #${trx.id?.substring(0, 10).toUpperCase()}</p>
+            <p class="doc-meta" style="color: #0f172a;">${isEstimation ? 'NO. PENAWARAN' : 'NO. INVOICE'} #${(trx.id || '').substring(0, 10).toUpperCase()}</p>
             <p class="doc-meta" style="color: #94a3b8; margin-top: 5px;">Tanggal: ${dateStr}</p>
           </td>
         </tr>
@@ -764,7 +764,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
           </td>
           <td style="text-align: right; padding-bottom: 20px; vertical-align: top;">
             <h2 class="doc-title">SURAT JALAN</h2>
-            <p class="doc-meta" style="color: #0f172a;">REF. #${trx.id?.substring(0, 10).toUpperCase()}</p>
+            <p class="doc-meta" style="color: #0f172a;">REF. #${(trx.id || '').substring(0, 10).toUpperCase()}</p>
             <p class="doc-meta" style="color: #94a3b8; margin-top: 5px;">Tgl Kirim: ${dateStr}</p>
           </td>
         </tr>
