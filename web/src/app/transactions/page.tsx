@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy, doc, getDoc, where, deleteDoc, updateDoc, writeBatch, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { ShoppingCart, Calendar, Search, Loader2, Eye, X, ReceiptText, Printer, MessageCircle, Truck, Trash2, PenTool, Share2, PenLine, Plus, Minus, Save, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Calendar, Search, Loader2, Eye, X, ReceiptText, Printer, MessageCircle, Truck, Trash2, PenTool, Share2, PenLine, Plus, Minus, Save, ShieldCheck, ArrowUpDown } from 'lucide-react';
 import { Transaction } from '@/types';
 import { printReceipt } from '@/lib/printReceipt';
 import toast from 'react-hot-toast';
@@ -24,6 +24,7 @@ export default function TransactionsPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTrxData, setEditTrxData] = useState<Transaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   useEffect(() => {
     if (!storeId) return;
@@ -91,6 +92,12 @@ export default function TransactionsPage() {
     }
     
     return matchSearch && trxDateStr === filterDate;
+  });
+
+  const sortedTransactions = [...filtered].sort((a, b) => {
+    const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
+    const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
+    return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
   });
 
   const handleSendWA = async (trx: any) => {
@@ -325,6 +332,14 @@ export default function TransactionsPage() {
                   <X size={16} />
                 </button>
              )}
+             <button 
+                onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                className="flex items-center justify-center gap-2 bg-surface hover:bg-background text-foreground px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-app-border shadow-sm transition-all shrink-0 cursor-pointer"
+                title={sortOrder === 'desc' ? "Urutkan: Baru ke Lama" : "Urutkan: Lama ke Baru"}
+             >
+                <ArrowUpDown size={14} className="text-accent shrink-0" />
+                <span>{sortOrder === 'desc' ? 'Baru' : 'Lama'}</span>
+             </button>
           </div>
         </div>
 
@@ -351,7 +366,7 @@ export default function TransactionsPage() {
                     <p className="font-bold animate-pulse">Sinkronisasi data...</p>
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : sortedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-20 text-center text-app-text-muted">
                     <ShoppingCart className="w-16 h-16 opacity-10 mx-auto mb-4" />
@@ -359,7 +374,7 @@ export default function TransactionsPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map(trx => {
+                sortedTransactions.map(trx => {
                   const date = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date();
                   return (
                     <tr key={trx.id} className="hover:bg-background/30 transition-colors group">
@@ -429,12 +444,12 @@ export default function TransactionsPage() {
                    <Loader2 className="w-10 h-10 animate-spin text-accent mx-auto mb-4" />
                    <p className="text-app-text-muted font-black animate-pulse">Sync data...</p>
                 </div>
-             ) : filtered.length === 0 ? (
+             ) : sortedTransactions.length === 0 ? (
                 <div className="p-20 text-center text-app-text-muted italic">
                    Transaksi tidak ditemukan
                 </div>
              ) : (
-                filtered.map(trx => {
+                sortedTransactions.map(trx => {
                    const date = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date();
                    return (
                       <button 

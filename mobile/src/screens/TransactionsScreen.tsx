@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
 import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck } from 'lucide-react-native';
+import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck, ArrowUpDown } from 'lucide-react-native';
 import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -104,6 +104,15 @@ export default function TransactionsScreen({ navigation }: any) {
   const [isBluetoothActive, setIsBluetoothActive] = useState(true);
   const [activePrinter, setActivePrinter] = useState<string | null>(null);
   const [bluetoothDevices, setBluetoothDevices] = useState<any[]>([]);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
+      const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+  }, [transactions, sortOrder]);
 
   const checkBluetoothState = async () => {
     if (!BluetoothManager) {
@@ -668,7 +677,7 @@ export default function TransactionsScreen({ navigation }: any) {
         <LoadingSkeleton type="list" count={5} />
       ) : (
         <FlatList
-          data={transactions}
+          data={sortedTransactions}
           keyExtractor={item => item.id!}
           contentContainerStyle={{ padding: 24 }}
           ListHeaderComponent={
@@ -700,21 +709,36 @@ export default function TransactionsScreen({ navigation }: any) {
                 })}
               </ScrollView>
 
-              {transactions.length > 0 ? (
-                <View className="flex-row justify-end mb-4">
+              <View className="flex-row justify-between items-center mb-4">
+                <TouchableOpacity 
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-row items-center gap-2 px-4 py-2 rounded-full border"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                >
+                  <ArrowUpDown color={colors.accent} size={12} />
+                  <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                    Urutan: {sortOrder === 'desc' ? 'Terbaru' : 'Terlama'}
+                  </Text>
+                </TouchableOpacity>
+
+                {transactions.length > 0 ? (
                   <TouchableOpacity 
                     onPress={handleDeleteAllTrx}
                     activeOpacity={0.8}
-                    className="flex-row items-center gap-2 px-5 py-2.5 rounded-full border"
+                    className="flex-row items-center gap-2 px-4 py-2 rounded-full border"
                     style={{ backgroundColor: 'rgba(244,63,94,0.08)', borderColor: 'rgba(244,63,94,0.15)' }}
                   >
-                    <Trash2 color="#f43f5e" size={14} />
-                    <Text className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                    <Trash2 color="#f43f5e" size={12} />
+                    <Text className="text-[9px] font-black text-rose-500 uppercase tracking-wider">
                       {filterTab === 'all' ? 'Hapus Semua' : filterTab === 'completed' ? 'Hapus Lunas' : filterTab === 'debt' ? 'Hapus Piutang' : filterTab === 'online' ? 'Hapus Online' : 'Hapus Estimasi'}
                     </Text>
                   </TouchableOpacity>
-                </View>
-              ) : null}
+                ) : null}
+              </View>
             </View>
           }
           refreshControl={
