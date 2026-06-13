@@ -12,7 +12,7 @@ import {
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
-  Wrench, ExternalLink
+  Wrench, ExternalLink, MessageSquare
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -124,6 +124,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
   const [superAdminStores, setSuperAdminStores] = useState<any[]>([]);
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
   
@@ -305,6 +306,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     let unsubSubscriptions: any = () => {};
     let unsubBranding: any = () => {};
     let unsubMaint: any = () => {};
+    let unsubFeedback: any = () => {};
 
     // Always fetch branding for potential preview checks
     unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
@@ -412,6 +414,21 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       });
     }
 
+    if (featureId === 'superAdminFeedback') {
+      unsubFeedback = onSnapshot(collection(db, 'feedback'), (snapshot) => {
+        const fbs: any[] = [];
+        snapshot.forEach((d) => fbs.push({ id: d.id, ...d.data() }));
+        fbs.sort((a, b) => {
+          const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return timeB - timeA;
+        });
+        setFeedbacks(fbs);
+      }, (err) => {
+        console.error("Error listening to feedback in SuperAdminScreen:", err);
+      });
+    }
+
     return () => {
       unsubUsers();
       unsubStores();
@@ -420,6 +437,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       unsubSubscriptions();
       unsubBranding();
       unsubMaint();
+      unsubFeedback();
     };
   }, [featureId]);
 
@@ -1392,6 +1410,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             } catch (error: any) {
               console.error(error);
               Alert.alert('Gagal', 'Gagal menghapus riwayat: ' + error.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteFeedback = async (id: string) => {
+    Alert.alert(
+      'Konfirmasi Hapus',
+      'Apakah Anda yakin ingin menghapus kritik & saran ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              await deleteDoc(doc(db, 'feedback', id));
+              Alert.alert('Sukses', 'Kritik & saran berhasil dihapus.');
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal menghapus: ' + err.message);
             } finally {
               setIsSaving(false);
             }
@@ -2679,6 +2723,59 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   <Text className="text-[9px] font-bold text-center italic py-4" style={{ color: colors.textMuted }}>Silakan isi form untuk melihat pratinjau banner.</Text>
                 )}
               </View>
+            </View>
+          </ScrollView>
+        );
+
+      case 'superAdminFeedback':
+        return (
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <View className="space-y-4 pb-20">
+              {feedbacks.map((fb) => (
+                <View 
+                  key={fb.id} 
+                  className="p-5 rounded-3xl border mb-3" 
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                >
+                  <View className="flex-row justify-between items-start mb-3">
+                    <View className="flex-1 pr-2">
+                      <View className="flex-row items-center gap-2 mb-1 flex-wrap">
+                        <Text className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${fb.platform === 'mobile' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                          {fb.platform || 'web'}
+                        </Text>
+                        <Text className="text-[9px] font-mono font-black uppercase text-slate-400">
+                          STORE: {fb.storeId || 'GLOBAL'}
+                        </Text>
+                      </View>
+                      <Text className="text-xs font-black" style={{ color: colors.text }}>
+                        {fb.userEmail || '-'}
+                      </Text>
+                      <Text className="text-[9px] font-bold text-slate-500 mt-0.5">
+                        {fb.createdAt ? (fb.createdAt.toDate ? fb.createdAt.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : new Date(fb.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })) : '-'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => handleDeleteFeedback(fb.id)}
+                      disabled={isSaving}
+                      className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl"
+                    >
+                      <Trash2 size={14} color="#f43f5e" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className="bg-black/10 p-4 rounded-2xl border" style={{ borderColor: colors.border + '20' }}>
+                    <Text className="text-xs font-bold leading-relaxed" style={{ color: colors.text }}>
+                      {fb.content}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              {feedbacks.length === 0 && (
+                <View className="py-20 items-center opacity-30">
+                  <MessageSquare size={48} color={colors.textMuted} />
+                  <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada kritik & saran yang masuk.</Text>
+                </View>
+              )}
             </View>
           </ScrollView>
         );

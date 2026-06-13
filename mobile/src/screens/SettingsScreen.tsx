@@ -1341,6 +1341,10 @@ export default function SettingsScreen({ navigation, route }: any) {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminBroadcast', title: 'Broadcast Notifikasi' });
               })}
+              {renderMenuItem('Kritik & Saran', MessageSquare, '#a855f7', () => {
+                Vibration.vibrate(10);
+                navigation.navigate('SuperAdminScreen', { featureId: 'superAdminFeedback', title: 'Kritik & Saran' });
+              })}
             </View>
           </View>
         )}

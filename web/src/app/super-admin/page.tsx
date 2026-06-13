@@ -38,7 +38,8 @@ import {
   Receipt,
   Wallet,
   Upload,
-  Bell
+  Bell,
+  MessageSquare
 } from 'lucide-react';
 import { handleExportJSON, handleImportJSON, handleImportStoreJSON } from '@/lib/backupUtils';
 
@@ -51,7 +52,7 @@ export default function SuperAdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast' | 'feedback'>('users');
   const [stores, setStores] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -68,6 +69,7 @@ export default function SuperAdminPage() {
   const [restoreTargetStoreId, setRestoreTargetStoreId] = useState<string | null>(null);
   const [migrationMode, setMigrationMode] = useState<'standard' | 'mass'>('standard');
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
   
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -298,12 +300,35 @@ export default function SuperAdminPage() {
       setSubscriptionRequests(subs);
     });
 
+    const qFeedback = query(collection(primaryDb, 'feedback'));
+    const unsubscribeFeedback = onSnapshot(qFeedback, (snapshot) => {
+      const fbs: any[] = [];
+      snapshot.forEach((d) => fbs.push({ id: d.id, ...d.data() }));
+      fbs.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return timeB - timeA;
+      });
+      setFeedbacks(fbs);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeStores();
       unsubscribeSubscriptions();
+      unsubscribeFeedback();
     };
   }, []);
+
+  const handleDeleteFeedback = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus kritik & saran ini?')) return;
+    try {
+      await deleteDoc(doc(primaryDb, 'feedback', id));
+      alert('Kritik & saran berhasil dihapus.');
+    } catch (err: any) {
+      alert('Gagal menghapus: ' + err.message);
+    }
+  };
 
   const handleMigrateData = async () => {
     if (!confirm('Pindahkan semua data tanpa Toko ke "Toko Utama (Default)"?')) return;
@@ -1369,6 +1394,12 @@ export default function SuperAdminPage() {
                className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl font-black text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 ${activeTab === 'broadcast' ? 'bg-accent text-foreground shadow-lg' : 'text-app-text-muted hover:text-foreground'}`}
              >
                 <Bell size={16} /> BROADCAST
+             </button>
+             <button 
+               onClick={() => setActiveTab('feedback')}
+               className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl font-black text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 ${activeTab === 'feedback' ? 'bg-accent text-foreground shadow-lg' : 'text-app-text-muted hover:text-foreground'}`}
+             >
+                <MessageSquare size={16} /> KRITIK & SARAN
              </button>
           </div>
 
@@ -2519,6 +2550,67 @@ export default function SuperAdminPage() {
             </div>
          </div>
       ) : null}
+
+      {activeTab === 'feedback' && (
+         <div className="bg-surface border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-xl relative overflow-hidden transition-colors duration-300">
+            <h2 className="text-xl font-black text-foreground mb-6 flex items-center gap-3 uppercase tracking-wider">
+               <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <MessageSquare className="text-accent" />
+               </div>
+               Kritik & Saran Pengguna
+            </h2>
+            
+            <div className="overflow-x-auto rounded-2xl border border-app-border bg-background/50">
+               <table className="w-full border-collapse text-left">
+                  <thead>
+                     <tr className="border-b border-app-border bg-background">
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Waktu</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Platform</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Toko / Merchant</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Email Pengirim</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Isi Kritik & Saran</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest text-center">Aksi</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     {feedbacks.length === 0 ? (
+                        <tr>
+                           <td colSpan={6} className="p-8 text-center text-xs text-app-text-muted font-bold italic">
+                              Belum ada kritik dan saran yang masuk.
+                           </td>
+                        </tr>
+                     ) : (
+                        feedbacks.map((fb) => (
+                           <tr key={fb.id} className="border-b border-app-border/40 hover:bg-surface/10 transition-colors">
+                              <td className="p-4 text-xs font-black text-foreground">
+                                 {fb.createdAt ? (fb.createdAt.toDate ? fb.createdAt.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : new Date(fb.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })) : '-'}
+                              </td>
+                              <td className="p-4 text-xs font-bold">
+                                 <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${fb.platform === 'mobile' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                    {fb.platform || 'web'}
+                                 </span>
+                              </td>
+                              <td className="p-4 text-xs font-bold text-foreground">
+                                 <div className="text-[10px] text-accent font-black uppercase tracking-wider">{fb.storeId || 'GLOBAL'}</div>
+                              </td>
+                              <td className="p-4 text-xs font-bold text-foreground">{fb.userEmail || '-'}</td>
+                              <td className="p-4 text-xs font-medium text-foreground whitespace-pre-wrap max-w-md">{fb.content}</td>
+                              <td className="p-4 text-xs font-bold text-center">
+                                 <button 
+                                    onClick={() => handleDeleteFeedback(fb.id)}
+                                    className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 transition-all active:scale-95"
+                                 >
+                                    <Trash2 size={14} />
+                                 </button>
+                              </td>
+                           </tr>
+                        ))
+                     )}
+                  </tbody>
+               </table>
+            </div>
+         </div>
+      )}
 
       {/* EDIT MODAL */}
       {editingUser && (
