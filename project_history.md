@@ -46,7 +46,7 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 ## 📝 Catatan Perubahan & Fitur (Changelog)
 
-### [2026-06-14] - Fitur Deskripsi Produk (Web/Mobile) & Revert Mode Cloudinary
+### [2026-06-14] - Fitur Deskripsi, Revert Mode Cloudinary, & Cetak Barcode Mobile
 #### Perubahan / Penambahan Fitur:
 1. **Fitur Deskripsi Produk Lengkap**:
    - Menambahkan kolom **Deskripsi** di tabel daftar produk admin web (`/products`) dengan batasan `line-clamp-2` dan HTML `title` tooltip.
@@ -54,7 +54,12 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
    - Menampilkan deskripsi produk di halaman pesanan pelanggan (`/tr`) dengan toggle interaktif **Selengkapnya** / **Tutup**.
    - Menambahkan input field berbentuk `textarea` **Deskripsi Produk (Opsional)** pada modal tambah & edit produk di dashboard web (`/products`).
 2. **Revert Cloudinary Overwrite ke Mode Unik (Option B)**:
-   - Mengembalikan logic unggah gambar Cloudinary agar selalu menghasilkan public_id acak (unik). Ini mencegah galat preset pada Cloudinary unsigned uploads karena larangan penyetelan `overwrite: true`.
+   - Mengembalikan logic unggah gambar Cloudinary agar selalu menghasilkan public_id acak (unik) guna menghindari error preset unsigned uploads.
+3. **Fitur Cetak Barcode di Aplikasi Mobile**:
+   - Menambahkan mode seleksi produk (multi-select) dengan checkbox di aplikasi mobile (`ProductsScreen`).
+   - Menambahkan modal dialog **Cetak Barcode** di mobile dengan pilihan ukuran kertas thermal (58x30 / 58x20) dan penyesuaian kuantitas per produk.
+   - Integrasi generator barcode Code 128 SVG murni (beroperasi 100% offline).
+   - Menambahkan dukungan cetak sistem (`expo-print`) serta ekspor/berbagi dokumen PDF label (`expo-sharing`).
 
 #### Berkas yang Dimodifikasi:
 * **Web**:
@@ -63,6 +68,18 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 * **Mobile**:
   - [ProductFormScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/ProductFormScreen.tsx) - Mengembalikan path Cloudinary ke mode unik (Option B).
   - [FeatureScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/FeatureScreen.tsx) - Mengembalikan upload bukti transfer ke mode unik (Option B).
+  - [ProductsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/ProductsScreen.tsx) - Mengimplementasikan layout seleksi barcode, generator barcode offline, modal cetak & share PDF.
+
+#### Catatan Deployment & Perintah yang Dijalankan:
+1. **Git Commit & Push**:
+   - Pushed commit `f454068e` ke branch `main`.
+2. **Expo OTA Update**:
+   - *Perintah*: `npx eas-cli update --channel production --message "feat: barcode printing and sharing from mobile" --non-interactive`
+   - *Hasil*: Update OTA sukses dipublikasikan ke channel `production`.
+     - **Update Group ID**: `0ca09570-1049-43f1-8c10-7d68f271b729`
+     - **Android Update ID**: `019ec64e-4ddb-7a93-95e8-bf3921bb88fa`
+     - **iOS Update ID**: `019ec64e-4ddb-781c-9176-aac1abb11016`
+     - **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/0ca09570-1049-43f1-8c10-7d68f271b729)
 
 ---
 
