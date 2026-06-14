@@ -187,7 +187,13 @@ function InvoiceA4Content() {
               </td>
               <td className="pb-4 text-right align-top">
                 <h2 className="text-2xl font-black text-slate-200 tracking-[0.2em] mb-2 leading-none uppercase">
-                  {isEstimation ? 'ESTIMASI BIAYA' : 'INVOICE'}
+                  {isEstimation 
+                    ? 'ESTIMASI BIAYA' 
+                    : trx.paymentStatus === 'paid' 
+                      ? 'INVOICE' 
+                      : trx.paymentStatus === 'partially_paid' 
+                        ? 'INVOICE (PIUTANG)' 
+                        : 'INVOICE (BELUM LUNAS)'}
                 </h2>
                 <div className="text-[9px] font-black uppercase space-y-0.5 leading-none">
                   <p className="text-slate-900">{isEstimation ? 'NO. PENAWARAN' : 'NO.'} #{trx.id?.substring(0, 10).toUpperCase()}</p>
@@ -217,7 +223,7 @@ function InvoiceA4Content() {
                     trx.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-rose-600'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${trx.paymentStatus === 'paid' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-                    {trx.paymentStatus === 'paid' ? 'Lunas' : trx.paymentStatus === 'partially_paid' ? 'Piutang' : 'Belum Bayar'}
+                    {trx.paymentStatus === 'paid' ? 'Lunas' : trx.paymentStatus === 'partially_paid' ? 'Piutang' : 'Belum Lunas'}
                   </div>
                 )}
              </div>

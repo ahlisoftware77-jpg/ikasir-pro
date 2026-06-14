@@ -1775,7 +1775,14 @@ function PublicOrderContent() {
                        </button>
                     ) : (
                        <button
-                         onClick={() => setIsConfirmingCheckout(true)}
+                         onClick={() => {
+                           if (!authUser) {
+                             toast.error("Harap masuk atau daftar akun terlebih dahulu sebelum melanjutkan checkout");
+                             router.push(`/tr/auth?s=${storeId}&redirect=checkout`);
+                             return;
+                           }
+                           setIsConfirmingCheckout(true);
+                         }}
                          className="flex-1 py-5 bg-tr text-slate-900 rounded-[2rem] font-black shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3"
                        >
                          LANJUTKAN

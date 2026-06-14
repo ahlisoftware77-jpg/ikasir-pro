@@ -729,13 +729,29 @@ export default function OrdersPage() {
                          </button>
                      )}
 
-                     <button 
-                       disabled={!!isProcessing}
-                       onClick={() => setViewingReceipt(order)}
-                       className="flex items-center justify-center gap-2 py-3 bg-surface border border-app-border text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-accent transition-all disabled:opacity-50"
-                     >
-                       <Printer size={14} /> Cetak Struk
-                     </button>
+                      <button 
+                        disabled={!!isProcessing}
+                        onClick={() => printReceipt(order, storeSettings, branding)}
+                        className="flex items-center justify-center gap-2 py-3 bg-surface border border-app-border text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-accent transition-all disabled:opacity-50"
+                      >
+                        <Printer size={14} /> Cetak Struk
+                      </button>
+
+                      <button 
+                        disabled={!!isProcessing}
+                        onClick={() => window.open('/invoice?id=' + order.id, '_blank')}
+                        className="flex items-center justify-center gap-2 py-3 bg-surface border border-app-border text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-accent transition-all disabled:opacity-50 group"
+                      >
+                        <Printer size={14} className="text-emerald-500 group-hover:scale-110 transition-transform" /> Cetak A4
+                      </button>
+
+                      <button 
+                        disabled={!!isProcessing}
+                        onClick={() => window.open('/delivery?id=' + order.id, '_blank')}
+                        className="flex items-center justify-center gap-2 py-3 bg-surface border border-app-border text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-accent transition-all disabled:opacity-50 group"
+                      >
+                        <Truck size={14} className="text-blue-500 group-hover:scale-110 transition-transform" /> Surat Jalan
+                      </button>
 
                      {order.orderStatus !== 'cancelled' && (
                        <button 
