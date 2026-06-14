@@ -8,11 +8,18 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signatureBase64', 'updatedAt', 'isSignatureLinkActive']);
     }
 
+    // Fungsi pembantu untuk memvalidasi bahwa pelanggan hanya mengunggah/mengubah bukti pembayaran
+    function isCustomerUpdatingProof() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl', 'updatedAt']);
+    }
+
     // Aturan untuk Koleksi Transaksi
     match /transactions/{transactionId} {
-      // Hanya izinkan baca/update jika admin telah mengaktifkan link (isSignatureLinkActive)
-      allow read: if resource.data.isSignatureLinkActive == true;
-      allow update: if resource.data.isSignatureLinkActive == true && isOnlySigning();
+      // Hanya izinkan baca jika link tanda tangan aktif ATAU transaksi tersebut milik customer yang login (guestId matching)
+      allow read: if resource.data.isSignatureLinkActive == true || (request.auth != null && resource.data.guestId == request.auth.uid);
+      
+      // Izinkan update untuk penandatanganan kasir ATAU pengunggahan bukti transfer oleh pelanggan
+      allow update: if (resource.data.isSignatureLinkActive == true && isOnlySigning()) || isCustomerUpdatingProof();
       
       // Untuk operasi lainnya (create/delete), diizinkan (arsitektur multi-project)
       allow create, delete: if true; 

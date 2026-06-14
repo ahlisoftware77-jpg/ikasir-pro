@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Bukti pembayaran untuk pembeli online
+    match /payment_proofs/{storeId}/{allPaths=**} {
+      // Mengizinkan siapa saja untuk membaca bukti pembayaran (agar admin toko & pembeli bisa melihat via URL)
+      allow read: if true;
+      // Mengizinkan unggahan/edit bukti pembayaran jika pengguna terautentikasi (login) dan file berupa gambar
+      allow write: if request.auth != null && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Aturan default untuk file lainnya
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
