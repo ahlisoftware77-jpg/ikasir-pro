@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Switch, Vibration } from 'react-native';
-import { addDoc, collection, doc, updateDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc, query, where, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
@@ -198,6 +198,11 @@ export default function ProductFormScreen({ route, navigation }: any) {
     setIsSaving(true);
     try {
       let finalImageUrl = formData.imageUrl;
+      let productId = editProduct?.id;
+      const targetDocRef = editProduct ? doc(db, 'products', editProduct.id) : doc(collection(db, 'products'));
+      if (!productId) {
+        productId = targetDocRef.id;
+      }
 
       // Handle Image Upload to Cloudinary if image changed
       if (image && image !== formData.imageUrl) {
@@ -208,6 +213,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
         formDataUpload.append('file', { uri: image, name: filename, type } as any);
         formDataUpload.append('upload_preset', 'kasirpos');
+        formDataUpload.append('public_id', 'product_' + storeId + '_' + productId);
 
         const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
           method: 'POST',
@@ -251,9 +257,9 @@ export default function ProductFormScreen({ route, navigation }: any) {
       };
 
       if (editProduct) {
-        await updateDoc(doc(db, 'products', editProduct.id), productData);
+        await updateDoc(targetDocRef, productData);
       } else {
-        await addDoc(collection(db, 'products'), {
+        await setDoc(targetDocRef, {
           ...productData,
           createdAt: new Date()
         });

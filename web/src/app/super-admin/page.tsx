@@ -795,6 +795,7 @@ export default function SuperAdminPage() {
         const formData = new FormData();
         formData.append('file', base64);
         formData.append('upload_preset', uploadPreset);
+        formData.append('public_id', 'subscription_qris');
 
         const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
           method: 'POST',

@@ -339,6 +339,7 @@ export default function SettingsPage() {
         const uploadData = new FormData();
         uploadData.append('file', logoFile);
         uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+        uploadData.append('public_id', 'logo_' + storeId);
 
         const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -362,6 +363,7 @@ export default function SettingsPage() {
         const uploadData = new FormData();
         uploadData.append('file', thermalLogoFile);
         uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+        uploadData.append('public_id', 'thermal_logo_' + storeId);
 
         const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -385,6 +387,7 @@ export default function SettingsPage() {
         const uploadData = new FormData();
         uploadData.append('file', qrisFile);
         uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+        uploadData.append('public_id', 'qris_' + storeId);
 
         const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -408,6 +411,7 @@ export default function SettingsPage() {
         const uploadData = new FormData();
         uploadData.append('file', signaturePadData);
         uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+        uploadData.append('public_id', 'signature_' + storeId);
 
         const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {

@@ -1018,6 +1018,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         const data = {
           file: base64Img,
           upload_preset: 'kasirpos',
+          public_id: 'subscription_qris',
         };
 
         const uploadRes = await fetch(cloudinaryUrl, {

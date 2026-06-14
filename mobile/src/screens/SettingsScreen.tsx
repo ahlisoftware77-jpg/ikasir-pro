@@ -771,6 +771,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         const formDataUpload = new FormData();
         formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
         formDataUpload.append('upload_preset', 'kasirpos');
+        formDataUpload.append('public_id', 'logo_' + storeId);
 
         const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
           method: 'POST',
@@ -818,6 +819,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         const formDataUpload = new FormData();
         formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
         formDataUpload.append('upload_preset', 'kasirpos');
+        formDataUpload.append('public_id', 'qris_' + storeId);
 
         const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
           method: 'POST',
@@ -865,6 +867,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         const formDataUpload = new FormData();
         formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
         formDataUpload.append('upload_preset', 'kasirpos');
+        formDataUpload.append('public_id', 'thermal_logo_' + storeId);
 
         const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
           method: 'POST',
@@ -900,6 +903,7 @@ export default function SettingsScreen({ navigation, route }: any) {
       const formDataUpload = new FormData();
       formDataUpload.append('file', base64);
       formDataUpload.append('upload_preset', 'kasirpos');
+      formDataUpload.append('public_id', 'signature_' + storeId);
 
       const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
         method: 'POST',

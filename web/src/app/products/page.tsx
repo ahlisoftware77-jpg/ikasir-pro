@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, where, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, where, writeBatch, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { Plus, Edit2, Trash2, Search, Package, Loader2, X, Image as ImageIcon, UploadCloud, Camera, CheckSquare, Square, ListPlus, RotateCcw, Check, DownloadCloud, FileStack, Scan, Printer, Sparkles, Calendar, PenTool } from 'lucide-react';
@@ -323,12 +323,18 @@ export default function ProductsPage() {
     setIsSaving(true);
     try {
       let uploadedUrl = formData.imageUrl;
+      let productId = editId;
+      const targetDocRef = editId ? doc(db, 'products', editId) : doc(collection(db, 'products'));
+      if (!productId) {
+        productId = targetDocRef.id;
+      }
       
       if (imageFile) {
         const config = await getInfraConfig();
         const uploadData = new FormData();
         uploadData.append('file', imageFile);
         uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+        uploadData.append('public_id', 'product_' + storeId + '_' + productId);
 
         const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
         const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
@@ -347,7 +353,7 @@ export default function ProductsPage() {
       const finalData = { ...formData, imageUrl: uploadedUrl || '' };
 
       if (editId) {
-        await updateDoc(doc(db, 'products', editId), { ...finalData, updatedAt: serverTimestamp() });
+        await updateDoc(targetDocRef, { ...finalData, updatedAt: serverTimestamp() });
         await logActivity({
           userId: auth.currentUser?.uid || 'unknown',
           userName: auth.currentUser?.displayName || auth.currentUser?.email || 'User',
@@ -358,7 +364,7 @@ export default function ProductsPage() {
           metadata: { productId: editId }
         });
       } else {
-        const docRef = await addDoc(collection(db, 'products'), { ...finalData, storeId: storeId, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        await setDoc(targetDocRef, { ...finalData, storeId: storeId, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         await logActivity({
           userId: auth.currentUser?.uid || 'unknown',
           userName: auth.currentUser?.displayName || auth.currentUser?.email || 'User',
@@ -366,7 +372,7 @@ export default function ProductsPage() {
           storeId: storeId || 'unknown',
           action: 'CREATE_PRODUCT',
           description: `Menambahkan produk: ${finalData.name}`,
-          metadata: { productId: docRef.id }
+          metadata: { productId: productId }
         });
       }
       setIsModalOpen(false);
