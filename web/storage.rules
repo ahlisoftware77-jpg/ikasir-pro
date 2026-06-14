@@ -5,11 +5,13 @@ service firebase.storage {
     match /payment_proofs/{storeId}/{allPaths=**} {
       // Mengizinkan siapa saja untuk membaca bukti pembayaran (agar admin toko & pembeli bisa melihat via URL)
       allow read: if true;
-      // Mengizinkan unggahan/edit bukti pembayaran jika pengguna terautentikasi (login) dan file berupa gambar
-      allow write: if request.auth != null && request.resource.contentType.matches('image/.*');
+      // Mengizinkan unggahan bukti pembayaran jika bertipe gambar dan ukuran di bawah 5MB
+      // Catatan: Tidak memvalidasi request.auth karena arsitektur multi-tenant
+      // memisahkan auth project utama dengan data storage tenant.
+      allow write: if request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
     }
     
-    // Aturan default untuk file lainnya
+    // Aturan default untuk file lainnya (hanya untuk operasional admin internal)
     match /{allPaths=**} {
       allow read, write: if request.auth != null;
     }

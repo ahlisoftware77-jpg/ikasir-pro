@@ -15,8 +15,8 @@ service cloud.firestore {
 
     // Aturan untuk Koleksi Transaksi
     match /transactions/{transactionId} {
-      // Hanya izinkan baca jika link tanda tangan aktif ATAU transaksi tersebut milik customer yang login (guestId matching)
-      allow read: if resource.data.isSignatureLinkActive == true || (request.auth != null && resource.data.guestId == request.auth.uid);
+      // Izinkan baca untuk siapa saja (pembeli & admin) dalam konteks POS/order online
+      allow read: if true;
       
       // Izinkan update untuk penandatanganan kasir ATAU pengunggahan bukti transfer oleh pelanggan
       allow update: if (resource.data.isSignatureLinkActive == true && isOnlySigning()) || isCustomerUpdatingProof();

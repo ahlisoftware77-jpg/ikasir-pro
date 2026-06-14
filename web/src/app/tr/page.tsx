@@ -930,8 +930,16 @@ function PublicOrderContent() {
                                        onChange={async (e) => {
                                          if (!e.target.files || !e.target.files[0]) return;
                                          const file = e.target.files[0];
-                                         if (!file.type.startsWith('image/')) {
-                                           toast.error('File harus berupa gambar');
+                                         const fileName = file.name.toLowerCase();
+                                         const isImageExt = fileName.endsWith('.png') || 
+                                                            fileName.endsWith('.jpg') || 
+                                                            fileName.endsWith('.jpeg') || 
+                                                            fileName.endsWith('.webp') || 
+                                                            fileName.endsWith('.heic') || 
+                                                            fileName.endsWith('.heif');
+                                         const isImageType = file.type && file.type.startsWith('image/');
+                                         if (!isImageType && !isImageExt) {
+                                           toast.error('File harus berupa gambar (PNG, JPG, JPEG)');
                                            return;
                                          }
                                          const toastId = toast.loading('Memperbarui bukti...');
@@ -966,8 +974,16 @@ function PublicOrderContent() {
                                    onChange={async (e) => {
                                      if (!e.target.files || !e.target.files[0]) return;
                                      const file = e.target.files[0];
-                                     if (!file.type.startsWith('image/')) {
-                                       toast.error('File harus berupa gambar');
+                                     const fileName = file.name.toLowerCase();
+                                     const isImageExt = fileName.endsWith('.png') || 
+                                                        fileName.endsWith('.jpg') || 
+                                                        fileName.endsWith('.jpeg') || 
+                                                        fileName.endsWith('.webp') || 
+                                                        fileName.endsWith('.heic') || 
+                                                        fileName.endsWith('.heif');
+                                     const isImageType = file.type && file.type.startsWith('image/');
+                                     if (!isImageType && !isImageExt) {
+                                       toast.error('File harus berupa gambar (PNG, JPG, JPEG)');
                                        return;
                                      }
                                      const toastId = toast.loading('Mengunggah bukti...');
@@ -1688,17 +1704,26 @@ function PublicOrderContent() {
                                             <span className="text-[8px] text-slate-400">PNG, JPG atau JPEG</span>
                                           </div>
                                         )}
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          disabled={isUploadingProof}
-                                          onChange={async (e) => {
-                                            if (!e.target.files || !e.target.files[0]) return;
-                                            const file = e.target.files[0];
-                                            if (!file.type.startsWith('image/')) {
-                                              toast.error('File harus berupa gambar');
-                                              return;
-                                            }
+                                        <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" 
+                                        onChange={async (e) => {
+                                          if (!e.target.files || !e.target.files[0]) return;
+                                          const file = e.target.files[0];
+                                          const fileName = file.name.toLowerCase();
+                                          const isImageExt = fileName.endsWith('.png') || 
+                                                             fileName.endsWith('.jpg') || 
+                                                             fileName.endsWith('.jpeg') || 
+                                                             fileName.endsWith('.webp') || 
+                                                             fileName.endsWith('.heic') || 
+                                                             fileName.endsWith('.heif');
+                                          const isImageType = file.type && file.type.startsWith('image/');
+                                          if (!isImageType && !isImageExt) {
+                                            toast.error('File harus berupa gambar (PNG, JPG, JPEG)');
+                                            alert('File harus berupa gambar (PNG, JPG, JPEG)');
+                                            return;
+                                          }
                                             setIsUploadingProof(true);
                                             try {
                                               const refPath = `payment_proofs/store_${storeId}/pre_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -1715,7 +1740,6 @@ function PublicOrderContent() {
                                               setIsUploadingProof(false);
                                             }
                                           }}
-                                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                                         />
                                       </label>
                                     )}
