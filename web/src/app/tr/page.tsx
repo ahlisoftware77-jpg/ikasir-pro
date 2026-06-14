@@ -63,6 +63,7 @@ interface Product {
   manageStock?: boolean;
   hasExtras?: boolean;
   extras?: string[];
+  description?: string;
 }
 
 interface ProductExtra {
@@ -140,6 +141,7 @@ function PublicOrderContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
 
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -865,6 +867,24 @@ function PublicOrderContent() {
                        <div className="min-w-0">
                           <h3 className="font-black text-slate-900 text-base leading-tight truncate">{p.name}</h3>
                           <p className="text-[10px] font-black text-tr uppercase tracking-widest mt-1.5 opacity-60">{p.category || 'Umum'}</p>
+                          {p.description && (
+                             <div className="mt-2 text-xs text-slate-500 leading-relaxed font-medium">
+                                <p className={expandedProducts[p.id!] ? "" : "line-clamp-2"}>
+                                   {p.description}
+                                </p>
+                                {p.description.length > 80 && (
+                                   <button 
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setExpandedProducts(prev => ({ ...prev, [p.id!]: !prev[p.id!] }));
+                                     }}
+                                     className="text-tr font-black uppercase text-[9px] tracking-wider mt-1 hover:underline block"
+                                   >
+                                      {expandedProducts[p.id!] ? "Tutup" : "Selengkapnya"}
+                                   </button>
+                                )}
+                             </div>
+                          )}
                        </div>
                        <div className="flex items-center justify-between mt-4">
                           <p className="font-black text-base text-slate-900 tracking-tighter">Rp {(p.price || 0).toLocaleString('id-ID')}</p>
