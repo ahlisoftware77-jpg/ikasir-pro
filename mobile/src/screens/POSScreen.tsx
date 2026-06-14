@@ -295,6 +295,7 @@ export default function POSScreen({ route, navigation }: any) {
             receiptMessage: data.receiptMessage || '',
             qrisUrl: data.qrisUrl || '',
             bankInfo: data.bankInfo || '',
+            ...data
           });
         }
       } catch (err) {

@@ -1,0 +1,11 @@
+# EAS ignore file to reduce archive upload size
+node_modules
+android
+ios
+.expo
+dist
+web-build
+*.apk
+*.rar
+*.zip
+*.tar.gz

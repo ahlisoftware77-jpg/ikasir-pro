@@ -600,7 +600,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
   
   let branding: any = null;
 
-  if (!settings && transaction?.storeId) {
+  if ((!settings || !settings.storeName || settings.storeName === 'Kasir Pro Store' || settings.storeName === 'KASIR PRO' || (!settings.logoUrl && !settings.thermalLogoUrl)) && transaction?.storeId) {
     try {
       const { db } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
@@ -678,7 +678,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
 
   try {
     let finalSettings = settings;
-    if ((!finalSettings || !finalSettings.storeName) && transaction?.storeId) {
+    if ((!finalSettings || !finalSettings.storeName || finalSettings.storeName === 'Kasir Pro Store' || finalSettings.storeName === 'KASIR PRO' || (!finalSettings.logoUrl && !finalSettings.thermalLogoUrl)) && transaction?.storeId) {
       try {
         const { db } = require('../lib/firebase');
         const { doc, getDoc } = require('firebase/firestore');
