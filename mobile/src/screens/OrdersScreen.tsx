@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Linking, RefreshControl, Vibration, Pressable, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Linking, RefreshControl, Vibration, Pressable, Image, Platform, PermissionsAndroid, Dimensions, NativeModules } from 'react-native';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, writeBatch, increment, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
 import { printReceipt } from '../utils/ReceiptHelper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { 
   ClipboardList, 
@@ -29,6 +30,55 @@ import {
   Check, 
   ExternalLink 
 } from 'lucide-react-native';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
+
+const BluetoothManager = hasBluetoothNativeModule 
+  ? require('react-native-bluetooth-escpos-printer')?.BluetoothManager 
+  : null;
+
+const requestBluetoothPermissions = async (): Promise<boolean> => {
+  if (Platform.OS !== 'android') return true;
+
+  try {
+    if (Number(Platform.Version) >= 31) {
+      const results = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      ]);
+
+      const scanGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED;
+      const connectGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED;
+      
+      if (!scanGranted || !connectGranted) {
+        Alert.alert(
+          "Izin Dibutuhkan",
+          "Aplikasi membutuhkan izin Bluetooth Scan dan Bluetooth Connect untuk mendeteksi & menyalakan printer."
+        );
+        return false;
+      }
+      return true;
+    } else {
+      const locationGranted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      );
+      if (locationGranted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert(
+          "Izin Dibutuhkan",
+          "Aplikasi membutuhkan izin Lokasi untuk mendeteksi printer Bluetooth."
+        );
+        return false;
+      }
+      return true;
+    }
+  } catch (err) {
+    console.error("Error requesting Bluetooth permissions:", err);
+    return false;
+  }
+};
 
 export default function OrdersScreen() {
   const { colors } = useTheme();
@@ -58,6 +108,255 @@ export default function OrdersScreen() {
   const [showPiutangModal, setShowPiutangModal] = useState(false);
   const [selectedPiutangOrder, setSelectedPiutangOrder] = useState<any>(null);
   const [downPaymentAmount, setDownPaymentAmount] = useState('');
+
+  const [viewingReceipt, setViewingReceipt] = useState<any | null>(null);
+  const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isBluetoothActive, setIsBluetoothActive] = useState(true);
+  const [activePrinter, setActivePrinter] = useState<string | null>(null);
+  const [bluetoothDevices, setBluetoothDevices] = useState<any[]>([]);
+
+  const checkBluetoothState = async () => {
+    if (!BluetoothManager) {
+      setIsBluetoothActive(false);
+      return false;
+    }
+    try {
+      const enabled = await BluetoothManager.isBluetoothEnabled();
+      setIsBluetoothActive(!!enabled);
+      return !!enabled;
+    } catch (err) {
+      console.error(err);
+      setIsBluetoothActive(false);
+      return false;
+    }
+  };
+
+  const requestEnableBluetooth = async () => {
+    if (!BluetoothManager) {
+      Alert.alert("Perhatian", "Modul Bluetooth tidak terdeteksi pada perangkat ini.");
+      return;
+    }
+    
+    const hasPermission = await requestBluetoothPermissions();
+    if (!hasPermission) return;
+
+    try {
+      await BluetoothManager.enableBluetooth();
+      setTimeout(async () => {
+        const enabled = await checkBluetoothState();
+        if (enabled) {
+          startBluetoothScan();
+        }
+      }, 1000);
+    } catch (err) {
+      console.error("Gagal mengaktifkan bluetooth:", err);
+      Alert.alert("Perhatian", "Gagal mengaktifkan Bluetooth secara otomatis. Silakan aktifkan manual melalui Pengaturan sistem.");
+    }
+  };
+
+  // Load printer preference from AsyncStorage
+  useEffect(() => {
+    const loadPrinter = async () => {
+      try {
+        const val = await AsyncStorage.getItem('selected_printer');
+        if (val) setActivePrinter(val);
+      } catch (err) {
+        console.error("Error loading printer preference:", err);
+      }
+    };
+    loadPrinter();
+    checkBluetoothState();
+  }, []);
+
+  const startBluetoothScan = async () => {
+    setIsScanning(true);
+    setBluetoothDevices([]);
+    
+    if (!BluetoothManager) {
+      // Graceful fallback in development / Expo Go
+      setTimeout(() => {
+        setBluetoothDevices([
+          { id: '1', name: 'PRINTER-58BT', address: '00:11:22:33:44:55', type: 'Bluetooth Thermal Printer', status: 'paired', signal: 4 },
+          { id: '2', name: 'RPP-02N Mobile', address: '22:33:44:55:66:77', type: 'Mobile Thermal Printer', status: 'available', signal: 3 },
+          { id: '3', name: 'PT-210 POS', address: '44:55:66:77:88:99', type: '58mm Handheld POS', status: 'available', signal: 5 },
+          { id: '4', name: 'POS-80 Desk', address: '66:77:88:99:AA:BB', type: '80mm Thermal Printer', status: 'available', signal: 2 },
+        ]);
+        setIsScanning(false);
+      }, 2000);
+      return;
+    }
+
+    try {
+      const hasPermission = await requestBluetoothPermissions();
+      if (!hasPermission) {
+        setIsScanning(false);
+        return;
+      }
+
+      const isEnabled = await BluetoothManager.isBluetoothEnabled();
+      if (!isEnabled) {
+        setIsScanning(false);
+        setIsBluetoothActive(false);
+        Alert.alert(
+          "Bluetooth Non-aktif",
+          "Bluetooth pada ponsel Anda sedang tidak aktif. Apakah Anda ingin mengaktifkannya sekarang?",
+          [
+            { text: "Batal", style: "cancel" },
+            { text: "Aktifkan", onPress: requestEnableBluetooth }
+          ]
+        );
+        return;
+      }
+
+      setIsBluetoothActive(true);
+
+      BluetoothManager.scanDevices().then((resStr: string) => {
+        try {
+          const results = JSON.parse(resStr);
+          const found: any[] = [];
+          
+          const paired = results.paired || [];
+          const foundList = results.found || [];
+          
+          paired.forEach((d: any) => {
+            found.push({
+              id: d.address,
+              name: d.name || 'Printer Bluetooth (Paired)',
+              address: d.address,
+              type: 'Paired Device',
+              status: 'paired',
+              signal: 5
+            });
+          });
+
+          foundList.forEach((d: any) => {
+            if (d.name) {
+              found.push({
+                id: d.address,
+                name: d.name,
+                address: d.address,
+                type: 'Discovered Device',
+                status: 'available',
+                signal: 3
+              });
+            }
+          });
+
+          setBluetoothDevices(found);
+          setIsScanning(false);
+        } catch (parseErr) {
+          console.error("Gagal parse bluetooth list:", parseErr);
+          setIsScanning(false);
+        }
+      }, (err: any) => {
+        console.error("Gagal memindai bluetooth:", err);
+        setIsScanning(false);
+      });
+    } catch (err) {
+      console.error(err);
+      setIsScanning(false);
+    }
+  };
+
+  const handlePrintAction = async (order: any) => {
+    setViewingReceipt(order);
+    try {
+      const savedPrinter = await AsyncStorage.getItem('selected_printer');
+      if (savedPrinter) {
+        Alert.alert(
+          "Cetak Struk",
+          `Mencetak menggunakan printer bluetooth "${savedPrinter}"?`,
+          [
+            { text: "Batal", style: "cancel" },
+            { 
+              text: "Pilih Printer Lain", 
+              onPress: () => {
+                setIsBluetoothModalVisible(true);
+                startBluetoothScan();
+              }
+            },
+            {
+              text: "Cetak Sekarang",
+              onPress: async () => {
+                Vibration.vibrate(15);
+                try {
+                  await printReceipt(order, storeSettings);
+                } catch (err) {
+                  Alert.alert("Gagal Mencetak", "Terjadi kesalahan saat berkomunikasi dengan printer.");
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        setIsBluetoothModalVisible(true);
+        startBluetoothScan();
+      }
+    } catch (err) {
+      console.error(err);
+      setIsBluetoothModalVisible(true);
+      startBluetoothScan();
+    }
+  };
+
+  const handleConnectDevice = async (device: any) => {
+    setIsConnecting(true);
+    Vibration.vibrate(15);
+    
+    if (!BluetoothManager) {
+      setTimeout(async () => {
+        try {
+          setIsConnecting(false);
+          setActivePrinter(device.name);
+          await AsyncStorage.setItem('selected_printer', device.name);
+          await AsyncStorage.setItem('selected_printer_address', device.address);
+          Vibration.vibrate([0, 15, 50, 15]);
+          
+          setIsBluetoothModalVisible(false);
+          
+          if (viewingReceipt) {
+            try {
+              await printReceipt(viewingReceipt, storeSettings);
+            } catch (err) {
+              console.error("Error printing receipt:", err);
+              Alert.alert("Gagal Mencetak", "Tidak dapat mengirim data ke printer.");
+            }
+          }
+        } catch (err) {
+          setIsConnecting(false);
+          Alert.alert("Koneksi Gagal", `Tidak dapat berpasangan dengan ${device.name}. Silakan coba lagi.`);
+        }
+      }, 1500);
+      return;
+    }
+
+    try {
+      await BluetoothManager.connect(device.address);
+      
+      setIsConnecting(false);
+      setActivePrinter(device.name);
+      await AsyncStorage.setItem('selected_printer', device.name);
+      await AsyncStorage.setItem('selected_printer_address', device.address);
+      Vibration.vibrate([0, 15, 50, 15]);
+      
+      setIsBluetoothModalVisible(false);
+      
+      if (viewingReceipt) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await printReceipt(viewingReceipt, storeSettings);
+        } catch (err) {
+          console.error("Error printing receipt:", err);
+          Alert.alert("Gagal Mencetak", "Tidak dapat mengirim data ke printer.");
+        }
+      }
+    } catch (err) {
+      setIsConnecting(false);
+      Alert.alert("Koneksi Gagal", `Tidak dapat berpasangan dengan ${device.name}. Silakan coba lagi.`);
+    }
+  };
 
   const [storeSettings, setStoreSettings] = useState({ 
     storeName: 'Kasir Pro Store', 
@@ -101,7 +400,8 @@ export default function OrdersScreen() {
           setStoreSettings({
             storeName: data.storeName || 'Kasir Pro Store',
             phone: data.phone || '',
-            address: data.address || ''
+            address: data.address || '',
+            ...data
           });
         }
       } catch (err) {
@@ -672,7 +972,7 @@ export default function OrdersScreen() {
                         )}
 
                         <TouchableOpacity
-                          onPress={() => printReceipt(order, storeSettings)}
+                          onPress={() => handlePrintAction(order)}
                           className="flex-1 bg-slate-800 border h-12 rounded-xl items-center justify-center flex-row gap-1 px-1"
                           style={{ borderColor: colors.border }}
                         >
@@ -851,6 +1151,153 @@ export default function OrdersScreen() {
             >
               <Text className="text-base font-black text-white uppercase tracking-wider">SIMPAN PEMBAYARAN</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Bluetooth Printer Manager */}
+      <Modal visible={isBluetoothModalVisible} animationType="slide" transparent onRequestClose={() => setIsBluetoothModalVisible(false)}>
+        <View className="flex-1 bg-black/70 justify-center items-center">
+          <View 
+            className="rounded-[32px] overflow-hidden flex-col"
+            style={{ 
+              backgroundColor: '#ffffff',
+              width: screenWidth * 0.9,
+              height: screenHeight * 0.72
+            }}
+          >
+            {/* Header Modal */}
+            <View className="p-6 border-b border-slate-100 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <View className="p-2 bg-blue-500/10 rounded-xl">
+                  <Printer color="#3b82f6" size={18} />
+                </View>
+                <Text className="text-lg font-black text-slate-900">Printer Bluetooth</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsBluetoothModalVisible(false)}
+                className="p-2 bg-slate-50 rounded-xl"
+              >
+                <X color="#94a3b8" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Banner Bluetooth Status */}
+            {!isBluetoothActive && BluetoothManager && (
+              <View className="bg-rose-50 p-4 mx-6 mt-4 rounded-2xl border border-rose-100 flex-row items-center gap-3">
+                <View className="p-2 bg-rose-500/10 rounded-xl">
+                  <X color="#f43f5e" size={16} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs font-black text-rose-900">Bluetooth Non-aktif</Text>
+                  <Text className="text-[10px] text-rose-600 mt-0.5">Aktifkan bluetooth untuk mendeteksi printer.</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={requestEnableBluetooth}
+                  className="px-3 py-1.5 bg-rose-500 rounded-xl"
+                >
+                  <Text className="text-[9px] font-black text-white uppercase">Aktifkan</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* List Perangkat */}
+            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
+              {!isBluetoothActive && BluetoothManager ? (
+                <View className="items-center py-12 opacity-65">
+                  <History color="#94a3b8" size={48} />
+                  <Text className="font-bold text-slate-400 mt-4 text-center text-xs">
+                    Bluetooth dinonaktifkan. Harap aktifkan koneksi bluetooth ponsel Anda.
+                  </Text>
+                </View>
+              ) : isScanning ? (
+                <View className="items-center py-12">
+                  <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
+                  <Text className="text-xs font-bold text-slate-400 uppercase tracking-[2px] animate-pulse">
+                    Memindai Printer...
+                  </Text>
+                </View>
+              ) : (
+                <View className="space-y-4">
+                  {bluetoothDevices.length > 0 ? (
+                    <>
+                      <Text className="text-[10px] font-black text-slate-400 uppercase tracking-[1px] mb-2">
+                        Perangkat Terdeteksi ({bluetoothDevices.length})
+                      </Text>
+                      
+                      {bluetoothDevices.map((device) => {
+                        const isCurrent = activePrinter === device.name;
+                        return (
+                          <TouchableOpacity
+                            key={device.id}
+                            onPress={() => !isCurrent && handleConnectDevice(device)}
+                            disabled={isConnecting}
+                            activeOpacity={0.7}
+                            className={`flex-row items-center p-4 rounded-2xl border mb-3 ${isCurrent ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}
+                          >
+                            <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${isCurrent ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                              <Printer color={isCurrent ? '#ffffff' : '#64748b'} size={18} />
+                            </View>
+                            
+                            <View className="flex-1">
+                              <Text className={`font-black text-xs ${isCurrent ? 'text-blue-900' : 'text-slate-900'}`}>{device.name}</Text>
+                              <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.5px] mt-0.5" numberOfLines={1}>{device.address || device.type}</Text>
+                            </View>
+
+                            <View className="items-end">
+                              {isCurrent ? (
+                                <View className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                  <Text className="text-[8px] font-black text-blue-500 uppercase">Aktif</Text>
+                                </View>
+                              ) : (
+                                <View className="px-2.5 py-1 bg-slate-200/50 border border-slate-200 rounded-lg">
+                                  <Text className="text-[8px] font-black text-slate-500 uppercase">Pilih</Text>
+                                </View>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <View className="items-center py-12 opacity-65">
+                      <Printer color="#94a3b8" size={48} />
+                      <Text className="font-bold text-slate-400 mt-4 text-center text-xs">
+                        Tidak ada printer bluetooth terdeteksi. Pastikan printer dalam jangkauan dan mode berpasangan.
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {!BluetoothManager && (
+                    <View className="bg-amber-50 p-4 rounded-2xl border border-amber-100 mt-4">
+                      <Text className="text-[9px] font-bold text-amber-800 leading-[14px]">
+                        ℹ️ MODE SIMULATOR: Modul Bluetooth Native tidak terdeteksi pada Expo Go. Jalankan dengan custom dev client atau build APK real untuk memindai perangkat fisik Anda secara langsung.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Hubungkan Loading state */}
+            {isConnecting && (
+              <View className="absolute inset-0 bg-white/95 justify-center items-center rounded-[32px]">
+                <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
+                <Text className="text-sm font-black text-slate-900">Menghubungkan Perangkat...</Text>
+                <Text className="text-xs text-slate-400 mt-1">Mengamankan koneksi Bluetooth...</Text>
+              </View>
+            )}
+
+            {/* Tindakan Bawah */}
+            <View className="p-6 bg-slate-50 border-t border-slate-200">
+              <TouchableOpacity 
+                onPress={startBluetoothScan}
+                disabled={isScanning || isConnecting}
+                className="w-full py-4 bg-slate-900 rounded-2xl items-center justify-center"
+              >
+                <Text className="font-black text-white text-xs uppercase">Pindai Ulang Perangkat</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
