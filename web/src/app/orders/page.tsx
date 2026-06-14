@@ -602,6 +602,22 @@ export default function OrdersPage() {
                      </div>
                   )}
 
+                  {order.paymentProofUrl && (
+                     <div className="mt-4 pt-4 border-t border-app-border animate-in fade-in slide-in-from-top-2 duration-300">
+                        <p className="text-[10px] text-app-text-muted font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                           Bukti Pembayaran (Transfer / E-Wallet)
+                        </p>
+                        <div className="bg-surface p-4 rounded-[20px] border border-app-border w-fit">
+                           <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-xl border border-app-border max-w-xs cursor-zoom-in">
+                              <img src={order.paymentProofUrl} alt="Bukti Pembayaran" className="w-full h-auto max-h-60 object-contain mx-auto group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <span className="text-[10px] font-black text-white uppercase tracking-widest">Buka Gambar Penuh</span>
+                              </div>
+                           </a>
+                        </div>
+                     </div>
+                  )}
+
                   {/* FULFILLMENT ACTIONS */}
                   {order.orderStatus !== 'cancelled' && order.orderStatus !== 'completed' && (
                     <div className="mt-4 pt-4 border-t border-app-border">

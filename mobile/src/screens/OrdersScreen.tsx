@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Linking, RefreshControl, Vibration, Pressable } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Linking, RefreshControl, Vibration, Pressable, Image } from 'react-native';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, writeBatch, increment, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -581,6 +581,23 @@ export default function OrdersScreen() {
                           </View>
                         </View>
                       )}
+                      {/* Payment Proof Image Preview */}
+                      {order.paymentProofUrl ? (
+                        <View className="mb-4">
+                          <Text className="text-[10px] font-black uppercase tracking-wider mb-2" style={{ color: colors.textMuted }}>Bukti Pembayaran (Transfer/E-Wallet):</Text>
+                          <TouchableOpacity 
+                            onPress={() => Linking.openURL(order.paymentProofUrl).catch(() => Alert.alert('Error', 'Gagal membuka link bukti pembayaran.'))}
+                            activeOpacity={0.8}
+                            className="rounded-2xl overflow-hidden border bg-black/10"
+                            style={{ borderColor: colors.border, width: 120, height: 160 }}
+                          >
+                            <Image source={{ uri: order.paymentProofUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <View className="absolute bottom-0 left-0 right-0 bg-black/60 py-1.5">
+                              <Text className="text-[8px] font-black text-white text-center uppercase tracking-widest">Buka Gambar</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
 
                       {/* Fulfillment Actions */}
                       {order.orderStatus !== 'completed' && order.orderStatus !== 'cancelled' && (

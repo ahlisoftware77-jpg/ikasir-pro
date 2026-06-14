@@ -84,6 +84,7 @@ interface Transaction {
     note: string;
   }[];
   isSignatureLinkActive?: boolean;
+  paymentProofUrl?: string;
 }
 
 import { ChevronLeft } from 'lucide-react-native';
@@ -639,6 +640,24 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                           <Text className="text-[10px] font-black text-rose-500">Rp {Math.max(0, selectedTrx.total - (selectedTrx.paidAmount || 0)).toLocaleString('id-ID')}</Text>
                         </View>
                       )}
+                    </View>
+                  ) : null}
+
+                  {/* Payment Proof Image Preview */}
+                  {selectedTrx.paymentProofUrl ? (
+                    <View className="p-5 rounded-[28px] border mb-5" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <Text className="text-[9px] font-black uppercase tracking-[2px] mb-3" style={{ color: colors.textMuted }}>Bukti Pembayaran (Transfer/E-Wallet)</Text>
+                      <TouchableOpacity 
+                        onPress={() => Linking.openURL(selectedTrx.paymentProofUrl!).catch(() => Alert.alert('Error', 'Gagal membuka link bukti pembayaran.'))}
+                        activeOpacity={0.8}
+                        className="rounded-2xl overflow-hidden border bg-black/10"
+                        style={{ borderColor: colors.border, width: 120, height: 160 }}
+                      >
+                        <Image source={{ uri: selectedTrx.paymentProofUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        <View className="absolute bottom-0 left-0 right-0 bg-black/60 py-1.5">
+                          <Text className="text-[8px] font-black text-white text-center uppercase tracking-widest">Buka Gambar</Text>
+                        </View>
+                      </TouchableOpacity>
                     </View>
                   ) : null}
 

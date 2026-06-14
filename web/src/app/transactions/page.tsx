@@ -771,6 +771,20 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                   )}
+
+                  {(selectedTrx as any).paymentProofUrl && (
+                     <div className="mt-6 border-t border-app-border pt-4">
+                        <h3 className="text-xs font-black text-app-text-muted uppercase tracking-[0.3em] mb-4">Bukti Pembayaran (Transfer/E-Wallet)</h3>
+                        <div className="bg-background border border-app-border p-4 rounded-[20px] w-fit">
+                           <a href={(selectedTrx as any).paymentProofUrl} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-xl border border-app-border max-w-xs cursor-zoom-in">
+                              <img src={(selectedTrx as any).paymentProofUrl} alt="Bukti Pembayaran" className="w-full h-auto max-h-60 object-contain mx-auto group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <span className="text-[10px] font-black text-white uppercase tracking-widest">Buka Gambar Penuh</span>
+                              </div>
+                           </a>
+                        </div>
+                     </div>
+                  )}
                 </>
               )}
             </div>

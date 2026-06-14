@@ -16,7 +16,8 @@ import {
   runTransaction,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser, updateProfile } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -45,7 +46,10 @@ import {
   HelpCircle,
   ShoppingBag,
   Truck,
-  Store
+  Store,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface Product {
@@ -126,6 +130,8 @@ function PublicOrderContent() {
   const [selectedStoreEwalletId, setSelectedStoreEwalletId] = useState<string>('');
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentProofUrl, setPaymentProofUrl] = useState<string>('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
 
   // Extras Modal State
   const [activeExtrasProduct, setActiveExtrasProduct] = useState<Product | null>(null);
@@ -654,6 +660,7 @@ function PublicOrderContent() {
           : paymentMethod === 'qris' 
             ? (storeSettings?.storeEwallets?.find((ew: any) => ew.id === selectedStoreEwalletId) || storeSettings?.storeEwallets?.[0] || null)
             : null,
+        paymentProofUrl: (paymentMethod === 'transfer' || paymentMethod === 'qris') ? paymentProofUrl : '',
         orderStatus: 'new',
         paymentStatus: 'pending',
         deliveryType: fulfillmentType,
@@ -711,6 +718,7 @@ function PublicOrderContent() {
       }).catch(e => console.error('Failed to trigger notification', e));
 
       setCart([]);
+      setPaymentProofUrl('');
       setIsCheckoutOpen(false);
       setActiveTab('orders');
       playSuccessSound();
@@ -895,6 +903,93 @@ function PublicOrderContent() {
                                   : 'Sudah Diambil & Lunas') : 'Dibatalkan'}
                           </div>
                         </div>
+                        
+                        {(order.paymentMethod === 'transfer' || order.paymentMethod === 'qris') && (
+                          <div className="border-t border-slate-100 pt-3 space-y-2.5">
+                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Bukti Pembayaran ({order.paymentMethod.toUpperCase()})</p>
+                             {order.paymentProofUrl ? (
+                               <div className="flex items-center justify-between bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                                 <a href={order.paymentProofUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 min-w-0 flex-1 hover:opacity-85 transition-opacity">
+                                   <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden shrink-0">
+                                     <img src={order.paymentProofUrl} alt="Bukti" className="w-full h-full object-cover" />
+                                   </div>
+                                   <div className="min-w-0">
+                                     <p className="text-[11px] font-bold text-slate-800 truncate">Bukti Pembayaran</p>
+                                     <p className="text-[8px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                       <CheckCircle2 size={8} className="text-emerald-500" /> Sudah Diunggah
+                                     </p>
+                                   </div>
+                                 </a>
+                                 {order.paymentStatus !== 'paid' && (
+                                   <label className="p-2 text-[9px] font-black uppercase text-tr bg-tr/10 hover:bg-tr/20 rounded-xl transition-all cursor-pointer">
+                                     Ubah
+                                     <input 
+                                       type="file" 
+                                       accept="image/*" 
+                                       className="hidden" 
+                                       onChange={async (e) => {
+                                         if (!e.target.files || !e.target.files[0]) return;
+                                         const file = e.target.files[0];
+                                         if (!file.type.startsWith('image/')) {
+                                           toast.error('File harus berupa gambar');
+                                           return;
+                                         }
+                                         const toastId = toast.loading('Memperbarui bukti...');
+                                         try {
+                                           const refPath = `payment_proofs/store_${storeId}/post_${order.id}_${Date.now()}`;
+                                           const storageRef = ref(storage, refPath);
+                                           await uploadBytes(storageRef, file);
+                                           const url = await getDownloadURL(storageRef);
+                                           
+                                           await updateDoc(doc(db, 'transactions', order.id), {
+                                             paymentProofUrl: url
+                                           });
+                                           toast.success('Bukti bayar berhasil diperbarui!', { id: toastId });
+                                         } catch (err: any) {
+                                           console.error(err);
+                                           toast.error('Gagal memperbarui bukti: ' + err.message, { id: toastId });
+                                         }
+                                       }}
+                                     />
+                                   </label>
+                                 )}
+                               </div>
+                             ) : (
+                               <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 hover:border-tr/30 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group bg-slate-50/50">
+                                 <Upload className="text-slate-400 group-hover:text-tr transition-colors" size={14} />
+                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Unggah Bukti Pembayaran</span>
+                                 <input
+                                   type="file"
+                                   accept="image/*"
+                                   className="hidden"
+                                   onChange={async (e) => {
+                                     if (!e.target.files || !e.target.files[0]) return;
+                                     const file = e.target.files[0];
+                                     if (!file.type.startsWith('image/')) {
+                                       toast.error('File harus berupa gambar');
+                                       return;
+                                     }
+                                     const toastId = toast.loading('Mengunggah bukti...');
+                                     try {
+                                       const refPath = `payment_proofs/store_${storeId}/post_${order.id}_${Date.now()}`;
+                                       const storageRef = ref(storage, refPath);
+                                       await uploadBytes(storageRef, file);
+                                       const url = await getDownloadURL(storageRef);
+                                       
+                                       await updateDoc(doc(db, 'transactions', order.id), {
+                                         paymentProofUrl: url
+                                       });
+                                       toast.success('Bukti bayar berhasil diunggah!', { id: toastId });
+                                     } catch (err: any) {
+                                       console.error(err);
+                                       toast.error('Gagal mengunggah bukti: ' + err.message, { id: toastId });
+                                     }
+                                   }}
+                                 />
+                               </label>
+                             )}
+                          </div>
+                        )}
                         
                         <div className="flex gap-2">
                            <button 
@@ -1549,6 +1644,79 @@ function PublicOrderContent() {
                                      </div>
                                    ) : null
                                  )}
+
+                                  {/* Upload Bukti Pembayaran */}
+                                  <div className="mt-4 pt-4 border-t border-tr/20 flex flex-col gap-2.5 w-full text-left text-slate-800">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                      Unggah Bukti Bayar (Opsional)
+                                    </label>
+                                    
+                                    {paymentProofUrl ? (
+                                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white p-2 flex items-center justify-between shadow-sm">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className="w-12 h-16 rounded-lg bg-slate-50 border border-slate-100 overflow-hidden shrink-0">
+                                            <img src={paymentProofUrl} alt="Bukti" className="w-full h-full object-cover" />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="text-xs font-bold text-slate-900 truncate">Bukti Pembayaran</p>
+                                            <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                                              <CheckCircle2 size={10} className="text-emerald-500" /> Berhasil diunggah
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => setPaymentProofUrl('')}
+                                          className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl transition-all"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-tr/30 bg-white p-5 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group">
+                                        {isUploadingProof ? (
+                                          <div className="flex flex-col items-center gap-2">
+                                            <Loader2 className="w-8 h-8 text-tr animate-spin" />
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mengunggah...</span>
+                                          </div>
+                                        ) : (
+                                          <div className="flex flex-col items-center gap-2">
+                                            <Upload className="text-slate-400 group-hover:text-tr transition-colors" size={24} />
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Pilih Foto Bukti Transfer</span>
+                                            <span className="text-[8px] text-slate-400">PNG, JPG atau JPEG</span>
+                                          </div>
+                                        )}
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          disabled={isUploadingProof}
+                                          onChange={async (e) => {
+                                            if (!e.target.files || !e.target.files[0]) return;
+                                            const file = e.target.files[0];
+                                            if (!file.type.startsWith('image/')) {
+                                              toast.error('File harus berupa gambar');
+                                              return;
+                                            }
+                                            setIsUploadingProof(true);
+                                            try {
+                                              const refPath = `payment_proofs/store_${storeId}/pre_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                                              const storageRef = ref(storage, refPath);
+                                              await uploadBytes(storageRef, file);
+                                              const url = await getDownloadURL(storageRef);
+                                              setPaymentProofUrl(url);
+                                              toast.success('Bukti bayar berhasil diunggah!');
+                                            } catch (err: any) {
+                                              console.error(err);
+                                              toast.error('Gagal mengunggah bukti: ' + err.message);
+                                            } finally {
+                                              setIsUploadingProof(false);
+                                            }
+                                          }}
+                                          className="hidden"
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
                               </div>
                           )}
                        </div>
