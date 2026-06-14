@@ -691,6 +691,7 @@ export default function ProductsPage() {
                 </th>
                 <th className="p-5 text-xs font-bold text-app-text-muted uppercase tracking-widest">Barang</th>
                 <th className="p-5 text-xs font-bold text-app-text-muted uppercase tracking-widest">Kategori</th>
+                <th className="p-5 text-xs font-bold text-app-text-muted uppercase tracking-widest">Deskripsi</th>
                 <th className="p-5 text-xs font-bold text-app-text-muted uppercase tracking-widest">Harga</th>
                 <th className="p-5 text-xs font-bold text-app-text-muted uppercase tracking-widest">Stok</th>
                 <th className="p-5 text-xs font-bold text-app-text-muted uppercase tracking-widest">Tgl Masuk</th>
@@ -701,16 +702,16 @@ export default function ProductsPage() {
             <tbody className="divide-y divide-app-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="p-20 text-center">
+                  <td colSpan={9} className="p-20 text-center">
                     <div className="flex flex-col items-center gap-4">
-                      <Loader2 className="w-12 h-12 animate-spin text-accent" />
-                      <p className="text-app-text-muted font-medium animate-pulse">Menghubungkan ke pusat data...</p>
+                       <Loader2 className="w-12 h-12 animate-spin text-accent" />
+                       <p className="text-app-text-muted font-medium animate-pulse">Menghubungkan ke pusat data...</p>
                     </div>
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-20 text-center text-app-text-muted">
+                  <td colSpan={9} className="p-20 text-center text-app-text-muted">
                     <Package className="w-16 h-16 mx-auto mb-4 opacity-20" />
                     <p className="text-lg">Belum ada produk terdaftar</p>
                   </td>
@@ -751,6 +752,11 @@ export default function ProductsPage() {
                       <span className="px-3 py-1 bg-accent/10 text-accent rounded-md text-xs font-bold border border-accent/20 shadow-sm">
                         {product.category || 'Umum'}
                       </span>
+                    </td>
+                    <td className="p-5 max-w-[200px]">
+                      <p className="text-xs text-app-text-muted line-clamp-2" title={product.description || '-'}>
+                        {product.description || '-'}
+                      </p>
                     </td>
                     <td className="p-5">
                       <p className="text-emerald-400 font-bold text-lg">Rp {product.price.toLocaleString('id-ID')}</p>
@@ -831,6 +837,11 @@ export default function ProductsPage() {
                        <div className="min-w-0">
                           <h3 className="font-black text-foreground text-[13px] truncate leading-tight mb-0.5">{product.name}</h3>
                           <p className="text-[9px] text-app-text-muted uppercase font-bold tracking-widest">{product.category || 'Umum'}</p>
+                          {product.description && (
+                            <p className="text-[10px] text-app-text-muted mt-1 line-clamp-1 italic">
+                              {product.description}
+                            </p>
+                          )}
                        </div>
                        <div className="flex gap-1 shrink-0">
                           {permissions?.canEditProducts && (
