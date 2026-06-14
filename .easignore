@@ -1,0 +1,17 @@
+# Ignore web dashboard and huge backup archives
+web/
+*.rar
+*.zip
+*.tar.gz
+Hasil Build APK/
+
+# Ignore node_modules globally
+node_modules/
+**/node_modules/
+
+# Ignore native mobile builds & dev directories
+mobile/android/
+mobile/ios/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
