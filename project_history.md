@@ -46,6 +46,26 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 ## 📝 Catatan Perubahan & Fitur (Changelog)
 
+### [2026-06-14] - Fitur Deskripsi Produk (Web/Mobile) & Revert Mode Cloudinary
+#### Perubahan / Penambahan Fitur:
+1. **Fitur Deskripsi Produk Lengkap**:
+   - Menambahkan kolom **Deskripsi** di tabel daftar produk admin web (`/products`) dengan batasan `line-clamp-2` dan HTML `title` tooltip.
+   - Menambahkan pratinjau deskripsi di bawah nama produk pada mobile card (`mobile`).
+   - Menampilkan deskripsi produk di halaman pesanan pelanggan (`/tr`) dengan toggle interaktif **Selengkapnya** / **Tutup**.
+   - Menambahkan input field berbentuk `textarea` **Deskripsi Produk (Opsional)** pada modal tambah & edit produk di dashboard web (`/products`).
+2. **Revert Cloudinary Overwrite ke Mode Unik (Option B)**:
+   - Mengembalikan logic unggah gambar Cloudinary agar selalu menghasilkan public_id acak (unik). Ini mencegah galat preset pada Cloudinary unsigned uploads karena larangan penyetelan `overwrite: true`.
+
+#### Berkas yang Dimodifikasi:
+* **Web**:
+  - [products/page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/products/page.tsx) - Menambahkan kolom deskripsi di tabel merchant, pratinjau mobile card merchant, dan input textarea pada form tambah/edit modal.
+  - [tr/page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/tr/page.tsx) - Menampilkan deskripsi produk di halaman pemesanan pelanggan dengan toggle expand.
+* **Mobile**:
+  - [ProductFormScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/ProductFormScreen.tsx) - Mengembalikan path Cloudinary ke mode unik (Option B).
+  - [FeatureScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/FeatureScreen.tsx) - Mengembalikan upload bukti transfer ke mode unik (Option B).
+
+---
+
 ### [2026-06-13] - Penambahan Tombol Buat Akun Baru di SuperAdmin (Web & Mobile)
 #### Perubahan / Penambahan Fitur:
 1. **Fitur Buat Akun Baru di SuperAdmin (Web & Mobile)**
