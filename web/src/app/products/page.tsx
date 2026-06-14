@@ -1135,6 +1135,15 @@ export default function ProductsPage() {
                         </button>
                       </div>
                     </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-app-text-muted mb-1">Deskripsi Produk (Opsional)</label>
+                      <textarea
+                        value={formData.description || ''}
+                        onChange={e => setFormData({...formData, description: e.target.value})}
+                        className="w-full p-3 bg-background border border-app-border rounded-lg text-foreground focus:outline-none focus:border-accent min-h-[100px] resize-y"
+                        placeholder="Tambahkan detail atau deskripsi lengkap produk..."
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
