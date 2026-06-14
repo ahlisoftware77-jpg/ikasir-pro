@@ -21,6 +21,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser, updateProfile } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { getInfraConfig } from '@/lib/infraConfig';
 import { useBranding } from '@/context/BrandingContext';
 import { 
   ShoppingCart, 
@@ -104,6 +105,27 @@ const FONT_OPTIONS = [
 
 const getFontFamily = (id: string) => {
   return FONT_OPTIONS.find(f => f.id === id)?.family || FONT_OPTIONS[0].family;
+};
+
+const uploadToCloudinary = async (file: File): Promise<string> => {
+  const config = await getInfraConfig();
+  const uploadData = new FormData();
+  uploadData.append('file', file);
+  uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+
+  const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+  const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: uploadData
+  });
+
+  if (!uploadRes.ok) {
+    const errData = await uploadRes.json();
+    throw new Error(errData.error?.message || 'Gagal mengunggah ke Cloudinary');
+  }
+
+  const uploadResult = await uploadRes.json();
+  return uploadResult.secure_url;
 };
 
 function PublicOrderContent() {
@@ -944,11 +966,7 @@ function PublicOrderContent() {
                                          }
                                          const toastId = toast.loading('Memperbarui bukti...');
                                          try {
-                                           const refPath = `payment_proofs/store_${storeId}/post_${order.id}_${Date.now()}`;
-                                           const storageRef = ref(storage, refPath);
-                                           await uploadBytes(storageRef, file);
-                                           const url = await getDownloadURL(storageRef);
-                                           
+                                           const url = await uploadToCloudinary(file);
                                            await updateDoc(doc(db, 'transactions', order.id), {
                                              paymentProofUrl: url
                                            });
@@ -988,11 +1006,7 @@ function PublicOrderContent() {
                                      }
                                      const toastId = toast.loading('Mengunggah bukti...');
                                      try {
-                                       const refPath = `payment_proofs/store_${storeId}/post_${order.id}_${Date.now()}`;
-                                       const storageRef = ref(storage, refPath);
-                                       await uploadBytes(storageRef, file);
-                                       const url = await getDownloadURL(storageRef);
-                                       
+                                       const url = await uploadToCloudinary(file);
                                        await updateDoc(doc(db, 'transactions', order.id), {
                                          paymentProofUrl: url
                                        });
@@ -1726,10 +1740,7 @@ function PublicOrderContent() {
                                           }
                                             setIsUploadingProof(true);
                                             try {
-                                              const refPath = `payment_proofs/store_${storeId}/pre_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-                                              const storageRef = ref(storage, refPath);
-                                              await uploadBytes(storageRef, file);
-                                              const url = await getDownloadURL(storageRef);
+                                              const url = await uploadToCloudinary(file);
                                               setPaymentProofUrl(url);
                                               toast.success('Bukti bayar berhasil diunggah!');
                                             } catch (err: any) {
