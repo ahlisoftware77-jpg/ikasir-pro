@@ -921,12 +921,12 @@ function PublicOrderContent() {
                                    </div>
                                  </a>
                                  {order.paymentStatus !== 'paid' && (
-                                   <label className="p-2 text-[9px] font-black uppercase text-tr bg-tr/10 hover:bg-tr/20 rounded-xl transition-all cursor-pointer">
+                                   <label className="relative p-2 text-[9px] font-black uppercase text-tr bg-tr/10 hover:bg-tr/20 rounded-xl transition-all cursor-pointer overflow-hidden">
                                      Ubah
                                      <input 
                                        type="file" 
                                        accept="image/*" 
-                                       className="hidden" 
+                                       className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" 
                                        onChange={async (e) => {
                                          if (!e.target.files || !e.target.files[0]) return;
                                          const file = e.target.files[0];
@@ -948,6 +948,7 @@ function PublicOrderContent() {
                                          } catch (err: any) {
                                            console.error(err);
                                            toast.error('Gagal memperbarui bukti: ' + err.message, { id: toastId });
+                                           alert('Gagal memperbarui bukti: ' + err.message);
                                          }
                                        }}
                                      />
@@ -955,13 +956,13 @@ function PublicOrderContent() {
                                  )}
                                </div>
                              ) : (
-                               <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 hover:border-tr/30 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group bg-slate-50/50">
+                               <label className="relative flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 hover:border-tr/30 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group bg-slate-50/50 overflow-hidden">
                                  <Upload className="text-slate-400 group-hover:text-tr transition-colors" size={14} />
                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Unggah Bukti Pembayaran</span>
                                  <input
                                    type="file"
                                    accept="image/*"
-                                   className="hidden"
+                                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                                    onChange={async (e) => {
                                      if (!e.target.files || !e.target.files[0]) return;
                                      const file = e.target.files[0];
@@ -983,6 +984,7 @@ function PublicOrderContent() {
                                      } catch (err: any) {
                                        console.error(err);
                                        toast.error('Gagal mengunggah bukti: ' + err.message, { id: toastId });
+                                       alert('Gagal mengunggah bukti: ' + err.message);
                                      }
                                    }}
                                  />
@@ -1673,7 +1675,7 @@ function PublicOrderContent() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-tr/30 bg-white p-5 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group">
+                                      <label className="relative flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-tr/30 bg-white p-5 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group overflow-hidden">
                                         {isUploadingProof ? (
                                           <div className="flex flex-col items-center gap-2">
                                             <Loader2 className="w-8 h-8 text-tr animate-spin" />
@@ -1708,11 +1710,12 @@ function PublicOrderContent() {
                                             } catch (err: any) {
                                               console.error(err);
                                               toast.error('Gagal mengunggah bukti: ' + err.message);
+                                              alert('Gagal mengunggah bukti: ' + err.message);
                                             } finally {
                                               setIsUploadingProof(false);
                                             }
                                           }}
-                                          className="hidden"
+                                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                                         />
                                       </label>
                                     )}
