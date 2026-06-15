@@ -9,6 +9,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton';
 import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck } from 'lucide-react-native';
 import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseDate, formatIndonesianDate, formatIndonesianDateTime, formatIndonesianDateShort, formatIndonesianDayMonth } from '../utils/dateFormatter';
 
 const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
 
@@ -353,27 +354,17 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '...';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleString('id-ID', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).replace(/\./g, ':');
+    return formatIndonesianDateTime(timestamp);
   };
 
   const handleClaimWarranty = (item: any) => {
     if (!item.warrantyExpiry) return;
     
-    const expiryDate = item.warrantyExpiry.toDate ? item.warrantyExpiry.toDate() : new Date(item.warrantyExpiry);
+    const expiryDate = parseDate(item.warrantyExpiry);
+    if (!expiryDate) return;
     const isExpired = expiryDate < new Date();
     
-    const formattedExpiry = expiryDate.toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    const formattedExpiry = formatIndonesianDate(expiryDate);
 
     Vibration.vibrate(15);
 
@@ -419,7 +410,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
       const paid = trx.paidAmount || 0;
       const total = trx.total || 0;
       const sisa = Math.max(0, total - paid);
-      const dDate = trx.dueDate ? new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
+      const dDate = trx.dueDate ? formatIndonesianDate(trx.dueDate) : '-';
       const trxId = trx.id?.substring(0, 8);
 
       let text = storeSettings?.waTemplate || 'Halo *{customerName}*,\n\nKami dari *{storeName}* ingin menyampaikan rincian tagihan pesanan Anda (Ref: *#{trxId}*)\n\nTotal Tagihan: *{total}*\nTelah Dibayar: {paid}\nSisa Piutang : *{debt}*\nJatuh Tempo  : *{dueDate}*\n\nMohon dapat melakukan pelunasan sisa tagihan sebelum jatuh tempo. Terima kasih!';
@@ -583,7 +574,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                         <Text className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Jatuh Tempo</Text>
                       </View>
                       <Text className="font-black text-rose-500 text-[12px]">
-                        {new Date(selectedTrx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {formatIndonesianDateShort(selectedTrx.dueDate)}
                       </Text>
                     </View>
                   ) : null}
@@ -625,7 +616,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                         <View key={idx} className="flex-row justify-between py-1.5 border-b" style={{ borderColor: colors.border + '40' }}>
                           <View>
                             <Text className="text-[10px] font-bold" style={{ color: colors.text }}>{hist.note}</Text>
-                            <Text className="text-[8px]" style={{ color: colors.textMuted }}>{new Date(hist.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}</Text>
+                            <Text className="text-[8px]" style={{ color: colors.textMuted }}>{formatIndonesianDayMonth(hist.date)}</Text>
                           </View>
                           <Text className="text-[10px] font-black text-emerald-500">+Rp {hist.amount.toLocaleString('id-ID')}</Text>
                         </View>
@@ -909,9 +900,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                         ) : null}
                         {item.warrantyExpiry ? (
                           <Text className="font-mono text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1">
-                            🛡️ Garansi s/d: {new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {
-                              day: '2-digit', month: '2-digit', year: '2-digit'
-                            })}
+                            🛡️ Garansi s/d: {formatIndonesianDateShort(item.warrantyExpiry)}
                           </Text>
                         ) : null}
                       </View>

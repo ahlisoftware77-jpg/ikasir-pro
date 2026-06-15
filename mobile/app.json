@@ -2,7 +2,7 @@
   "expo": {
     "name": "iKasir Pro",
     "slug": "mobile",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "default",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.ikasirpro.mobile",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 6,
+      "versionCode": 7,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.VIBRATE",

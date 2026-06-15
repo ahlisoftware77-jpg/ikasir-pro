@@ -9,6 +9,7 @@ import { Mail, Lock, ShoppingBag, Eye, EyeOff, User, Store, Phone } from 'lucide
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import Svg, { Path, G } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { parseDate } from '../utils/dateFormatter';
 
 // TODO: Anda wajib mengganti webClientId ini dengan Web Client ID dari Firebase Console (Authentication -> Google)
 GoogleSignin.configure({
@@ -57,9 +58,9 @@ export default function LoginScreen() {
         }
 
         const now = new Date();
-        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        const validUntil = parseDate(userData.validUntil);
         if (validUntil) {
-          setSubscriptionUntil(userData.validUntil);
+          setSubscriptionUntil(validUntil.toISOString());
           setIsSubscriptionExpired(now > validUntil);
         } else {
           setSubscriptionUntil(null);
@@ -202,9 +203,9 @@ export default function LoginScreen() {
         }
 
         const now = new Date();
-        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        const validUntil = parseDate(userData.validUntil);
         if (validUntil) {
-          setSubscriptionUntil(userData.validUntil);
+          setSubscriptionUntil(validUntil.toISOString());
           setIsSubscriptionExpired(now > validUntil);
         } else {
           setSubscriptionUntil(null);

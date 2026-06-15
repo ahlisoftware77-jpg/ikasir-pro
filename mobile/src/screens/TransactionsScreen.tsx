@@ -9,6 +9,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton';
 import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck, ArrowUpDown } from 'lucide-react-native';
 import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseDate, formatIndonesianDate, formatIndonesianDateTime } from '../utils/dateFormatter';
 
 const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
 
@@ -425,27 +426,17 @@ export default function TransactionsScreen({ navigation }: any) {
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '...';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleString('id-ID', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).replace(/\./g, ':');
+    return formatIndonesianDateTime(timestamp);
   };
 
   const handleClaimWarranty = (item: any) => {
     if (!item.warrantyExpiry) return;
     
-    const expiryDate = item.warrantyExpiry.toDate ? item.warrantyExpiry.toDate() : new Date(item.warrantyExpiry);
+    const expiryDate = parseDate(item.warrantyExpiry);
+    if (!expiryDate) return;
     const isExpired = expiryDate < new Date();
     
-    const formattedExpiry = expiryDate.toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    const formattedExpiry = formatIndonesianDate(expiryDate);
 
     Vibration.vibrate(15);
 
@@ -491,7 +482,7 @@ export default function TransactionsScreen({ navigation }: any) {
       const paid = trx.paidAmount || 0;
       const total = trx.total || 0;
       const sisa = Math.max(0, total - paid);
-      const dDate = trx.dueDate ? new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
+      const dDate = trx.dueDate ? formatIndonesianDate(trx.dueDate) : '-';
       const trxId = trx.id?.substring(0, 8);
 
       let text = storeSettings?.waTemplate || 'Halo *{customerName}*,\n\nKami dari *{storeName}* ingin menyampaikan rincian tagihan pesanan Anda (Ref: *#{trxId}*)\n\nTotal Tagihan: *{total}*\nTelah Dibayar: {paid}\nSisa Piutang : *{debt}*\nJatuh Tempo  : *{dueDate}*\n\nMohon dapat melakukan pelunasan sisa tagihan sebelum jatuh tempo. Terima kasih!';

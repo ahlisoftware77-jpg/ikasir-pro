@@ -8,14 +8,15 @@ import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, Chev
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
+import { parseDate, formatIndonesianDate } from '../utils/dateFormatter';
 
 export default function DashboardScreen({ navigation }: any) {
   const { colors } = useTheme();
   const { user, storeId, isSubscriptionExpired, subscriptionUntil, role } = useAuthStore();
 
   const sisaHari = useMemo(() => {
-    if (!subscriptionUntil) return null;
-    const expiryDate = new Date(subscriptionUntil);
+    const expiryDate = parseDate(subscriptionUntil);
+    if (!expiryDate) return null;
     const now = new Date();
     const diffTime = expiryDate.getTime() - now.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -67,9 +68,7 @@ export default function DashboardScreen({ navigation }: any) {
 
   useEffect(() => {
     if (isSubscriptionExpired) {
-      const formattedDate = subscriptionUntil 
-        ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-        : '-';
+      const formattedDate = formatIndonesianDate(subscriptionUntil);
       Alert.alert(
         '🚨 Masa Aktif Akun Habis',
         `Masa aktif langganan akun Anda telah berakhir pada ${formattedDate}. Silakan lakukan perpanjangan agar tetap dapat mengakses semua fitur iKasir Pro secara lengkap.`,

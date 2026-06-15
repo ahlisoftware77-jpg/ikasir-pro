@@ -14,6 +14,7 @@ import { db } from './src/lib/firebase';
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
+import { parseDate } from './src/utils/dateFormatter';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -47,8 +48,8 @@ function TabNavigator() {
   const insets = useSafeAreaInsets();
 
   const sisaHari = useMemo(() => {
-    if (!subscriptionUntil) return null;
-    const expiryDate = new Date(subscriptionUntil);
+    const expiryDate = parseDate(subscriptionUntil);
+    if (!expiryDate) return null;
     const now = new Date();
     const diffTime = expiryDate.getTime() - now.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -291,9 +292,9 @@ function NavigationRoot() {
         }
 
         const now = new Date();
-        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        const validUntil = parseDate(userData.validUntil);
         if (validUntil) {
-          useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
+          useAuthStore.getState().setSubscriptionUntil(validUntil.toISOString());
           useAuthStore.getState().setIsSubscriptionExpired(now > validUntil);
 
           // Expiry warning check
@@ -472,13 +473,15 @@ function NavigationRoot() {
 
         // 2. Check Expiry
         if (data.expiryDate) {
-          const expiryDate = new Date(data.expiryDate);
-          expiryDate.setHours(0, 0, 0, 0);
-          const diffTime = expiryDate.getTime() - today.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays >= 0 && diffDays <= 30) {
-            expiringProducts.push(`${data.name} (Expired: ${diffDays} hari lagi)`);
+          const expiryDate = parseDate(data.expiryDate);
+          if (expiryDate) {
+            expiryDate.setHours(0, 0, 0, 0);
+            const diffTime = expiryDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays >= 0 && diffDays <= 30) {
+              expiringProducts.push(`${data.name} (Expired: ${diffDays} hari lagi)`);
+            }
           }
         }
       });

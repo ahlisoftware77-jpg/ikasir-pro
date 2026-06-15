@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { printReceipt } from '../utils/ReceiptHelper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { formatIndonesianDate, formatIndonesianDayMonth, formatIndonesianDateTime, formatIndonesianTime } from '../utils/dateFormatter';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { 
   ClipboardList, 
@@ -737,9 +738,9 @@ export default function OrdersScreen() {
           <View className="flex gap-4">
             {filteredOrders.map((order) => {
               const isExpanded = expandedOrderId === order.id;
-              const formattedTime = order.timestamp?.seconds 
-                ? new Date(order.timestamp.seconds * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':')
-                : new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':');
+              const formattedTime = order.timestamp 
+                ? formatIndonesianTime(order.timestamp)
+                : formatIndonesianTime(new Date());
 
               return (
                 <View 
@@ -872,7 +873,7 @@ export default function OrdersScreen() {
                                 <View>
                                   <Text className="text-xs font-bold" style={{ color: colors.text }}>{hist.note}</Text>
                                   <Text className="text-[8px] font-bold mt-0.5" style={{ color: colors.textMuted }}>
-                                    {new Date(hist.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    {formatIndonesianDateTime(hist.date)}
                                   </Text>
                                 </View>
                                 <Text className="text-xs font-black text-emerald-500">Rp {hist.amount?.toLocaleString('id-ID')}</Text>

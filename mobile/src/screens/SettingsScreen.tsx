@@ -13,6 +13,7 @@ LocaleConfig.defaultLocale = 'id';
 
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
+import { formatIndonesianDate } from '../utils/dateFormatter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -1242,7 +1243,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Masa Aktif Akun</Text>
                   <Text className="font-bold text-[10px] mt-0.5" style={{ color: colors.textMuted }}>
                     {isSubscriptionExpired ? 'Berakhir pada ' : 'Berlaku s/d '} 
-                    {subscriptionUntil ? new Date(subscriptionUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                    {formatIndonesianDate(subscriptionUntil)}
                   </Text>
                 </View>
               </View>

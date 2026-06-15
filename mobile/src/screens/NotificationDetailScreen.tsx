@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Image, Linking, ActivityIndic
 import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Calendar, ExternalLink, ShoppingBag, Eye } from 'lucide-react-native';
+import { formatIndonesianDate, formatIndonesianTime } from '../utils/dateFormatter';
 import { Button3D } from './SuperAdminScreen';
 
 export default function NotificationDetailScreen({ route, navigation }: any) {
@@ -24,15 +25,9 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
   const transactionId = notification.data?.transactionId;
 
   const formatTime = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      const hours = String(d.getHours()).padStart(2, '0');
-      const mins = String(d.getMinutes()).padStart(2, '0');
-      const dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-      return `${dateStr} pukul ${hours}:${mins}`;
-    } catch {
-      return '';
-    }
+    const dateStr = formatIndonesianDate(isoString);
+    const timeStr = formatIndonesianTime(isoString);
+    return `${dateStr} pukul ${timeStr}`;
   };
 
   const handleOpenLink = async () => {

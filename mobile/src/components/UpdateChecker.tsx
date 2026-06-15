@@ -6,7 +6,7 @@ import { AlertTriangle, Download } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import * as Updates from 'expo-updates';
 
-const CURRENT_VERSION_CODE = 2; // Increment this with every new APK build
+const CURRENT_VERSION_CODE = 7; // Increment this with every new APK build
 
 export default function UpdateChecker() {
   const [needsUpdate, setNeedsUpdate] = useState(false);

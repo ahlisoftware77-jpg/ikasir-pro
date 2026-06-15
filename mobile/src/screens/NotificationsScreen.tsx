@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Vibration } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useNotificationStore, NotificationItem } from '../store/notificationStore';
+import { formatIndonesianDayMonth, formatIndonesianTime } from '../utils/dateFormatter';
 import { Bell, Trash2, CheckCheck, ChevronRight, Inbox } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,15 +21,9 @@ export default function NotificationsScreen({ navigation }: any) {
   };
 
   const formatTime = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      const hours = String(d.getHours()).padStart(2, '0');
-      const mins = String(d.getMinutes()).padStart(2, '0');
-      const dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-      return `${dateStr} pukul ${hours}:${mins}`;
-    } catch {
-      return '';
-    }
+    const dateStr = formatIndonesianDayMonth(isoString);
+    const timeStr = formatIndonesianTime(isoString);
+    return `${dateStr} pukul ${timeStr}`;
   };
 
   const renderItem = ({ item }: { item: NotificationItem }) => {
