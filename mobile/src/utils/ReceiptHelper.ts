@@ -600,13 +600,13 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
   
   let branding: any = null;
 
-  if ((!settings || !settings.storeName || settings.storeName === 'Kasir Pro Store' || settings.storeName === 'KASIR PRO' || (!settings.logoUrl && !settings.thermalLogoUrl)) && transaction?.storeId) {
+  if (transaction?.storeId) {
     try {
       const { db } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${transaction.storeId}`));
       if (docSnap.exists()) {
-        settings = docSnap.data();
+        settings = { ...settings, ...docSnap.data() };
       }
     } catch (err) {
       console.warn("Failed to fetch settings from Firestore in printReceipt:", err);
@@ -719,13 +719,13 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
 
 export const printA4 = async (trx: any, storeSettings?: any) => {
   let settings = storeSettings;
-  if ((!settings || !settings.storeName) && trx?.storeId) {
+  if (trx?.storeId) {
     try {
       const { db } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${trx.storeId}`));
       if (docSnap.exists()) {
-        settings = docSnap.data();
+        settings = { ...settings, ...docSnap.data() };
       }
     } catch (err) {
       console.warn("Failed to fetch settings from Firestore in printA4:", err);
@@ -918,13 +918,13 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
 
 export const printA4Delivery = async (trx: any, storeSettings?: any) => {
   let settings = storeSettings;
-  if ((!settings || !settings.storeName) && trx?.storeId) {
+  if (trx?.storeId) {
     try {
       const { db } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${trx.storeId}`));
       if (docSnap.exists()) {
-        settings = docSnap.data();
+        settings = { ...settings, ...docSnap.data() };
       }
     } catch (err) {
       console.warn("Failed to fetch settings from Firestore in printA4Delivery:", err);
