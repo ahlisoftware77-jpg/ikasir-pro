@@ -150,7 +150,7 @@ index d86e4f5..c8d2cbd 100644
  }
 \ No newline at end of file
 diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java b/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java
-index dd5d33e..d642d15 100644
+index dd5d33e..7272dd6 100644
 --- a/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java
 +++ b/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java
 @@ -10,8 +10,8 @@ import android.content.Intent;
@@ -177,3 +177,237 @@ index dd5d33e..d642d15 100644
      }
  
      @Override
+@@ -119,118 +123,151 @@ public class RNBluetoothManagerModule extends ReactContextBaseJavaModule
+ 
+     @ReactMethod
+     public void enableBluetooth(final Promise promise) {
+-        BluetoothAdapter adapter = this.getBluetoothAdapter();
+-        if(adapter == null){
+-            promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT);
+-        }else if (!adapter.isEnabled()) {
+-            // If Bluetooth is not on, request that it be enabled.
+-            // setupChat() will then be called during onActivityResult
+-            Intent enableIntent = new Intent(
+-                    BluetoothAdapter.ACTION_REQUEST_ENABLE);
+-            promiseMap.put(PROMISE_ENABLE_BT, promise);
+-            this.reactContext.startActivityForResult(enableIntent, REQUEST_ENABLE_BT, Bundle.EMPTY);
+-        } else {
+-            WritableArray pairedDeivce =Arguments.createArray();
+-            Set<BluetoothDevice> boundDevices = adapter.getBondedDevices();
+-            for (BluetoothDevice d : boundDevices) {
+-                try {
+-                    JSONObject obj = new JSONObject();
+-                    obj.put("name", d.getName());
+-                    obj.put("address", d.getAddress());
+-                    pairedDeivce.pushString(obj.toString());
+-                } catch (Exception e) {
+-                    //ignore.
+-                }
+-            }Log.d(TAG,"ble Enabled");
+-            promise.resolve(pairedDeivce);
++        try {
++            BluetoothAdapter adapter = this.getBluetoothAdapter();
++            if(adapter == null){
++                promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT);
++            }else if (!adapter.isEnabled()) {
++                // If Bluetooth is not on, request that it be enabled.
++                // setupChat() will then be called during onActivityResult
++                Intent enableIntent = new Intent(
++                        BluetoothAdapter.ACTION_REQUEST_ENABLE);
++                promiseMap.put(PROMISE_ENABLE_BT, promise);
++                this.reactContext.startActivityForResult(enableIntent, REQUEST_ENABLE_BT, Bundle.EMPTY);
++            } else {
++                WritableArray pairedDeivce =Arguments.createArray();
++                Set<BluetoothDevice> boundDevices = adapter.getBondedDevices();
++                for (BluetoothDevice d : boundDevices) {
++                    try {
++                        JSONObject obj = new JSONObject();
++                        obj.put("name", d.getName());
++                        obj.put("address", d.getAddress());
++                        pairedDeivce.pushString(obj.toString());
++                    } catch (Exception e) {
++                        //ignore.
++                    }
++                }Log.d(TAG,"ble Enabled");
++                promise.resolve(pairedDeivce);
++            }
++        } catch (SecurityException e) {
++            promise.reject("SECURITY_EXCEPTION", "Permission BLUETOOTH_CONNECT not granted", e);
++        } catch (Exception e) {
++            promise.reject("ERROR", e.getMessage(), e);
+         }
+     }
+ 
+     @ReactMethod
+     public void disableBluetooth(final Promise promise) {
+-        BluetoothAdapter adapter = this.getBluetoothAdapter();
+-        if(adapter == null){
+-            promise.resolve(true);
+-        }else {
+-            if (mService != null && mService.getState() != BluetoothService.STATE_NONE) {
+-                mService.stop();
++        try {
++            BluetoothAdapter adapter = this.getBluetoothAdapter();
++            if(adapter == null){
++                promise.resolve(true);
++            }else {
++                if (mService != null && mService.getState() != BluetoothService.STATE_NONE) {
++                    mService.stop();
++                }
++                promise.resolve(!adapter.isEnabled() || adapter.disable());
+             }
+-            promise.resolve(!adapter.isEnabled() || adapter.disable());
++        } catch (SecurityException e) {
++            promise.reject("SECURITY_EXCEPTION", "Permission BLUETOOTH_CONNECT not granted", e);
++        } catch (Exception e) {
++            promise.reject("ERROR", e.getMessage(), e);
+         }
+     }
+ 
+     @ReactMethod
+     public void isBluetoothEnabled(final Promise promise) {
+-        BluetoothAdapter adapter = this.getBluetoothAdapter();
+-        promise.resolve(adapter!=null && adapter.isEnabled());
++        try {
++            BluetoothAdapter adapter = this.getBluetoothAdapter();
++            promise.resolve(adapter!=null && adapter.isEnabled());
++        } catch (SecurityException e) {
++            promise.resolve(false);
++        } catch (Exception e) {
++            promise.resolve(false);
++        }
+     }
+ 
+     @ReactMethod
+     public void scanDevices(final Promise promise) {
+-        BluetoothAdapter adapter = this.getBluetoothAdapter();
+-        if(adapter == null){
+-            promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT);
+-        }else {
+-            cancelDisCovery();
+-            int permissionChecked = ContextCompat.checkSelfPermission(reactContext, android.Manifest.permission.ACCESS_COARSE_LOCATION);
+-            if (permissionChecked == PackageManager.PERMISSION_DENIED) {
+-                // // TODO: 2018/9/21
+-                ActivityCompat.requestPermissions(reactContext.getCurrentActivity(),
+-                        new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION},
+-                        1);
+-            }
+-
++        try {
++            BluetoothAdapter adapter = this.getBluetoothAdapter();
++            if(adapter == null){
++                promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT);
++            }else {
++                cancelDisCovery();
++                int permissionChecked = ContextCompat.checkSelfPermission(reactContext, android.Manifest.permission.ACCESS_COARSE_LOCATION);
++                if (permissionChecked == PackageManager.PERMISSION_DENIED) {
++                    // // TODO: 2018/9/21
++                    ActivityCompat.requestPermissions(reactContext.getCurrentActivity(),
++                            new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION},
++                            1);
++                }
+ 
+-            pairedDeivce = new JSONArray();
+-            foundDevice = new JSONArray();
+-            Set<BluetoothDevice> boundDevices = adapter.getBondedDevices();
+-            for (BluetoothDevice d : boundDevices) {
+-                try {
+-                    JSONObject obj = new JSONObject();
+-                    obj.put("name", d.getName());
+-                    obj.put("address", d.getAddress());
+-                    pairedDeivce.put(obj);
+-                } catch (Exception e) {
+-                    //ignore.
++                pairedDeivce = new JSONArray();
++                foundDevice = new JSONArray();
++                Set<BluetoothDevice> boundDevices = adapter.getBondedDevices();
++                for (BluetoothDevice d : boundDevices) {
++                    try {
++                        JSONObject obj = new JSONObject();
++                        obj.put("name", d.getName());
++                        obj.put("address", d.getAddress());
++                        pairedDeivce.put(obj);
++                    } catch (Exception e) {
++                        //ignore.
++                    }
+                 }
+-            }
+ 
+-            WritableMap params = Arguments.createMap();
+-            params.putString("devices", pairedDeivce.toString());
+-            emitRNEvent(EVENT_DEVICE_ALREADY_PAIRED, params);
+-            if (!adapter.startDiscovery()) {
+-                promise.reject("DISCOVER", "NOT_STARTED");
+-                cancelDisCovery();
+-            } else {
+-                promiseMap.put(PROMISE_SCAN, promise);
++                WritableMap params = Arguments.createMap();
++                params.putString("devices", pairedDeivce.toString());
++                emitRNEvent(EVENT_DEVICE_ALREADY_PAIRED, params);
++                if (!adapter.startDiscovery()) {
++                    promise.reject("DISCOVER", "NOT_STARTED");
++                    cancelDisCovery();
++                } else {
++                    promiseMap.put(PROMISE_SCAN, promise);
++                }
+             }
++        } catch (SecurityException e) {
++            promise.reject("SECURITY_EXCEPTION", "Permission BLUETOOTH_SCAN/BLUETOOTH_CONNECT not granted", e);
++        } catch (Exception e) {
++            promise.reject("ERROR", e.getMessage(), e);
+         }
+     }
+ 
+     @ReactMethod
+     public void connect(String address, final Promise promise) {
+-        BluetoothAdapter adapter = this.getBluetoothAdapter();
+-        if (adapter!=null && adapter.isEnabled()) {
+-            BluetoothDevice device = adapter.getRemoteDevice(address);
+-            promiseMap.put(PROMISE_CONNECT, promise);
+-            mService.connect(device);
+-        } else {
+-            promise.reject("BT NOT ENABLED");
++        try {
++            BluetoothAdapter adapter = this.getBluetoothAdapter();
++            if (adapter!=null && adapter.isEnabled()) {
++                BluetoothDevice device = adapter.getRemoteDevice(address);
++                promiseMap.put(PROMISE_CONNECT, promise);
++                mService.connect(device);
++            } else {
++                promise.reject("BT NOT ENABLED");
++            }
++        } catch (SecurityException e) {
++            promise.reject("SECURITY_EXCEPTION", "Permission BLUETOOTH_CONNECT not granted", e);
++        } catch (Exception e) {
++            promise.reject("ERROR", e.getMessage(), e);
+         }
+-
+     }
+ 
+     @ReactMethod
+     public void unpaire(String address,final Promise promise){
+-        BluetoothAdapter adapter = this.getBluetoothAdapter();
+-        if (adapter!=null && adapter.isEnabled()) {
+-            BluetoothDevice device = adapter.getRemoteDevice(address);
+-            this.unpairDevice(device);
+-            promise.resolve(address);
+-        } else {
+-            promise.reject("BT NOT ENABLED");
++        try {
++            BluetoothAdapter adapter = this.getBluetoothAdapter();
++            if (adapter!=null && adapter.isEnabled()) {
++                BluetoothDevice device = adapter.getRemoteDevice(address);
++                this.unpairDevice(device);
++                promise.resolve(address);
++            } else {
++                promise.reject("BT NOT ENABLED");
++            }
++        } catch (SecurityException e) {
++            promise.reject("SECURITY_EXCEPTION", "Permission BLUETOOTH_CONNECT not granted", e);
++        } catch (Exception e) {
++            promise.reject("ERROR", e.getMessage(), e);
+         }
+-
+     }
+ 
+     private void unpairDevice(BluetoothDevice device) {

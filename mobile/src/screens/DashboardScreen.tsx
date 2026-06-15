@@ -145,20 +145,25 @@ export default function DashboardScreen({ navigation }: any) {
     const productMap: Record<string, { name: string; qty: number; category?: string }> = {};
 
     transactions.forEach((trx) => {
-      if (trx.orderStatus === 'cancelled' || trx.paymentStatus === 'cancelled') return;
+      if (!trx || trx.orderStatus === 'cancelled' || trx.paymentStatus === 'cancelled') return;
 
-      revenue += (trx.total || 0);
+      revenue += Number(trx.total || 0);
       trx.items?.forEach((item: any) => {
-        productsSold += (item.qty || 0);
+        if (!item) return;
+        const itemQty = Number(item.qty || 0);
+        productsSold += isNaN(itemQty) ? 0 : itemQty;
         const prodId = item.productId || item.name;
+        if (!prodId) return;
+        
         if (!productMap[prodId]) {
           productMap[prodId] = { 
-            name: item.productName || item.name, 
+            name: item.productName || item.name || 'Produk', 
             qty: 0,
             category: item.category || 'Umum'
           };
         }
-        productMap[prodId].qty += (item.qty || 0);
+        const parsedQty = Number(item.qty || 0);
+        productMap[prodId].qty += isNaN(parsedQty) ? 0 : parsedQty;
       });
     });
 
@@ -440,8 +445,9 @@ export default function DashboardScreen({ navigation }: any) {
           ) : (
             <View className="flex gap-4">
               {topProducts.map((item, index) => {
-                const maxQty = topProducts[0]?.qty || 1;
-                const percentage = (item.qty / maxQty) * 100;
+                const maxQty = Number(topProducts[0]?.qty || 1);
+                const rawPercentage = (Number(item.qty || 0) / (maxQty > 0 ? maxQty : 1)) * 100;
+                const percentage = isNaN(rawPercentage) || !isFinite(rawPercentage) ? 0 : rawPercentage;
                 
                 // Beautiful badge decorations for rank
                 const rankColor = index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : index === 2 ? '#d97706' : colors.textMuted;
