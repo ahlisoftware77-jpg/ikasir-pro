@@ -2,7 +2,7 @@
   "expo": {
     "name": "iKasir Pro",
     "slug": "mobile",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "default",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
