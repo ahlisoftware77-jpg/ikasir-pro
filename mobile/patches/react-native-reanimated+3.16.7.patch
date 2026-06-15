@@ -1,0 +1,2817 @@
+diff --git a/node_modules/react-native-reanimated/android/.project b/node_modules/react-native-reanimated/android/.project
+new file mode 100644
+index 0000000..85d1a1e
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/.project
+@@ -0,0 +1,34 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>react-native-reanimated</name>
++	<comment>Project react-native-reanimated created by Buildship.</comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.jdt.core.javabuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++		<buildCommand>
++			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.jdt.core.javanature</nature>
++		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
++	</natures>
++	<filteredResources>
++		<filter>
++			<id>1780110295281</id>
++			<name></name>
++			<type>30</type>
++			<matcher>
++				<id>org.eclipse.core.resources.regexFilterMatcher</id>
++				<arguments>node_modules|\.git|__CREATED_BY_JAVA_LANGUAGE_SERVER__</arguments>
++			</matcher>
++		</filter>
++	</filteredResources>
++</projectDescription>
+diff --git a/node_modules/react-native-reanimated/android/bin/build.gradle b/node_modules/react-native-reanimated/android/bin/build.gradle
+new file mode 100644
+index 0000000..6129944
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/build.gradle
+@@ -0,0 +1,560 @@
++import com.android.Version
++import org.apache.tools.ant.filters.ReplaceTokens
++import org.apache.tools.ant.taskdefs.condition.Os
++import groovy.json.JsonSlurper
++import com.android.build.gradle.tasks.ExternalNativeBuildJsonTask
++
++import javax.inject.Inject
++import java.nio.file.Files
++import java.nio.file.Paths
++
++/**
++ * Finds the path of the installed npm package with the given name using Node's
++ * module resolution algorithm, which searches "node_modules" directories up to
++ * the file system root. This handles various cases, including:
++ *
++ *   - Working in the open-source RN repo:
++ *       Gradle: /path/to/react-native/ReactAndroid
++ *       Node module: /path/to/react-native/node_modules/[package]
++ *
++ *   - Installing RN as a dependency of an app and searching for hoisted
++ *     dependencies:
++ *       Gradle: /path/to/app/node_modules/react-native/ReactAndroid
++ *       Node module: /path/to/app/node_modules/[package]
++ *
++ *   - Working in a larger repo (e.g., Facebook) that contains RN:
++ *       Gradle: /path/to/repo/path/to/react-native/ReactAndroid
++ *       Node module: /path/to/repo/node_modules/[package]
++ *
++ * The search begins at the given base directory (a File object). The returned
++ * path is a string.
++ */
++static def findNodeModulePath(baseDir, packageName) {
++    def basePath = baseDir.toPath().normalize()
++    // Node's module resolution algorithm searches up to the root directory,
++    // after which the base path will be null
++    while (basePath) {
++        def candidatePath = Paths.get(basePath.toString(), "node_modules", packageName)
++        if (candidatePath.toFile().exists()) {
++            return candidatePath.toString()
++        }
++        basePath = basePath.getParent()
++    }
++    return null
++}
++
++def safeExtGet(prop, fallback) {
++    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
++}
++
++def safeAppExtGet(prop, fallback) {
++    def appProject = rootProject.allprojects.find { it.plugins.hasPlugin('com.android.application') }
++    appProject?.ext?.has(prop) ? appProject.ext.get(prop) : fallback
++}
++
++def resolveBuildType() {
++    Gradle gradle = getGradle()
++    String tskReqStr = gradle.getStartParameter().getTaskRequests()['args'].toString()
++    return tskReqStr.contains('Release') ? 'release' : 'debug'
++}
++
++def isReanimatedExampleApp() {
++    return safeAppExtGet("isReanimatedExampleApp", false)
++}
++
++def isNewArchitectureEnabled() {
++    // To opt-in for the New Architecture, you can either:
++    // - Set `newArchEnabled` to true inside the `gradle.properties` file
++    // - Invoke gradle with `-newArchEnabled=true`
++    // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`
++    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
++}
++
++def resolveReactNativeDirectory() {
++    def reactNativeLocation = safeAppExtGet("REACT_NATIVE_NODE_MODULES_DIR", null)
++    if (reactNativeLocation != null) {
++        return file(reactNativeLocation)
++    }
++
++    // Fallback to node resolver for custom directory structures like monorepos.
++    def reactNativePackage = file(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim())
++    if(reactNativePackage.exists()) {
++        return reactNativePackage.parentFile
++    }
++
++    throw new GradleException(
++        "[Reanimated] Unable to resolve react-native location in node_modules. You should project extension property (in `app/build.gradle`) `REACT_NATIVE_NODE_MODULES_DIR` with path to react-native."
++    )
++}
++
++def getPlaygroundAppName() { // only for the development
++    String playgroundAppName = ""
++    try {
++        rootProject.getSubprojects().forEach({project ->
++            if (project.plugins.hasPlugin("com.android.application")) {
++                var projectCatalogAbsolutePath = project.projectDir.toString().replace("/android/app", "")
++                var slashPosition = projectCatalogAbsolutePath.lastIndexOf("/")
++                playgroundAppName = projectCatalogAbsolutePath.substring(slashPosition + 1)
++            }
++        })
++    } catch (_) {
++        throw new GradleException("[Reanimated] Couldn't determine playground app name.")
++    }
++    return playgroundAppName
++}
++
++def getReanimatedVersion() {
++    def inputFile = file(projectDir.path + '/../package.json')
++    def json = new JsonSlurper().parseText(inputFile.text)
++    return json.version
++}
++
++def getReanimatedMajorVersion() {
++    def (major, minor, patch) = getReanimatedVersion().tokenize('.')
++    return major.toInteger()
++}
++
++def toPlatformFileString(String path) {
++  if (Os.isFamily(Os.FAMILY_WINDOWS)) {
++      path = path.replace(File.separatorChar, '/' as char)
++  }
++  return path
++}
++
++if (isNewArchitectureEnabled()) {
++    apply plugin: "com.facebook.react"
++}
++
++def reactNativeRootDir = resolveReactNativeDirectory()
++
++def reactProperties = new Properties()
++file("$reactNativeRootDir/ReactAndroid/gradle.properties").withInputStream { reactProperties.load(it) }
++
++def REACT_NATIVE_VERSION = reactProperties.getProperty("VERSION_NAME")
++def REACT_NATIVE_MINOR_VERSION = REACT_NATIVE_VERSION.startsWith("0.0.0-") ? 1000 : REACT_NATIVE_VERSION.split("\\.")[1].toInteger()
++def REANIMATED_VERSION = getReanimatedVersion()
++def REANIMATED_MAJOR_VERSION = getReanimatedMajorVersion()
++def IS_NEW_ARCHITECTURE_ENABLED = isNewArchitectureEnabled()
++
++// We download various C++ open-source dependencies into downloads.
++// We then copy both the downloaded code and our custom makefiles and headers into third-party-ndk.
++// After that we build native code from src/main/jni with module path pointing at third-party-ndk.
++
++def customDownloadsDir = System.getenv("REACT_NATIVE_DOWNLOADS_DIR")
++def downloadsDir = customDownloadsDir ? new File(customDownloadsDir) : new File("$buildDir/downloads")
++def thirdPartyNdkDir = new File("$buildDir/third-party-ndk")
++
++def reactNativeThirdParty = new File("$reactNativeRootDir/ReactAndroid/src/main/jni/third-party")
++def reactNativeAndroidDownloadDir = new File("$reactNativeRootDir/ReactAndroid/build/downloads")
++
++def workletsPrefabHeadersDir = project.file("$buildDir/prefab-headers/worklets")
++def reanimatedPrefabHeadersDir = project.file("$buildDir/prefab-headers/reanimated")
++
++def JS_RUNTIME = {
++    // Override JS runtime with environment variable
++    if (System.getenv("JS_RUNTIME")) {
++        return System.getenv("JS_RUNTIME")
++    }
++
++    // Enable V8 runtime if react-native-v8 is installed
++    def v8Project = rootProject.getSubprojects().find { project -> project.name == "react-native-v8" }
++    if (v8Project != null) {
++        return "v8"
++    }
++
++    // Check if Hermes is enabled in app setup
++    def appProject = rootProject.allprojects.find { it.plugins.hasPlugin('com.android.application') }
++    if (appProject?.hermesEnabled?.toBoolean() || appProject?.ext?.react?.enableHermes?.toBoolean()) {
++        return "hermes"
++    }
++
++    // Use JavaScriptCore (JSC) by default
++    return "jsc"
++}.call()
++
++def jsRuntimeDir = {
++    if (JS_RUNTIME == "hermes") {
++        return Paths.get(reactNativeRootDir.path, "sdks", "hermes")
++    } else if (JS_RUNTIME == "v8") {
++        return findProject(":react-native-v8").getProjectDir().getParent()
++    } else {
++        return Paths.get(reactNativeRootDir.path, "ReactCommon", "jsi")
++    }
++}.call()
++
++def reactNativeArchitectures() {
++    def value = project.getProperties().get("reactNativeArchitectures")
++    return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
++}
++
++buildscript {
++    repositories {
++        google()
++        mavenCentral()
++        maven {
++            url "https://plugins.gradle.org/m2/"
++        }
++    }
++    dependencies {
++        classpath "com.android.tools.build:gradle:7.3.1"
++        classpath "de.undercouch:gradle-download-task:5.0.1"
++        classpath "com.diffplug.spotless:spotless-plugin-gradle:6.11.0"
++    }
++}
++
++if (project == rootProject) {
++    apply from: "spotless.gradle"
++}
++
++apply plugin: "com.android.library"
++apply plugin: "maven-publish"
++apply plugin: "de.undercouch.download"
++
++android {
++    compileSdkVersion safeExtGet("compileSdkVersion", 30)
++
++    def agpVersion = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
++    if (agpVersion.tokenize('.')[0].toInteger() >= 7) {
++        namespace "com.swmansion.reanimated"
++    }
++
++    if (rootProject.hasProperty("ndkPath")) {
++        ndkPath rootProject.ext.ndkPath
++    }
++    if (rootProject.hasProperty("ndkVersion")) {
++        ndkVersion rootProject.ext.ndkVersion
++    }
++
++    buildFeatures {
++        prefab true
++        prefabPublishing true
++        buildConfig true
++    }
++
++    prefab {
++        worklets {
++            headers workletsPrefabHeadersDir.absolutePath
++        }
++        reanimated {
++            headers reanimatedPrefabHeadersDir.absolutePath
++        }
++    }
++
++    defaultConfig {
++        minSdkVersion safeExtGet("minSdkVersion", 16)
++        targetSdkVersion safeExtGet("targetSdkVersion", 30)
++        versionCode 1
++        versionName "1.0"
++        buildConfigField("boolean", "IS_NEW_ARCHITECTURE_ENABLED", IS_NEW_ARCHITECTURE_ENABLED.toString())
++        buildConfigField("String", "REANIMATED_VERSION_JAVA", "\"${REANIMATED_VERSION}\"")
++        externalNativeBuild {
++            cmake {
++                arguments "-DANDROID_STL=c++_shared",
++                        "-DREACT_NATIVE_MINOR_VERSION=${REACT_NATIVE_MINOR_VERSION}",
++                        "-DANDROID_TOOLCHAIN=clang",
++                        "-DREACT_NATIVE_DIR=${toPlatformFileString(reactNativeRootDir.path)}",
++                        "-DJS_RUNTIME=${JS_RUNTIME}",
++                        "-DJS_RUNTIME_DIR=${jsRuntimeDir}",
++                        "-DIS_NEW_ARCHITECTURE_ENABLED=${IS_NEW_ARCHITECTURE_ENABLED}",
++                        "-DIS_REANIMATED_EXAMPLE_APP=${isReanimatedExampleApp()}",
++                        "-DREANIMATED_VERSION=${REANIMATED_VERSION}"
++                abiFilters (*reactNativeArchitectures())
++            }
++        }
++
++        buildConfigField("boolean", "IS_INTERNAL_BUILD", "false")
++        buildConfigField("int", "EXOPACKAGE_FLAGS", "0")
++        buildConfigField("int", "REACT_NATIVE_MINOR_VERSION", REACT_NATIVE_MINOR_VERSION.toString())
++
++        consumerProguardFiles 'proguard-rules.pro'
++    }
++    externalNativeBuild {
++        cmake {
++            version = System.getenv("CMAKE_VERSION") ?: "3.22.1"
++            path "CMakeLists.txt"
++        }
++    }
++    buildTypes {
++        debug {
++            externalNativeBuild {
++                cmake {
++                    if (JS_RUNTIME == "hermes") {
++                        arguments "-DHERMES_ENABLE_DEBUGGER=1"
++                    } else {
++                        arguments "-DHERMES_ENABLE_DEBUGGER=0"
++                    }
++                }
++            }
++        }
++        release {
++            externalNativeBuild {
++                cmake {
++                    arguments "-DHERMES_ENABLE_DEBUGGER=0"
++                }
++            }
++        }
++    }
++    lintOptions {
++        abortOnError false
++    }
++    packagingOptions {
++        doNotStrip resolveBuildType() == 'debug' ? "**/**/*.so" : ''
++        // For some reason gradle only complains about the duplicated version of librrc_root and libreact_render libraries
++        // while there are more libraries copied in intermediates folder of the lib build directory, we exclude
++        // only the ones that make the build fail (ideally we should only include libreanimated but we
++        // are only allowed to specify exclude patterns)
++        excludes = [
++                "META-INF",
++                "META-INF/**",
++                "**/libc++_shared.so",
++                "**/libfbjni.so",
++                "**/libjsi.so",
++                "**/libfolly_json.so",
++                "**/libfolly_runtime.so",
++                "**/libglog.so",
++                "**/libhermes.so",
++                "**/libhermes-executor-debug.so",
++                "**/libhermes_executor.so",
++                "**/libhermestooling.so",
++                "**/libreactnativejni.so",
++                "**/libturbomodulejsijni.so",
++                "**/libreactnative.so",
++                "**/libreact_nativemodule_core.so",
++                "**/libreact_render*.so",
++                "**/librrc_root.so",
++                "**/libjscexecutor.so",
++                "**/libv8executor.so",
++        ]
++    }
++    tasks.withType(JavaCompile) {
++        compileTask ->
++            compileTask.dependsOn(packageNdkLibs)
++    }
++    configurations {
++        extractHeaders
++        extractSO
++    }
++    compileOptions {
++        sourceCompatibility JavaVersion.VERSION_1_8
++        targetCompatibility JavaVersion.VERSION_1_8
++    }
++    sourceSets.main {
++        java {
++            if (IS_NEW_ARCHITECTURE_ENABLED) {
++                srcDirs += "src/fabric/java"
++            } else {
++                srcDirs += "src/paper/java"
++            }
++
++            // messageQueueThread
++            if (REANIMATED_MAJOR_VERSION > 2) {
++                if (REACT_NATIVE_MINOR_VERSION <= 72) {
++                    srcDirs += "src/reactNativeVersionPatch/messageQueueThread/72"
++                } else {
++                    srcDirs += "src/reactNativeVersionPatch/messageQueueThread/latest"
++                }
++            }
++
++            // ReanimatedUIManager & ReanimatedUIImplementation
++            if (REACT_NATIVE_MINOR_VERSION <= 73) {
++                srcDirs += "src/reactNativeVersionPatch/ReanimatedUIManager/73"
++            } else if (REACT_NATIVE_MINOR_VERSION <= 74) {
++                srcDirs += "src/reactNativeVersionPatch/ReanimatedUIManager/74"
++            } else {
++                srcDirs += "src/reactNativeVersionPatch/ReanimatedUIManager/latest"
++            }
++
++            // ReactHost
++            if (REACT_NATIVE_MINOR_VERSION <= 72) {
++                srcDirs += "src/reactNativeVersionPatch/ReactHost/72"
++            } else {
++                srcDirs += "src/reactNativeVersionPatch/ReactHost/latest"
++            }
++
++            // ReactFeatureFlags
++            if (IS_NEW_ARCHITECTURE_ENABLED) {
++                if (REACT_NATIVE_MINOR_VERSION <= 72) {
++                    srcDirs += "src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72"
++                } else if (REACT_NATIVE_MINOR_VERSION <= 74) {
++                    srcDirs += "src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74"
++                } else {
++                    srcDirs += "src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest"
++                }
++            }
++
++            if (IS_NEW_ARCHITECTURE_ENABLED) {
++                // RuntimeExecutor and CallInvokerHolder
++                if (REACT_NATIVE_MINOR_VERSION <= 73) {
++                    srcDirs += "src/reactNativeVersionPatch/NativeProxyFabric/73"
++                } else if (REACT_NATIVE_MINOR_VERSION <= 74) {
++                    srcDirs += "src/reactNativeVersionPatch/NativeProxyFabric/74"
++                } else {
++                    srcDirs += "src/reactNativeVersionPatch/NativeProxyFabric/latest"
++                }
++            } else {
++                // CallInvokerHolder
++                if (REACT_NATIVE_MINOR_VERSION <= 74) {
++                    srcDirs += "src/reactNativeVersionPatch/NativeProxyPaper/74"
++                } else {
++                    srcDirs += "src/reactNativeVersionPatch/NativeProxyPaper/latest"
++                }
++            }
++
++            // BorderRadiiDrawableUtils
++            if (REACT_NATIVE_MINOR_VERSION <= 74) {
++                srcDirs += "src/reactNativeVersionPatch/BorderRadiiDrawableUtils/74"
++            } else if (REACT_NATIVE_MINOR_VERSION <= 75) {
++                srcDirs += "src/reactNativeVersionPatch/BorderRadiiDrawableUtils/75"
++            } else {
++                srcDirs += "src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest"
++            }
++
++            // ReanimatedNativeHierarchyManager
++            if (REACT_NATIVE_MINOR_VERSION <= 75) {
++                srcDirs += "src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75"
++            } else {
++                srcDirs += "src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest"
++            }
++        }
++    }
++    tasks.withType(ExternalNativeBuildJsonTask) {
++        compileTask ->
++            compileTask.doLast {
++                if (!isReanimatedExampleApp()) {
++                    return
++                }
++                def monorepoDir = new File("${project.projectDir}/../../..")
++
++                def generated = new File("${compileTask.abi.getCxxBuildFolder()}/compile_commands.json")
++                def output = new File("${monorepoDir}/compile_commands.json")
++
++                output.text = generated.text
++
++                println("Generated clangd metadata.")
++            }
++    }
++}
++
++def assertLatestReactNativeWithNewArchitecture = task assertLatestReactNativeWithNewArchitectureTask {
++    onlyIf { IS_NEW_ARCHITECTURE_ENABLED && REANIMATED_MAJOR_VERSION == 3 && REACT_NATIVE_MINOR_VERSION < 74 }
++    doFirst {
++        // If you change the minimal React Native version remember to update Compatibility Table in docs
++        throw new GradleException(
++            "[Reanimated] Outdated version of React Native for New Architecture. Reanimated " + REANIMATED_VERSION + " supports the New Architecture on React Native 0.74.0+. See https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#outdated-version-of-react-native-for-new-architecture for more information."
++        )
++    }
++}
++
++def assertMinimalReactNativeVersion = task assertMinimalReactNativeVersionTask {
++    onlyIf { REACT_NATIVE_MINOR_VERSION < 71 }
++    doFirst {
++        // If you change the minimal React Native version remember to update Compatibility Table in docs
++        throw new GradleException("[Reanimated] Unsupported React Native version. Please use 0.71 or newer.")
++    }
++}
++
++task prepareWorkletsHeadersForPrefabs(type: Copy) {
++    from("$projectDir/src/main/cpp")
++    from("$projectDir/../Common/cpp")
++    include("worklets/**/*.h")
++    into(workletsPrefabHeadersDir)
++}
++
++task prepareReanimatedHeadersForPrefabs(type: Copy) {
++    from("$projectDir/src/main/cpp")
++    from("$projectDir/../Common/cpp")
++    include("reanimated/**/*.h")
++    into(reanimatedPrefabHeadersDir)
++}
++
++tasks.preBuild {
++    dependsOn assertLatestReactNativeWithNewArchitecture, assertMinimalReactNativeVersion
++}
++
++task cleanCmakeCache() {
++    tasks.getByName("clean").dependsOn(cleanCmakeCache)
++    doFirst {
++        delete "${projectDir}/.cxx"
++    }
++}
++
++task printVersions {
++    println "Android gradle plugin: ${Version.ANDROID_GRADLE_PLUGIN_VERSION}"
++    println "Gradle: ${project.gradle.gradleVersion}"
++}
++
++task createNativeDepsDirectories() {
++    downloadsDir.mkdirs()
++    thirdPartyNdkDir.mkdirs()
++    workletsPrefabHeadersDir.mkdirs()
++    reanimatedPrefabHeadersDir.mkdirs()
++}
++
++task packageNdkLibs(type: Copy) {
++    from("$buildDir/reanimated-ndk/all")
++    include("**/libreanimated.so")
++    include("**/libworklets.so")
++    into("$projectDir/src/main/jniLibs")
++}
++
++repositories {
++    mavenCentral()
++    mavenLocal()
++    maven {
++        // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
++        url "$reactNativeRootDir/android"
++    }
++    maven {
++        // Android JSC is installed from npm
++        url "$reactNativeRootDir/../jsc-android/dist"
++    }
++    google()
++}
++
++dependencies {
++    implementation "com.facebook.yoga:proguard-annotations:1.19.0"
++    implementation "androidx.transition:transition:1.1.0"
++    implementation "androidx.core:core:1.6.0"
++
++    implementation "com.facebook.react:react-android" // version substituted by RNGP
++    if (JS_RUNTIME == "hermes") {
++        implementation "com.facebook.react:hermes-android" // version substituted by RNGP
++    }
++}
++
++def nativeBuildDependsOn(dependsOnTask) {
++    def buildTasks = tasks.findAll({ task -> (
++        !task.name.contains("Clean")
++        && (task.name.contains("externalNative")
++            || task.name.contains("CMake")
++            || task.name.contains("generateJsonModel")
++        )
++    ) })
++    buildTasks.forEach { task -> task.dependsOn(dependsOnTask) }
++}
++
++afterEvaluate {
++    preBuild.dependsOn(prepareWorkletsHeadersForPrefabs)
++    preBuild.dependsOn(prepareReanimatedHeadersForPrefabs)
++
++    tasks.forEach({ task ->
++        if (task.name.contains("JniLibFolders")) {
++            task.dependsOn(packageNdkLibs)
++        }
++    })
++
++    if (JS_RUNTIME == "hermes") {
++        // Do nothing
++    } else if (JS_RUNTIME == "v8") {
++        def buildTasks = tasks.findAll({ task ->
++            !task.name.contains("Clean") && (task.name.contains("externalNative") || task.name.contains("CMake") || task.name.startsWith("generateJsonModel")) })
++        buildTasks.forEach { task ->
++            def buildType = task.name.endsWith('Debug') ? 'Debug' : 'Release'
++            task.dependsOn(":react-native-v8:copy${buildType}JniLibsProjectOnly")
++        }
++    } else if (JS_RUNTIME == "jsc") {
++        // Do nothing
++    } else {
++      throw GradleScriptException("[Reanimated] Unknown JS runtime ${JS_RUNTIME}.")
++    }
++}
+diff --git a/node_modules/react-native-reanimated/android/bin/gradle/wrapper/gradle-wrapper.jar b/node_modules/react-native-reanimated/android/bin/gradle/wrapper/gradle-wrapper.jar
+new file mode 100644
+index 0000000..7454180
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/gradle/wrapper/gradle-wrapper.jar differ
+diff --git a/node_modules/react-native-reanimated/android/bin/gradlew b/node_modules/react-native-reanimated/android/bin/gradlew
+new file mode 100644
+index 0000000..1b6c787
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/gradlew
+@@ -0,0 +1,234 @@
++#!/bin/sh
++
++#
++# Copyright © 2015-2021 the original authors.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      https://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++
++##############################################################################
++#
++#   Gradle start up script for POSIX generated by Gradle.
++#
++#   Important for running:
++#
++#   (1) You need a POSIX-compliant shell to run this script. If your /bin/sh is
++#       noncompliant, but you have some other compliant shell such as ksh or
++#       bash, then to run this script, type that shell name before the whole
++#       command line, like:
++#
++#           ksh Gradle
++#
++#       Busybox and similar reduced shells will NOT work, because this script
++#       requires all of these POSIX shell features:
++#         * functions;
++#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,
++#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;
++#         * compound commands having a testable exit status, especially «case»;
++#         * various built-in commands including «command», «set», and «ulimit».
++#
++#   Important for patching:
++#
++#   (2) This script targets any POSIX shell, so it avoids extensions provided
++#       by Bash, Ksh, etc; in particular arrays are avoided.
++#
++#       The "traditional" practice of packing multiple parameters into a
++#       space-separated string is a well documented source of bugs and security
++#       problems, so this is (mostly) avoided, by progressively accumulating
++#       options in "$@", and eventually passing that to Java.
++#
++#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,
++#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;
++#       see the in-line comments for details.
++#
++#       There are tweaks for specific operating systems such as AIX, CygWin,
++#       Darwin, MinGW, and NonStop.
++#
++#   (3) This script is generated from the Groovy template
++#       https://github.com/gradle/gradle/blob/master/subprojects/plugins/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt
++#       within the Gradle project.
++#
++#       You can find Gradle at https://github.com/gradle/gradle/.
++#
++##############################################################################
++
++# Attempt to set APP_HOME
++
++# Resolve links: $0 may be a link
++app_path=$0
++
++# Need this for daisy-chained symlinks.
++while
++    APP_HOME=${app_path%"${app_path##*/}"}  # leaves a trailing /; empty if no leading path
++    [ -h "$app_path" ]
++do
++    ls=$( ls -ld "$app_path" )
++    link=${ls#*' -> '}
++    case $link in             #(
++      /*)   app_path=$link ;; #(
++      *)    app_path=$APP_HOME$link ;;
++    esac
++done
++
++APP_HOME=$( cd "${APP_HOME:-./}" && pwd -P ) || exit
++
++APP_NAME="Gradle"
++APP_BASE_NAME=${0##*/}
++
++# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
++
++# Use the maximum available, or set MAX_FD != -1 to use that value.
++MAX_FD=maximum
++
++warn () {
++    echo "$*"
++} >&2
++
++die () {
++    echo
++    echo "$*"
++    echo
++    exit 1
++} >&2
++
++# OS specific support (must be 'true' or 'false').
++cygwin=false
++msys=false
++darwin=false
++nonstop=false
++case "$( uname )" in                #(
++  CYGWIN* )         cygwin=true  ;; #(
++  Darwin* )         darwin=true  ;; #(
++  MSYS* | MINGW* )  msys=true    ;; #(
++  NONSTOP* )        nonstop=true ;;
++esac
++
++CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
++
++
++# Determine the Java command to use to start the JVM.
++if [ -n "$JAVA_HOME" ] ; then
++    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
++        # IBM's JDK on AIX uses strange locations for the executables
++        JAVACMD=$JAVA_HOME/jre/sh/java
++    else
++        JAVACMD=$JAVA_HOME/bin/java
++    fi
++    if [ ! -x "$JAVACMD" ] ; then
++        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++    fi
++else
++    JAVACMD=java
++    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++fi
++
++# Increase the maximum file descriptors if we can.
++if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
++    case $MAX_FD in #(
++      max*)
++        MAX_FD=$( ulimit -H -n ) ||
++            warn "Could not query maximum file descriptor limit"
++    esac
++    case $MAX_FD in  #(
++      '' | soft) :;; #(
++      *)
++        ulimit -n "$MAX_FD" ||
++            warn "Could not set maximum file descriptor limit to $MAX_FD"
++    esac
++fi
++
++# Collect all arguments for the java command, stacking in reverse order:
++#   * args from the command line
++#   * the main class name
++#   * -classpath
++#   * -D...appname settings
++#   * --module-path (only if needed)
++#   * DEFAULT_JVM_OPTS, JAVA_OPTS, and GRADLE_OPTS environment variables.
++
++# For Cygwin or MSYS, switch paths to Windows format before running java
++if "$cygwin" || "$msys" ; then
++    APP_HOME=$( cygpath --path --mixed "$APP_HOME" )
++    CLASSPATH=$( cygpath --path --mixed "$CLASSPATH" )
++
++    JAVACMD=$( cygpath --unix "$JAVACMD" )
++
++    # Now convert the arguments - kludge to limit ourselves to /bin/sh
++    for arg do
++        if
++            case $arg in                                #(
++              -*)   false ;;                            # don't mess with options #(
++              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath
++                    [ -e "$t" ] ;;                      #(
++              *)    false ;;
++            esac
++        then
++            arg=$( cygpath --path --ignore --mixed "$arg" )
++        fi
++        # Roll the args list around exactly as many times as the number of
++        # args, so each arg winds up back in the position where it started, but
++        # possibly modified.
++        #
++        # NB: a `for` loop captures its iteration list before it begins, so
++        # changing the positional parameters here affects neither the number of
++        # iterations, nor the values presented in `arg`.
++        shift                   # remove old arg
++        set -- "$@" "$arg"      # push replacement arg
++    done
++fi
++
++# Collect all arguments for the java command;
++#   * $DEFAULT_JVM_OPTS, $JAVA_OPTS, and $GRADLE_OPTS can contain fragments of
++#     shell script including quotes and variable substitutions, so put them in
++#     double quotes to make sure that they get re-expanded; and
++#   * put everything else in single quotes, so that it's not re-expanded.
++
++set -- \
++        "-Dorg.gradle.appname=$APP_BASE_NAME" \
++        -classpath "$CLASSPATH" \
++        org.gradle.wrapper.GradleWrapperMain \
++        "$@"
++
++# Use "xargs" to parse quoted args.
++#
++# With -n1 it outputs one arg per line, with the quotes and backslashes removed.
++#
++# In Bash we could simply go:
++#
++#   readarray ARGS < <( xargs -n1 <<<"$var" ) &&
++#   set -- "${ARGS[@]}" "$@"
++#
++# but POSIX shell has neither arrays nor command substitution, so instead we
++# post-process each arg (as a line of input to sed) to backslash-escape any
++# character that might be a shell metacharacter, then use eval to reverse
++# that process (while maintaining the separation between arguments), and wrap
++# the whole thing up as a single "set" statement.
++#
++# This will of course break if any of these variables contains a newline or
++# an unmatched quote.
++#
++
++eval "set -- $(
++        printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
++        xargs -n1 |
++        sed ' s~[^-[:alnum:]+,./:=@_]~\\&~g; ' |
++        tr '\n' ' '
++    )" '"$@"'
++
++exec "$JAVACMD" "$@"
+diff --git a/node_modules/react-native-reanimated/android/bin/gradlew.bat b/node_modules/react-native-reanimated/android/bin/gradlew.bat
+new file mode 100644
+index 0000000..107acd3
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/gradlew.bat
+@@ -0,0 +1,89 @@
++@rem
++@rem Copyright 2015 the original author or authors.
++@rem
++@rem Licensed under the Apache License, Version 2.0 (the "License");
++@rem you may not use this file except in compliance with the License.
++@rem You may obtain a copy of the License at
++@rem
++@rem      https://www.apache.org/licenses/LICENSE-2.0
++@rem
++@rem Unless required by applicable law or agreed to in writing, software
++@rem distributed under the License is distributed on an "AS IS" BASIS,
++@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++@rem See the License for the specific language governing permissions and
++@rem limitations under the License.
++@rem
++
++@if "%DEBUG%" == "" @echo off
++@rem ##########################################################################
++@rem
++@rem  Gradle startup script for Windows
++@rem
++@rem ##########################################################################
++
++@rem Set local scope for the variables with windows NT shell
++if "%OS%"=="Windows_NT" setlocal
++
++set DIRNAME=%~dp0
++if "%DIRNAME%" == "" set DIRNAME=.
++set APP_BASE_NAME=%~n0
++set APP_HOME=%DIRNAME%
++
++@rem Resolve any "." and ".." in APP_HOME to make it shorter.
++for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
++
++@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
++
++@rem Find java.exe
++if defined JAVA_HOME goto findJavaFromJavaHome
++
++set JAVA_EXE=java.exe
++%JAVA_EXE% -version >NUL 2>&1
++if "%ERRORLEVEL%" == "0" goto execute
++
++echo.
++echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:findJavaFromJavaHome
++set JAVA_HOME=%JAVA_HOME:"=%
++set JAVA_EXE=%JAVA_HOME%/bin/java.exe
++
++if exist "%JAVA_EXE%" goto execute
++
++echo.
++echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:execute
++@rem Setup the command line
++
++set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
++
++
++@rem Execute Gradle
++"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
++
++:end
++@rem End local scope for the variables with windows NT shell
++if "%ERRORLEVEL%"=="0" goto mainEnd
++
++:fail
++rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
++rem the _cmd.exe /c_ return code!
++if  not "" == "%GRADLE_EXIT_CONSOLE%" exit 1
++exit /b 1
++
++:mainEnd
++if "%OS%"=="Windows_NT" endlocal
++
++:omega
+diff --git a/node_modules/react-native-reanimated/android/bin/settings.gradle b/node_modules/react-native-reanimated/android/bin/settings.gradle
+new file mode 100644
+index 0000000..c8e23f4
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/settings.gradle
+@@ -0,0 +1 @@
++include 'lib'
+\ No newline at end of file
+diff --git a/node_modules/react-native-reanimated/android/bin/spotless.gradle b/node_modules/react-native-reanimated/android/bin/spotless.gradle
+new file mode 100644
+index 0000000..906dc16
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/spotless.gradle
+@@ -0,0 +1,9 @@
++// formatter & linter configuration for java
++apply plugin: 'com.diffplug.spotless'
++
++spotless {
++  java {
++    target 'src/**/*.java'
++    googleJavaFormat()
++  }
++}
+diff --git a/node_modules/react-native-reanimated/android/bin/src/fabric/java/com/swmansion/reanimated/ReaCompatibility.class b/node_modules/react-native-reanimated/android/bin/src/fabric/java/com/swmansion/reanimated/ReaCompatibility.class
+new file mode 100644
+index 0000000..f436a34
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/fabric/java/com/swmansion/reanimated/ReaCompatibility.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/AndroidUIScheduler.cpp b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/AndroidUIScheduler.cpp
+new file mode 100644
+index 0000000..039028d
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/AndroidUIScheduler.cpp
+@@ -0,0 +1,60 @@
++#include <reanimated/android/AndroidUIScheduler.h>
++
++#include <android/log.h>
++#include <fbjni/fbjni.h>
++#include <jsi/jsi.h>
++
++namespace reanimated {
++
++using namespace facebook;
++using namespace react;
++
++class UISchedulerWrapper : public UIScheduler {
++ private:
++  jni::global_ref<AndroidUIScheduler::javaobject> androidUiScheduler_;
++
++ public:
++  explicit UISchedulerWrapper(
++      jni::global_ref<AndroidUIScheduler::javaobject> androidUiScheduler)
++      : androidUiScheduler_(androidUiScheduler) {}
++
++  void scheduleOnUI(std::function<void()> job) override {
++    UIScheduler::scheduleOnUI(job);
++    if (!scheduledOnUI_) {
++      scheduledOnUI_ = true;
++      androidUiScheduler_->cthis()->scheduleTriggerOnUI();
++    }
++  }
++
++  ~UISchedulerWrapper() {}
++};
++
++AndroidUIScheduler::AndroidUIScheduler(
++    jni::alias_ref<AndroidUIScheduler::javaobject> jThis)
++    : javaPart_(jni::make_global(jThis)),
++      uiScheduler_(
++          std::make_shared<UISchedulerWrapper>(jni::make_global(jThis))) {}
++
++jni::local_ref<AndroidUIScheduler::jhybriddata> AndroidUIScheduler::initHybrid(
++    jni::alias_ref<jhybridobject> jThis) {
++  return makeCxxInstance(jThis);
++}
++
++void AndroidUIScheduler::triggerUI() {
++  uiScheduler_->triggerUI();
++}
++
++void AndroidUIScheduler::scheduleTriggerOnUI() {
++  static const auto method =
++      javaPart_->getClass()->getMethod<void()>("scheduleTriggerOnUI");
++  method(javaPart_.get());
++}
++
++void AndroidUIScheduler::registerNatives() {
++  registerHybrid({
++      makeNativeMethod("initHybrid", AndroidUIScheduler::initHybrid),
++      makeNativeMethod("triggerUI", AndroidUIScheduler::triggerUI),
++  });
++}
++
++} // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/AndroidUIScheduler.h b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/AndroidUIScheduler.h
+new file mode 100644
+index 0000000..e9e7c94
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/AndroidUIScheduler.h
+@@ -0,0 +1,44 @@
++#pragma once
++
++#include <worklets/Tools/UIScheduler.h>
++
++#include <fbjni/fbjni.h>
++#include <jni.h>
++#include <jsi/jsi.h>
++#include <react/jni/CxxModuleWrapper.h>
++#include <react/jni/JMessageQueueThread.h>
++
++#include <memory>
++
++namespace reanimated {
++
++using namespace facebook;
++using namespace worklets;
++
++class AndroidUIScheduler : public jni::HybridClass<AndroidUIScheduler> {
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/AndroidUIScheduler;";
++  static jni::local_ref<jhybriddata> initHybrid(
++      jni::alias_ref<jhybridobject> jThis);
++  static void registerNatives();
++
++  std::shared_ptr<UIScheduler> getUIScheduler() {
++    return uiScheduler_;
++  }
++
++  void scheduleTriggerOnUI();
++
++ private:
++  friend HybridBase;
++
++  void triggerUI();
++
++  jni::global_ref<AndroidUIScheduler::javaobject> javaPart_;
++  std::shared_ptr<UIScheduler> uiScheduler_;
++
++  explicit AndroidUIScheduler(
++      jni::alias_ref<AndroidUIScheduler::jhybridobject> jThis);
++};
++
++} // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/JNIHelper.cpp b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/JNIHelper.cpp
+new file mode 100644
+index 0000000..d8b6562
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/JNIHelper.cpp
+@@ -0,0 +1,59 @@
++#include <reanimated/android/JNIHelper.h>
++
++namespace reanimated {
++
++using namespace facebook::jni;
++using namespace facebook;
++using namespace react;
++
++local_ref<JNIHelper::PropsMap> JNIHelper::PropsMap::create() {
++  return newInstance();
++}
++
++void JNIHelper::PropsMap::put(
++    const std::string &key,
++    jni::local_ref<JObject> object) {
++  static auto method =
++      getClass()
++          ->getMethod<jobject(
++              jni::local_ref<JObject>, jni::local_ref<JObject>)>("put");
++  method(self(), jni::make_jstring(key), object);
++}
++
++jni::local_ref<JNIHelper::PropsMap> JNIHelper::ConvertToPropsMap(
++    jsi::Runtime &rt,
++    const jsi::Object &props) {
++  auto map = PropsMap::create();
++
++  auto propNames = props.getPropertyNames(rt);
++  for (size_t i = 0, size = propNames.size(rt); i < size; i++) {
++    auto jsiKey = propNames.getValueAtIndex(rt, i).asString(rt);
++    auto value = props.getProperty(rt, jsiKey);
++    auto key = jsiKey.utf8(rt);
++    if (value.isUndefined() || value.isNull()) {
++      map->put(key, nullptr);
++    } else if (value.isBool()) {
++      map->put(key, JBoolean::valueOf(value.getBool()));
++    } else if (value.isNumber()) {
++      map->put(key, jni::autobox(value.asNumber()));
++    } else if (value.isString()) {
++      map->put(key, jni::make_jstring(value.asString(rt).utf8(rt)));
++    } else if (value.isObject()) {
++      if (value.asObject(rt).isArray(rt)) {
++        map->put(
++            key,
++            ReadableNativeArray::newObjectCxxArgs(
++                jsi::dynamicFromValue(rt, value)));
++      } else {
++        map->put(
++            key,
++            ReadableNativeMap::newObjectCxxArgs(
++                jsi::dynamicFromValue(rt, value)));
++      }
++    }
++  }
++
++  return map;
++}
++
++}; // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/JNIHelper.h b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/JNIHelper.h
+new file mode 100644
+index 0000000..4be3555
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/JNIHelper.h
+@@ -0,0 +1,30 @@
++#pragma once
++
++#include <fbjni/fbjni.h>
++#include <jsi/JSIDynamic.h>
++#include <jsi/jsi.h>
++#include <react/jni/CxxModuleWrapper.h>
++#include <react/jni/JMessageQueueThread.h>
++#include <react/jni/WritableNativeMap.h>
++#include <string>
++
++namespace reanimated {
++
++using namespace facebook::jni;
++using namespace facebook;
++using namespace react;
++
++struct JNIHelper {
++  struct PropsMap : jni::JavaClass<PropsMap, JMap<JString, JObject>> {
++    static constexpr auto kJavaDescriptor = "Ljava/util/HashMap;";
++
++    static local_ref<PropsMap> create();
++    void put(const std::string &key, jni::local_ref<JObject> object);
++  };
++
++  static jni::local_ref<PropsMap> ConvertToPropsMap(
++      jsi::Runtime &rt,
++      const jsi::Object &props);
++};
++
++}; // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/LayoutAnimations.cpp b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/LayoutAnimations.cpp
+new file mode 100644
+index 0000000..e777c01
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/LayoutAnimations.cpp
+@@ -0,0 +1,145 @@
++#include <reanimated/Tools/FeaturesConfig.h>
++#include <reanimated/android/LayoutAnimations.h>
++
++namespace reanimated {
++
++LayoutAnimations::LayoutAnimations(
++    jni::alias_ref<LayoutAnimations::javaobject> jThis)
++    : javaPart_(jni::make_global(jThis)) {}
++
++jni::local_ref<LayoutAnimations::jhybriddata> LayoutAnimations::initHybrid(
++    jni::alias_ref<jhybridobject> jThis) {
++  return makeCxxInstance(jThis);
++}
++
++void LayoutAnimations::setAnimationStartingBlock(
++    AnimationStartingBlock animationStartingBlock) {
++  this->animationStartingBlock_ = animationStartingBlock;
++}
++
++void LayoutAnimations::startAnimationForTag(
++    int tag,
++    int type,
++    alias_ref<JMap<jstring, jstring>> values) {
++  this->animationStartingBlock_(tag, type, values);
++}
++
++void LayoutAnimations::progressLayoutAnimation(
++    int tag,
++    const jni::local_ref<JNIHelper::PropsMap> &updates,
++    bool isSharedTransition) {
++  static const auto method =
++      javaPart_->getClass()
++          ->getMethod<void(int, JMap<JString, JObject>::javaobject, bool)>(
++              "progressLayoutAnimation");
++  method(javaPart_.get(), tag, updates.get(), isSharedTransition);
++}
++
++void LayoutAnimations::endLayoutAnimation(int tag, bool removeView) {
++  static const auto method =
++      javaPart_->getClass()->getMethod<void(int, bool)>("endLayoutAnimation");
++  method(javaPart_.get(), tag, removeView);
++}
++
++void LayoutAnimations::setHasAnimationBlock(
++    HasAnimationBlock hasAnimationBlock) {
++  this->hasAnimationBlock_ = hasAnimationBlock;
++}
++
++void LayoutAnimations::setShouldAnimateExitingBlock(
++    ShouldAnimateExitingBlock shouldAnimateExitingBlock) {
++  this->shouldAnimateExitingBlock_ = shouldAnimateExitingBlock;
++}
++
++#ifndef NDEBUG
++void LayoutAnimations::setCheckDuplicateSharedTag(
++    CheckDuplicateSharedTag checkDuplicateSharedTag) {
++  checkDuplicateSharedTag_ = checkDuplicateSharedTag;
++}
++
++void LayoutAnimations::checkDuplicateSharedTag(int viewTag, int screenTag) {
++  checkDuplicateSharedTag_(viewTag, screenTag);
++}
++#endif
++
++bool LayoutAnimations::hasAnimationForTag(int tag, int type) {
++  return hasAnimationBlock_(tag, type);
++}
++
++bool LayoutAnimations::shouldAnimateExiting(int tag, bool shouldAnimate) {
++  return shouldAnimateExitingBlock_(tag, shouldAnimate);
++}
++
++void LayoutAnimations::setClearAnimationConfigBlock(
++    ClearAnimationConfigBlock clearAnimationConfigBlock) {
++  this->clearAnimationConfigBlock_ = clearAnimationConfigBlock;
++}
++
++void LayoutAnimations::clearAnimationConfigForTag(int tag) {
++  clearAnimationConfigBlock_(tag);
++}
++
++void LayoutAnimations::setCancelAnimationForTag(
++    CancelAnimationBlock cancelAnimationBlock) {
++  this->cancelAnimationBlock_ = cancelAnimationBlock;
++}
++
++void LayoutAnimations::cancelAnimationForTag(int tag) {
++  this->cancelAnimationBlock_(tag);
++}
++
++bool LayoutAnimations::isLayoutAnimationEnabled() {
++  return FeaturesConfig::isLayoutAnimationEnabled();
++}
++
++void LayoutAnimations::setFindPrecedingViewTagForTransition(
++    FindPrecedingViewTagForTransitionBlock
++        findPrecedingViewTagForTransitionBlock) {
++  findPrecedingViewTagForTransitionBlock_ =
++      findPrecedingViewTagForTransitionBlock;
++}
++
++void LayoutAnimations::setGetSharedGroupBlock(
++    GetSharedGroupBlock getSharedGroupBlock) {
++  getSharedGroupBlock_ = getSharedGroupBlock;
++}
++
++int LayoutAnimations::findPrecedingViewTagForTransition(int tag) {
++  return findPrecedingViewTagForTransitionBlock_(tag);
++}
++
++jni::local_ref<JArrayInt> LayoutAnimations::getSharedGroup(const int tag) {
++  const auto &group = getSharedGroupBlock_(tag);
++  auto jGroup = JArrayInt::newArray(group.size());
++  jGroup->setRegion(0, group.size(), group.data());
++  return jGroup;
++}
++
++void LayoutAnimations::registerNatives() {
++  registerHybrid({
++      makeNativeMethod("initHybrid", LayoutAnimations::initHybrid),
++      makeNativeMethod(
++          "startAnimationForTag", LayoutAnimations::startAnimationForTag),
++      makeNativeMethod(
++          "hasAnimationForTag", LayoutAnimations::hasAnimationForTag),
++      makeNativeMethod(
++          "shouldAnimateExiting", LayoutAnimations::shouldAnimateExiting),
++      makeNativeMethod(
++          "clearAnimationConfigForTag",
++          LayoutAnimations::clearAnimationConfigForTag),
++      makeNativeMethod(
++          "cancelAnimationForTag", LayoutAnimations::cancelAnimationForTag),
++      makeNativeMethod(
++          "isLayoutAnimationEnabled",
++          LayoutAnimations::isLayoutAnimationEnabled),
++      makeNativeMethod(
++          "findPrecedingViewTagForTransition",
++          LayoutAnimations::findPrecedingViewTagForTransition),
++      makeNativeMethod("getSharedGroup", LayoutAnimations::getSharedGroup),
++#ifndef NDEBUG
++      makeNativeMethod(
++          "checkDuplicateSharedTag", LayoutAnimations::checkDuplicateSharedTag),
++#endif
++  });
++}
++}; // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/LayoutAnimations.h b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/LayoutAnimations.h
+new file mode 100644
+index 0000000..87e874e
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/LayoutAnimations.h
+@@ -0,0 +1,89 @@
++#pragma once
++
++#include <reanimated/android/JNIHelper.h>
++
++#include <fbjni/fbjni.h>
++#include <jsi/jsi.h>
++
++#include <vector>
++
++namespace reanimated {
++
++using namespace facebook::jni;
++using namespace facebook;
++
++class LayoutAnimations : public jni::HybridClass<LayoutAnimations> {
++  using AnimationStartingBlock =
++      std::function<void(int, int, alias_ref<JMap<jstring, jstring>>)>;
++  using HasAnimationBlock = std::function<bool(int, int)>;
++  using ShouldAnimateExitingBlock = std::function<bool(int, bool)>;
++#ifndef NDEBUG
++  using CheckDuplicateSharedTag = std::function<void(int, int)>;
++#endif
++  using ClearAnimationConfigBlock = std::function<void(int)>;
++  using CancelAnimationBlock = std::function<void(int)>;
++  using FindPrecedingViewTagForTransitionBlock = std::function<int(int)>;
++  using GetSharedGroupBlock = std::function<std::vector<int>(const int)>;
++
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/layoutReanimation/LayoutAnimations;";
++  static jni::local_ref<jhybriddata> initHybrid(
++      jni::alias_ref<jhybridobject> jThis);
++  static void registerNatives();
++
++  void startAnimationForTag(
++      int tag,
++      int type,
++      alias_ref<JMap<jstring, jstring>> values);
++  bool hasAnimationForTag(int tag, int type);
++  bool shouldAnimateExiting(int tag, bool shouldAnimate);
++  bool isLayoutAnimationEnabled();
++
++  void setAnimationStartingBlock(AnimationStartingBlock animationStartingBlock);
++  void setHasAnimationBlock(HasAnimationBlock hasAnimationBlock);
++  void setShouldAnimateExitingBlock(
++      ShouldAnimateExitingBlock shouldAnimateExitingBlock);
++#ifndef NDEBUG
++  void setCheckDuplicateSharedTag(
++      CheckDuplicateSharedTag checkDuplicateSharedTag);
++  void checkDuplicateSharedTag(int viewTag, int screenTag);
++#endif
++  void setClearAnimationConfigBlock(
++      ClearAnimationConfigBlock clearAnimationConfigBlock);
++  void setCancelAnimationForTag(CancelAnimationBlock cancelAnimationBlock);
++  void setFindPrecedingViewTagForTransition(
++      FindPrecedingViewTagForTransitionBlock
++          findPrecedingViewTagForTransitionBlock);
++  void setGetSharedGroupBlock(const GetSharedGroupBlock getSharedGroupBlock);
++
++  void progressLayoutAnimation(
++      int tag,
++      const jni::local_ref<JNIHelper::PropsMap> &updates,
++      bool isSharedTransition);
++  void endLayoutAnimation(int tag, bool removeView);
++  void clearAnimationConfigForTag(int tag);
++  void cancelAnimationForTag(int tag);
++  int findPrecedingViewTagForTransition(int tag);
++  jni::local_ref<JArrayInt> getSharedGroup(const int tag);
++
++ private:
++  friend HybridBase;
++  jni::global_ref<LayoutAnimations::javaobject> javaPart_;
++  AnimationStartingBlock animationStartingBlock_;
++  HasAnimationBlock hasAnimationBlock_;
++  ShouldAnimateExitingBlock shouldAnimateExitingBlock_;
++  ClearAnimationConfigBlock clearAnimationConfigBlock_;
++  CancelAnimationBlock cancelAnimationBlock_;
++  FindPrecedingViewTagForTransitionBlock
++      findPrecedingViewTagForTransitionBlock_;
++  GetSharedGroupBlock getSharedGroupBlock_;
++#ifndef NDEBUG
++  CheckDuplicateSharedTag checkDuplicateSharedTag_;
++#endif
++
++  explicit LayoutAnimations(
++      jni::alias_ref<LayoutAnimations::jhybridobject> jThis);
++};
++
++}; // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/NativeProxy.cpp b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/NativeProxy.cpp
+new file mode 100644
+index 0000000..be8e30c
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/NativeProxy.cpp
+@@ -0,0 +1,668 @@
++#include <reanimated/LayoutAnimations/LayoutAnimationsManager.h>
++#include <reanimated/RuntimeDecorators/RNRuntimeDecorator.h>
++#include <reanimated/Tools/PlatformDepMethodsHolder.h>
++#include <reanimated/android/AndroidUIScheduler.h>
++#include <reanimated/android/NativeProxy.h>
++
++#include <worklets/Tools/ReanimatedJSIUtils.h>
++#include <worklets/Tools/ReanimatedVersion.h>
++#include <worklets/WorkletRuntime/ReanimatedRuntime.h>
++#include <worklets/WorkletRuntime/WorkletRuntime.h>
++#include <worklets/WorkletRuntime/WorkletRuntimeCollector.h>
++
++#include <android/log.h>
++#include <fbjni/fbjni.h>
++#include <jsi/JSIDynamic.h>
++#include <jsi/jsi.h>
++#include <react/jni/JMessageQueueThread.h>
++#include <react/jni/ReadableNativeArray.h>
++#include <react/jni/ReadableNativeMap.h>
++
++#ifdef RCT_NEW_ARCH_ENABLED
++#include <react/fabric/Binding.h>
++#endif
++
++namespace reanimated {
++
++using namespace facebook;
++using namespace react;
++
++NativeProxy::NativeProxy(
++    jni::alias_ref<NativeProxy::javaobject> jThis,
++    jsi::Runtime *rnRuntime,
++    const std::shared_ptr<facebook::react::CallInvoker> &jsCallInvoker,
++    const std::shared_ptr<UIScheduler> &uiScheduler,
++    jni::global_ref<LayoutAnimations::javaobject> layoutAnimations,
++    jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++#ifdef RCT_NEW_ARCH_ENABLED
++    jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++        fabricUIManager,
++#endif
++    const std::string &valueUnpackerCode)
++    : javaPart_(jni::make_global(jThis)),
++      rnRuntime_(rnRuntime),
++      nativeReanimatedModule_(std::make_shared<NativeReanimatedModule>(
++          *rnRuntime,
++          std::make_shared<JSScheduler>(*rnRuntime, jsCallInvoker),
++          std::make_shared<JMessageQueueThread>(messageQueueThread),
++          uiScheduler,
++          getPlatformDependentMethods(),
++          valueUnpackerCode,
++          /* isBridgeless */ false,
++          getIsReducedMotion())),
++      layoutAnimations_(std::move(layoutAnimations)) {
++#ifdef RCT_NEW_ARCH_ENABLED
++  commonInit(fabricUIManager);
++#endif // RCT_NEW_ARCH_ENABLED
++}
++
++#if REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED)
++NativeProxy::NativeProxy(
++    jni::alias_ref<NativeProxy::javaobject> jThis,
++    jsi::Runtime *rnRuntime,
++    RuntimeExecutor runtimeExecutor,
++    const std::shared_ptr<UIScheduler> &uiScheduler,
++    jni::global_ref<LayoutAnimations::javaobject> layoutAnimations,
++    jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++    jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++        fabricUIManager,
++    const std::string &valueUnpackerCode)
++    : javaPart_(jni::make_global(jThis)),
++      rnRuntime_(rnRuntime),
++      nativeReanimatedModule_(std::make_shared<NativeReanimatedModule>(
++          *rnRuntime,
++          std::make_shared<JSScheduler>(*rnRuntime, runtimeExecutor),
++          std::make_shared<JMessageQueueThread>(messageQueueThread),
++          uiScheduler,
++          getPlatformDependentMethods(),
++          valueUnpackerCode,
++          /* isBridgeless */ true,
++          getIsReducedMotion())),
++      layoutAnimations_(std::move(layoutAnimations)) {
++  commonInit(fabricUIManager);
++}
++#endif // REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED
++
++#ifdef RCT_NEW_ARCH_ENABLED
++void NativeProxy::commonInit(
++    jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++        &fabricUIManager) {
++  const auto &uiManager =
++      fabricUIManager->getBinding()->getScheduler()->getUIManager();
++  nativeReanimatedModule_->initializeFabric(uiManager);
++  // removed temporarily, event listener mechanism needs to be fixed on RN side
++  // eventListener_ = std::make_shared<EventListener>(
++  //     [nativeReanimatedModule,
++  //      getAnimationTimestamp](const RawEvent &rawEvent) {
++  //       return nativeReanimatedModule->handleRawEvent(
++  //           rawEvent, getAnimationTimestamp());
++  //     });
++  // reactScheduler_ = binding->getScheduler();
++  // reactScheduler_->addEventListener(eventListener_);
++}
++#endif // RCT_NEW_ARCH_ENABLED
++
++NativeProxy::~NativeProxy() {
++  // removed temporary, new event listener mechanism need fix on the RN side
++  // reactScheduler_->removeEventListener(eventListener_);
++
++  // cleanup all animated sensors here, since NativeProxy
++  // has already been destroyed when AnimatedSensorModule's
++  // destructor is ran
++  nativeReanimatedModule_->cleanupSensors();
++}
++
++jni::local_ref<NativeProxy::jhybriddata> NativeProxy::initHybrid(
++    jni::alias_ref<jhybridobject> jThis,
++    jlong jsContext,
++    jni::alias_ref<facebook::react::CallInvokerHolder::javaobject>
++        jsCallInvokerHolder,
++    jni::alias_ref<AndroidUIScheduler::javaobject> androidUiScheduler,
++    jni::alias_ref<LayoutAnimations::javaobject> layoutAnimations,
++    jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++#ifdef RCT_NEW_ARCH_ENABLED
++    jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++        fabricUIManager,
++#endif
++    const std::string &valueUnpackerCode) {
++  auto jsCallInvoker = jsCallInvokerHolder->cthis()->getCallInvoker();
++  auto uiScheduler = androidUiScheduler->cthis()->getUIScheduler();
++  return makeCxxInstance(
++      jThis,
++      (jsi::Runtime *)jsContext,
++      jsCallInvoker,
++      uiScheduler,
++      make_global(layoutAnimations),
++      messageQueueThread,
++#ifdef RCT_NEW_ARCH_ENABLED
++      fabricUIManager,
++#endif
++      valueUnpackerCode);
++}
++
++#if REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED)
++jni::local_ref<NativeProxy::jhybriddata> NativeProxy::initHybridBridgeless(
++    jni::alias_ref<jhybridobject> jThis,
++    jlong jsContext,
++    jni::alias_ref<react::JRuntimeExecutor::javaobject> runtimeExecutorHolder,
++    jni::alias_ref<AndroidUIScheduler::javaobject> androidUiScheduler,
++    jni::alias_ref<LayoutAnimations::javaobject> layoutAnimations,
++    jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++    jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++        fabricUIManager,
++    const std::string &valueUnpackerCode) {
++  auto uiScheduler = androidUiScheduler->cthis()->getUIScheduler();
++  auto runtimeExecutor = runtimeExecutorHolder->cthis()->get();
++  return makeCxxInstance(
++      jThis,
++      (jsi::Runtime *)jsContext,
++      runtimeExecutor,
++      uiScheduler,
++      make_global(layoutAnimations),
++      messageQueueThread,
++      fabricUIManager,
++      valueUnpackerCode);
++}
++#endif // REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED
++
++#ifndef NDEBUG
++void NativeProxy::checkJavaVersion(jsi::Runtime &rnRuntime) {
++  std::string javaVersion;
++  try {
++    javaVersion =
++        getJniMethod<jstring()>("getReanimatedJavaVersion")(javaPart_.get())
++            ->toStdString();
++  } catch (std::exception &) {
++    throw std::runtime_error(
++        std::string(
++            "[Reanimated] C++ side failed to resolve Java code version.\n") +
++        "See `https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#c-side-failed-to-resolve-java-code-version` for more details.");
++  }
++
++  auto cppVersion = getReanimatedCppVersion();
++  if (cppVersion != javaVersion) {
++    throw std::runtime_error(
++        std::string(
++            "[Reanimated] Mismatch between C++ code version and Java code version (") +
++        cppVersion + " vs. " + javaVersion + " respectively).\n" +
++        "See `https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#mismatch-between-c-code-version-and-java-code-version` for more details.");
++  }
++}
++
++void NativeProxy::injectCppVersion() {
++  auto cppVersion = getReanimatedCppVersion();
++  try {
++    static const auto method =
++        getJniMethod<void(jni::local_ref<JString>)>("setCppVersion");
++    method(javaPart_.get(), make_jstring(cppVersion));
++  } catch (std::exception &) {
++    throw std::runtime_error(
++        std::string(
++            "[Reanimated] C++ side failed to resolve Java code version (injection).\n") +
++        "See `https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#c-side-failed-to-resolve-java-code-version` for more details.");
++  }
++}
++#endif // NDEBUG
++
++void NativeProxy::installJSIBindings() {
++  jsi::Runtime &rnRuntime = *rnRuntime_;
++  WorkletRuntimeCollector::install(rnRuntime);
++  RNRuntimeDecorator::decorate(rnRuntime, nativeReanimatedModule_);
++#ifndef NDEBUG
++  checkJavaVersion(rnRuntime);
++  injectCppVersion();
++#endif // NDEBUG
++
++  registerEventHandler();
++  setupLayoutAnimations();
++}
++
++bool NativeProxy::isAnyHandlerWaitingForEvent(
++    const std::string &eventName,
++    const int emitterReactTag) {
++  return nativeReanimatedModule_->isAnyHandlerWaitingForEvent(
++      eventName, emitterReactTag);
++}
++
++void NativeProxy::performOperations() {
++#ifdef RCT_NEW_ARCH_ENABLED
++  nativeReanimatedModule_->performOperations();
++#endif
++}
++
++bool NativeProxy::getIsReducedMotion() {
++  static const auto method = getJniMethod<jboolean()>("getIsReducedMotion");
++  return method(javaPart_.get());
++}
++
++void NativeProxy::registerNatives() {
++  registerHybrid({
++    makeNativeMethod("initHybrid", NativeProxy::initHybrid),
++#if REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED)
++        makeNativeMethod(
++            "initHybridBridgeless", NativeProxy::initHybridBridgeless),
++#endif // REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED)
++        makeNativeMethod("installJSIBindings", NativeProxy::installJSIBindings),
++        makeNativeMethod(
++            "isAnyHandlerWaitingForEvent",
++            NativeProxy::isAnyHandlerWaitingForEvent),
++        makeNativeMethod("performOperations", NativeProxy::performOperations)
++  });
++}
++
++void NativeProxy::requestRender(
++    std::function<void(double)> onRender,
++    jsi::Runtime &) {
++  static const auto method =
++      getJniMethod<void(AnimationFrameCallback::javaobject)>("requestRender");
++  method(
++      javaPart_.get(),
++      AnimationFrameCallback::newObjectCxxArgs(std::move(onRender)).get());
++}
++
++void NativeProxy::registerEventHandler() {
++  auto eventHandler = bindThis(&NativeProxy::handleEvent);
++  static const auto method =
++      getJniMethod<void(EventHandler::javaobject)>("registerEventHandler");
++  method(
++      javaPart_.get(),
++      EventHandler::newObjectCxxArgs(std::move(eventHandler)).get());
++}
++
++void NativeProxy::maybeFlushUIUpdatesQueue() {
++  static const auto method = getJniMethod<void()>("maybeFlushUIUpdatesQueue");
++  method(javaPart_.get());
++}
++
++#ifdef RCT_NEW_ARCH_ENABLED
++// nothing
++#else
++jsi::Value NativeProxy::obtainProp(
++    jsi::Runtime &rt,
++    const int viewTag,
++    const jsi::Value &propName) {
++  static const auto method =
++      getJniMethod<jni::local_ref<JString>(int, jni::local_ref<JString>)>(
++          "obtainProp");
++  local_ref<JString> propNameJStr =
++      jni::make_jstring(propName.asString(rt).utf8(rt).c_str());
++  auto result = method(javaPart_.get(), viewTag, propNameJStr);
++  std::string str = result->toStdString();
++  return jsi::Value(rt, jsi::String::createFromAscii(rt, str));
++}
++
++void NativeProxy::configureProps(
++    jsi::Runtime &rt,
++    const jsi::Value &uiProps,
++    const jsi::Value &nativeProps) {
++  static const auto method = getJniMethod<void(
++      ReadableNativeArray::javaobject, ReadableNativeArray::javaobject)>(
++      "configureProps");
++  method(
++      javaPart_.get(),
++      ReadableNativeArray::newObjectCxxArgs(jsi::dynamicFromValue(rt, uiProps))
++          .get(),
++      ReadableNativeArray::newObjectCxxArgs(
++          jsi::dynamicFromValue(rt, nativeProps))
++          .get());
++}
++
++void NativeProxy::updateProps(jsi::Runtime &rt, const jsi::Value &operations) {
++  static const auto method =
++      getJniMethod<void(int, JMap<JString, JObject>::javaobject)>(
++          "updateProps");
++  auto array = operations.asObject(rt).asArray(rt);
++  size_t length = array.size(rt);
++  for (size_t i = 0; i < length; ++i) {
++    auto item = array.getValueAtIndex(rt, i).asObject(rt);
++    int viewTag = item.getProperty(rt, "tag").asNumber();
++    const jsi::Object &props = item.getProperty(rt, "updates").asObject(rt);
++    method(
++        javaPart_.get(),
++        viewTag,
++        JNIHelper::ConvertToPropsMap(rt, props).get());
++  }
++}
++
++void NativeProxy::scrollTo(int viewTag, double x, double y, bool animated) {
++  static const auto method =
++      getJniMethod<void(int, double, double, bool)>("scrollTo");
++  method(javaPart_.get(), viewTag, x, y, animated);
++}
++
++inline jni::local_ref<ReadableArray::javaobject> castReadableArray(
++    jni::local_ref<ReadableNativeArray::javaobject> const &nativeArray) {
++  return make_local(
++      reinterpret_cast<ReadableArray::javaobject>(nativeArray.get()));
++}
++
++void NativeProxy::dispatchCommand(
++    jsi::Runtime &rt,
++    const int viewTag,
++    const jsi::Value &commandNameValue,
++    const jsi::Value &argsValue) {
++  static const auto method = getJniMethod<void(
++      int, jni::local_ref<JString>, jni::local_ref<ReadableArray::javaobject>)>(
++      "dispatchCommand");
++  local_ref<JString> commandId =
++      jni::make_jstring(commandNameValue.asString(rt).utf8(rt).c_str());
++  jni::local_ref<ReadableArray::javaobject> commandArgs =
++      castReadableArray(ReadableNativeArray::newObjectCxxArgs(
++          jsi::dynamicFromValue(rt, argsValue)));
++  method(javaPart_.get(), viewTag, commandId, commandArgs);
++}
++
++std::vector<std::pair<std::string, double>> NativeProxy::measure(int viewTag) {
++  static const auto method =
++      getJniMethod<local_ref<JArrayFloat>(int)>("measure");
++  local_ref<JArrayFloat> output = method(javaPart_.get(), viewTag);
++  size_t size = output->size();
++  auto elements = output->getRegion(0, size);
++
++  return {
++      {"x", elements[0]},
++      {"y", elements[1]},
++      {"pageX", elements[2]},
++      {"pageY", elements[3]},
++      {"width", elements[4]},
++      {"height", elements[5]},
++  };
++}
++#endif // RCT_NEW_ARCH_ENABLED
++
++#ifdef RCT_NEW_ARCH_ENABLED
++inline jni::local_ref<ReadableMap::javaobject> castReadableMap(
++    jni::local_ref<ReadableNativeMap::javaobject> const &nativeMap) {
++  return make_local(reinterpret_cast<ReadableMap::javaobject>(nativeMap.get()));
++}
++
++void NativeProxy::synchronouslyUpdateUIProps(
++    jsi::Runtime &rt,
++    Tag tag,
++    const jsi::Object &props) {
++  static const auto method =
++      getJniMethod<void(int, jni::local_ref<ReadableMap::javaobject>)>(
++          "synchronouslyUpdateUIProps");
++  jni::local_ref<ReadableMap::javaobject> uiProps =
++      castReadableMap(ReadableNativeMap::newObjectCxxArgs(
++          jsi::dynamicFromValue(rt, jsi::Value(rt, props))));
++  method(javaPart_.get(), tag, uiProps);
++}
++#endif
++
++int NativeProxy::registerSensor(
++    int sensorType,
++    int interval,
++    int,
++    std::function<void(double[], int)> setter) {
++  static const auto method =
++      getJniMethod<int(int, int, SensorSetter::javaobject)>("registerSensor");
++  return method(
++      javaPart_.get(),
++      sensorType,
++      interval,
++      SensorSetter::newObjectCxxArgs(std::move(setter)).get());
++}
++void NativeProxy::unregisterSensor(int sensorId) {
++  static const auto method = getJniMethod<void(int)>("unregisterSensor");
++  method(javaPart_.get(), sensorId);
++}
++
++void NativeProxy::setGestureState(int handlerTag, int newState) {
++  static const auto method = getJniMethod<void(int, int)>("setGestureState");
++  method(javaPart_.get(), handlerTag, newState);
++}
++
++int NativeProxy::subscribeForKeyboardEvents(
++    std::function<void(int, int)> callback,
++    bool isStatusBarTranslucent,
++    bool isNavigationBarTranslucent) {
++  static const auto method =
++      getJniMethod<int(KeyboardWorkletWrapper::javaobject, bool, bool)>(
++          "subscribeForKeyboardEvents");
++  return method(
++      javaPart_.get(),
++      KeyboardWorkletWrapper::newObjectCxxArgs(std::move(callback)).get(),
++      isStatusBarTranslucent,
++      isNavigationBarTranslucent);
++}
++
++void NativeProxy::unsubscribeFromKeyboardEvents(int listenerId) {
++  static const auto method =
++      getJniMethod<void(int)>("unsubscribeFromKeyboardEvents");
++  method(javaPart_.get(), listenerId);
++}
++
++double NativeProxy::getAnimationTimestamp() {
++  static const auto method = getJniMethod<jlong()>("getAnimationTimestamp");
++  jlong output = method(javaPart_.get());
++  return static_cast<double>(output);
++}
++
++void NativeProxy::handleEvent(
++    jni::alias_ref<JString> eventName,
++    jint emitterReactTag,
++    jni::alias_ref<react::WritableMap> event) {
++  // handles RCTEvents from RNGestureHandler
++  if (event.get() == nullptr) {
++    // Ignore events with null payload.
++    return;
++  }
++  // TODO: convert event directly to jsi::Value without JSON serialization
++  std::string eventAsString;
++  try {
++    eventAsString = event->toString();
++  } catch (std::exception &) {
++    // Events from other libraries may contain NaN or INF values which
++    // cannot be represented in JSON. See
++    // https://github.com/software-mansion/react-native-reanimated/issues/1776
++    // for details.
++    return;
++  }
++#if REACT_NATIVE_MINOR_VERSION >= 72
++  std::string eventJSON = eventAsString;
++#else
++  // remove "{ NativeMap: " and " }"
++  std::string eventJSON = eventAsString.substr(13, eventAsString.length() - 15);
++#endif
++  if (eventJSON == "null") {
++    return;
++  }
++
++  jsi::Runtime &rt = nativeReanimatedModule_->getUIRuntime();
++  jsi::Value payload;
++  try {
++    payload = jsi::Value::createFromJsonUtf8(
++        rt, reinterpret_cast<uint8_t *>(&eventJSON[0]), eventJSON.size());
++  } catch (std::exception &) {
++    // Ignore events with malformed JSON payload.
++    return;
++  }
++
++  nativeReanimatedModule_->handleEvent(
++      eventName->toString(), emitterReactTag, payload, getAnimationTimestamp());
++}
++
++void NativeProxy::progressLayoutAnimation(
++    jsi::Runtime &rt,
++    int tag,
++    const jsi::Object &newProps,
++    bool isSharedTransition) {
++  auto newPropsJNI = JNIHelper::ConvertToPropsMap(rt, newProps);
++  layoutAnimations_->cthis()->progressLayoutAnimation(
++      tag, newPropsJNI, isSharedTransition);
++}
++
++PlatformDepMethodsHolder NativeProxy::getPlatformDependentMethods() {
++#ifdef RCT_NEW_ARCH_ENABLED
++  // nothing
++#else
++  auto updatePropsFunction = bindThis(&NativeProxy::updateProps);
++
++  auto measureFunction = bindThis(&NativeProxy::measure);
++
++  auto scrollToFunction = bindThis(&NativeProxy::scrollTo);
++
++  auto dispatchCommandFunction = bindThis(&NativeProxy::dispatchCommand);
++
++  auto obtainPropFunction = bindThis(&NativeProxy::obtainProp);
++#endif
++
++  auto getAnimationTimestamp = bindThis(&NativeProxy::getAnimationTimestamp);
++
++  auto requestRender = bindThis(&NativeProxy::requestRender);
++
++#ifdef RCT_NEW_ARCH_ENABLED
++  auto synchronouslyUpdateUIPropsFunction =
++      bindThis(&NativeProxy::synchronouslyUpdateUIProps);
++#else
++  auto configurePropsFunction = bindThis(&NativeProxy::configureProps);
++#endif
++
++  auto registerSensorFunction = bindThis(&NativeProxy::registerSensor);
++  auto unregisterSensorFunction = bindThis(&NativeProxy::unregisterSensor);
++
++  auto setGestureStateFunction = bindThis(&NativeProxy::setGestureState);
++
++  auto subscribeForKeyboardEventsFunction =
++      bindThis(&NativeProxy::subscribeForKeyboardEvents);
++
++  auto unsubscribeFromKeyboardEventsFunction =
++      bindThis(&NativeProxy::unsubscribeFromKeyboardEvents);
++
++  auto progressLayoutAnimation =
++      bindThis(&NativeProxy::progressLayoutAnimation);
++
++  auto endLayoutAnimation = [this](int tag, bool removeView) {
++    this->layoutAnimations_->cthis()->endLayoutAnimation(tag, removeView);
++  };
++
++  auto maybeFlushUiUpdatesQueueFunction =
++      bindThis(&NativeProxy::maybeFlushUIUpdatesQueue);
++
++  return {
++      requestRender,
++#ifdef RCT_NEW_ARCH_ENABLED
++      synchronouslyUpdateUIPropsFunction,
++#else
++      updatePropsFunction,
++      scrollToFunction,
++      dispatchCommandFunction,
++      measureFunction,
++      configurePropsFunction,
++      obtainPropFunction,
++#endif
++      getAnimationTimestamp,
++      progressLayoutAnimation,
++      endLayoutAnimation,
++      registerSensorFunction,
++      unregisterSensorFunction,
++      setGestureStateFunction,
++      subscribeForKeyboardEventsFunction,
++      unsubscribeFromKeyboardEventsFunction,
++      maybeFlushUiUpdatesQueueFunction,
++  };
++}
++
++void NativeProxy::setupLayoutAnimations() {
++  auto weakNativeReanimatedModule =
++      std::weak_ptr<NativeReanimatedModule>(nativeReanimatedModule_);
++
++  layoutAnimations_->cthis()->setAnimationStartingBlock(
++      [weakNativeReanimatedModule](
++          int tag, int type, alias_ref<JMap<jstring, jstring>> values) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          jsi::Runtime &rt = nativeReanimatedModule->getUIRuntime();
++          jsi::Object yogaValues(rt);
++          for (const auto &entry : *values) {
++            try {
++              std::string keyString = entry.first->toStdString();
++              std::string valueString = entry.second->toStdString();
++              auto key = jsi::String::createFromAscii(rt, keyString);
++              if (keyString == "currentTransformMatrix" ||
++                  keyString == "targetTransformMatrix") {
++                jsi::Array matrix =
++                    jsi_utils::convertStringToArray(rt, valueString, 9);
++                yogaValues.setProperty(rt, key, matrix);
++              } else {
++                auto value = stod(valueString);
++                yogaValues.setProperty(rt, key, value);
++              }
++            } catch (std::invalid_argument e) {
++              throw std::runtime_error(
++                  "[Reanimated] Failed to convert value to number.");
++            }
++          }
++          nativeReanimatedModule->layoutAnimationsManager()
++              .startLayoutAnimation(
++                  rt, tag, static_cast<LayoutAnimationType>(type), yogaValues);
++        }
++      });
++
++  layoutAnimations_->cthis()->setHasAnimationBlock(
++      [weakNativeReanimatedModule](int tag, int type) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          return nativeReanimatedModule->layoutAnimationsManager()
++              .hasLayoutAnimation(tag, static_cast<LayoutAnimationType>(type));
++        }
++        return false;
++      });
++
++  layoutAnimations_->cthis()->setShouldAnimateExitingBlock(
++      [weakNativeReanimatedModule](int tag, bool shouldAnimate) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          return nativeReanimatedModule->layoutAnimationsManager()
++              .shouldAnimateExiting(tag, shouldAnimate);
++        }
++        return false;
++      });
++
++#ifndef NDEBUG
++  layoutAnimations_->cthis()->setCheckDuplicateSharedTag(
++      [weakNativeReanimatedModule](int viewTag, int screenTag) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          nativeReanimatedModule->layoutAnimationsManager()
++              .checkDuplicateSharedTag(viewTag, screenTag);
++        }
++      });
++#endif
++
++  layoutAnimations_->cthis()->setClearAnimationConfigBlock(
++      [weakNativeReanimatedModule](int tag) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          nativeReanimatedModule->layoutAnimationsManager()
++              .clearLayoutAnimationConfig(tag);
++        }
++      });
++
++  layoutAnimations_->cthis()->setCancelAnimationForTag(
++      [weakNativeReanimatedModule](int tag) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          jsi::Runtime &rt = nativeReanimatedModule->getUIRuntime();
++          nativeReanimatedModule->layoutAnimationsManager()
++              .cancelLayoutAnimation(rt, tag);
++        }
++      });
++
++  layoutAnimations_->cthis()->setFindPrecedingViewTagForTransition(
++      [weakNativeReanimatedModule](int tag) {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          return nativeReanimatedModule->layoutAnimationsManager()
++              .findPrecedingViewTagForTransition(tag);
++        } else {
++          return -1;
++        }
++      });
++
++  layoutAnimations_->cthis()->setGetSharedGroupBlock(
++      [weakNativeReanimatedModule](int tag) -> std::vector<int> {
++        if (auto nativeReanimatedModule = weakNativeReanimatedModule.lock()) {
++          return nativeReanimatedModule->layoutAnimationsManager()
++              .getSharedGroup(tag);
++        } else {
++          return {};
++        }
++      });
++}
++
++} // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/NativeProxy.h b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/NativeProxy.h
+new file mode 100644
+index 0000000..462eecb
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/NativeProxy.h
+@@ -0,0 +1,310 @@
++#pragma once
++
++#include <reanimated/NativeModules/NativeReanimatedModule.h>
++#include <reanimated/android/AndroidUIScheduler.h>
++#include <reanimated/android/JNIHelper.h>
++#include <reanimated/android/LayoutAnimations.h>
++
++#include <worklets/Tools/UIScheduler.h>
++
++#include <ReactCommon/CallInvokerHolder.h>
++#include <fbjni/fbjni.h>
++#include <jsi/jsi.h>
++#include <react/jni/CxxModuleWrapper.h>
++#include <react/jni/JMessageQueueThread.h>
++#include <react/jni/JavaScriptExecutorHolder.h>
++#include <react/jni/WritableNativeMap.h>
++
++#ifdef RCT_NEW_ARCH_ENABLED
++#include <react/fabric/JFabricUIManager.h>
++#include <react/renderer/scheduler/Scheduler.h>
++#if REACT_NATIVE_MINOR_VERSION >= 74
++#include <react/jni/JRuntimeExecutor.h>
++#endif // REACT_NATIVE_MINOR_VERSION >= 74
++#endif // RCT_NEW_ARCH_ENABLED
++
++#include <memory>
++#include <string>
++#include <unordered_map>
++#include <utility>
++#include <vector>
++
++namespace reanimated {
++
++using namespace facebook;
++using namespace facebook::jni;
++
++class AnimationFrameCallback : public HybridClass<AnimationFrameCallback> {
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/nativeProxy/AnimationFrameCallback;";
++
++  void onAnimationFrame(double timestampMs) {
++    callback_(timestampMs);
++  }
++
++  static void registerNatives() {
++    javaClassStatic()->registerNatives({
++        makeNativeMethod(
++            "onAnimationFrame", AnimationFrameCallback::onAnimationFrame),
++    });
++  }
++
++ private:
++  friend HybridBase;
++
++  explicit AnimationFrameCallback(std::function<void(double)> callback)
++      : callback_(std::move(callback)) {}
++
++  std::function<void(double)> callback_;
++};
++
++class EventHandler : public HybridClass<EventHandler> {
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/nativeProxy/EventHandler;";
++
++  void receiveEvent(
++      jni::alias_ref<JString> eventKey,
++      jint emitterReactTag,
++      jni::alias_ref<react::WritableMap> event) {
++    handler_(eventKey, emitterReactTag, event);
++  }
++
++  static void registerNatives() {
++    javaClassStatic()->registerNatives({
++        makeNativeMethod("receiveEvent", EventHandler::receiveEvent),
++    });
++  }
++
++ private:
++  friend HybridBase;
++
++  explicit EventHandler(std::function<void(
++                            jni::alias_ref<JString>,
++                            jint emitterReactTag,
++                            jni::alias_ref<react::WritableMap>)> handler)
++      : handler_(std::move(handler)) {}
++
++  std::function<
++      void(jni::alias_ref<JString>, jint, jni::alias_ref<react::WritableMap>)>
++      handler_;
++};
++
++class SensorSetter : public HybridClass<SensorSetter> {
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/nativeProxy/SensorSetter;";
++
++  void sensorSetter(jni::alias_ref<JArrayFloat> value, int orientationDegrees) {
++    size_t size = value->size();
++    auto elements = value->getRegion(0, size);
++    double array[7];
++    for (size_t i = 0; i < size; i++) {
++      array[i] = elements[i];
++    }
++    callback_(array, orientationDegrees);
++  }
++
++  static void registerNatives() {
++    javaClassStatic()->registerNatives({
++        makeNativeMethod("sensorSetter", SensorSetter::sensorSetter),
++    });
++  }
++
++ private:
++  friend HybridBase;
++
++  explicit SensorSetter(std::function<void(double[], int)> callback)
++      : callback_(std::move(callback)) {}
++
++  std::function<void(double[], int)> callback_;
++};
++
++class KeyboardWorkletWrapper : public HybridClass<KeyboardWorkletWrapper> {
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/keyboard/KeyboardWorkletWrapper;";
++
++  void invoke(int keyboardState, int height) {
++    callback_(keyboardState, height);
++  }
++
++  static void registerNatives() {
++    javaClassStatic()->registerNatives({
++        makeNativeMethod("invoke", KeyboardWorkletWrapper::invoke),
++    });
++  }
++
++ private:
++  friend HybridBase;
++
++  explicit KeyboardWorkletWrapper(std::function<void(int, int)> callback)
++      : callback_(std::move(callback)) {}
++
++  std::function<void(int, int)> callback_;
++};
++
++class NativeProxy : public jni::HybridClass<NativeProxy> {
++ public:
++  static auto constexpr kJavaDescriptor =
++      "Lcom/swmansion/reanimated/NativeProxy;";
++  static jni::local_ref<jhybriddata> initHybrid(
++      jni::alias_ref<jhybridobject> jThis,
++      jlong jsContext,
++      jni::alias_ref<facebook::react::CallInvokerHolder::javaobject>
++          jsCallInvokerHolder,
++      jni::alias_ref<AndroidUIScheduler::javaobject> androidUiScheduler,
++      jni::alias_ref<LayoutAnimations::javaobject> layoutAnimations,
++      jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++#ifdef RCT_NEW_ARCH_ENABLED
++      jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++          fabricUIManager,
++#endif
++      const std::string &valueUnpackerCode);
++
++#if REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED)
++  static jni::local_ref<jhybriddata> initHybridBridgeless(
++      jni::alias_ref<jhybridobject> jThis,
++      jlong jsContext,
++      jni::alias_ref<react::JRuntimeExecutor::javaobject> runtimeExecutorHolder,
++      jni::alias_ref<AndroidUIScheduler::javaobject> androidUiScheduler,
++      jni::alias_ref<LayoutAnimations::javaobject> layoutAnimations,
++      jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++      jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++          fabricUIManager,
++      const std::string &valueUnpackerCode);
++#endif // REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED
++  static void registerNatives();
++
++  ~NativeProxy();
++
++ private:
++  friend HybridBase;
++  jni::global_ref<NativeProxy::javaobject> javaPart_;
++  jsi::Runtime *rnRuntime_;
++  std::shared_ptr<NativeReanimatedModule> nativeReanimatedModule_;
++  jni::global_ref<LayoutAnimations::javaobject> layoutAnimations_;
++#ifndef NDEBUG
++  void checkJavaVersion(jsi::Runtime &);
++  void injectCppVersion();
++#endif // NDEBUG
++#ifdef RCT_NEW_ARCH_ENABLED
++  // removed temporarily, event listener mechanism needs to be fixed on RN side
++  // std::shared_ptr<facebook::react::Scheduler> reactScheduler_;
++  // std::shared_ptr<EventListener> eventListener_;
++#endif // RCT_NEW_ARCH_ENABLED
++  void installJSIBindings();
++#ifdef RCT_NEW_ARCH_ENABLED
++  void synchronouslyUpdateUIProps(
++      jsi::Runtime &rt,
++      Tag viewTag,
++      const jsi::Object &props);
++#endif
++  PlatformDepMethodsHolder getPlatformDependentMethods();
++  void setupLayoutAnimations();
++
++  double getAnimationTimestamp();
++  bool isAnyHandlerWaitingForEvent(
++      const std::string &eventName,
++      const int emitterReactTag);
++  void performOperations();
++  bool getIsReducedMotion();
++  void requestRender(std::function<void(double)> onRender, jsi::Runtime &rt);
++  void registerEventHandler();
++  void maybeFlushUIUpdatesQueue();
++  void setGestureState(int handlerTag, int newState);
++  int registerSensor(
++      int sensorType,
++      int interval,
++      int iosReferenceFrame,
++      std::function<void(double[], int)> setter);
++  void unregisterSensor(int sensorId);
++  int subscribeForKeyboardEvents(
++      std::function<void(int, int)> callback,
++      bool isStatusBarTranslucent,
++      bool isNavigationBarTranslucent);
++  void unsubscribeFromKeyboardEvents(int listenerId);
++#ifdef RCT_NEW_ARCH_ENABLED
++  // nothing
++#else
++  jsi::Value
++  obtainProp(jsi::Runtime &rt, const int viewTag, const jsi::Value &propName);
++  void configureProps(
++      jsi::Runtime &rt,
++      const jsi::Value &uiProps,
++      const jsi::Value &nativeProps);
++  void updateProps(jsi::Runtime &rt, const jsi::Value &operations);
++  void scrollTo(int viewTag, double x, double y, bool animated);
++  void dispatchCommand(
++      jsi::Runtime &rt,
++      const int viewTag,
++      const jsi::Value &commandNameValue,
++      const jsi::Value &argsValue);
++  std::vector<std::pair<std::string, double>> measure(int viewTag);
++#endif
++  void handleEvent(
++      jni::alias_ref<JString> eventName,
++      jint emitterReactTag,
++      jni::alias_ref<react::WritableMap> event);
++
++  void progressLayoutAnimation(
++      jsi::Runtime &rt,
++      int tag,
++      const jsi::Object &newProps,
++      bool isSharedTransition);
++
++  /***
++   * Wraps a method of `NativeProxy` in a function object capturing `this`
++   * @tparam TReturn return type of passed method
++   * @tparam TParams paramater types of passed method
++   * @param methodPtr pointer to method to be wrapped
++   * @return a function object with the same signature as the method, calling
++   * that method on `this`
++   */
++  template <class TReturn, class... TParams>
++  std::function<TReturn(TParams...)> bindThis(
++      TReturn (NativeProxy::*methodPtr)(TParams...)) {
++    return [this, methodPtr](TParams &&...args) {
++      return (this->*methodPtr)(std::forward<TParams>(args)...);
++    };
++  }
++
++  template <class Signature>
++  JMethod<Signature> getJniMethod(std::string const &methodName) {
++    return javaPart_->getClass()->getMethod<Signature>(methodName.c_str());
++  }
++
++  explicit NativeProxy(
++      jni::alias_ref<NativeProxy::jhybridobject> jThis,
++      jsi::Runtime *rnRuntime,
++      const std::shared_ptr<facebook::react::CallInvoker> &jsCallInvoker,
++      const std::shared_ptr<UIScheduler> &uiScheduler,
++      jni::global_ref<LayoutAnimations::javaobject> layoutAnimations,
++      jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++#ifdef RCT_NEW_ARCH_ENABLED
++      jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++          fabricUIManager,
++#endif
++      const std::string &valueUnpackerCode);
++
++#if REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED)
++  explicit NativeProxy(
++      jni::alias_ref<NativeProxy::jhybridobject> jThis,
++      jsi::Runtime *rnRuntime,
++      RuntimeExecutor runtimeExecutor,
++      const std::shared_ptr<UIScheduler> &uiScheduler,
++      jni::global_ref<LayoutAnimations::javaobject> layoutAnimations,
++      jni::alias_ref<JavaMessageQueueThread::javaobject> messageQueueThread,
++      jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++          fabricUIManager,
++      const std::string &valueUnpackerCode);
++#endif // REACT_NATIVE_MINOR_VERSION >= 74 && defined(RCT_NEW_ARCH_ENABLED
++
++#ifdef RCT_NEW_ARCH_ENABLED
++  void commonInit(jni::alias_ref<facebook::react::JFabricUIManager::javaobject>
++                      &fabricUIManager);
++#endif // RCT_NEW_ARCH_ENABLED
++};
++
++} // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/OnLoad.cpp b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/OnLoad.cpp
+new file mode 100644
+index 0000000..c1d1b78
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/OnLoad.cpp
+@@ -0,0 +1,17 @@
++#include <fbjni/fbjni.h>
++
++#include <reanimated/android/AndroidUIScheduler.h>
++#include <reanimated/android/LayoutAnimations.h>
++#include <reanimated/android/NativeProxy.h>
++
++JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
++  return facebook::jni::initialize(vm, [] {
++    reanimated::NativeProxy::registerNatives();
++    reanimated::AnimationFrameCallback::registerNatives();
++    reanimated::EventHandler::registerNatives();
++    reanimated::AndroidUIScheduler::registerNatives();
++    reanimated::LayoutAnimations::registerNatives();
++    reanimated::SensorSetter::registerNatives();
++    reanimated::KeyboardWorkletWrapper::registerNatives();
++  });
++}
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/PlatformLogger.cpp b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/PlatformLogger.cpp
+new file mode 100644
+index 0000000..03495d3
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/bin/src/main/cpp/reanimated/android/PlatformLogger.cpp
+@@ -0,0 +1,29 @@
++#include <android/log.h>
++
++#include <reanimated/Tools/PlatformLogger.h>
++
++constexpr const auto tag = "Reanimated";
++
++namespace reanimated {
++
++void PlatformLogger::log(const char *str) {
++  __android_log_print(ANDROID_LOG_VERBOSE, tag, "%s", str);
++}
++
++void PlatformLogger::log(const std::string &str) {
++  log(str.c_str());
++}
++
++void PlatformLogger::log(const double d) {
++  __android_log_print(ANDROID_LOG_VERBOSE, tag, "%f", d);
++}
++
++void PlatformLogger::log(const int i) {
++  __android_log_print(ANDROID_LOG_VERBOSE, tag, "%d", i);
++}
++
++void PlatformLogger::log(const bool b) {
++  log(b ? "true" : "false");
++}
++
++} // namespace reanimated
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/facebook/react/uimanager/UIManagerReanimatedHelper.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/facebook/react/uimanager/UIManagerReanimatedHelper.class
+new file mode 100644
+index 0000000..4461287
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/facebook/react/uimanager/UIManagerReanimatedHelper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/common/GestureHandlerStateManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/common/GestureHandlerStateManager.class
+new file mode 100644
+index 0000000..ce5fc37
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/common/GestureHandlerStateManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/AndroidUIScheduler.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/AndroidUIScheduler.class
+new file mode 100644
+index 0000000..64b0343
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/AndroidUIScheduler.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/CopiedEvent.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/CopiedEvent.class
+new file mode 100644
+index 0000000..5a5b66c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/CopiedEvent.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/MapUtils.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/MapUtils.class
+new file mode 100644
+index 0000000..4298ec8
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/MapUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NativeMethodsHelper.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NativeMethodsHelper.class
+new file mode 100644
+index 0000000..80704ef
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NativeMethodsHelper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager$NativeUpdateOperation.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager$NativeUpdateOperation.class
+new file mode 100644
+index 0000000..850e06e
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager$NativeUpdateOperation.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager$OnAnimationFrame.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager$OnAnimationFrame.class
+new file mode 100644
+index 0000000..94ca089
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager$OnAnimationFrame.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager.class
+new file mode 100644
+index 0000000..c090ce2
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/NodesManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReactNativeUtils$BorderRadii.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReactNativeUtils$BorderRadii.class
+new file mode 100644
+index 0000000..23e2f1a
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReactNativeUtils$BorderRadii.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReactNativeUtils.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReactNativeUtils.class
+new file mode 100644
+index 0000000..2c7d5ce
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReactNativeUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedMessageQueueThreadBase.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedMessageQueueThreadBase.class
+new file mode 100644
+index 0000000..9319875
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedMessageQueueThreadBase.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedPackage.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedPackage.class
+new file mode 100644
+index 0000000..9891db4
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedPackage.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedUIManagerFactory.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedUIManagerFactory.class
+new file mode 100644
+index 0000000..2f28253
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/ReanimatedUIManagerFactory.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/Utils.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/Utils.class
+new file mode 100644
+index 0000000..d348564
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/Utils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/Keyboard.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/Keyboard.class
+new file mode 100644
+index 0000000..3d21838
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/Keyboard.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardAnimationCallback.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardAnimationCallback.class
+new file mode 100644
+index 0000000..aca22f8
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardAnimationCallback.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardAnimationManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardAnimationManager.class
+new file mode 100644
+index 0000000..3ab5d46
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardAnimationManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardState.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardState.class
+new file mode 100644
+index 0000000..1d88b78
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardState.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardWorkletWrapper.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardWorkletWrapper.class
+new file mode 100644
+index 0000000..c910870
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/KeyboardWorkletWrapper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/NotifyAboutKeyboardChangeFunction.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/NotifyAboutKeyboardChangeFunction.class
+new file mode 100644
+index 0000000..35e329e
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/NotifyAboutKeyboardChangeFunction.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/WindowsInsetsManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/WindowsInsetsManager.class
+new file mode 100644
+index 0000000..9c97a8a
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/keyboard/WindowsInsetsManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.class
+new file mode 100644
+index 0000000..a4f1eeb
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/AnimationsManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/LayoutAnimations$Types.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/LayoutAnimations$Types.class
+new file mode 100644
+index 0000000..be1405c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/LayoutAnimations$Types.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/LayoutAnimations.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/LayoutAnimations.class
+new file mode 100644
+index 0000000..298028f
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/LayoutAnimations.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/NativeMethodsHolder.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/NativeMethodsHolder.class
+new file mode 100644
+index 0000000..477d950
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/NativeMethodsHolder.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReaLayoutAnimator.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReaLayoutAnimator.class
+new file mode 100644
+index 0000000..a088a23
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReaLayoutAnimator.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManager.class
+new file mode 100644
+index 0000000..eedf183
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.class
+new file mode 100644
+index 0000000..9a3eed3
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ScreensHelper.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ScreensHelper.class
+new file mode 100644
+index 0000000..a8ca7f3
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ScreensHelper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedElement.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedElement.class
+new file mode 100644
+index 0000000..3793508
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedElement.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$PrepareConfigCleanupTreeVisitor.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$PrepareConfigCleanupTreeVisitor.class
+new file mode 100644
+index 0000000..2d4e432
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$PrepareConfigCleanupTreeVisitor.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$SnapshotTreeVisitor.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$SnapshotTreeVisitor.class
+new file mode 100644
+index 0000000..5f53c46
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$SnapshotTreeVisitor.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$TopWillAppearListener.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$TopWillAppearListener.class
+new file mode 100644
+index 0000000..1298b66
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$TopWillAppearListener.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$TreeVisitor.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$TreeVisitor.class
+new file mode 100644
+index 0000000..b201b07
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager$TreeVisitor.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager.class
+new file mode 100644
+index 0000000..d13768d
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/SharedTransitionManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/Snapshot.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/Snapshot.class
+new file mode 100644
+index 0000000..056076c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/Snapshot.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver$FragmentLifecycleCallbacks.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver$FragmentLifecycleCallbacks.class
+new file mode 100644
+index 0000000..13f536d
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver$FragmentLifecycleCallbacks.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver$OnAttachStateChangeListener.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver$OnAttachStateChangeListener.class
+new file mode 100644
+index 0000000..631482c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver$OnAttachStateChangeListener.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver.class
+new file mode 100644
+index 0000000..ac14017
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/TabNavigatorObserver.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ViewHierarchyObserver.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ViewHierarchyObserver.class
+new file mode 100644
+index 0000000..26a5cf8
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/layoutReanimation/ViewHierarchyObserver.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/AnimationFrameCallback.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/AnimationFrameCallback.class
+new file mode 100644
+index 0000000..82ceb23
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/AnimationFrameCallback.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/EventHandler.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/EventHandler.class
+new file mode 100644
+index 0000000..97bf5f0
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/EventHandler.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/NativeProxyCommon.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/NativeProxyCommon.class
+new file mode 100644
+index 0000000..07130cf
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/NativeProxyCommon.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/NoopEventHandler.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/NoopEventHandler.class
+new file mode 100644
+index 0000000..aee6f9b
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/NoopEventHandler.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/SensorSetter.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/SensorSetter.class
+new file mode 100644
+index 0000000..88a569c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/nativeProxy/SensorSetter.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensor.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensor.class
+new file mode 100644
+index 0000000..14e0da1
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensor.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorContainer.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorContainer.class
+new file mode 100644
+index 0000000..06e6b3d
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorContainer.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorListener.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorListener.class
+new file mode 100644
+index 0000000..88e166c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorListener.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorType.class b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorType.class
+new file mode 100644
+index 0000000..3f8f6cd
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/main/java/com/swmansion/reanimated/sensor/ReanimatedSensorType.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/paper/java/com/swmansion/reanimated/NativeReanimatedModuleSpec.class b/node_modules/react-native-reanimated/android/bin/src/paper/java/com/swmansion/reanimated/NativeReanimatedModuleSpec.class
+new file mode 100644
+index 0000000..a8a1e6f
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/paper/java/com/swmansion/reanimated/NativeReanimatedModuleSpec.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/paper/java/com/swmansion/reanimated/ReaCompatibility.class b/node_modules/react-native-reanimated/android/bin/src/paper/java/com/swmansion/reanimated/ReaCompatibility.class
+new file mode 100644
+index 0000000..32e7694
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/paper/java/com/swmansion/reanimated/ReaCompatibility.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/74/com/swmansion/reanimated/BorderRadiiDrawableUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/74/com/swmansion/reanimated/BorderRadiiDrawableUtils.class
+new file mode 100644
+index 0000000..72fe809
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/74/com/swmansion/reanimated/BorderRadiiDrawableUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/75/com/swmansion/reanimated/BorderRadiiDrawableUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/75/com/swmansion/reanimated/BorderRadiiDrawableUtils.class
+new file mode 100644
+index 0000000..5990c4e
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/75/com/swmansion/reanimated/BorderRadiiDrawableUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.class
+new file mode 100644
+index 0000000..a7197df
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/73/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/73/com/swmansion/reanimated/NativeProxy.class
+new file mode 100644
+index 0000000..2c5c17d
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/73/com/swmansion/reanimated/NativeProxy.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/74/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/74/com/swmansion/reanimated/NativeProxy.class
+new file mode 100644
+index 0000000..5b8bed7
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/74/com/swmansion/reanimated/NativeProxy.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/latest/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/latest/com/swmansion/reanimated/NativeProxy.class
+new file mode 100644
+index 0000000..719e94a
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/latest/com/swmansion/reanimated/NativeProxy.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/74/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/74/com/swmansion/reanimated/NativeProxy.class
+new file mode 100644
+index 0000000..ebda5dd
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/74/com/swmansion/reanimated/NativeProxy.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/latest/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/latest/com/swmansion/reanimated/NativeProxy.class
+new file mode 100644
+index 0000000..471ee12
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/latest/com/swmansion/reanimated/NativeProxy.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class
+new file mode 100644
+index 0000000..47ba551
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class
+new file mode 100644
+index 0000000..7de7387
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class
+new file mode 100644
+index 0000000..3b8946d
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/72/com/swmansion/reanimated/DevMenuUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/72/com/swmansion/reanimated/DevMenuUtils.class
+new file mode 100644
+index 0000000..10277c0
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/72/com/swmansion/reanimated/DevMenuUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/latest/com/swmansion/reanimated/DevMenuUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/latest/com/swmansion/reanimated/DevMenuUtils.class
+new file mode 100644
+index 0000000..c5c0e2c
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/latest/com/swmansion/reanimated/DevMenuUtils.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class
+new file mode 100644
+index 0000000..998e857
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class
+new file mode 100644
+index 0000000..2cfb398
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule$UIThreadOperation.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule$UIThreadOperation.class
+new file mode 100644
+index 0000000..0bac304
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule$UIThreadOperation.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule.class
+new file mode 100644
+index 0000000..7e1c4cf
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class
+new file mode 100644
+index 0000000..bcabe8e
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class
+new file mode 100644
+index 0000000..22451cc
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule.class
+new file mode 100644
+index 0000000..ffc92fd
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class
+new file mode 100644
+index 0000000..b726285
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class
+new file mode 100644
+index 0000000..44f57c1
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule.class
+new file mode 100644
+index 0000000..6efe5e9
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class
+new file mode 100644
+index 0000000..01a651f
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/72/com/swmansion/reanimated/ReanimatedMessageQueueThread.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/72/com/swmansion/reanimated/ReanimatedMessageQueueThread.class
+new file mode 100644
+index 0000000..afc52bc
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/72/com/swmansion/reanimated/ReanimatedMessageQueueThread.class differ
+diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/latest/com/swmansion/reanimated/ReanimatedMessageQueueThread.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/latest/com/swmansion/reanimated/ReanimatedMessageQueueThread.class
+new file mode 100644
+index 0000000..470e0c1
+Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/latest/com/swmansion/reanimated/ReanimatedMessageQueueThread.class differ
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
+index 112f758..6d4e7db 100644
+--- a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
+@@ -69,7 +69,7 @@ public class ReanimatedPackage extends TurboReactPackage implements ReactPackage
+ 
+   private UIManagerModule createUIManager(final ReactApplicationContext reactContext) {
+     ReactMarker.logMarker(CREATE_UI_MANAGER_MODULE_START);
+-    Systrace.beginSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE, "createUIManagerModule");
++    Systrace.beginSection(0L, "createUIManagerModule");
+     final ReactInstanceManager reactInstanceManager = getReactInstanceManager(reactContext);
+     List<ViewManager> viewManagers = reactInstanceManager.getOrCreateViewManagers(reactContext);
+     int minTimeLeftInFrameForNonBatchedOperationMs = -1;
+@@ -77,7 +77,7 @@ public class ReanimatedPackage extends TurboReactPackage implements ReactPackage
+       return ReanimatedUIManagerFactory.create(
+           reactContext, viewManagers, minTimeLeftInFrameForNonBatchedOperationMs);
+     } finally {
+-      Systrace.endSection(Systrace.TRACE_TAG_REACT_JAVA_BRIDGE);
++      Systrace.endSection(0L);
+       ReactMarker.logMarker(CREATE_UI_MANAGER_MODULE_END);
+     }
+   }
