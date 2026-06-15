@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "468553316772-b46r2s9jd12ajaj6bv2coc53iiqicgm1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ikasirpro.mobile",
+            "certificate_hash": "a4dea85e2b0459a80125031c496fbdd74e1e87fd"
+          }
+        },
+        {
           "client_id": "468553316772-pn7av6hhdmmrj1e89v8bf9aidtc9m3p9.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
