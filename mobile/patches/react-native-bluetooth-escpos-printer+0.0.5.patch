@@ -12,7 +12,7 @@ index 0000000..bbe97e5
 +</classpath>
 diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/checksums.lock b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/checksums.lock
 new file mode 100644
-index 0000000..92a8ae8
+index 0000000..be3f886
 Binary files /dev/null and b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/checksums.lock differ
 diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/md5-checksums.bin b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/md5-checksums.bin
 new file mode 100644
@@ -20,7 +20,7 @@ index 0000000..77ac549
 Binary files /dev/null and b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/md5-checksums.bin differ
 diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/sha1-checksums.bin b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/sha1-checksums.bin
 new file mode 100644
-index 0000000..476194c
+index 0000000..7482730
 Binary files /dev/null and b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/checksums/sha1-checksums.bin differ
 diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/dependencies-accessors/gc.properties b/node_modules/react-native-bluetooth-escpos-printer/android/.gradle/8.9/dependencies-accessors/gc.properties
 new file mode 100644
@@ -150,7 +150,7 @@ index d86e4f5..c8d2cbd 100644
  }
 \ No newline at end of file
 diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java b/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java
-index dd5d33e..bcdf209 100644
+index dd5d33e..d642d15 100644
 --- a/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java
 +++ b/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/RNBluetoothManagerModule.java
 @@ -10,8 +10,8 @@ import android.content.Intent;
@@ -164,3 +164,16 @@ index dd5d33e..bcdf209 100644
  import android.util.Log;
  import android.widget.Toast;
  import com.facebook.react.bridge.*;
+@@ -83,7 +83,11 @@ public class RNBluetoothManagerModule extends ReactContextBaseJavaModule
+         // Register for broadcasts when a device is discovered
+         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+-        this.reactContext.registerReceiver(discoverReceiver, filter);
++        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
++            this.reactContext.registerReceiver(discoverReceiver, filter, Context.RECEIVER_EXPORTED);
++        } else {
++            this.reactContext.registerReceiver(discoverReceiver, filter);
++        }
+     }
+ 
+     @Override
