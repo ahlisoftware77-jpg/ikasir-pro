@@ -378,9 +378,16 @@ export default function OrderNotificationListener() {
   // 1.5 Get FCM Device Token and save to Firestore
   useEffect(() => {
     async function registerFCMToken() {
-      const targetStoreId = (role === 'superadmin' || role === 'super-admin') ? 'superadmin' : storeId;
-      if (!targetStoreId) return;
       try {
+        const enabled = await AsyncStorage.getItem('enable_background_service');
+        if (enabled !== 'true') {
+          console.log('[FG] Background service / FCM token registration disabled by settings.');
+          return;
+        }
+
+        const targetStoreId = (role === 'superadmin' || role === 'super-admin') ? 'superadmin' : storeId;
+        if (!targetStoreId) return;
+
         const { status } = await Notifications.getPermissionsAsync();
         if (status !== 'granted') return;
 
@@ -411,7 +418,8 @@ export default function OrderNotificationListener() {
 
     const manageService = async () => {
       try {
-        if (storeId) {
+        const enabled = await AsyncStorage.getItem('enable_background_service');
+        if (storeId && enabled === 'true') {
           if (!BackgroundService.isRunning()) {
             await BackgroundService.start(orderListenerTask, bgTaskOptions);
             console.log('[FG] Background order listener service started');
@@ -419,7 +427,7 @@ export default function OrderNotificationListener() {
         } else {
           if (BackgroundService.isRunning()) {
             await BackgroundService.stop();
-            console.log('[FG] Background order listener service stopped (user logged out)');
+            console.log('[FG] Background order listener service stopped');
           }
         }
       } catch (err) {

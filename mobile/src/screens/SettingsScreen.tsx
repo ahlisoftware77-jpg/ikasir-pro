@@ -13,6 +13,7 @@ LocaleConfig.defaultLocale = 'id';
 
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   LogOut, Check, X, Calculator, CreditCard, History, Package, Home, PlusCircle, 
@@ -56,7 +57,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }, [subscriptionUntil]);
 
-  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | 'superAdminSubscriptions' | null>(null);
+  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | 'superAdminSubscriptions' | 'bgServiceConfig' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
 
   // Profile States
@@ -66,6 +67,43 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
+
+  // Background Service Settings
+  const [enableBgService, setEnableBgService] = useState(false);
+
+  useEffect(() => {
+    const loadBgSetting = async () => {
+      try {
+        const val = await AsyncStorage.getItem('enable_background_service');
+        setEnableBgService(val === 'true');
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadBgSetting();
+  }, [activeModal]);
+
+  const handleToggleBgService = async (val: boolean) => {
+    try {
+      setEnableBgService(val);
+      await AsyncStorage.setItem('enable_background_service', val ? 'true' : 'false');
+      
+      if (!val) {
+        const BackgroundService = require('react-native-background-actions').default;
+        if (BackgroundService.isRunning()) {
+          await BackgroundService.stop();
+        }
+        Alert.alert('Sukses', 'Layanan latar belakang dinonaktifkan.');
+      } else {
+        Alert.alert(
+          'Layanan Diaktifkan',
+          'Layanan latar belakang berhasil diaktifkan. Silakan mulai ulang (restart) aplikasi Anda untuk menjalankan layanan ini secara optimal.'
+        );
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // --- SUBSCRIPTION PREMIUM ANIMATIONS ---
   const entranceAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
@@ -1400,7 +1438,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               Vibration.vibrate(10);
               navigation.navigate('StoreSettingsScreen');
             }, true)}
-            {renderMenuItem('Notifikasi BG', ShieldAlert, '#f59e0b', handleOpenBatterySettings)}
+            {renderMenuItem('Notifikasi BG', ShieldAlert, '#f59e0b', () => {
+              Vibration.vibrate(10);
+              setActiveModal('bgServiceConfig');
+            })}
             {renderMenuItem('Paket Langganan', Sparkles, '#8b5cf6', () => {
               Vibration.vibrate(10);
               setActiveModal('subscriptionMenu');
@@ -1545,6 +1586,71 @@ export default function SettingsScreen({ navigation, route }: any) {
             </View>
             </View>
           </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* BACKGROUND SERVICE CONFIG MODAL */}
+      <Modal visible={activeModal === 'bgServiceConfig'} animationType="slide" transparent={false} onRequestClose={() => setActiveModal(null)}>
+        <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ backgroundColor: colors.bg }}>
+          <View className="flex-row items-center px-6 py-4 border-b" style={{ borderColor: colors.border + '30' }}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mr-4">
+              <ArrowLeft color={colors.text} size={20} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-xl font-black" style={{ color: colors.text }}>Layanan Latar Belakang</Text>
+              <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textMuted }}>Pengaturan Notifikasi & Baterai</Text>
+            </View>
+          </View>
+          <View className="flex-1 p-6 gap-6">
+            <View className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex-row items-start gap-3">
+              <AlertCircle color="#f59e0b" size={20} className="shrink-0 mt-0.5" />
+              <View className="flex-1">
+                <Text className="text-xs font-bold leading-5" style={{ color: colors.text }}>
+                  Layanan latar belakang digunakan untuk mendeteksi pesanan online baru secara real-time dan menampilkan push notification saat aplikasi di-minimize/ditutup.
+                  {"\n\n"}
+                  <Text className="font-black text-rose-500">PENTING:</Text> Pada beberapa tipe ponsel Android, fitur ini dapat memicu crash atau tidak stabil saat inisialisasi jika Google Play Services tidak terpasang/usang. Nonaktifkan jika aplikasi Anda sering terhenti secara tiba-tiba setelah login.
+                </Text>
+              </View>
+            </View>
+
+            {/* Toggle Service */}
+            <View 
+              className="p-5 rounded-3xl border flex-row items-center justify-between"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <View className="flex-1 pr-4">
+                <Text className="text-sm font-black" style={{ color: colors.text }}>Aktifkan Notifikasi</Text>
+                <Text className="text-[10px] font-bold mt-1" style={{ color: colors.textMuted }}>Mendengarkan pesanan baru di background</Text>
+              </View>
+              <Switch
+                value={enableBgService}
+                onValueChange={handleToggleBgService}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                thumbColor="#ffffff"
+              />
+            </View>
+
+            {/* Battery Optimisation Button */}
+            <TouchableOpacity
+              onPress={handleOpenBatterySettings}
+              className="p-5 rounded-3xl border flex-row items-center justify-between"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <View className="flex-1 pr-4">
+                <Text className="text-sm font-black" style={{ color: colors.text }}>Optimasi Baterai Android</Text>
+                <Text className="text-[10px] font-bold mt-1" style={{ color: colors.textMuted }}>Atur "Tidak Dibatasi" (Unrestricted) agar tidak dihentikan OS</Text>
+              </View>
+              <ArrowRight color={colors.textMuted} size={18} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setActiveModal(null)}
+              className="h-14 rounded-2xl items-center justify-center mt-auto"
+              style={{ backgroundColor: colors.accent }}
+            >
+              <Text className="font-black text-white text-xs uppercase tracking-widest">TUTUP</Text>
+            </TouchableOpacity>
+          </View>
         </SafeAreaView>
       </Modal>
 
