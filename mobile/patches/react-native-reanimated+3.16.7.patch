@@ -2699,27 +2699,27 @@ index 0000000..5990c4e
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/75/com/swmansion/reanimated/BorderRadiiDrawableUtils.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.class
 new file mode 100644
-index 0000000..a7197df
+index 0000000..ba37524
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/73/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/73/com/swmansion/reanimated/NativeProxy.class
 new file mode 100644
-index 0000000..2c5c17d
+index 0000000..8288c56
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/73/com/swmansion/reanimated/NativeProxy.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/74/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/74/com/swmansion/reanimated/NativeProxy.class
 new file mode 100644
-index 0000000..5b8bed7
+index 0000000..a794a5b
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/74/com/swmansion/reanimated/NativeProxy.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/latest/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/latest/com/swmansion/reanimated/NativeProxy.class
 new file mode 100644
-index 0000000..719e94a
+index 0000000..368c1da
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyFabric/latest/com/swmansion/reanimated/NativeProxy.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/74/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/74/com/swmansion/reanimated/NativeProxy.class
 new file mode 100644
-index 0000000..ebda5dd
+index 0000000..ab5b308
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/74/com/swmansion/reanimated/NativeProxy.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/latest/com/swmansion/reanimated/NativeProxy.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/latest/com/swmansion/reanimated/NativeProxy.class
 new file mode 100644
-index 0000000..471ee12
+index 0000000..9dfad40
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/NativeProxyPaper/latest/com/swmansion/reanimated/NativeProxy.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class
 new file mode 100644
@@ -2727,7 +2727,7 @@ index 0000000..47ba551
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/72/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class
 new file mode 100644
-index 0000000..7de7387
+index 0000000..457ee11
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/74/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class
 new file mode 100644
@@ -2735,63 +2735,63 @@ index 0000000..3b8946d
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactFeatureFlagsWrapper/latest/com/swmansion/reanimated/ReactFeatureFlagsWrapper.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/72/com/swmansion/reanimated/DevMenuUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/72/com/swmansion/reanimated/DevMenuUtils.class
 new file mode 100644
-index 0000000..10277c0
+index 0000000..2e1894f
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/72/com/swmansion/reanimated/DevMenuUtils.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/latest/com/swmansion/reanimated/DevMenuUtils.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/latest/com/swmansion/reanimated/DevMenuUtils.class
 new file mode 100644
-index 0000000..c5c0e2c
+index 0000000..cb21933
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReactHost/latest/com/swmansion/reanimated/DevMenuUtils.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class
 new file mode 100644
-index 0000000..998e857
+index 0000000..53c2098
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/75/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class
 new file mode 100644
-index 0000000..2cfb398
+index 0000000..01f4cb5
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedNativeHierarchyManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedNativeHierarchyManagerBase.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule$UIThreadOperation.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule$UIThreadOperation.class
 new file mode 100644
-index 0000000..0bac304
+index 0000000..18fa204
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule$UIThreadOperation.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule.class
 new file mode 100644
-index 0000000..7e1c4cf
+index 0000000..eee1b5a
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/ReanimatedModule.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class
 new file mode 100644
-index 0000000..bcabe8e
+index 0000000..3156e90
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/73/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class
 new file mode 100644
-index 0000000..22451cc
+index 0000000..24843fe
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule.class
 new file mode 100644
-index 0000000..ffc92fd
+index 0000000..3b7b6a6
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/ReanimatedModule.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class
 new file mode 100644
-index 0000000..b726285
+index 0000000..6693250
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/74/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class
 new file mode 100644
-index 0000000..44f57c1
+index 0000000..ab14431
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule$UIThreadOperation.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule.class
 new file mode 100644
-index 0000000..6efe5e9
+index 0000000..1af46df
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/ReanimatedModule.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class
 new file mode 100644
-index 0000000..01a651f
+index 0000000..1235af6
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/ReanimatedUIManager/latest/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/72/com/swmansion/reanimated/ReanimatedMessageQueueThread.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/72/com/swmansion/reanimated/ReanimatedMessageQueueThread.class
 new file mode 100644
-index 0000000..afc52bc
+index 0000000..8639f42
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/72/com/swmansion/reanimated/ReanimatedMessageQueueThread.class differ
 diff --git a/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/latest/com/swmansion/reanimated/ReanimatedMessageQueueThread.class b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/latest/com/swmansion/reanimated/ReanimatedMessageQueueThread.class
 new file mode 100644
-index 0000000..470e0c1
+index 0000000..65fd046
 Binary files /dev/null and b/node_modules/react-native-reanimated/android/bin/src/reactNativeVersionPatch/messageQueueThread/latest/com/swmansion/reanimated/ReanimatedMessageQueueThread.class differ
 diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedPackage.java
 index 112f758..6d4e7db 100644
@@ -2815,3 +2815,16 @@ index 112f758..6d4e7db 100644
        ReactMarker.logMarker(CREATE_UI_MANAGER_MODULE_END);
      }
    }
+diff --git a/node_modules/react-native-reanimated/android/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.java b/node_modules/react-native-reanimated/android/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.java
+index c850777..417b462 100644
+--- a/node_modules/react-native-reanimated/android/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.java
++++ b/node_modules/react-native-reanimated/android/src/reactNativeVersionPatch/BorderRadiiDrawableUtils/latest/com/swmansion/reanimated/BorderRadiiDrawableUtils.java
+@@ -18,7 +18,7 @@ public class BorderRadiiDrawableUtils {
+       return defaultValue;
+     }
+     Rect bounds = view.getBackground().getBounds();
+-    return length.resolve(bounds.width(), bounds.height()).toPixelFromDIP().getHorizontal();
++    return new com.facebook.react.uimanager.style.CornerRadii(length, bounds.width(), bounds.height()).toPixelFromDIP().getHorizontal();
+   }
+ 
+   public static ReactNativeUtils.BorderRadii getBorderRadii(View view) {
