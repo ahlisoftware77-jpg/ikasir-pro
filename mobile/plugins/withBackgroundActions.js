@@ -1,9 +1,8 @@
 const { withAndroidManifest, AndroidConfig } = require('@expo/config-plugins');
 
 module.exports = function withBackgroundActions(config) {
-  return withAndroidManifest(config, async (config) => {
-    const androidManifest = config.modResults.manifest;
-    const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(androidManifest);
+  return withAndroidManifest(config, (config) => {
+    const mainApplication = AndroidConfig.Manifest.getMainApplicationOrThrow(config.modResults);
 
     if (!mainApplication.service) {
       mainApplication.service = [];
@@ -25,9 +24,13 @@ module.exports = function withBackgroundActions(config) {
       },
     });
 
+    const manifest = config.modResults.manifest;
+    if (!manifest.$) {
+      manifest.$ = {};
+    }
     // Ensure manifest attributes for tools namespace is present
-    if (!androidManifest.$['xmlns:tools']) {
-      androidManifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
+    if (!manifest.$['xmlns:tools']) {
+      manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
     }
 
     return config;
