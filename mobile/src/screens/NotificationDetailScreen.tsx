@@ -22,6 +22,11 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
   const imageUrl = notification.data?.imageUrl || notification.data?.image || notification.imageUrl;
   const link = notification.data?.link || notification.data?.url || notification.link;
   const transactionId = notification.data?.transactionId;
+  const type = notification.data?.type;
+
+  const isSubscriptionWarning = type === 'subscription_warning';
+  const isSubscriptionRequest = type === 'subscription_request';
+  const isStockWarning = type === 'stock_warning';
 
   const formatTime = (isoString: string) => {
     try {
@@ -57,6 +62,18 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
 
   const handleGoToOrder = () => {
     navigation.navigate('Main', { screen: 'Pesanan' });
+  };
+
+  const handleGoToSubscription = () => {
+    navigation.navigate('Main', { screen: 'Lainnya', params: { openSubscription: true } });
+  };
+
+  const handleGoToSubscriptionVerification = () => {
+    navigation.navigate('SuperAdminScreen', { featureId: 'superAdminSubscriptions', title: 'VERIFIKASI LANGGANAN' });
+  };
+
+  const handleGoToStock = () => {
+    navigation.navigate('Products');
   };
 
   return (
@@ -152,6 +169,48 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
               >
                 <ShoppingBag size={16} color="#ffffff" />
                 <Text className="font-black text-white text-xs uppercase tracking-wider">Buka Halaman Pesanan</Text>
+              </Button3D>
+            </View>
+          ) : null}
+
+          {isSubscriptionWarning ? (
+            <View>
+              <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5 ml-1">Aksi Langganan</Text>
+              <Button3D
+                variant="accent"
+                colors={colors}
+                onPress={handleGoToSubscription}
+              >
+                <Eye size={16} color="#ffffff" />
+                <Text className="font-black text-white text-xs uppercase tracking-wider">Buka Menu Langganan</Text>
+              </Button3D>
+            </View>
+          ) : null}
+
+          {isSubscriptionRequest ? (
+            <View>
+              <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5 ml-1">Aksi Verifikasi</Text>
+              <Button3D
+                variant="warning"
+                colors={colors}
+                onPress={handleGoToSubscriptionVerification}
+              >
+                <Eye size={16} color="#ffffff" />
+                <Text className="font-black text-white text-xs uppercase tracking-wider">Verifikasi Langganan</Text>
+              </Button3D>
+            </View>
+          ) : null}
+
+          {isStockWarning ? (
+            <View>
+              <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5 ml-1">Aksi Manajemen</Text>
+              <Button3D
+                variant="info"
+                colors={colors}
+                onPress={handleGoToStock}
+              >
+                <Eye size={16} color="#ffffff" />
+                <Text className="font-black text-white text-xs uppercase tracking-wider">Buka Manajemen Stok</Text>
               </Button3D>
             </View>
           ) : null}

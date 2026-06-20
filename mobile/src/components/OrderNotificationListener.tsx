@@ -310,6 +310,7 @@ export default function OrderNotificationListener() {
                   body: `Toko ${data.ownerEmail || ''} mengajukan paket ${data.packageTitle || ''}.`,
                   sound: 'default',
                   priority: Notifications.AndroidNotificationPriority.MAX,
+                  data: { type: 'subscription_request' }
                 },
                 trigger: null,
               });
@@ -322,6 +323,7 @@ export default function OrderNotificationListener() {
               addNotification({
                 title: '🚨 Pengajuan Langganan Baru!',
                 body: `Toko ${data.ownerEmail || ''} mengajukan paket ${data.packageTitle || ''}.`,
+                data: { type: 'subscription_request' }
               });
             } catch (err) {
               console.error('[Notification] Error adding to store:', err);

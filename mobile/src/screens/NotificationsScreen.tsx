@@ -12,11 +12,7 @@ export default function NotificationsScreen({ navigation }: any) {
   const handleNotificationPress = (item: NotificationItem) => {
     markAsRead(item.id);
     Vibration.vibrate(10);
-    if (item.data?.type === 'subscription_warning') {
-      navigation.navigate('Lainnya', { openSubscription: true });
-    } else {
-      navigation.navigate('NotificationDetail', { notification: item });
-    }
+    navigation.navigate('NotificationDetail', { notification: item });
   };
 
   const formatTime = (isoString: string) => {
