@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Calendar, ExternalLink, ShoppingBag, Eye } from 'lucide-react-native';
 import { Button3D } from './SuperAdminScreen';
+import { useAuthStore } from '../store/authStore';
 
 export default function NotificationDetailScreen({ route, navigation }: any) {
   const { colors } = useTheme();
@@ -60,6 +61,8 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
     }
   };
 
+  const { role } = useAuthStore();
+
   const handleGoToOrder = () => {
     navigation.navigate('Main', { screen: 'Pesanan' });
   };
@@ -69,7 +72,11 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
   };
 
   const handleGoToSubscriptionVerification = () => {
-    navigation.navigate('SuperAdminScreen', { featureId: 'superAdminSubscriptions', title: 'VERIFIKASI LANGGANAN' });
+    if (role === 'super-admin' || role === 'superadmin') {
+      navigation.navigate('SuperAdminScreen', { featureId: 'superAdminSubscriptions', title: 'VERIFIKASI LANGGANAN' });
+    } else {
+      Alert.alert('Akses Ditolak', 'Hanya Super Admin yang dapat mengakses menu verifikasi langganan.');
+    }
   };
 
   const handleGoToStock = () => {
@@ -187,7 +194,7 @@ export default function NotificationDetailScreen({ route, navigation }: any) {
             </View>
           ) : null}
 
-          {isSubscriptionRequest ? (
+          {isSubscriptionRequest && (role === 'super-admin' || role === 'superadmin') ? (
             <View>
               <Text className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2.5 ml-1">Aksi Verifikasi</Text>
               <Button3D

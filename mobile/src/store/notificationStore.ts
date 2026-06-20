@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from './authStore';
 
 export interface NotificationItem {
   id: string;
@@ -8,6 +9,7 @@ export interface NotificationItem {
   body: string;
   timestamp: string; // ISO string
   isRead: boolean;
+  userId?: string | null;
   data?: any;
 }
 
@@ -25,11 +27,13 @@ export const useNotificationStore = create<NotificationState>()(
     (set, get) => ({
       notifications: [],
       addNotification: (n) => {
+        const currentUserId = useAuthStore.getState().user?.uid || null;
         const newItem: NotificationItem = {
           ...n,
           id: Math.random().toString(36).substring(2, 9),
           timestamp: new Date().toISOString(),
           isRead: false,
+          userId: currentUserId,
         };
         set((state) => ({
           notifications: [newItem, ...state.notifications].slice(0, 50), // Keep last 50
@@ -43,15 +47,22 @@ export const useNotificationStore = create<NotificationState>()(
         }));
       },
       markAllAsRead: () => {
+        const currentUserId = useAuthStore.getState().user?.uid || null;
         set((state) => ({
-          notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+          notifications: state.notifications.map((n) =>
+            n.userId === currentUserId ? { ...n, isRead: true } : n
+          ),
         }));
       },
       clearAll: () => {
-        set({ notifications: [] });
+        const currentUserId = useAuthStore.getState().user?.uid || null;
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.userId !== currentUserId),
+        }));
       },
       getUnreadCount: () => {
-        return get().notifications.filter((n) => !n.isRead).length;
+        const currentUserId = useAuthStore.getState().user?.uid || null;
+        return get().notifications.filter((n) => n.userId === currentUserId && !n.isRead).length;
       },
     }),
     {

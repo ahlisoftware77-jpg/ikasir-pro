@@ -135,7 +135,14 @@ export function Button3D({
 export default function SuperAdminScreen({ route, navigation }: any) {
   const { featureId } = route.params;
   const { colors, theme } = useTheme();
-  const { user } = useAuthStore();
+  const { user, role } = useAuthStore();
+
+  React.useEffect(() => {
+    if (role !== 'super-admin' && role !== 'superadmin') {
+      Alert.alert('Akses Ditolak', 'Anda tidak memiliki hak akses untuk membuka halaman administrator.');
+      navigation.goBack();
+    }
+  }, [role, navigation]);
 
   const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
   const [superAdminStores, setSuperAdminStores] = useState<any[]>([]);
@@ -3104,6 +3111,14 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         return null;
     }
   };
+
+  if (role !== 'super-admin' && role !== 'superadmin') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>

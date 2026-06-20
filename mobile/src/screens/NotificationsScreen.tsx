@@ -2,12 +2,20 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, Vibration } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useNotificationStore, NotificationItem } from '../store/notificationStore';
+import { useAuthStore } from '../store/authStore';
 import { Bell, Trash2, CheckCheck, ChevronRight, Inbox } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotificationsScreen({ navigation }: any) {
   const { colors } = useTheme();
-  const { notifications, markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  const allNotifications = useNotificationStore((state) => state.notifications);
+  const { markAsRead, markAllAsRead, clearAll } = useNotificationStore();
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser ? currentUser.uid : null;
+
+  const notifications = React.useMemo(() => {
+    return allNotifications.filter((n) => n.userId === currentUserId);
+  }, [allNotifications, currentUserId]);
 
   const handleNotificationPress = (item: NotificationItem) => {
     markAsRead(item.id);
