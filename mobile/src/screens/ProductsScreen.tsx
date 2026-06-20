@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -141,6 +141,10 @@ export default function ProductsScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc' | 'price-asc' | 'price-desc'>('name-asc');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
+  const [isSortModalVisible, setIsSortModalVisible] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -698,10 +702,51 @@ export default function ProductsScreen({ navigation }: any) {
     );
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()))
-  );
+  const categories = React.useMemo(() => {
+    const uniq = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    return ['Semua', ...uniq];
+  }, [products]);
+
+  const stockSummary = React.useMemo(() => {
+    const totalVariants = products.length;
+    const totalAssetValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0);
+    const outOfStockCount = products.filter(p => (p.stock || 0) === 0).length;
+    const lowStockCount = products.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
+    return {
+      totalVariants,
+      totalAssetValue,
+      outOfStockCount,
+      lowStockCount
+    };
+  }, [products]);
+
+  const filteredProducts = React.useMemo(() => {
+    let result = products.filter(p => {
+      const matchCategory = selectedCategory === 'Semua' || p.category === selectedCategory;
+      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+                          (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
+                          (p.barcode && p.barcode.toLowerCase().includes(search.toLowerCase()));
+      return matchCategory && matchSearch;
+    });
+
+    return [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'stock-asc':
+          return (a.stock || 0) - (b.stock || 0);
+        case 'stock-desc':
+          return (b.stock || 0) - (a.stock || 0);
+        case 'price-asc':
+          return (a.price || 0) - (b.price || 0);
+        case 'price-desc':
+          return (b.price || 0) - (a.price || 0);
+        case 'name-asc':
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+  }, [products, search, selectedCategory, sortBy]);
 
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
@@ -720,12 +765,125 @@ export default function ProductsScreen({ navigation }: any) {
             style={{ color: colors.text }}
           />
           <TouchableOpacity 
+            onPress={() => { Vibration.vibrate(10); setIsSortModalVisible(true); }}
+            className="p-2 mr-1"
+          >
+            <SlidersHorizontal size={18} color={colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity 
             onPress={startScanning}
             className="p-2 -mr-2"
           >
             <Scan size={20} color={colors.accent} />
           </TouchableOpacity>
         </View>
+
+        {/* Dashboard Ringkasan Stok */}
+        {!isSelectMode && (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            className="mt-4"
+            contentContainerStyle={{ gap: 12, paddingRight: 4 }}
+          >
+            {/* Total Varian */}
+            <View 
+              className="p-4 rounded-2xl border flex-row items-center gap-3 min-w-[130px]"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <View className="p-2 bg-blue-500/10 rounded-xl">
+                <Package size={16} color="#3b82f6" />
+              </View>
+              <View>
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Varian</Text>
+                <Text className="text-base font-black mt-0.5" style={{ color: colors.text }}>{stockSummary.totalVariants}</Text>
+              </View>
+            </View>
+
+            {/* Total Aset */}
+            <View 
+              className="p-4 rounded-2xl border flex-row items-center gap-3 min-w-[185px]"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <View className="p-2 bg-emerald-500/10 rounded-xl">
+                <TrendingUp size={16} color="#10b981" />
+              </View>
+              <View>
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Nilai Aset</Text>
+                <Text className="text-sm font-black mt-0.5 text-emerald-500">Rp {stockSummary.totalAssetValue.toLocaleString('id-ID')}</Text>
+              </View>
+            </View>
+
+            {/* Stok Habis */}
+            <View 
+              className={`p-4 rounded-2xl border flex-row items-center gap-3 min-w-[130px] ${stockSummary.outOfStockCount > 0 ? 'bg-rose-500/5 border-rose-500/20' : ''}`}
+              style={{ 
+                backgroundColor: stockSummary.outOfStockCount > 0 ? undefined : colors.surface, 
+                borderColor: stockSummary.outOfStockCount > 0 ? undefined : colors.border 
+              }}
+            >
+              <View className={`p-2 rounded-xl ${stockSummary.outOfStockCount > 0 ? 'bg-rose-500/10' : 'bg-slate-500/10'}`}>
+                <AlertTriangle size={16} color={stockSummary.outOfStockCount > 0 ? '#f43f5e' : colors.textMuted} />
+              </View>
+              <View>
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Habis</Text>
+                <Text className={`text-base font-black mt-0.5 ${stockSummary.outOfStockCount > 0 ? 'text-rose-500' : ''}`} style={{ color: stockSummary.outOfStockCount > 0 ? undefined : colors.text }}>{stockSummary.outOfStockCount}</Text>
+              </View>
+            </View>
+
+            {/* Stok Menipis */}
+            <View 
+              className={`p-4 rounded-2xl border flex-row items-center gap-3 min-w-[130px] ${stockSummary.lowStockCount > 0 ? 'bg-amber-500/5 border-amber-500/20' : ''}`}
+              style={{ 
+                backgroundColor: stockSummary.lowStockCount > 0 ? undefined : colors.surface, 
+                borderColor: stockSummary.lowStockCount > 0 ? undefined : colors.border 
+              }}
+            >
+              <View className={`p-2 rounded-xl ${stockSummary.lowStockCount > 0 ? 'bg-amber-500/10' : 'bg-slate-500/10'}`}>
+                <AlertCircle size={16} color={stockSummary.lowStockCount > 0 ? '#f59e0b' : colors.textMuted} />
+              </View>
+              <View>
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Menipis</Text>
+                <Text className={`text-base font-black mt-0.5 ${stockSummary.lowStockCount > 0 ? 'text-amber-500' : ''}`} style={{ color: stockSummary.lowStockCount > 0 ? undefined : colors.text }}>{stockSummary.lowStockCount}</Text>
+              </View>
+            </View>
+          </ScrollView>
+        )}
+
+        {/* Category Chips Selector */}
+        {!isSelectMode && categories.length > 1 && (
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            className="mt-4"
+            contentContainerStyle={{ gap: 8 }}
+          >
+            {categories.map((cat) => {
+              const isActive = selectedCategory === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => {
+                    Vibration.vibrate(5);
+                    setSelectedCategory(cat);
+                  }}
+                  className="px-4 py-2.5 rounded-full border"
+                  style={{
+                    backgroundColor: isActive ? colors.accent : colors.surface,
+                    borderColor: isActive ? colors.accent : colors.border
+                  }}
+                >
+                  <Text 
+                    className="text-[10px] font-black uppercase tracking-wider" 
+                    style={{ color: isActive ? '#ffffff' : colors.text }}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
 
       {/* Barcode Select Mode Controls */}
@@ -858,10 +1016,22 @@ export default function ProductsScreen({ navigation }: any) {
                   <Text className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: colors.textMuted }}>
                     SKU: {item.sku || 'N/A'} • {item.category}
                   </Text>
-                  <View className="flex-row items-center mt-1 gap-3">
-                     <Text className="font-black text-emerald-500">Rp {item.price.toLocaleString('id-ID')}</Text>
-                     <View className="w-1 h-1 rounded-full bg-slate-700" />
-                     <Text className="text-xs font-bold" style={{ color: colors.accent }}>Stok: {item.stock}</Text>
+                  <View className="flex-row items-center mt-1.5 gap-2">
+                     <Text className="font-black text-emerald-500 text-sm">Rp {item.price.toLocaleString('id-ID')}</Text>
+                     <View className="w-1 h-1 rounded-full bg-slate-400" />
+                     {item.stock === 0 ? (
+                       <View className="bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg">
+                         <Text className="text-[9px] font-black text-rose-500 uppercase">Stok Habis</Text>
+                       </View>
+                     ) : item.stock <= 5 ? (
+                       <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                         <Text className="text-[9px] font-black text-amber-500 uppercase">Stok Tipis: {item.stock}</Text>
+                       </View>
+                     ) : (
+                       <View className="bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
+                         <Text className="text-[9px] font-black text-emerald-500 uppercase">Stok: {item.stock}</Text>
+                       </View>
+                     )}
                   </View>
                 </View>
 
@@ -1246,6 +1416,78 @@ export default function ProductsScreen({ navigation }: any) {
               >
                 <Text className="font-black text-white text-xs uppercase">Pindai Ulang Perangkat</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Modal Pengurutan (SortModal) */}
+      <Modal 
+        visible={isSortModalVisible} 
+        animationType="slide" 
+        transparent 
+        onRequestClose={() => setIsSortModalVisible(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <Pressable className="flex-1" onPress={() => setIsSortModalVisible(false)} />
+          <View 
+            className="rounded-t-[32px] p-6 pb-8"
+            style={{ backgroundColor: colors.surface }}
+          >
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-6">
+              <View>
+                <Text className="text-lg font-black uppercase tracking-tight" style={{ color: colors.text }}>
+                  Urutkan Produk
+                </Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
+                  Pilih Kriteria Pengurutan
+                </Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsSortModalVisible(false)}
+                className="w-10 h-10 rounded-full bg-black/5 items-center justify-center"
+              >
+                <X size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* List Mode Urut */}
+            <View className="gap-3">
+              {[
+                { key: 'name-asc', label: 'Nama (A - Z)' },
+                { key: 'name-desc', label: 'Nama (Z - A)' },
+                { key: 'stock-asc', label: 'Stok Terendah' },
+                { key: 'stock-desc', label: 'Stok Tertinggi' },
+                { key: 'price-asc', label: 'Harga Termurah' },
+                { key: 'price-desc', label: 'Harga Termahal' }
+              ].map(opt => {
+                const isSelected = sortBy === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    onPress={() => {
+                      Vibration.vibrate(5);
+                      setSortBy(opt.key as any);
+                      setIsSortModalVisible(false);
+                    }}
+                    className="p-4 rounded-2xl border flex-row justify-between items-center"
+                    style={{ 
+                      backgroundColor: isSelected ? colors.accent + '10' : colors.bg,
+                      borderColor: isSelected ? colors.accent : colors.border
+                    }}
+                  >
+                    <Text 
+                      className={`text-xs font-black uppercase tracking-wider ${isSelected ? '' : 'text-slate-500'}`}
+                      style={{ color: isSelected ? colors.accent : undefined }}
+                    >
+                      {opt.label}
+                    </Text>
+                    {isSelected && (
+                      <Check size={16} color={colors.accent} strokeWidth={3} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </View>
