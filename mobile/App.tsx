@@ -14,6 +14,7 @@ import { db } from './src/lib/firebase';
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
+import styled from 'styled-components/native';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -40,6 +41,38 @@ import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag,
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+interface ButtonContainerProps {
+  buttonShadow: string;
+  isDown: boolean;
+  isMenuDisabled: boolean;
+}
+
+const ButtonContainer = styled.Pressable<ButtonContainerProps>`
+  flex: 1;
+  border-radius: 6px;
+  background-color: ${props => props.buttonShadow};
+  padding-bottom: ${props => (props.isDown ? '0px' : '5px')};
+  margin-top: ${props => (props.isDown ? '5px' : '0px')};
+  opacity: ${props => (props.isMenuDisabled ? 0.4 : 1)};
+  margin-horizontal: 1px;
+`;
+
+interface ButtonInnerProps {
+  bg: string;
+  borderColor: string;
+}
+
+const ButtonInner = styled.View<ButtonInnerProps>`
+  flex: 1;
+  background-color: ${props => props.bg};
+  border-width: 1px;
+  border-color: ${props => props.borderColor};
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4px;
+`;
+
 function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) {
   const selected = props.accessibilityState?.selected;
   const [isPressed, setIsPressed] = useState(false);
@@ -57,7 +90,7 @@ function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) 
   const buttonShadow = selected ? activeShadow : shadowBg;
 
   return (
-    <Pressable
+    <ButtonContainer
       onPressIn={() => !isMenuDisabled && setIsPressed(true)}
       onPressOut={() => !isMenuDisabled && setIsPressed(false)}
       onPress={(e) => {
@@ -69,33 +102,15 @@ function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) 
           }
         }
       }}
-      style={[
-        props.style,
-        {
-          borderRadius: 6,
-          backgroundColor: buttonShadow,
-          paddingBottom: isDown ? 0 : 5,
-          marginTop: isDown ? 5 : 0,
-          opacity: isMenuDisabled ? 0.4 : 1,
-          marginHorizontal: 1,
-        }
-      ]}
+      buttonShadow={buttonShadow}
+      isDown={isDown}
+      isMenuDisabled={!!isMenuDisabled}
+      style={props.style}
     >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: bg,
-          borderWidth: 1,
-          borderColor: border,
-          borderRadius: 6,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingTop: 4,
-        }}
-      >
+      <ButtonInner bg={bg} borderColor={border}>
         {props.children}
-      </View>
-    </Pressable>
+      </ButtonInner>
+    </ButtonContainer>
   );
 }
 

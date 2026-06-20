@@ -4,6 +4,7 @@ import {
   TextInput, Switch, ActivityIndicator, Alert, Image, Linking, 
   KeyboardAvoidingView, Platform, Dimensions 
 } from 'react-native';
+import styled from 'styled-components/native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
@@ -66,10 +67,42 @@ const get3DButtonColors = (variant: string, colors: any) => {
   }
 };
 
+interface AdminButtonContainerProps {
+  shadowBg: string;
+  isPressed: boolean;
+  disabled: boolean;
+}
+
+const AdminButtonContainer = styled.Pressable<AdminButtonContainerProps>`
+  border-radius: 16px;
+  background-color: ${props => props.shadowBg};
+  padding-bottom: ${props => (props.isPressed ? '0px' : '4px')};
+  margin-top: ${props => (props.isPressed ? '4px' : '0px')};
+  opacity: ${props => (props.disabled ? 0.6 : 1)};
+`;
+
+interface AdminButtonInnerProps {
+  bg: string;
+  borderColor: string;
+}
+
+const AdminButtonInner = styled.View<AdminButtonInnerProps>`
+  background-color: ${props => props.bg};
+  border-width: 1px;
+  border-color: ${props => props.borderColor};
+  border-radius: 16px;
+  padding-vertical: 12px;
+  padding-horizontal: 16px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+`;
+
 export function Button3D({ 
   onPress, 
-  disabled, 
-  loading, 
+  disabled = false, 
+  loading = false, 
   variant = 'accent', 
   colors,
   children,
@@ -79,40 +112,23 @@ export function Button3D({
   const themeColors = get3DButtonColors(variant, colors);
 
   return (
-    <Pressable
+    <AdminButtonContainer
       onPressIn={() => !disabled && !loading && setIsPressed(true)}
       onPressOut={() => !disabled && !loading && setIsPressed(false)}
       onPress={onPress}
       disabled={disabled || loading}
-      style={[{
-        borderRadius: 16,
-        backgroundColor: themeColors.shadowBg,
-        paddingBottom: isPressed ? 0 : 4,
-        marginTop: isPressed ? 4 : 0,
-        opacity: disabled ? 0.6 : 1,
-      }, style]}
+      shadowBg={themeColors.shadowBg}
+      isPressed={isPressed}
+      style={style}
     >
-      <View
-        style={{
-          backgroundColor: themeColors.bg,
-          borderWidth: 1,
-          borderColor: themeColors.borderColor,
-          borderRadius: 16,
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-        }}
-      >
+      <AdminButtonInner bg={themeColors.bg} borderColor={themeColors.borderColor}>
         {loading ? (
           <ActivityIndicator size="small" color={themeColors.textColor} />
         ) : (
           children
         )}
-      </View>
-    </Pressable>
+      </AdminButtonInner>
+    </AdminButtonContainer>
   );
 }
 
