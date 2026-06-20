@@ -54,7 +54,7 @@ const ButtonContainer = styled.Pressable<ButtonContainerProps>`
   padding-bottom: ${props => (props.isDown ? '0px' : '5px')};
   margin-top: ${props => (props.isDown ? '5px' : '0px')};
   opacity: ${props => (props.isMenuDisabled ? 0.4 : 1)};
-  margin-horizontal: 1px;
+  margin-horizontal: 0.5px;
   
   border-top-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
   border-bottom-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
@@ -80,6 +80,7 @@ const ButtonInner = styled.View<ButtonInnerProps>`
   align-items: center;
   justify-content: center;
   padding-top: 4px;
+  padding-horizontal: 2px;
   
   border-top-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
   border-bottom-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
@@ -204,7 +205,7 @@ function TabNavigator() {
     return {
       tabBarIcon: ({ color }: any) => {
         const Icon = iconComponent;
-        return <Icon color={color} size={26} strokeWidth={2.5} />;
+        return <Icon color={color} size={22} strokeWidth={2.5} />;
       },
       title,
       tabBarButton: (props: any) => (
@@ -267,10 +268,10 @@ function TabNavigator() {
           backgroundColor: isLightTheme ? '#e2e8f0' : '#000000',
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 76 + insets.bottom,
-          paddingBottom: 8 + insets.bottom,
-          paddingTop: 8,
-          paddingHorizontal: 8,
+          height: 72 + insets.bottom,
+          paddingBottom: 6 + insets.bottom,
+          paddingTop: 6,
+          paddingHorizontal: 2,
           elevation: 0,
           shadowOpacity: 0,
         },
@@ -278,8 +279,8 @@ function TabNavigator() {
         tabBarInactiveTintColor: isLightTheme ? '#64748b' : '#a3a3a3',
         tabBarLabelStyle: {
           fontWeight: '900',
-          fontSize: 11,
-          marginTop: 4,
+          fontSize: 9.5,
+          marginTop: 2,
         }
       }}
     >
@@ -327,7 +328,7 @@ function TabNavigator() {
         name="Lainnya" 
         component={SettingsScreen} 
         options={{
-          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={26} strokeWidth={2.5} />,
+          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={22} strokeWidth={2.5} />,
           title: 'MENU LAINNYA',
           tabBarBadge: showExpiredOrWarningBadge ? '!' : undefined,
           tabBarBadgeStyle: showExpiredOrWarningBadge ? {
