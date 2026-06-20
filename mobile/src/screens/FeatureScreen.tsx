@@ -989,26 +989,96 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
 
     try {
-      const escapeCSV = (val: any) => {
-        if (val === null || val === undefined) return '';
-        let str = String(val);
-        str = str.replace(/"/g, '""');
-        if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes(';')) {
-          return `"${str}"`;
-        }
-        return str;
-      };
+      // 1. Generate HTML XLS Content
+      const htmlRows = rows.map((row) => {
+        return `<tr>
+          ${row.map(cell => {
+            const isNum = typeof cell === 'number';
+            const valStr = String(cell);
+            
+            // Default styling for plain text
+            let cellStyle = 'mso-number-format:\\@;text-align:left;';
+            let cellColor = '#334155';
+            let cellFontWeight = 'normal';
+            
+            if (isNum) {
+              cellStyle = 'mso-number-format:\\#\\,\\#\\#0;text-align:right;';
+            }
+            
+            // Highlight status & tipe arus kas
+            const statusUpper = valStr.toUpperCase();
+            if (statusUpper === 'LUNAS' || statusUpper === 'PEMASUKAN' || statusUpper === 'IN') {
+              cellColor = '#10B981'; // Emerald Green
+              cellFontWeight = 'bold';
+              cellStyle += 'text-align:center;';
+            } else if (statusUpper === 'BELUM LUNAS' || statusUpper === 'PENGELUARAN' || statusUpper === 'OUT' || statusUpper === 'BATAL' || statusUpper === 'CANCELLED') {
+              cellColor = '#EF4444'; // Rose Red
+              cellFontWeight = 'bold';
+              cellStyle += 'text-align:center;';
+            } else if (statusUpper === 'DICICIL' || statusUpper === 'PENDING' || statusUpper === 'PARTIALLY_PAID') {
+              cellColor = '#F59E0B'; // Amber Orange
+              cellFontWeight = 'bold';
+              cellStyle += 'text-align:center;';
+            }
+            
+            return `<td style="border:1px solid #cbd5e1;padding:8px;font-size:10pt;color:${cellColor};font-weight:${cellFontWeight};${cellStyle}">${cell}</td>`;
+          }).join('')}
+        </tr>`;
+      }).join('\n');
 
-      const headerRow = headers.map(escapeCSV).join(',');
-      const dataRows = rows.map(row => row.map(escapeCSV).join(',')).join('\n');
-      const csvContent = `${headerRow}\n${dataRows}`;
+      const htmlHeaders = headers.map(h => {
+        return `<th style="background-color:#10b981;color:#ffffff;border:1px solid #059669;padding:10px;font-weight:bold;font-size:11pt;text-align:center;text-transform:uppercase;">${h}</th>`;
+      }).join('\n');
 
-      const fileUri = `${FileSystem.documentDirectory}${fileName}.csv`;
-      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+      const titleFormatted = fileName.replace(/_/g, ' ').toUpperCase();
+
+      const xlsContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8">
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Laporan</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            body { font-family: 'Segoe UI', Calibri, sans-serif; }
+            table { border-collapse: collapse; margin-top: 10px; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <div style="font-size:16pt;font-weight:bold;color:#1e293b;margin-bottom:4px;">${titleFormatted}</div>
+          <div style="font-size:10pt;color:#64748b;margin-bottom:20px;">IKASIR PRO &bull; Ekspor Real-Time: ${new Date().toLocaleString('id-ID')}</div>
+          <table>
+            <thead>
+              <tr>
+                ${htmlHeaders}
+              </tr>
+            </thead>
+            <tbody>
+              ${htmlRows}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `.trim();
+
+      const fileUri = `${FileSystem.documentDirectory}${fileName}.xls`;
+      await FileSystem.writeAsStringAsync(fileUri, xlsContent, { encoding: FileSystem.EncodingType.UTF8 });
 
       const isSharingAvailable = await Sharing.isAvailableAsync();
       if (isSharingAvailable) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Ekspor Laporan (Excel/CSV)' });
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/vnd.ms-excel', dialogTitle: 'Ekspor Laporan Excel (.xls)' });
       } else {
         Alert.alert('Gagal', 'Sistem sharing tidak tersedia.');
       }
