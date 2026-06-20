@@ -1462,17 +1462,41 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             try {
               const match = req.packageId.match(/(\d+)m/);
               const months = match ? parseInt(match[1]) : 1;
-              const newValidUntil = new Date();
+
+              const qUsers = query(collection(db, 'users'), where('storeId', '==', req.storeId));
+              const userSnaps = await getDocs(qUsers);
+
+              const now = new Date();
+              let baseDate = now;
+
+              // Cari validUntil terlama/terakhir yang aktif dari semua user di toko tersebut
+              let currentMaxValidUntil: Date | null = null;
+              userSnaps.forEach((userDoc) => {
+                const uData = userDoc.data();
+                if (uData.validUntil) {
+                  const d = new Date(uData.validUntil);
+                  if (!isNaN(d.getTime())) {
+                    if (!currentMaxValidUntil || d > currentMaxValidUntil) {
+                      currentMaxValidUntil = d;
+                    }
+                  }
+                }
+              });
+
+              // Jika masa aktif masih berlaku (di masa depan), perpanjang dihitung dari tanggal tersebut
+              if (currentMaxValidUntil && currentMaxValidUntil > now) {
+                baseDate = currentMaxValidUntil;
+              }
+
+              const newValidUntil = new Date(baseDate.getTime());
               newValidUntil.setDate(newValidUntil.getDate() + (months * 30));
 
               const batch = writeBatch(db);
               batch.update(doc(db, 'subscription_requests', req.id), {
                 status: 'approved',
-                approvedAt: new Date().toISOString()
+                approvedAt: now.toISOString()
               });
 
-              const qUsers = query(collection(db, 'users'), where('storeId', '==', req.storeId));
-              const userSnaps = await getDocs(qUsers);
               userSnaps.forEach((userDoc) => {
                 batch.update(userDoc.ref, {
                   validUntil: newValidUntil.toISOString(),
