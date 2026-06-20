@@ -182,15 +182,15 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
         </div>
         <nav className="space-y-1">
           {menuItems.filter(item => {
-            if (item.superOnly) return role === 'super-admin';
+            if (item.superOnly) return role === 'super-admin' || role === 'superadmin';
             
             // Priority for granular permissions
             if ((item as any).permission) {
               const permKey = (item as any).permission;
-              return (permissions as any)?.[permKey] ?? (role === 'admin' || role === 'super-admin');
+              return (permissions as any)?.[permKey] ?? (role === 'admin' || role === 'super-admin' || role === 'superadmin');
             }
 
-            if ((item as any).adminOnly) return role === 'admin' || role === 'super-admin';
+            if ((item as any).adminOnly) return role === 'admin' || role === 'super-admin' || role === 'superadmin';
             return true;
           }).map((item) => {
             const isActive = pathname === item.path || (item.path !== '/' && pathname.startsWith(item.path + '/'));
@@ -274,6 +274,22 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             }
 
             if (item.path === '#feedback') {
+              const isSuperAdmin = role === 'super-admin' || role === 'superadmin';
+              if (isSuperAdmin) {
+                return (
+                  <div key={item.path} className="py-1">
+                    <Link
+                      href="/super-admin?tab=feedback"
+                      className={`uiverse-btn ${pathname === '/super-admin' ? 'active-btn' : ''}`}
+                    >
+                      <span className="uiverse-btn-top w-full">
+                        <Icon size={18} />
+                        <span className="text-sm flex-1 text-left">{item.name}</span>
+                      </span>
+                    </Link>
+                  </div>
+                );
+              }
               return (
                 <div key={item.path} className="py-1">
                   <button

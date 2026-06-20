@@ -6,7 +6,7 @@ import { initializeApp, getApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db, primaryDb, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ShieldCheck, 
   Loader2, 
@@ -49,6 +49,8 @@ import { handleExportJSON, handleImportJSON, handleImportStoreJSON } from '@/lib
 export default function SuperAdminPage() {
   const { user, role } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
   
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +66,12 @@ export default function SuperAdminPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast' | 'feedback'>('users');
+
+  useEffect(() => {
+    if (tabParam && ['users', 'stores', 'branding', 'infrastructure', 'subscriptions', 'broadcast', 'feedback'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [tabParam]);
   const [stores, setStores] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [isAddingProject, setIsAddingProject] = useState(false);
@@ -283,7 +291,7 @@ export default function SuperAdminPage() {
 
   // Security Check
   useEffect(() => {
-    if (!isLoading && role !== 'super-admin') {
+    if (!isLoading && role !== 'super-admin' && role !== 'superadmin') {
       router.push('/');
     }
   }, [role, isLoading, router]);

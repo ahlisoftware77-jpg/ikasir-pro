@@ -1,0 +1,327 @@
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.classpath b/node_modules/@react-native-google-signin/google-signin/android/.classpath
+new file mode 100644
+index 0000000..bbe97e5
+--- /dev/null
++++ b/node_modules/@react-native-google-signin/google-signin/android/.classpath
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<classpath>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-17/"/>
++	<classpathentry kind="con" path="org.eclipse.buildship.core.gradleclasspathcontainer"/>
++	<classpathentry kind="output" path="bin/default"/>
++</classpath>
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/checksums.lock b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/checksums.lock
+new file mode 100644
+index 0000000..0865faa
+Binary files /dev/null and b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/checksums.lock differ
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/md5-checksums.bin b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/md5-checksums.bin
+new file mode 100644
+index 0000000..59235ab
+Binary files /dev/null and b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/md5-checksums.bin differ
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/sha1-checksums.bin b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/sha1-checksums.bin
+new file mode 100644
+index 0000000..289fab3
+Binary files /dev/null and b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/checksums/sha1-checksums.bin differ
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/dependencies-accessors/gc.properties b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/dependencies-accessors/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/fileChanges/last-build.bin b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/fileChanges/last-build.bin
+new file mode 100644
+index 0000000..f76dd23
+Binary files /dev/null and b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/fileChanges/last-build.bin differ
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/fileHashes/fileHashes.lock b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/fileHashes/fileHashes.lock
+new file mode 100644
+index 0000000..3056b1e
+Binary files /dev/null and b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/fileHashes/fileHashes.lock differ
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/gc.properties b/node_modules/@react-native-google-signin/google-signin/android/.gradle/8.9/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock b/node_modules/@react-native-google-signin/google-signin/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock
+new file mode 100644
+index 0000000..3bb7186
+Binary files /dev/null and b/node_modules/@react-native-google-signin/google-signin/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock differ
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/buildOutputCleanup/cache.properties b/node_modules/@react-native-google-signin/google-signin/android/.gradle/buildOutputCleanup/cache.properties
+new file mode 100644
+index 0000000..a70ea64
+--- /dev/null
++++ b/node_modules/@react-native-google-signin/google-signin/android/.gradle/buildOutputCleanup/cache.properties
+@@ -0,0 +1,2 @@
++#Fri Jun 19 13:38:29 ICT 2026
++gradle.version=8.9
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.gradle/vcs-1/gc.properties b/node_modules/@react-native-google-signin/google-signin/android/.gradle/vcs-1/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.project b/node_modules/@react-native-google-signin/google-signin/android/.project
+new file mode 100644
+index 0000000..0added0
+--- /dev/null
++++ b/node_modules/@react-native-google-signin/google-signin/android/.project
+@@ -0,0 +1,34 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>react-native-google-signin_google-signin</name>
++	<comment>Project react-native-google-signin_google-signin created by Buildship.</comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.jdt.core.javabuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++		<buildCommand>
++			<name>org.eclipse.buildship.core.gradleprojectbuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.jdt.core.javanature</nature>
++		<nature>org.eclipse.buildship.core.gradleprojectnature</nature>
++	</natures>
++	<filteredResources>
++		<filter>
++			<id>1781853890024</id>
++			<name></name>
++			<type>30</type>
++			<matcher>
++				<id>org.eclipse.core.resources.regexFilterMatcher</id>
++				<arguments>node_modules|\.git|__CREATED_BY_JAVA_LANGUAGE_SERVER__</arguments>
++			</matcher>
++		</filter>
++	</filteredResources>
++</projectDescription>
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/.settings/org.eclipse.buildship.core.prefs b/node_modules/@react-native-google-signin/google-signin/android/.settings/org.eclipse.buildship.core.prefs
+new file mode 100644
+index 0000000..68c9fab
+--- /dev/null
++++ b/node_modules/@react-native-google-signin/google-signin/android/.settings/org.eclipse.buildship.core.prefs
+@@ -0,0 +1,2 @@
++connection.project.dir=../../../../android
++eclipse.preferences.version=1
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/build.gradle b/node_modules/@react-native-google-signin/google-signin/android/build.gradle
+index bed09d6..563b350 100644
+--- a/node_modules/@react-native-google-signin/google-signin/android/build.gradle
++++ b/node_modules/@react-native-google-signin/google-signin/android/build.gradle
+@@ -19,7 +19,7 @@ def isNewArchitectureEnabled() {
+   // - Set `newArchEnabled` to true inside the `gradle.properties` file
+   // - Invoke gradle with `-newArchEnabled=true`
+   // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`
+-  return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
++  return true
+ }
+ 
+ if (isNewArchitectureEnabled()) {
+@@ -59,6 +59,7 @@ android {
+     java {
+       if (isNewArchitectureEnabled()) {
+         srcDirs += 'src/newArch/java'
++        srcDirs += "$buildDir/generated/source/codegen/java"
+       } else {
+         srcDirs += 'src/oldArch/java'
+       }
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/src/newArch/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java b/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java
+similarity index 100%
+rename from node_modules/@react-native-google-signin/google-signin/android/src/newArch/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java
+rename to node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/src/newArch/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java b/node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java
+similarity index 100%
+rename from node_modules/@react-native-google-signin/google-signin/android/src/newArch/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java
+rename to node_modules/@react-native-google-signin/google-signin/android/src/main/java/com/reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/NativeGoogleSigninSpec.java b/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/NativeGoogleSigninSpec.java
+deleted file mode 100644
+index 56cd371..0000000
+--- a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/NativeGoogleSigninSpec.java
++++ /dev/null
+@@ -1,120 +0,0 @@
+-
+-/**
+- * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
+- *
+- *
+- * @generated by codegen project: GenerateModuleJavaSpec.js
+- *
+- * @nolint
+- */
+-
+-package com.reactnativegooglesignin;
+-
+-import com.facebook.proguard.annotations.DoNotStrip;
+-import com.facebook.react.bridge.Promise;
+-import com.facebook.react.bridge.ReactApplicationContext;
+-import com.facebook.react.bridge.ReactContextBaseJavaModule;
+-import com.facebook.react.bridge.ReactMethod;
+-import com.facebook.react.bridge.ReactModuleWithSpec;
+-import com.facebook.react.bridge.ReadableMap;
+-import com.facebook.react.bridge.WritableMap;
+-import com.facebook.react.common.build.ReactBuildConfig;
+-import com.facebook.react.turbomodule.core.interfaces.TurboModule;
+-import java.util.Arrays;
+-import java.util.HashSet;
+-import java.util.Map;
+-import java.util.Set;
+-import javax.annotation.Nonnull;
+-import javax.annotation.Nullable;
+-
+-public abstract class NativeGoogleSigninSpec extends ReactContextBaseJavaModule implements ReactModuleWithSpec, TurboModule {
+-  public static final String NAME = "RNGoogleSignin";
+-
+-  public NativeGoogleSigninSpec(ReactApplicationContext reactContext) {
+-    super(reactContext);
+-  }
+-
+-  @Override
+-  public @Nonnull String getName() {
+-    return NAME;
+-  }
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void signIn(ReadableMap params, Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void configure(ReadableMap params, Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void addScopes(ReadableMap params, Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void playServicesAvailable(boolean showPlayServicesUpdateDialog, Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void signInSilently(Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void signOut(Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void revokeAccess(Promise promise);
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void clearCachedAccessToken(String tokenString, Promise promise);
+-
+-  @ReactMethod(isBlockingSynchronousMethod = true)
+-  @DoNotStrip
+-  public abstract boolean hasPreviousSignIn();
+-
+-  @ReactMethod(isBlockingSynchronousMethod = true)
+-  @DoNotStrip
+-  public abstract @Nullable WritableMap getCurrentUser();
+-
+-  @ReactMethod
+-  @DoNotStrip
+-  public abstract void getTokens(Promise promise);
+-
+-  protected abstract Map<String, Object> getTypedExportedConstants();
+-
+-  @Override
+-  @DoNotStrip
+-  public final @Nullable Map<String, Object> getConstants() {
+-    Map<String, Object> constants = getTypedExportedConstants();
+-    if (ReactBuildConfig.DEBUG || ReactBuildConfig.IS_INTERNAL_BUILD) {
+-      Set<String> obligatoryFlowConstants = new HashSet<>(Arrays.asList(
+-        "BUTTON_SIZE_ICON",
+-        "BUTTON_SIZE_STANDARD",
+-        "BUTTON_SIZE_WIDE",
+-        "IN_PROGRESS",
+-        "PLAY_SERVICES_NOT_AVAILABLE",
+-        "SIGN_IN_CANCELLED",
+-        "SIGN_IN_REQUIRED",
+-        "SCOPES_ALREADY_GRANTED",
+-        "NO_SAVED_CREDENTIAL_FOUND",
+-        "ONE_TAP_START_FAILED"
+-      ));
+-      Set<String> optionalFlowConstants = new HashSet<>();
+-      Set<String> undeclaredConstants = new HashSet<>(constants.keySet());
+-      undeclaredConstants.removeAll(obligatoryFlowConstants);
+-      undeclaredConstants.removeAll(optionalFlowConstants);
+-      if (!undeclaredConstants.isEmpty()) {
+-        throw new IllegalStateException(String.format("Native Module Flow doesn't declare constants: %s", undeclaredConstants));
+-      }
+-      undeclaredConstants = obligatoryFlowConstants;
+-      undeclaredConstants.removeAll(constants.keySet());
+-      if (!undeclaredConstants.isEmpty()) {
+-        throw new IllegalStateException(String.format("Native Module doesn't fill in constants: %s", undeclaredConstants));
+-      }
+-    }
+-    return constants;
+-  }
+-}
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java b/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java
+deleted file mode 100644
+index ce1e018..0000000
+--- a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerDelegate.java
++++ /dev/null
+@@ -1,28 +0,0 @@
+-package com.reactnativegooglesignin;
+-
+-// this is a dummy class to make the old architecture build
+-// should never be used in new architecture
+-
+-import androidx.annotation.Nullable;
+-
+-import com.facebook.react.bridge.ReadableArray;
+-import com.facebook.react.uimanager.ViewManagerDelegate;
+-import com.google.android.gms.common.SignInButton;
+-
+-public class RNGoogleSigninButtonManagerDelegate implements ViewManagerDelegate<SignInButton> {
+-    RNGoogleSigninButtonManagerDelegate(RNGoogleSigninButtonViewManager viewManager) {
+-        if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
+-            throw new RuntimeException("This class should not be used in new architecture");
+-        }
+-    }
+-
+-    @Override
+-    public void setProperty(SignInButton signInButton, String s, @Nullable Object o) {
+-        throw new RuntimeException("setProperty must not be called");
+-    }
+-
+-    @Override
+-    public void receiveCommand(SignInButton signInButton, String s, ReadableArray readableArray) {
+-        throw new RuntimeException("receiveCommand must not be called");
+-    }
+-}
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java b/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java
+deleted file mode 100644
+index 60c427f..0000000
+--- a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerInterface.java
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package com.reactnativegooglesignin;
+-
+-import android.view.View;
+-
+-
+-public interface RNGoogleSigninButtonManagerInterface<T extends View> extends RNGoogleSigninButtonManagerInterfaceCopy<T> {
+-}
+diff --git a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerInterfaceCopy.java b/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerInterfaceCopy.java
+deleted file mode 100644
+index 5a9c43c..0000000
+--- a/node_modules/@react-native-google-signin/google-signin/android/src/oldArch/java/com.reactnativegooglesignin/RNGoogleSigninButtonManagerInterfaceCopy.java
++++ /dev/null
+@@ -1,18 +0,0 @@
+-/**
+- * This code was generated by [react-native-codegen](https://www.npmjs.com/package/react-native-codegen).
+- *
+- * It was the copied to the repo to support old arch
+- *
+- * @generated by codegen project: GeneratePropsJavaInterface.js
+- */
+-
+-package com.reactnativegooglesignin;
+-
+-import android.view.View;
+-import androidx.annotation.Nullable;
+-
+-public interface RNGoogleSigninButtonManagerInterfaceCopy<T extends View> {
+-  void setDisabled(T view, boolean value);
+-  void setColor(T view, @Nullable String value);
+-  void setSize(T view, int value);
+-}

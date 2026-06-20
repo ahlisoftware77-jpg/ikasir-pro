@@ -507,7 +507,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       }
 
       // 3. Protection for Subscription Expiry
-      if (user && isSubscriptionExpired && role !== 'super-admin') {
+      if (user && isSubscriptionExpired && role !== 'super-admin' && role !== 'superadmin') {
         const blockedPaths = expiredDisabledMenus || [];
         const isBlockedPath = blockedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
         if (isBlockedPath) {
@@ -521,7 +521,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       // We already handled this in the previous turn by ensuring routing guard redirects to home for admins if needed,
       // but here we focus on the USER's specific request about separation.
 
-      if (user && permissions && role !== 'super-admin') {
+      if (user && permissions && role !== 'super-admin' && role !== 'superadmin') {
         // POS Check
         if (pathname.startsWith('/pos') && !permissions.canAccessPOS) {
           router.push('/');

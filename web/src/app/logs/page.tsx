@@ -57,6 +57,23 @@ const ACTION_COLORS: Record<string, string> = {
   'DELETE_USER': 'text-rose-500 bg-rose-500/10 border-rose-500/20',
 };
 
+const parseDate = (timestamp: any): Date => {
+  if (!timestamp) return new Date();
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+  if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+    return new Date(timestamp.seconds * 1000 + Math.floor((timestamp.nanoseconds || 0) / 1000000));
+  }
+  return new Date(timestamp);
+};
+
 export default function LogsPage() {
   const storeId = useAuthStore(state => state.storeId);
   const [logs, setLogs] = useState<any[]>([]);
@@ -96,7 +113,7 @@ export default function LogsPage() {
 
   const getRelativeTime = (timestamp: any) => {
     if (!timestamp) return 'Baru saja';
-    const date = timestamp.toDate();
+    const date = parseDate(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     
@@ -163,12 +180,13 @@ export default function LogsPage() {
             <tbody className="divide-y divide-app-border/20">
               {filteredLogs.map((log) => {
                 const ActionIcon = ACTION_ICONS[log.action] || TagIcon;
+                const logDate = parseDate(log.timestamp);
                 return (
                   <tr key={log.id} className="hover:bg-background/30 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex flex-col">
-                        <span className="text-xs font-black text-foreground">{log.timestamp?.toDate().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' })}</span>
-                        <span className="text-[10px] text-app-text-muted font-bold truncate">{log.timestamp?.toDate().toLocaleDateString('id-ID', { dateStyle: 'medium' })}</span>
+                        <span className="text-xs font-black text-foreground">{logDate.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' })}</span>
+                        <span className="text-[10px] text-app-text-muted font-bold truncate">{logDate.toLocaleDateString('id-ID', { dateStyle: 'medium' })}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
