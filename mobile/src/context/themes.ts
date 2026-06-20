@@ -1,4 +1,4 @@
-export type ThemeType = 'ocean' | 'emerald' | 'purple' | 'sunset' | 'light' | 'light_mint' | 'light_peach';
+export type ThemeType = 'ocean' | 'emerald' | 'purple' | 'sunset' | 'light' | 'light_mint' | 'light_peach' | 'light_maroon';
 
 export interface ThemeColors {
   bg: string;
@@ -73,5 +73,14 @@ export const themes: Record<ThemeType, ThemeColors> = {
     border: '#fdf0e2',
     text: '#431407',
     textMuted: '#8a6255',
+  },
+  light_maroon: {
+    bg: '#faf5f5',
+    surface: '#ffffff',
+    accent: '#800000',
+    accentHover: '#5a0000',
+    border: '#f3e8e8',
+    text: '#4c0519',
+    textMuted: '#9f7d85',
   },
 };

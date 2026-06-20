@@ -1104,24 +1104,25 @@ export default function ProductsScreen({ navigation }: any) {
           <View 
             className="rounded-[32px] overflow-hidden flex-col"
             style={{ 
-              backgroundColor: '#ffffff',
+              backgroundColor: colors.surface,
               width: screenWidth * 0.9,
               height: screenHeight * 0.72
             }}
           >
             {/* Header Modal */}
-            <View className="p-6 border-b border-slate-100 flex-row items-center justify-between">
+            <View className="p-6 border-b flex-row items-center justify-between" style={{ borderColor: colors.border }}>
               <View className="flex-row items-center gap-2">
                 <View className="p-2 bg-blue-500/10 rounded-xl">
-                  <Printer color="#3b82f6" size={18} />
+                  <Printer color={colors.accent} size={18} />
                 </View>
-                <Text className="text-lg font-black text-slate-900">Printer Bluetooth</Text>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Printer Bluetooth</Text>
               </View>
               <TouchableOpacity 
                 onPress={() => setIsBluetoothModalVisible(false)}
-                className="p-2 bg-slate-50 rounded-xl"
+                className="p-2 rounded-xl"
+                style={{ backgroundColor: colors.bg }}
               >
-                <X color="#94a3b8" size={20} />
+                <X color={colors.textMuted} size={20} />
               </TouchableOpacity>
             </View>
 
@@ -1148,15 +1149,15 @@ export default function ProductsScreen({ navigation }: any) {
             <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
               {!isBluetoothActive && BluetoothManager ? (
                 <View className="items-center py-12 opacity-65">
-                  <History color="#94a3b8" size={48} />
-                  <Text className="font-bold text-slate-400 mt-4 text-center text-xs">
+                  <History color={colors.textMuted} size={48} />
+                  <Text className="font-bold mt-4 text-center text-xs" style={{ color: colors.textMuted }}>
                     Bluetooth dinonaktifkan. Harap aktifkan koneksi bluetooth ponsel Anda.
                   </Text>
                 </View>
               ) : isBluetoothScanning ? (
                 <View className="items-center py-12">
-                  <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
-                  <Text className="text-xs font-bold text-slate-400 uppercase tracking-[2px] animate-pulse">
+                  <ActivityIndicator size="large" color={colors.accent} className="mb-4" />
+                  <Text className="text-xs font-bold uppercase tracking-[2px] animate-pulse" style={{ color: colors.textMuted }}>
                     Memindai Printer...
                   </Text>
                 </View>
@@ -1164,7 +1165,7 @@ export default function ProductsScreen({ navigation }: any) {
                 <View className="space-y-4">
                   {bluetoothDevices.length > 0 ? (
                     <>
-                      <Text className="text-[10px] font-black text-slate-400 uppercase tracking-[1px] mb-2">
+                      <Text className="text-[10px] font-black uppercase tracking-[1px] mb-2" style={{ color: colors.textMuted }}>
                         Perangkat Terdeteksi ({bluetoothDevices.length})
                       </Text>
                       
@@ -1176,15 +1177,19 @@ export default function ProductsScreen({ navigation }: any) {
                             onPress={() => !isCurrent && handleConnectDevice(device)}
                             disabled={isConnecting}
                             activeOpacity={0.7}
-                            className={`flex-row items-center p-4 rounded-2xl border mb-3 ${isCurrent ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}
+                            className="flex-row items-center p-4 rounded-2xl border mb-3"
+                            style={{ 
+                              backgroundColor: isCurrent ? colors.accent + '15' : colors.bg, 
+                              borderColor: isCurrent ? colors.accent : colors.border 
+                            }}
                           >
-                            <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${isCurrent ? 'bg-blue-500' : 'bg-slate-200'}`}>
-                              <Printer color={isCurrent ? '#ffffff' : '#64748b'} size={18} />
+                            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: isCurrent ? colors.accent : colors.border }}>
+                              <Printer color={isCurrent ? '#ffffff' : colors.textMuted} size={18} />
                             </View>
                             
                             <View className="flex-1">
-                              <Text className={`font-black text-xs ${isCurrent ? 'text-blue-900' : 'text-slate-900'}`}>{device.name}</Text>
-                              <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.5px] mt-0.5" numberOfLines={1}>{device.address || device.type}</Text>
+                              <Text className="font-black text-xs" style={{ color: isCurrent ? colors.accent : colors.text }}>{device.name}</Text>
+                              <Text className="text-[9px] font-bold uppercase tracking-[0.5px] mt-0.5" style={{ color: colors.textMuted }} numberOfLines={1}>{device.address || device.type}</Text>
                             </View>
 
                             <View className="items-end">
@@ -1193,8 +1198,8 @@ export default function ProductsScreen({ navigation }: any) {
                                   <Text className="text-[8px] font-black text-blue-500 uppercase">Aktif</Text>
                                 </View>
                               ) : (
-                                <View className="px-2.5 py-1 bg-slate-200/50 border border-slate-200 rounded-lg">
-                                  <Text className="text-[8px] font-black text-slate-500 uppercase">Pilih</Text>
+                                <View className="px-2.5 py-1 rounded-lg border" style={{ backgroundColor: colors.border + '50', borderColor: colors.border }}>
+                                  <Text className="text-[8px] font-black uppercase" style={{ color: colors.textMuted }}>Pilih</Text>
                                 </View>
                               )}
                             </View>
@@ -1204,8 +1209,8 @@ export default function ProductsScreen({ navigation }: any) {
                     </>
                   ) : (
                     <View className="items-center py-12 opacity-65">
-                      <Printer color="#94a3b8" size={48} />
-                      <Text className="font-bold text-slate-400 mt-4 text-center text-xs">
+                      <Printer color={colors.textMuted} size={48} />
+                      <Text className="font-bold mt-4 text-center text-xs" style={{ color: colors.textMuted }}>
                         Tidak ada printer bluetooth terdeteksi. Pastikan printer dalam jangkauan dan mode berpasangan.
                       </Text>
                     </View>
@@ -1224,19 +1229,20 @@ export default function ProductsScreen({ navigation }: any) {
 
             {/* Hubungkan Loading state */}
             {isConnecting && (
-              <View className="absolute inset-0 bg-white/95 justify-center items-center rounded-[32px]">
-                <ActivityIndicator size="large" color="#3b82f6" className="mb-4" />
-                <Text className="text-sm font-black text-slate-900">Menghubungkan Perangkat...</Text>
-                <Text className="text-xs text-slate-400 mt-1">Mengamankan koneksi Bluetooth...</Text>
+              <View className="absolute inset-0 justify-center items-center rounded-[32px]" style={{ backgroundColor: colors.surface + 'f2' }}>
+                <ActivityIndicator size="large" color={colors.accent} className="mb-4" />
+                <Text className="text-sm font-black" style={{ color: colors.text }}>Menghubungkan Perangkat...</Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textMuted }}>Mengamankan koneksi Bluetooth...</Text>
               </View>
             )}
 
             {/* Tindakan Bawah */}
-            <View className="p-6 bg-slate-50 border-t border-slate-200">
+            <View className="p-6 border-t" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
               <TouchableOpacity 
                 onPress={startBluetoothScan}
                 disabled={isBluetoothScanning || isConnecting}
-                className="w-full py-4 bg-slate-900 rounded-2xl items-center justify-center"
+                className="w-full py-4 rounded-2xl items-center justify-center"
+                style={{ backgroundColor: colors.accent }}
               >
                 <Text className="font-black text-white text-xs uppercase">Pindai Ulang Perangkat</Text>
               </TouchableOpacity>

@@ -174,6 +174,8 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [soldMonthFilter, setSoldMonthFilter] = useState<string>(new Date().getMonth().toString());
   const [soldYearFilter, setSoldYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [isResettingSold, setIsResettingSold] = useState(false);
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [showYearDropdown, setShowYearDropdown] = useState(false);
 
   // Laporan Penjualan State
   const [salesTransactions, setSalesTransactions] = useState<any[]>([]);
@@ -789,6 +791,17 @@ export default function FeatureScreen({ route, navigation }: any) {
 
     return Object.values(itemsMap).sort((a, b) => b.qty - a.qty);
   }, [rawSoldTransactions, salesAnalyticsClearedAt, soldMonthFilter, soldYearFilter]);
+
+  const soldAvailableYears = useMemo(() => {
+    const years = new Set<string>();
+    years.add(String(new Date().getFullYear()));
+    rawSoldTransactions.forEach(t => {
+      if (!t.timestamp) return;
+      const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+      years.add(String(date.getFullYear()));
+    });
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [rawSoldTransactions]);
 
   // Export Excel/CSV logic
   const handleExportExcelCSV = async () => {
@@ -2892,34 +2905,55 @@ export default function FeatureScreen({ route, navigation }: any) {
           );
         };
 
+        const MONTHS_LIST = [
+          { id: 'all', name: 'Semua Bulan' },
+          { id: '0', name: 'Januari' },
+          { id: '1', name: 'Februari' },
+          { id: '2', name: 'Maret' },
+          { id: '3', name: 'April' },
+          { id: '4', name: 'Mei' },
+          { id: '5', name: 'Juni' },
+          { id: '6', name: 'Juli' },
+          { id: '7', name: 'Agustus' },
+          { id: '8', name: 'September' },
+          { id: '9', name: 'Oktober' },
+          { id: '10', name: 'November' },
+          { id: '11', name: 'Desember' }
+        ];
+
         return (
           <View className="flex-1">
             {/* Filters */}
             <View className="flex-row items-center gap-2 mb-4">
               <View className="flex-1 flex-row border rounded-xl overflow-hidden" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
-                <View className="flex-1 border-r" style={{ borderColor: colors.border }}>
-                  <Text className="absolute top-1.5 left-3 text-[8px] font-black uppercase text-slate-400 z-10">Bulan</Text>
-                  <TextInput
-                    value={soldMonthFilter}
-                    onChangeText={setSoldMonthFilter}
-                    style={{ display: 'none' }}
-                  />
-                  {/* Since native picker might be complex without external lib, we'll use a simple approach or horizontal scroll */}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-4 px-2 mt-2">
-                    <TouchableOpacity onPress={() => setSoldMonthFilter('all')} className={`px-3 py-1 rounded-lg mr-2 ${soldMonthFilter === 'all' ? 'bg-accent' : 'bg-background'}`}>
-                      <Text className={`text-[10px] font-bold ${soldMonthFilter === 'all' ? 'text-white' : ''}`} style={{ color: soldMonthFilter === 'all' ? '#fff' : colors.text }}>Semua</Text>
-                    </TouchableOpacity>
-                    {['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'].map((m, i) => (
-                      <TouchableOpacity key={i} onPress={() => setSoldMonthFilter(i.toString())} className={`px-3 py-1 rounded-lg mr-2 ${soldMonthFilter === i.toString() ? 'bg-accent' : 'bg-background'}`}>
-                        <Text className={`text-[10px] font-bold ${soldMonthFilter === i.toString() ? 'text-white' : ''}`} style={{ color: soldMonthFilter === i.toString() ? '#fff' : colors.text }}>{m}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-                <View className="w-20 items-center justify-center pt-2">
-                  <Text className="absolute top-1.5 left-2 text-[8px] font-black uppercase text-slate-400 z-10">Tahun</Text>
-                  <Text className="font-bold text-xs" style={{ color: colors.text }}>{soldYearFilter}</Text>
-                </View>
+                <TouchableOpacity 
+                  onPress={() => { Vibration.vibrate(10); setShowMonthDropdown(true); }}
+                  activeOpacity={0.7}
+                  className="flex-1 border-r px-4 justify-center relative py-4" 
+                  style={{ borderColor: colors.border }}
+                >
+                  <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Bulan</Text>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <Text className="font-black text-xs" style={{ color: colors.text }}>
+                      {MONTHS_LIST.find(m => m.id === soldMonthFilter)?.name || 'Semua Bulan'}
+                    </Text>
+                    <ListFilter size={14} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  onPress={() => { Vibration.vibrate(10); setShowYearDropdown(true); }}
+                  activeOpacity={0.7}
+                  className="w-24 px-4 justify-center relative py-4"
+                >
+                  <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Tahun</Text>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <Text className="font-black text-xs" style={{ color: colors.text }}>
+                      {soldYearFilter}
+                    </Text>
+                    <ListFilter size={14} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
               </View>
 
               <TouchableOpacity 
@@ -3012,6 +3046,84 @@ export default function FeatureScreen({ route, navigation }: any) {
                 </View>
               }
             />
+
+            {/* Modal Dropdown Bulan */}
+            <Modal visible={showMonthDropdown} transparent animationType="fade" onRequestClose={() => setShowMonthDropdown(false)}>
+              <TouchableOpacity 
+                activeOpacity={1} 
+                onPress={() => setShowMonthDropdown(false)}
+                className="flex-1 justify-center items-center px-6" 
+                style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <View className="w-full max-h-[70%] rounded-3xl p-6 shadow-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <Text className="text-sm font-black mb-4 uppercase tracking-wider" style={{ color: colors.text }}>Pilih Bulan</Text>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View className="flex gap-2">
+                      {MONTHS_LIST.map((m) => {
+                        const isSelected = soldMonthFilter === m.id;
+                        return (
+                          <TouchableOpacity 
+                            key={m.id} 
+                            onPress={() => {
+                              Vibration.vibrate(10);
+                              setSoldMonthFilter(m.id);
+                              setShowMonthDropdown(false);
+                            }}
+                            className="p-3.5 rounded-xl border flex-row items-center justify-between"
+                            style={{ 
+                              backgroundColor: isSelected ? colors.accent + '10' : colors.bg,
+                              borderColor: isSelected ? colors.accent : colors.border
+                            }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: isSelected ? colors.accent : colors.text }}>{m.name}</Text>
+                            {isSelected && <Check size={14} color={colors.accent} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            {/* Modal Dropdown Tahun */}
+            <Modal visible={showYearDropdown} transparent animationType="fade" onRequestClose={() => setShowYearDropdown(false)}>
+              <TouchableOpacity 
+                activeOpacity={1} 
+                onPress={() => setShowYearDropdown(false)}
+                className="flex-1 justify-center items-center px-6" 
+                style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <View className="w-full max-h-[50%] rounded-3xl p-6 shadow-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <Text className="text-sm font-black mb-4 uppercase tracking-wider" style={{ color: colors.text }}>Pilih Tahun</Text>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View className="flex gap-2">
+                      {soldAvailableYears.map((year) => {
+                        const isSelected = soldYearFilter === year;
+                        return (
+                          <TouchableOpacity 
+                            key={year} 
+                            onPress={() => {
+                              Vibration.vibrate(10);
+                              setSoldYearFilter(year);
+                              setShowYearDropdown(false);
+                            }}
+                            className="p-3.5 rounded-xl border flex-row items-center justify-between"
+                            style={{ 
+                              backgroundColor: isSelected ? colors.accent + '10' : colors.bg,
+                              borderColor: isSelected ? colors.accent : colors.border
+                            }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: isSelected ? colors.accent : colors.text }}>{year}</Text>
+                            {isSelected && <Check size={14} color={colors.accent} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </Modal>
           </View>
         );
 

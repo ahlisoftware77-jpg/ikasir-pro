@@ -14,7 +14,10 @@ import {
   Vibration, 
   Pressable,
   Linking,
-  useWindowDimensions
+  useWindowDimensions,
+  NativeModules,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
 import { 
   collection, 
@@ -62,6 +65,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
 import { printReceipt } from '../utils/ReceiptHelper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import SignaturePad from '../components/SignaturePad';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
@@ -115,6 +119,53 @@ interface CartItem extends Product {
   note: string;
 }
 
+const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
+
+const BluetoothManager = hasBluetoothNativeModule 
+  ? require('react-native-bluetooth-escpos-printer')?.BluetoothManager 
+  : null;
+
+const requestBluetoothPermissions = async (): Promise<boolean> => {
+  if (Platform.OS !== 'android') return true;
+
+  try {
+    if (Number(Platform.Version) >= 31) {
+      const results = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      ]);
+
+      const scanGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED;
+      const connectGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED;
+      
+      if (!scanGranted || !connectGranted) {
+        Alert.alert(
+          "Izin Dibutuhkan",
+          "Aplikasi membutuhkan izin Bluetooth Scan dan Bluetooth Connect untuk mendeteksi & menyalakan printer."
+        );
+        return false;
+      }
+      return true;
+    } else {
+      const locationGranted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      );
+      if (locationGranted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert(
+          "Izin Dibutuhkan",
+          "Aplikasi membutuhkan izin Lokasi untuk mendeteksi printer Bluetooth."
+        );
+        return false;
+      }
+      return true;
+    }
+  } catch (err) {
+    console.error("Error requesting Bluetooth permissions:", err);
+    return false;
+  }
+};
+
 export default function POSScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { user, storeId, isSubscriptionExpired, expiredDisabledMenus } = useAuthStore();
@@ -148,6 +199,262 @@ export default function POSScreen({ route, navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [lastScannedItem, setLastScannedItem] = useState<{name: string, price: number} | null>(null);
+
+  // Bluetooth Printer states
+  const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
+  const [isBluetoothScanning, setIsBluetoothScanning] = useState(false);
+  const [isBluetoothConnecting, setIsBluetoothConnecting] = useState(false);
+  const [isBluetoothActive, setIsBluetoothActive] = useState(true);
+  const [activePrinter, setActivePrinter] = useState<string | null>(null);
+  const [bluetoothDevices, setBluetoothDevices] = useState<any[]>([]);
+
+  const checkBluetoothState = async () => {
+    if (!BluetoothManager) {
+      setIsBluetoothActive(false);
+      return false;
+    }
+    try {
+      const enabled = await BluetoothManager.isBluetoothEnabled();
+      setIsBluetoothActive(!!enabled);
+      return !!enabled;
+    } catch (err) {
+      console.error(err);
+      setIsBluetoothActive(false);
+      return false;
+    }
+  };
+
+  const requestEnableBluetooth = async () => {
+    if (!BluetoothManager) {
+      Alert.alert("Perhatian", "Modul Bluetooth tidak terdeteksi pada perangkat ini.");
+      return;
+    }
+    
+    const hasPermission = await requestBluetoothPermissions();
+    if (!hasPermission) return;
+
+    try {
+      await BluetoothManager.enableBluetooth();
+      setTimeout(async () => {
+        const enabled = await checkBluetoothState();
+        if (enabled) {
+          startBluetoothScan();
+        }
+      }, 1000);
+    } catch (err) {
+      console.error("Gagal mengaktifkan bluetooth:", err);
+      Alert.alert("Perhatian", "Gagal mengaktifkan Bluetooth secara otomatis. Silakan aktifkan manual melalui Pengaturan sistem.");
+    }
+  };
+
+  // Load printer preference from AsyncStorage
+  useEffect(() => {
+    const loadPrinter = async () => {
+      try {
+        const val = await AsyncStorage.getItem('selected_printer');
+        if (val) setActivePrinter(val);
+      } catch (err) {
+        console.error("Error loading printer preference:", err);
+      }
+    };
+    loadPrinter();
+    checkBluetoothState();
+  }, []);
+
+  const startBluetoothScan = async () => {
+    setIsBluetoothScanning(true);
+    setBluetoothDevices([]);
+    
+    if (!BluetoothManager) {
+      // Graceful fallback in development / Expo Go
+      setTimeout(() => {
+        setBluetoothDevices([
+          { id: '1', name: 'PRINTER-58BT', address: '00:11:22:33:44:55', type: 'Bluetooth Thermal Printer', status: 'paired', signal: 4 },
+          { id: '2', name: 'RPP-02N Mobile', address: '22:33:44:55:66:77', type: 'Mobile Thermal Printer', status: 'available', signal: 3 },
+          { id: '3', name: 'PT-210 POS', address: '44:55:66:77:88:99', type: '58mm Handheld POS', status: 'available', signal: 5 },
+          { id: '4', name: 'POS-80 Desk', address: '66:77:88:99:AA:BB', type: '80mm Thermal Printer', status: 'available', signal: 2 },
+        ]);
+        setIsBluetoothScanning(false);
+      }, 2000);
+      return;
+    }
+
+    try {
+      const hasPermission = await requestBluetoothPermissions();
+      if (!hasPermission) {
+        setIsBluetoothScanning(false);
+        return;
+      }
+
+      const isEnabled = await BluetoothManager.isBluetoothEnabled();
+      if (!isEnabled) {
+        setIsBluetoothScanning(false);
+        setIsBluetoothActive(false);
+        Alert.alert(
+          "Bluetooth Non-aktif",
+          "Bluetooth pada ponsel Anda sedang tidak aktif. Apakah Anda ingin mengaktifkannya sekarang?",
+          [
+            { text: "Batal", style: "cancel" },
+            { text: "Aktifkan", onPress: requestEnableBluetooth }
+          ]
+        );
+        return;
+      }
+
+      setIsBluetoothActive(true);
+
+      BluetoothManager.scanDevices().then((resStr: string) => {
+        try {
+          const results = JSON.parse(resStr);
+          const found: any[] = [];
+          
+          const paired = results.paired || [];
+          const foundList = results.found || [];
+          
+          paired.forEach((d: any) => {
+            found.push({
+              id: d.address,
+              name: d.name || 'Printer Bluetooth (Paired)',
+              address: d.address,
+              type: 'Paired Device',
+              status: 'paired',
+              signal: 5
+            });
+          });
+
+          foundList.forEach((d: any) => {
+            if (d.name) {
+              found.push({
+                id: d.address,
+                name: d.name,
+                address: d.address,
+                type: 'Discovered Device',
+                status: 'available',
+                signal: 3
+              });
+            }
+          });
+
+          setBluetoothDevices(found);
+          setIsBluetoothScanning(false);
+        } catch (parseErr) {
+          console.error("Gagal parse bluetooth list:", parseErr);
+          setIsBluetoothScanning(false);
+        }
+      }, (err: any) => {
+        console.error("Gagal memindai bluetooth:", err);
+        setIsBluetoothScanning(false);
+      });
+    } catch (err) {
+      console.error(err);
+      setIsBluetoothScanning(false);
+    }
+  };
+
+  const handlePrintAction = async (trx: any) => {
+    try {
+      const savedPrinter = await AsyncStorage.getItem('selected_printer');
+      if (savedPrinter) {
+        Alert.alert(
+          "Cetak Struk",
+          `Mencetak menggunakan printer bluetooth "${savedPrinter}"?`,
+          [
+            { text: "Batal", style: "cancel" },
+            { 
+              text: "Pilih Printer Lain", 
+              onPress: () => {
+                setIsBluetoothModalVisible(true);
+                startBluetoothScan();
+              }
+            },
+            {
+              text: "Cetak Sekarang",
+              onPress: async () => {
+                Vibration.vibrate(15);
+                try {
+                  await printReceipt(trx, storeSettings);
+                  setViewingReceipt(null);
+                  setSuccessTrx(null);
+                } catch (err) {
+                  Alert.alert("Gagal Mencetak", "Terjadi kesalahan saat berkomunikasi dengan printer.");
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        setIsBluetoothModalVisible(true);
+        startBluetoothScan();
+      }
+    } catch (err) {
+      console.error(err);
+      setIsBluetoothModalVisible(true);
+      startBluetoothScan();
+    }
+  };
+
+  const handleConnectDevice = async (device: any) => {
+    setIsBluetoothConnecting(true);
+    Vibration.vibrate(15);
+    
+    if (!BluetoothManager) {
+      // Simulator connection lag
+      setTimeout(async () => {
+        try {
+          setIsBluetoothConnecting(false);
+          setActivePrinter(device.name);
+          await AsyncStorage.setItem('selected_printer', device.name);
+          await AsyncStorage.setItem('selected_printer_address', device.address);
+          Vibration.vibrate([0, 15, 50, 15]);
+          
+          setIsBluetoothModalVisible(false);
+          
+          if (viewingReceipt) {
+            try {
+              await printReceipt(viewingReceipt, storeSettings);
+              setViewingReceipt(null);
+              setSuccessTrx(null);
+            } catch (err) {
+              console.error("Error printing receipt:", err);
+              Alert.alert("Gagal Mencetak", "Tidak dapat mengirim data ke printer.");
+            }
+          }
+        } catch (err) {
+          setIsBluetoothConnecting(false);
+          Alert.alert("Koneksi Gagal", `Tidak dapat berpasangan dengan ${device.name}. Silakan coba lagi.`);
+        }
+      }, 1500);
+      return;
+    }
+
+    try {
+      await BluetoothManager.connect(device.address);
+      
+      setIsBluetoothConnecting(false);
+      setActivePrinter(device.name);
+      await AsyncStorage.setItem('selected_printer', device.name);
+      await AsyncStorage.setItem('selected_printer_address', device.address);
+      Vibration.vibrate([0, 15, 50, 15]);
+      
+      setIsBluetoothModalVisible(false);
+      
+      if (viewingReceipt) {
+        try {
+          // Wait 500ms for connection to stabilize before printing
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await printReceipt(viewingReceipt, storeSettings);
+          setViewingReceipt(null);
+          setSuccessTrx(null);
+        } catch (err) {
+          console.error("Error printing receipt:", err);
+          Alert.alert("Gagal Mencetak", "Tidak dapat mengirim data ke printer.");
+        }
+      }
+    } catch (err) {
+      setIsBluetoothConnecting(false);
+      Alert.alert("Koneksi Gagal", `Tidak dapat berpasangan dengan ${device.name}. Silakan coba lagi.`);
+    }
+  };
 
   // Extras States
   const [activeExtrasProduct, setActiveExtrasProduct] = useState<Product | null>(null);
@@ -1180,17 +1487,20 @@ export default function POSScreen({ route, navigation }: any) {
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
       <View className={isTabletOrLandscape ? 'flex-1 flex-row' : 'flex-1'}>
-        <View className={isTabletOrLandscape ? 'flex-[2] border-r border-slate-800/40 relative overflow-hidden' : 'flex-1 relative'}>
+        <View 
+          className={isTabletOrLandscape ? 'flex-[2] border-r relative overflow-hidden' : 'flex-1 relative'}
+          style={isTabletOrLandscape ? { borderColor: colors.border } : undefined}
+        >
       
       {/* SUBSCRIPTION EXPIRED OVERLAY */}
       {isExpiredBlocked && (
-        <View className="absolute inset-0 z-[100] bg-slate-950/95 justify-center p-6">
-          <View className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 items-center shadow-2xl">
+        <View className="absolute inset-0 z-[100] justify-center p-6" style={{ backgroundColor: colors.bg + 'f2' }}>
+          <View className="border rounded-[32px] p-8 items-center shadow-2xl" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
             <View className="bg-rose-500/10 p-5 rounded-full mb-6">
               <Lock size={40} color="#f43f5e" />
             </View>
-            <Text className="text-xl font-black text-slate-100 uppercase tracking-tight mb-2 text-center">Akses Terkunci</Text>
-            <Text className="text-xs font-bold text-slate-400 text-center leading-relaxed mb-6">
+            <Text className="text-xl font-black uppercase tracking-tight mb-2 text-center" style={{ color: colors.text }}>Akses Terkunci</Text>
+            <Text className="text-xs font-bold text-center leading-relaxed mb-6" style={{ color: colors.textMuted }}>
               Masa aktif langganan Kasir Pro Anda telah habis. Akses ke menu transaksi dihentikan sementara.
             </Text>
 
@@ -1206,27 +1516,28 @@ export default function POSScreen({ route, navigation }: any) {
 
       {/* SHIFT LOCK OVERLAY */}
       {!isShiftChecking && !activeShift && (
-        <View className="absolute inset-0 z-50 bg-slate-950/95 justify-center p-6">
-          <View className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 items-center shadow-2xl">
+        <View className="absolute inset-0 z-50 justify-center p-6" style={{ backgroundColor: colors.bg + 'f2' }}>
+          <View className="border rounded-[32px] p-8 items-center shadow-2xl" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
             <View className="bg-rose-500/10 p-5 rounded-full mb-6">
               <Lock size={40} color="#f43f5e" />
             </View>
-            <Text className="text-xl font-black text-slate-100 uppercase tracking-tight mb-2">Shift Belum Dibuka!</Text>
-            <Text className="text-xs font-bold text-slate-400 text-center leading-relaxed mb-6">
+            <Text className="text-xl font-black uppercase tracking-tight mb-2" style={{ color: colors.text }}>Shift Belum Dibuka!</Text>
+            <Text className="text-xs font-bold text-center leading-relaxed mb-6" style={{ color: colors.textMuted }}>
               Akses aplikasi kasir terkunci. Silakan buka shift Anda dengan menginput Modal Awal di laci kas terlebih dahulu.
             </Text>
 
             <View className="w-full space-y-2 mb-6">
-              <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Modal Awal / Uang Kas Laci (Rp)</Text>
+              <Text className="text-[10px] font-black uppercase tracking-widest pl-2" style={{ color: colors.textMuted }}>Modal Awal / Uang Kas Laci (Rp)</Text>
               <View className="relative justify-center">
-                <Text className="absolute left-5 text-sm font-black text-slate-400 z-10">RP</Text>
+                <Text className="absolute left-5 text-sm font-black z-10" style={{ color: colors.textMuted }}>RP</Text>
                 <TextInput
                   placeholder="0"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   value={startingCash}
                   onChangeText={setStartingCash}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-4 pl-12 pr-6 text-lg font-black text-slate-100"
+                  className="w-full border rounded-2xl py-4 pl-12 pr-6 text-lg font-black"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
             </View>
@@ -1419,7 +1730,7 @@ export default function POSScreen({ route, navigation }: any) {
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>{item.category || 'Umum'}</Text>
                   <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: colors.text }} numberOfLines={2}>{item.name}</Text>
                   
-                  <View className="flex-row justify-between items-end mt-auto pt-2 border-t border-slate-800/10">
+                  <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: colors.border }}>
                     <View>
                       {hasPromo && (
                         <Text className="text-[9px] text-slate-500 line-through">
@@ -1649,60 +1960,70 @@ export default function POSScreen({ route, navigation }: any) {
       {/* Manual Item Modal */}
       <Modal visible={isManualModalOpen} animationType="slide" transparent onRequestClose={() => setIsManualModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[75%] rounded-t-[40px] p-6 bg-slate-900">
+          <View className="h-[75%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
             <View className="flex-row items-center justify-between mb-6">
               <View>
-                <Text className="text-lg font-black text-slate-100">Tambah Item Manual</Text>
-                <Text className="text-xs font-bold text-slate-400">Jasa / Barang tidak terdaftar</Text>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Tambah Item Manual</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Jasa / Barang tidak terdaftar</Text>
               </View>
               <TouchableOpacity onPress={() => setIsManualModalOpen(false)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.textMuted} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1 space-y-4">
               <View className="space-y-1">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Nama Item</Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nama Item</Text>
                 <TextInput
                   placeholder="e.g. Ongkos Kirim / Servis AC"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   value={manualItemName}
                   onChangeText={setManualItemName}
-                  className="bg-slate-950 border border-slate-800 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-100"
+                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
 
               <View className="space-y-1">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Harga (Rp)</Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Harga (Rp)</Text>
                 <TextInput
                   placeholder="0"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   value={manualItemPrice}
                   onChangeText={setManualItemPrice}
-                  className="bg-slate-950 border border-slate-800 rounded-2xl py-3.5 px-4 text-sm font-black text-slate-100"
+                  className="border rounded-2xl py-3.5 px-4 text-sm font-black"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
 
               <View className="space-y-1">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Kategori</Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Kategori</Text>
                 <TextInput
                   placeholder="e.g. Jasa / Umum / Ongkir"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   value={manualItemCategory}
                   onChangeText={setManualItemCategory}
-                  className="bg-slate-950 border border-slate-800 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-100"
+                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
 
               <TouchableOpacity 
                 onPress={() => setSaveToCatalog(!saveToCatalog)}
-                className="flex-row items-center p-4 bg-slate-950 border border-slate-800 rounded-2xl my-2"
+                className="flex-row items-center p-4 border rounded-2xl my-2"
+                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
               >
-                <View className={`w-5 h-5 rounded border-2 items-center justify-center mr-3 ${saveToCatalog ? 'bg-accent border-accent' : 'border-slate-700'}`}>
-                  {saveToCatalog && <Check size={14} color="#0f172a" />}
+                <View 
+                  className="w-5 h-5 rounded border-2 items-center justify-center mr-3"
+                  style={{ 
+                    backgroundColor: saveToCatalog ? colors.accent : 'transparent',
+                    borderColor: saveToCatalog ? colors.accent : colors.border
+                  }}
+                >
+                  {saveToCatalog && <Check size={14} color="#ffffff" />}
                 </View>
-                <Text className="text-xs font-bold text-slate-300">Simpan item ini ke katalog produk permanent</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.text }}>Simpan item ini ke katalog produk permanent</Text>
               </TouchableOpacity>
             </ScrollView>
 
@@ -1720,14 +2041,14 @@ export default function POSScreen({ route, navigation }: any) {
       {/* Close Shift Modal */}
       <Modal visible={isCloseShiftModalOpen} animationType="slide" transparent onRequestClose={() => setIsCloseShiftModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[80%] rounded-t-[40px] p-6 bg-slate-900">
+          <View className="h-[80%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
             <View className="flex-row items-center justify-between mb-6">
               <View>
-                <Text className="text-lg font-black text-slate-100">Penutupan Shift Sesi</Text>
-                <Text className="text-xs font-bold text-slate-400">Verifikasi Uang Fisik Di Laci Kas</Text>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Penutupan Shift Sesi</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Verifikasi Uang Fisik Di Laci Kas</Text>
               </View>
               <TouchableOpacity onPress={() => setIsCloseShiftModalOpen(false)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.textMuted} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -1735,58 +2056,60 @@ export default function POSScreen({ route, navigation }: any) {
               <ScrollView className="flex-1 space-y-4">
                 
                 {/* Stats Summary Card */}
-                <View className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 mb-2">
+                <View className="border rounded-2xl p-4 space-y-2 mb-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
                   <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-black text-slate-500 uppercase">Modal Awal</Text>
-                    <Text className="text-xs font-bold text-slate-300">Rp {activeShift.startingCash.toLocaleString('id-ID')}</Text>
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Modal Awal</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>Rp {activeShift.startingCash.toLocaleString('id-ID')}</Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-black text-slate-500 uppercase">Penjualan Tunai</Text>
-                    <Text className="text-xs font-bold text-slate-300">Rp {activeStats.cashSales.toLocaleString('id-ID')}</Text>
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Penjualan Tunai</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>Rp {activeStats.cashSales.toLocaleString('id-ID')}</Text>
                   </View>
-                  <View className="border-t border-slate-800/80 pt-2 flex-row justify-between">
-                    <Text className="text-[10px] font-black text-slate-400 uppercase">Estimasi Total Kas</Text>
+                  <View className="border-t pt-2 flex-row justify-between" style={{ borderColor: colors.border }}>
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Estimasi Total Kas</Text>
                     <Text className="text-sm font-black text-emerald-400">
                       Rp {(activeShift.startingCash + activeStats.cashSales).toLocaleString('id-ID')}
                     </Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-black text-slate-500 uppercase">Non-Tunai (Transfer/QRIS)</Text>
-                    <Text className="text-xs font-bold text-slate-300">Rp {activeStats.nonCashSales.toLocaleString('id-ID')}</Text>
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Non-Tunai (Transfer/QRIS)</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>Rp {activeStats.nonCashSales.toLocaleString('id-ID')}</Text>
                   </View>
                   <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-black text-slate-500 uppercase">Volume Penjualan</Text>
-                    <Text className="text-xs font-bold text-slate-300">{activeStats.trxCount} Transaksi</Text>
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Volume Penjualan</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>{activeStats.trxCount} Transaksi</Text>
                   </View>
                 </View>
 
                 {/* Cash Input */}
                 <View className="space-y-1">
-                  <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Uang Fisik Di Laci (Rp)</Text>
+                  <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Total Uang Fisik Di Laci (Rp)</Text>
                   <View className="relative justify-center">
-                    <Text className="absolute left-4 text-sm font-black text-slate-400 z-10">RP</Text>
+                    <Text className="absolute left-4 text-sm font-black z-10" style={{ color: colors.textMuted }}>RP</Text>
                     <TextInput
                       placeholder="0"
-                      placeholderTextColor="#64748b"
+                      placeholderTextColor={colors.textMuted}
                       keyboardType="numeric"
                       value={actualCash}
                       onChangeText={setActualCash}
-                      className="bg-slate-950 border border-slate-800 rounded-2xl py-3.5 pl-12 pr-4 text-base font-black text-slate-100"
+                      className="border rounded-2xl py-3.5 pl-12 pr-4 text-base font-black"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                     />
                   </View>
                 </View>
 
                 {/* Close Note */}
                 <View className="space-y-1">
-                  <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Catatan</Text>
+                  <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Catatan</Text>
                   <TextInput
                     placeholder="Masukkan catatan jika ada selisih laci..."
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={colors.textMuted}
                     multiline
                     numberOfLines={3}
                     value={closeNote}
                     onChangeText={setCloseNote}
-                    className="bg-slate-950 border border-slate-800 rounded-2xl py-3.5 px-4 text-sm font-bold text-slate-100 h-20 text-start"
+                    className="border rounded-2xl py-3.5 px-4 text-sm font-bold h-20 text-start"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                   />
                 </View>
 
@@ -1809,7 +2132,10 @@ export default function POSScreen({ route, navigation }: any) {
 
         {/* RIGHT SIDE / TABLET OR MODAL CHECKOUT */}
         {(isTabletOrLandscape || showCheckout) && (
-          <View className={isTabletOrLandscape ? "flex-[1.2] bg-surface z-10" : "absolute inset-0 z-50 bg-black/60 justify-end"}>
+          <View 
+            className={isTabletOrLandscape ? "flex-[1.2] z-10" : "absolute inset-0 z-50 bg-black/60 justify-end"}
+            style={isTabletOrLandscape ? { backgroundColor: colors.surface } : undefined}
+          >
             <View 
               className={isTabletOrLandscape ? "flex-1 px-5 pt-7 pb-2" : "h-[85%] rounded-t-[36px] px-6 pt-7 pb-2"}
               style={{ backgroundColor: colors.bg }}
@@ -1948,7 +2274,10 @@ export default function POSScreen({ route, navigation }: any) {
 
                 {/* Suggestions Dropdown overlay */}
                 {suggestions.length > 0 && (
-                  <View className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-1 shadow-2xl">
+                  <View 
+                    className="border rounded-2xl overflow-hidden p-1 shadow-2xl"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
                     {suggestions.map(s => (
                       <TouchableOpacity 
                         key={s.id}
@@ -1957,9 +2286,10 @@ export default function POSScreen({ route, navigation }: any) {
                           setCustomerQuery(s.name.toLowerCase());
                           setSuggestions([]);
                         }}
-                        className="p-3 border-b border-slate-800 last:border-0 active:bg-slate-800"
+                        className="p-3 border-b last:border-0"
+                        style={{ borderColor: colors.border }}
                       >
-                        <Text className="text-xs font-bold text-slate-200 lowercase">{s.name}</Text>
+                        <Text className="text-xs font-bold lowercase" style={{ color: colors.text }}>{s.name}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1968,7 +2298,7 @@ export default function POSScreen({ route, navigation }: any) {
 
               {/* Transaction Category Selector */}
               <View className="space-y-2">
-                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori Pesanan</Text>
+                <Text className="text-[9px] font-black uppercase tracking-widest ml-1" style={{ color: colors.textMuted }}>Kategori Pesanan</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row" contentContainerStyle={{ gap: 8 }}>
                   {[
                     { id: 'direct', label: 'Tunai' },
@@ -2261,38 +2591,40 @@ export default function POSScreen({ route, navigation }: any) {
       {/* Quick Add Customer Modal */}
       <Modal visible={isAddCustomerModalOpen} animationType="slide" transparent onRequestClose={() => setIsAddCustomerModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[50%] rounded-t-[40px] p-6 bg-slate-900">
+          <View className="h-[50%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
             <View className="flex-row items-center justify-between mb-6">
               <View>
-                <Text className="text-lg font-black text-slate-100">Registrasi Pelanggan Baru</Text>
-                <Text className="text-xs font-bold text-slate-400">Hubungkan piutang & pesanan</Text>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Registrasi Pelanggan Baru</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Hubungkan piutang & pesanan</Text>
               </View>
               <TouchableOpacity onPress={() => setIsAddCustomerModalOpen(false)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.textMuted} size={24} />
               </TouchableOpacity>
             </View>
 
             <ScrollView className="flex-1 space-y-4">
               <View className="space-y-1">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Nama Lengkap</Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nama Lengkap</Text>
                 <TextInput
                   placeholder="Nama pelanggan..."
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   value={newCustomerName}
                   onChangeText={setNewCustomerName}
-                  className="bg-slate-950 border border-slate-800 rounded-2xl py-3 px-4 text-sm font-bold text-slate-100"
+                  className="border rounded-2xl py-3 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
 
               <View className="space-y-1">
-                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Nomor Telepon</Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nomor Telepon</Text>
                 <TextInput
                   placeholder="e.g. 08123456789"
-                  placeholderTextColor="#64748b"
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="phone-pad"
                   value={newCustomerPhone}
                   onChangeText={setNewCustomerPhone}
-                  className="bg-slate-950 border border-slate-800 rounded-2xl py-3 px-4 text-sm font-bold text-slate-100"
+                  className="border rounded-2xl py-3 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
             </ScrollView>
@@ -2362,16 +2694,16 @@ export default function POSScreen({ route, navigation }: any) {
                 ? `Tercatat di data penawaran/estimasi dengan ID #${successTrx?.id}` 
                 : `Tercatat di antrean/transaksi dengan ID #${successTrx?.id?.substring(0, 8)}`}
             </Text>
-            <View className="w-full bg-slate-950/20 border border-slate-800 p-4 rounded-2xl mb-6 text-sm space-y-2">
+            <View className="w-full border p-4 rounded-2xl mb-6 text-sm space-y-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
               <View className="flex-row justify-between">
-                <Text className="text-[10px] font-bold text-slate-400">Total Tagihan</Text>
-                <Text className="text-xs font-black text-slate-200">Rp {successTrx?.total.toLocaleString('id-ID')}</Text>
+                <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Total Tagihan</Text>
+                <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.total.toLocaleString('id-ID')}</Text>
               </View>
               {successTrx?.paymentCategory === 'direct' && successTrx?.paymentMethod === 'cash' && (
                 <>
                   <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-bold text-slate-400">Diterima</Text>
-                    <Text className="text-xs font-black text-slate-200">Rp {successTrx?.cashReceived.toLocaleString('id-ID')}</Text>
+                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Diterima</Text>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.cashReceived.toLocaleString('id-ID')}</Text>
                   </View>
                   <View className="flex-row justify-between">
                     <Text className="text-[10px] font-bold text-emerald-400">Kembalian</Text>
@@ -2382,8 +2714,8 @@ export default function POSScreen({ route, navigation }: any) {
               {successTrx?.paymentCategory === 'debt' && (
                 <>
                   <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-bold text-slate-400">Dibayar (DP)</Text>
-                    <Text className="text-xs font-black text-slate-200">Rp {successTrx?.paidAmount?.toLocaleString('id-ID')}</Text>
+                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Dibayar (DP)</Text>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.paidAmount?.toLocaleString('id-ID')}</Text>
                   </View>
                   <View className="flex-row justify-between">
                     <Text className="text-[10px] font-bold text-rose-400">Sisa Piutang</Text>
@@ -2399,8 +2731,8 @@ export default function POSScreen({ route, navigation }: any) {
                 className="w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 active:opacity-95"
                 style={{ backgroundColor: colors.accent }}
               >
-                <Printer color="#0f172a" size={18} />
-                <Text className="text-center font-black text-xs text-slate-900">LIHAT STRUK DIGITAL</Text>
+                <Printer color="white" size={18} />
+                <Text className="text-center font-black text-xs text-white">LIHAT STRUK DIGITAL</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setSuccessTrx(null)} className="w-full py-4 rounded-2xl bg-accent/10 active:opacity-90">
@@ -2414,16 +2746,16 @@ export default function POSScreen({ route, navigation }: any) {
       {/* Digital Receipt Modal (Struk Digital) */}
       <Modal visible={viewingReceipt !== null} animationType="slide" transparent onRequestClose={() => setViewingReceipt(null)}>
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[85%] rounded-t-[40px] p-6 bg-slate-900">
-            <View className="flex-row items-center justify-between mb-4 border-b border-slate-800 pb-3">
+          <View className="h-[85%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
+            <View className="flex-row items-center justify-between mb-4 border-b pb-3" style={{ borderColor: colors.border }}>
               <View className="flex-row items-center gap-2">
                 <View className="p-2 bg-emerald-500/10 rounded-xl">
                   <CheckCircle2 size={18} color="#10b981" />
                 </View>
-                <Text className="text-lg font-black text-slate-100">Struk Digital</Text>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Struk Digital</Text>
               </View>
               <TouchableOpacity onPress={() => setViewingReceipt(null)}>
-                <X color="#94a3b8" size={24} />
+                <X color={colors.textMuted} size={24} />
               </TouchableOpacity>
             </View>
 
@@ -2603,20 +2935,21 @@ export default function POSScreen({ route, navigation }: any) {
                   setViewingReceipt(null);
                   setSuccessTrx(null);
                 }}
-                className="flex-1 py-4 bg-slate-800 rounded-2xl items-center justify-center active:opacity-90"
+                className="flex-1 py-4 rounded-2xl items-center justify-center active:opacity-90"
+                style={{ backgroundColor: colors.border }}
               >
-                <Text className="font-black text-xs text-slate-300 uppercase tracking-widest text-center">Tutup</Text>
+                <Text className="font-black text-xs uppercase tracking-widest text-center" style={{ color: colors.text }}>Tutup</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={async () => {
-                  await printReceipt(viewingReceipt, storeSettings);
-                  setViewingReceipt(null);
-                  setSuccessTrx(null);
+                  if (viewingReceipt) {
+                    await handlePrintAction(viewingReceipt);
+                  }
                 }}
                 className="flex-[2] py-4 bg-accent rounded-2xl items-center justify-center flex-row gap-2 active:opacity-95"
               >
-                <Printer size={16} color="#0f172a" />
-                <Text className="font-black text-xs text-slate-900 uppercase tracking-widest text-center">CETAK STRUK</Text>
+                <Printer size={16} color="white" />
+                <Text className="font-black text-xs text-white uppercase tracking-widest text-center">CETAK STRUK</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2654,6 +2987,159 @@ export default function POSScreen({ route, navigation }: any) {
             >
               <Text className="font-bold text-xs" style={{ color: colors.textMuted }}>Lewati Tanda Tangan</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Bluetooth Printer Manager */}
+      <Modal visible={isBluetoothModalVisible} animationType="slide" transparent onRequestClose={() => setIsBluetoothModalVisible(false)}>
+        <View className="flex-1 bg-black/70 justify-center items-center">
+          <View 
+            className="rounded-[32px] overflow-hidden flex-col"
+            style={{ 
+              backgroundColor: colors.surface,
+              width: width * 0.9,
+              height: height * 0.72
+            }}
+          >
+            {/* Header Modal */}
+            <View className="p-6 border-b flex-row items-center justify-between" style={{ borderColor: colors.border }}>
+              <View className="flex-row items-center gap-2">
+                <View className="p-2 bg-blue-500/10 rounded-xl">
+                  <Printer color={colors.accent} size={18} />
+                </View>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Printer Bluetooth</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsBluetoothModalVisible(false)}
+                className="p-2 rounded-xl"
+                style={{ backgroundColor: colors.bg }}
+              >
+                <X color={colors.textMuted} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Banner Bluetooth Status */}
+            {!isBluetoothActive && BluetoothManager && (
+              <View className="bg-rose-50 p-4 mx-6 mt-4 rounded-2xl border border-rose-100 flex-row items-center gap-3">
+                <View className="p-2 bg-rose-500/10 rounded-xl">
+                  <X color="#f43f5e" size={16} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs font-black text-rose-900">Bluetooth Non-aktif</Text>
+                  <Text className="text-[10px] text-rose-600 mt-0.5">Aktifkan bluetooth untuk mendeteksi printer.</Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={requestEnableBluetooth}
+                  className="px-3 py-1.5 bg-rose-500 rounded-xl"
+                >
+                  <Text className="text-[9px] font-black text-white uppercase">Aktifkan</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* List Perangkat */}
+            <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
+              {!isBluetoothActive && BluetoothManager ? (
+                <View className="items-center py-12 opacity-65">
+                  <Printer color={colors.textMuted} size={48} />
+                  <Text className="font-bold mt-4 text-center text-xs" style={{ color: colors.textMuted }}>
+                    Bluetooth dinonaktifkan. Harap aktifkan koneksi bluetooth ponsel Anda.
+                  </Text>
+                </View>
+              ) : isBluetoothScanning ? (
+                <View className="items-center py-12">
+                  <ActivityIndicator size="large" color={colors.accent} className="mb-4" />
+                  <Text className="text-xs font-bold uppercase tracking-[2px] animate-pulse" style={{ color: colors.textMuted }}>
+                    Memindai Printer...
+                  </Text>
+                </View>
+              ) : (
+                <View className="space-y-4">
+                  {bluetoothDevices.length > 0 ? (
+                    <>
+                      <Text className="text-[10px] font-black uppercase tracking-[1px] mb-2" style={{ color: colors.textMuted }}>
+                        Perangkat Terdeteksi ({bluetoothDevices.length})
+                      </Text>
+                      
+                      {bluetoothDevices.map((device) => {
+                        const isCurrent = activePrinter === device.name;
+                        return (
+                          <TouchableOpacity
+                            key={device.id}
+                            onPress={() => !isCurrent && handleConnectDevice(device)}
+                            disabled={isBluetoothConnecting}
+                            activeOpacity={0.7}
+                            className="flex-row items-center p-4 rounded-2xl border mb-3"
+                            style={{ 
+                              backgroundColor: isCurrent ? colors.accent + '15' : colors.bg, 
+                              borderColor: isCurrent ? colors.accent : colors.border 
+                            }}
+                          >
+                            <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: isCurrent ? colors.accent : colors.border }}>
+                              <Printer color={isCurrent ? '#ffffff' : colors.textMuted} size={18} />
+                            </View>
+                            
+                            <View className="flex-1">
+                              <Text className="font-black text-xs" style={{ color: isCurrent ? colors.accent : colors.text }}>{device.name}</Text>
+                              <Text className="text-[9px] font-bold uppercase tracking-[0.5px] mt-0.5" style={{ color: colors.textMuted }} numberOfLines={1}>{device.address || device.type}</Text>
+                            </View>
+
+                            <View className="items-end">
+                              {isCurrent ? (
+                                <View className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                  <Text className="text-[8px] font-black text-blue-500 uppercase">Aktif</Text>
+                                </View>
+                              ) : (
+                                <View className="px-2.5 py-1 rounded-lg border" style={{ backgroundColor: colors.border + '50', borderColor: colors.border }}>
+                                  <Text className="text-[8px] font-black uppercase" style={{ color: colors.textMuted }}>Pilih</Text>
+                                </View>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <View className="items-center py-12 opacity-65">
+                      <Printer color={colors.textMuted} size={48} />
+                      <Text className="font-bold mt-4 text-center text-xs" style={{ color: colors.textMuted }}>
+                        Tidak ada printer bluetooth terdeteksi. Pastikan printer dalam jangkauan dan mode berpasangan.
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {!BluetoothManager && (
+                    <View className="bg-amber-50 p-4 rounded-2xl border border-amber-100 mt-4">
+                      <Text className="text-[9px] font-bold text-amber-800 leading-[14px]">
+                        ℹ️ MODE SIMULATOR: Modul Bluetooth Native tidak terdeteksi pada Expo Go. Jalankan dengan custom dev client atau build APK real untuk memindai perangkat fisik Anda secara langsung.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Hubungkan Loading state */}
+            {isBluetoothConnecting && (
+              <View className="absolute inset-0 justify-center items-center rounded-[32px]" style={{ backgroundColor: colors.surface + 'f2' }}>
+                <ActivityIndicator size="large" color={colors.accent} className="mb-4" />
+                <Text className="text-sm font-black" style={{ color: colors.text }}>Menghubungkan Perangkat...</Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textMuted }}>Mengamankan koneksi Bluetooth...</Text>
+              </View>
+            )}
+
+            {/* Tindakan Bawah */}
+            <View className="p-6 border-t" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              <TouchableOpacity 
+                onPress={startBluetoothScan}
+                disabled={isBluetoothScanning || isBluetoothConnecting}
+                className="w-full py-4 rounded-2xl items-center justify-center"
+                style={{ backgroundColor: colors.accent }}
+              >
+                <Text className="font-black text-white text-xs uppercase">Pindai Ulang Perangkat</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

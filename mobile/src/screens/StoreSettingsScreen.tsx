@@ -1641,7 +1641,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                     </View>
 
                     {/* LIVE PREVIEW STRUK */}
-                    <View className="p-5 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden my-2">
+                    <View className="p-5 rounded-3xl border shadow-2xl relative overflow-hidden my-2" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                       <View className="flex-row items-center gap-2 mb-4">
                         <View className="w-2 h-2 rounded-full bg-emerald-500" />
                         <Text className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Preview Struk Real-Time</Text>

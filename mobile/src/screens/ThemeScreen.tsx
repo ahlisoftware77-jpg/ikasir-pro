@@ -15,6 +15,7 @@ export default function ThemeScreen({ navigation }: any) {
     { id: 'purple', name: 'Gelap (Ungu)', desc: 'Mewah dan eksklusif', color: '#8b5cf6', bg: '#0a0a0a' },
     { id: 'light_mint', name: 'Terang (Mint)', desc: 'Tampilan hijau bersih', color: '#10b981', bg: '#f4fbf7' },
     { id: 'light_peach', name: 'Terang (Peach)', desc: 'Tampilan ceria dan hangat', color: '#f97316', bg: '#fffaf5' },
+    { id: 'light_maroon', name: 'Terang (Maroon)', desc: 'Tampilan elegan merah maroon', color: '#800000', bg: '#faf5f5' },
   ];
 
   return (

@@ -31,6 +31,8 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import SignaturePad from '../components/SignaturePad';
+import * as Updates from 'expo-updates';
+import { RefreshCw } from 'lucide-react-native';
 
 const FONT_OPTIONS = [
   { id: 'sans', name: 'Modern (Sans)', family: 'System' },
@@ -128,6 +130,59 @@ export default function SettingsScreen({ navigation, route }: any) {
       return () => unsub();
     }
   }, [storeId]);
+
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+
+  const handleCheckUpdatesManual = async () => {
+    Vibration.vibrate(10);
+    if (__DEV__) {
+      Alert.alert('Info', 'Pemeriksaan update OTA dilewati dalam mode development (DEV).');
+      return;
+    }
+    setIsCheckingUpdates(true);
+    try {
+      const updateStatus = await Updates.checkForUpdateAsync();
+      if (updateStatus.isAvailable) {
+        Alert.alert(
+          'Pembaruan Tersedia',
+          'Versi baru terdeteksi. Mengunduh pembaruan di latar belakang...',
+          [{ text: 'OK' }]
+        );
+        await Updates.fetchUpdateAsync();
+        Alert.alert(
+          'Unduhan Selesai',
+          'Pembaruan berhasil diunduh. Muat ulang aplikasi sekarang untuk menerapkan perubahan?',
+          [
+            { text: 'Nanti', style: 'cancel' },
+            { text: 'Muat Ulang', onPress: async () => { await Updates.reloadAsync(); } }
+          ]
+        );
+      } else {
+        const info = [
+          `Channel: ${Updates.channel || 'default'}`,
+          `Runtime Version: ${Updates.runtimeVersion || '1.0.0'}`,
+          `Update ID: ${Updates.updateId || 'None (Embedded Launch)'}`,
+          `Is Embedded: ${Updates.isEmbeddedLaunch ? 'Yes' : 'No'}`
+        ].join('\n');
+        
+        Alert.alert(
+          'Aplikasi Terkini',
+          `Aplikasi Anda sudah menggunakan versi terbaru.\n\nDetail:\n${info}`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error: any) {
+      console.error(error);
+      const infoErr = [
+        `Channel: ${Updates.channel || 'default'}`,
+        `Runtime Version: ${Updates.runtimeVersion || '1.0.0'}`,
+        `Error: ${error.message || error}`
+      ].join('\n');
+      Alert.alert('Gagal Memeriksa Update', `Terjadi kesalahan saat memeriksa update OTA:\n\n${infoErr}`);
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user || !user.uid) return;
@@ -1133,7 +1188,11 @@ export default function SettingsScreen({ navigation, route }: any) {
           className="w-10 h-10 rounded-xl items-center justify-center mb-2"
           style={{ backgroundColor: color + '15' }}
         >
-          <IconComponent size={20} color={isDisabled ? colors.textMuted : color} />
+          {label === 'Periksa Pembaruan' && isCheckingUpdates ? (
+            <ActivityIndicator size="small" color={color} />
+          ) : (
+            <IconComponent size={20} color={isDisabled ? colors.textMuted : color} />
+          )}
           {badgeCount > 0 && (
             <View className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full items-center justify-center border border-white">
               <Text className="text-[8px] font-black text-white">{badgeCount}</Text>
@@ -1413,7 +1472,11 @@ export default function SettingsScreen({ navigation, route }: any) {
               Vibration.vibrate(10);
               setShowFeedbackModalMobile(true);
             })}
+            {renderMenuItem('Periksa Pembaruan', RefreshCw, colors.accent, handleCheckUpdatesManual)}
           </View>
+          <Text className="text-[9px] text-center mt-6 font-bold" style={{ color: colors.textMuted }}>
+            iKasir Pro v1.0.1 • OTA Patch: 20-Juni-2026 (OTA Test OK)
+          </Text>
         </View>
 
       </ScrollView>
@@ -2012,7 +2075,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                     </View>
 
                     {/* LIVE PREVIEW STRUK */}
-                    <View className="p-5 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden my-2">
+                    <View className="p-5 rounded-3xl border shadow-2xl relative overflow-hidden my-2" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                       <View className="flex-row items-center gap-2 mb-4">
                         <View className="w-2 h-2 rounded-full bg-emerald-500" />
                         <Text className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Preview Struk Real-Time</Text>
