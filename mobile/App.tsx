@@ -46,7 +46,7 @@ function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) 
   const isDown = selected || isPressed;
 
   const isLightTheme = colors.bg.toLowerCase() === '#f8fafc' || colors.bg.toLowerCase() === '#f4fbf7' || colors.bg.toLowerCase() === '#fffaf5' || colors.bg.toLowerCase() === '#faf5f5';
-  const shadowBg = isLightTheme ? '#cbd5e1' : '#090d16';
+  const shadowBg = isLightTheme ? '#cbd5e1' : '#070a13';
 
   const activeBg = colors.accent + '12';
   const activeBorder = colors.accent;
@@ -72,12 +72,12 @@ function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) 
       style={[
         props.style,
         {
-          borderRadius: 14,
+          borderRadius: 6,
           backgroundColor: buttonShadow,
-          paddingBottom: isDown ? 0 : 4,
-          marginTop: isDown ? 4 : 0,
+          paddingBottom: isDown ? 0 : 5,
+          marginTop: isDown ? 5 : 0,
           opacity: isMenuDisabled ? 0.4 : 1,
-          marginHorizontal: 4,
+          marginHorizontal: 1,
         }
       ]}
     >
@@ -87,7 +87,7 @@ function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) 
           backgroundColor: bg,
           borderWidth: 1,
           borderColor: border,
-          borderRadius: 14,
+          borderRadius: 6,
           alignItems: 'center',
           justifyContent: 'center',
           paddingTop: 4,
@@ -205,8 +205,9 @@ function TabNavigator() {
         },
         tabBarStyle: {
           backgroundColor: colors.bg,
-          borderTopWidth: 0,
-          height: 74 + insets.bottom,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          height: 76 + insets.bottom,
           paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
           paddingHorizontal: 8,
