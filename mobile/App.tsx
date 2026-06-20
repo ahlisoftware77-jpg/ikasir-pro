@@ -14,7 +14,6 @@ import { db } from './src/lib/firebase';
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
-import styled from 'styled-components/native';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
@@ -41,64 +40,9 @@ import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag,
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-interface ButtonContainerProps {
-  buttonShadow: string;
-  isDown: boolean;
-  isMenuDisabled: boolean;
-}
-
-const ButtonContainer = styled.Pressable<ButtonContainerProps>`
-  flex: 1;
-  background-color: ${props => props.buttonShadow};
-  padding-bottom: ${props => (props.isDown ? '0px' : '4px')};
-  margin-top: ${props => (props.isDown ? '4px' : '0px')};
-  opacity: ${props => (props.isMenuDisabled ? 0.4 : 1)};
-  margin-horizontal: 3px;
-  border-radius: 12px;
-`;
-
-interface ButtonInnerProps {
-  bg: string;
-  borderColor: string;
-  borderTopColor: string;
-  isDown: boolean;
-}
-
-const ButtonInner = styled.View<ButtonInnerProps>`
-  flex: 1;
-  background-color: ${props => props.bg};
-  border-width: 1px;
-  border-color: ${props => props.borderColor};
-  border-top-color: ${props => (props.isDown ? props.borderColor : props.borderTopColor)};
-  align-items: center;
-  justify-content: center;
-  padding-top: 4px;
-  padding-horizontal: 2px;
-  border-radius: 12px;
-`;
-
 function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) {
-  const selected = props.accessibilityState?.selected;
-  const [isPressed, setIsPressed] = useState(false);
-  const isDown = selected || isPressed;
-
-  const isLightTheme = colors.bg.toLowerCase() === '#f8fafc' || colors.bg.toLowerCase() === '#f4fbf7' || colors.bg.toLowerCase() === '#fffaf5' || colors.bg.toLowerCase() === '#faf5f5';
-
-  // Compute shadow color for inactive buttons
-  const shadowBg = isLightTheme ? '#cbd5e1' : '#070a13';
-
-  // Compute darker shade of accent color for active 3D shadow
-  const activeShadow = colors.accent === '#10b981' ? '#047857' : (colors.accent === '#8b5cf6' ? '#6d28d9' : (colors.accent === '#f43f5e' ? '#be123c' : (colors.accent === '#800000' ? '#5a0000' : '#1d4ed8')));
-
-  const bg = selected ? colors.accent : colors.surface;
-  const border = selected ? colors.accent : colors.border;
-  const buttonShadow = selected ? activeShadow : shadowBg;
-  const topBorder = selected ? colors.accent : (isLightTheme ? '#ffffff' : '#4e4d4d');
-
   return (
-    <ButtonContainer
-      onPressIn={() => !isMenuDisabled && setIsPressed(true)}
-      onPressOut={() => !isMenuDisabled && setIsPressed(false)}
+    <Pressable
       onPress={(e) => {
         if (!isMenuDisabled) {
           if (onPressHandler) {
@@ -108,15 +52,27 @@ function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) 
           }
         }
       }}
-      buttonShadow={buttonShadow}
-      isDown={isDown}
-      isMenuDisabled={!!isMenuDisabled}
-      style={props.style}
+      style={[
+        props.style,
+        {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: isMenuDisabled ? 0.4 : 1,
+        }
+      ]}
     >
-      <ButtonInner bg={bg} borderColor={border} borderTopColor={topBorder} isDown={isDown}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+        }}
+      >
         {props.children}
-      </ButtonInner>
-    </ButtonContainer>
+      </View>
+    </Pressable>
   );
 }
 
@@ -168,7 +124,7 @@ function TabNavigator() {
     return {
       tabBarIcon: ({ color }: any) => {
         const Icon = iconComponent;
-        return <Icon color={color} size={22} strokeWidth={2.5} />;
+        return <Icon color={color} size={24} strokeWidth={2.5} />;
       },
       title,
       tabBarButton: (props: any) => (
@@ -227,21 +183,20 @@ function TabNavigator() {
           color: colors.text,
         },
         tabBarStyle: {
-          backgroundColor: colors.bg,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: 72 + insets.bottom,
-          paddingBottom: 6 + insets.bottom,
-          paddingTop: 6,
-          paddingHorizontal: 4,
-          elevation: 0,
-          shadowOpacity: 0,
+          height: 60 + insets.bottom,
+          paddingBottom: 4 + insets.bottom,
+          paddingTop: 8,
+          elevation: 8,
+          shadowOpacity: 0.05,
         },
-        tabBarActiveTintColor: '#ffffff',
-        tabBarInactiveTintColor: isLightTheme ? colors.text + '99' : colors.text + '60',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: isLightTheme ? '#64748b' : '#94a3b8',
         tabBarLabelStyle: {
           fontWeight: '900',
-          fontSize: 9.5,
+          fontSize: 10,
           marginTop: 2,
         }
       }}
@@ -290,7 +245,7 @@ function TabNavigator() {
         name="Lainnya" 
         component={SettingsScreen} 
         options={{
-          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={22} strokeWidth={2.5} />,
+          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={24} strokeWidth={2.5} />,
           title: 'MENU LAINNYA',
           tabBarBadge: showExpiredOrWarningBadge ? '!' : undefined,
           tabBarBadgeStyle: showExpiredOrWarningBadge ? {
