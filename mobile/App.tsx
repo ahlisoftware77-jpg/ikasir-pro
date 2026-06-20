@@ -96,20 +96,16 @@ function TabBarButton3D({ props, colors, isMenuDisabled, position, onPressHandle
 
   const isLightTheme = colors.bg.toLowerCase() === '#f8fafc' || colors.bg.toLowerCase() === '#f4fbf7' || colors.bg.toLowerCase() === '#fffaf5' || colors.bg.toLowerCase() === '#faf5f5';
 
-  const activeBg = isLightTheme ? '#cbd5e1' : '#1d1d1d';
-  const activeBorder = isLightTheme ? '#94a3b8' : '#1d1d1d';
-  const activeShadow = isLightTheme ? '#64748b' : '#000000';
-  const activeTopBorder = isLightTheme ? '#cbd5e1' : '#1d1d1d';
+  // Compute shadow color for inactive buttons
+  const shadowBg = isLightTheme ? '#cbd5e1' : '#070a13';
 
-  const inactiveBg = isLightTheme ? '#e2e8f0' : '#333333';
-  const inactiveBorder = isLightTheme ? '#cbd5e1' : '#222222';
-  const inactiveShadow = isLightTheme ? '#94a3b8' : '#181818';
-  const inactiveTopBorder = isLightTheme ? '#f8fafc' : '#4e4d4d';
+  // Compute darker shade of accent color for active 3D shadow
+  const activeShadow = colors.accent === '#10b981' ? '#047857' : (colors.accent === '#8b5cf6' ? '#6d28d9' : (colors.accent === '#f43f5e' ? '#be123c' : (colors.accent === '#800000' ? '#5a0000' : '#1d4ed8')));
 
-  const bg = selected ? activeBg : inactiveBg;
-  const border = selected ? activeBorder : inactiveBorder;
-  const buttonShadow = selected ? activeShadow : inactiveShadow;
-  const topBorder = selected ? activeTopBorder : inactiveTopBorder;
+  const bg = selected ? colors.accent : colors.surface;
+  const border = selected ? colors.accent : colors.border;
+  const buttonShadow = selected ? activeShadow : shadowBg;
+  const topBorder = selected ? colors.accent : (isLightTheme ? '#ffffff' : '#4e4d4d');
 
   return (
     <ButtonContainer
@@ -265,7 +261,7 @@ function TabNavigator() {
           color: colors.text,
         },
         tabBarStyle: {
-          backgroundColor: isLightTheme ? '#e2e8f0' : '#000000',
+          backgroundColor: colors.bg,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           height: 72 + insets.bottom,
@@ -275,8 +271,8 @@ function TabNavigator() {
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: isLightTheme ? '#64748b' : '#a3a3a3',
+        tabBarActiveTintColor: '#ffffff',
+        tabBarInactiveTintColor: isLightTheme ? colors.text + '99' : colors.text + '60',
         tabBarLabelStyle: {
           fontWeight: '900',
           fontSize: 9.5,
