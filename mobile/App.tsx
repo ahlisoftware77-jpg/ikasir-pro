@@ -11,7 +11,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { useAuthStore } from './src/store/authStore';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
-import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration } from 'react-native';
+import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
 
@@ -39,6 +39,65 @@ import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag,
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) {
+  const selected = props.accessibilityState?.selected;
+  const [isPressed, setIsPressed] = useState(false);
+  const isDown = selected || isPressed;
+
+  const isLightTheme = colors.bg.toLowerCase() === '#f8fafc' || colors.bg.toLowerCase() === '#f4fbf7' || colors.bg.toLowerCase() === '#fffaf5' || colors.bg.toLowerCase() === '#faf5f5';
+  const shadowBg = isLightTheme ? '#cbd5e1' : '#090d16';
+
+  const activeBg = colors.accent + '12';
+  const activeBorder = colors.accent;
+  const activeShadow = colors.accent === '#10b981' ? '#047857' : (colors.accent === '#8b5cf6' ? '#6d28d9' : (colors.accent === '#f43f5e' ? '#be123c' : (colors.accent === '#800000' ? '#5a0000' : '#1d4ed8')));
+
+  const bg = selected ? activeBg : colors.surface;
+  const border = selected ? activeBorder : colors.border;
+  const buttonShadow = selected ? activeShadow : shadowBg;
+
+  return (
+    <Pressable
+      onPressIn={() => !isMenuDisabled && setIsPressed(true)}
+      onPressOut={() => !isMenuDisabled && setIsPressed(false)}
+      onPress={(e) => {
+        if (!isMenuDisabled) {
+          if (onPressHandler) {
+            onPressHandler(e);
+          } else {
+            props.onPress?.(e);
+          }
+        }
+      }}
+      style={[
+        props.style,
+        {
+          borderRadius: 14,
+          backgroundColor: buttonShadow,
+          paddingBottom: isDown ? 0 : 4,
+          marginTop: isDown ? 4 : 0,
+          opacity: isMenuDisabled ? 0.4 : 1,
+          marginHorizontal: 4,
+        }
+      ]}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: bg,
+          borderWidth: 1,
+          borderColor: border,
+          borderRadius: 14,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: 4,
+        }}
+      >
+        {props.children}
+      </View>
+    </Pressable>
+  );
+}
 
 function TabNavigator() {
   const { colors } = useTheme();
@@ -87,11 +146,11 @@ function TabNavigator() {
       },
       title,
       tabBarButton: (props: any) => (
-        <TouchableOpacity
-          {...props}
-          activeOpacity={isMenuDisabled ? 1 : 0.2}
-          style={[props.style, isMenuDisabled && { opacity: 0.4 }]}
-          onPress={(e) => {
+        <TabBarButton3D
+          props={props}
+          colors={colors}
+          isMenuDisabled={isMenuDisabled}
+          onPressHandler={(e: any) => {
             if (isSuperAdminBlocked) {
               Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
             } else if (isExpiredBlocked) {
@@ -139,18 +198,20 @@ function TabNavigator() {
           shadowOpacity: 0,
         },
         headerTitleStyle: {
-          fontFamily: 'System', // Use default font
+          fontFamily: 'System',
           fontWeight: '900',
           fontSize: 18,
           color: colors.text,
         },
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          height: 75 + insets.bottom,
-          paddingBottom: 14 + insets.bottom,
-          paddingTop: 12,
+          backgroundColor: colors.bg,
+          borderTopWidth: 0,
+          height: 74 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
+          paddingTop: 8,
+          paddingHorizontal: 8,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.text + '80',
@@ -217,7 +278,14 @@ function TabNavigator() {
             height: 16,
             borderRadius: 8,
             lineHeight: 16,
-          } : undefined
+          } : undefined,
+          tabBarButton: (props: any) => (
+            <TabBarButton3D
+              props={props}
+              colors={colors}
+              isMenuDisabled={false}
+            />
+          )
         }}
       />
     </Tab.Navigator>

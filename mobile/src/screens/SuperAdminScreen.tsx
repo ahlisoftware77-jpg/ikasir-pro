@@ -1484,7 +1484,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               });
 
               // Jika masa aktif masih berlaku (di masa depan), perpanjang dihitung dari tanggal tersebut
-              if (currentMaxValidUntil && currentMaxValidUntil > now) {
+              if (currentMaxValidUntil && (currentMaxValidUntil as Date) > now) {
                 baseDate = currentMaxValidUntil;
               }
 
