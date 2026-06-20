@@ -45,22 +45,16 @@ interface ButtonContainerProps {
   buttonShadow: string;
   isDown: boolean;
   isMenuDisabled: boolean;
-  position: 'first' | 'middle' | 'last';
 }
 
 const ButtonContainer = styled.Pressable<ButtonContainerProps>`
   flex: 1;
   background-color: ${props => props.buttonShadow};
-  padding-bottom: ${props => (props.isDown ? '0px' : '5px')};
-  margin-top: ${props => (props.isDown ? '5px' : '0px')};
+  padding-bottom: ${props => (props.isDown ? '0px' : '4px')};
+  margin-top: ${props => (props.isDown ? '4px' : '0px')};
   opacity: ${props => (props.isMenuDisabled ? 0.4 : 1)};
-  margin-horizontal: 0.5px;
-  
-  border-top-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
-  border-bottom-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
-  
-  border-top-right-radius: ${props => (props.position === 'last' ? '6px' : '0px')};
-  border-bottom-right-radius: ${props => (props.position === 'last' ? '6px' : '0px')};
+  margin-horizontal: 3px;
+  border-radius: 12px;
 `;
 
 interface ButtonInnerProps {
@@ -68,7 +62,6 @@ interface ButtonInnerProps {
   borderColor: string;
   borderTopColor: string;
   isDown: boolean;
-  position: 'first' | 'middle' | 'last';
 }
 
 const ButtonInner = styled.View<ButtonInnerProps>`
@@ -81,15 +74,10 @@ const ButtonInner = styled.View<ButtonInnerProps>`
   justify-content: center;
   padding-top: 4px;
   padding-horizontal: 2px;
-  
-  border-top-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
-  border-bottom-left-radius: ${props => (props.position === 'first' ? '6px' : '0px')};
-  
-  border-top-right-radius: ${props => (props.position === 'last' ? '6px' : '0px')};
-  border-bottom-right-radius: ${props => (props.position === 'last' ? '6px' : '0px')};
+  border-radius: 12px;
 `;
 
-function TabBarButton3D({ props, colors, isMenuDisabled, position, onPressHandler }: any) {
+function TabBarButton3D({ props, colors, isMenuDisabled, onPressHandler }: any) {
   const selected = props.accessibilityState?.selected;
   const [isPressed, setIsPressed] = useState(false);
   const isDown = selected || isPressed;
@@ -123,10 +111,9 @@ function TabBarButton3D({ props, colors, isMenuDisabled, position, onPressHandle
       buttonShadow={buttonShadow}
       isDown={isDown}
       isMenuDisabled={!!isMenuDisabled}
-      position={position}
       style={props.style}
     >
-      <ButtonInner bg={bg} borderColor={border} borderTopColor={topBorder} isDown={isDown} position={position}>
+      <ButtonInner bg={bg} borderColor={border} borderTopColor={topBorder} isDown={isDown}>
         {props.children}
       </ButtonInner>
     </ButtonContainer>
@@ -143,23 +130,6 @@ function TabNavigator() {
   const isKasirVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canAccessPOS;
   const isPesananVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canManageOrders;
   const isTransaksiVisible = role === 'admin' || role === 'super-admin' || role === 'superadmin' || permissions?.canAccessPOS;
-
-  const visibleTabs = useMemo(() => {
-    return [
-      isBerandaVisible && 'Beranda',
-      isKasirVisible && 'Kasir',
-      isPesananVisible && 'Pesanan',
-      isTransaksiVisible && 'Transaksi',
-      'Lainnya'
-    ].filter(Boolean) as string[];
-  }, [isBerandaVisible, isKasirVisible, isPesananVisible, isTransaksiVisible]);
-
-  const getPosition = (name: string): 'first' | 'middle' | 'last' => {
-    const idx = visibleTabs.indexOf(name);
-    if (idx === 0) return 'first';
-    if (idx === visibleTabs.length - 1) return 'last';
-    return 'middle';
-  };
 
   const sisaHari = useMemo(() => {
     if (!subscriptionUntil) return null;
@@ -195,9 +165,6 @@ function TabNavigator() {
     const isExpiredBlocked = isSubscriptionExpired && blockedWhenExpired.includes(path);
     const isMenuDisabled = isSuperAdminBlocked || isExpiredBlocked;
 
-    const tabName = path === '/reports' ? 'Beranda' : (path === '/pos' ? 'Kasir' : (path === '/orders' ? 'Pesanan' : 'Transaksi'));
-    const position = getPosition(tabName);
-
     return {
       tabBarIcon: ({ color }: any) => {
         const Icon = iconComponent;
@@ -209,7 +176,6 @@ function TabNavigator() {
           props={props}
           colors={colors}
           isMenuDisabled={isMenuDisabled}
-          position={position}
           onPressHandler={(e: any) => {
             if (isSuperAdminBlocked) {
               Alert.alert('Akses Terkunci', 'Fitur ini dinonaktifkan oleh administrator.');
@@ -267,7 +233,7 @@ function TabNavigator() {
           height: 72 + insets.bottom,
           paddingBottom: 6 + insets.bottom,
           paddingTop: 6,
-          paddingHorizontal: 2,
+          paddingHorizontal: 4,
           elevation: 0,
           shadowOpacity: 0,
         },
@@ -342,7 +308,6 @@ function TabNavigator() {
               props={props}
               colors={colors}
               isMenuDisabled={false}
-              position={getPosition('Lainnya')}
             />
           )
         }}
