@@ -176,6 +176,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isResettingSold, setIsResettingSold] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [soldTimeFilter, setSoldTimeFilter] = useState<'today' | 'weekly' | 'monthly' | 'yearly' | 'all'>('monthly');
 
   // Laporan Penjualan State
@@ -3017,38 +3018,37 @@ export default function FeatureScreen({ route, navigation }: any) {
 
         return (
           <View className="flex-1">
-            {/* Time Filter Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3" contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
-              {[
-                { id: 'today', label: 'Hari Ini', icon: Clock },
-                { id: 'weekly', label: 'Minggu Ini', icon: Activity },
-                { id: 'monthly', label: 'Bulanan', icon: CalendarDays },
-                { id: 'yearly', label: 'Tahunan', icon: Calendar },
-                { id: 'all', label: 'Semua Waktu', icon: LayoutGrid }
-              ].map(tab => {
-                const isActive = soldTimeFilter === tab.id;
-                const Icon = tab.icon;
-                return (
-                  <TouchableOpacity 
-                    key={tab.id}
-                    onPress={() => {
-                      Vibration.vibrate(10);
-                      setSoldTimeFilter(tab.id as any);
-                    }}
-                    activeOpacity={0.8}
-                    className="flex-row items-center gap-1 px-3 py-1.5 rounded-full border"
-                    style={{
-                      backgroundColor: isActive ? colors.text : colors.surface,
-                      borderColor: isActive ? colors.text : colors.border,
-                      flexShrink: 0
-                    }}
-                  >
-                    <Icon size={11} color={isActive ? colors.bg : colors.textMuted} />
-                    <Text className="text-[11px] font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.text, flexShrink: 0 }}>{tab.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {/* Rentang Waktu Dropdown */}
+            <View className="mb-3">
+              <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Rentang Waktu</Text>
+              <TouchableOpacity
+                onPress={() => { Vibration.vibrate(10); setShowPeriodDropdown(true); }}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-between px-4 py-3.5 rounded-2xl border"
+                style={{ borderColor: colors.border, backgroundColor: colors.surface }}
+              >
+                <View className="flex-row items-center gap-2">
+                  {(() => {
+                    const activePeriod = [
+                      { id: 'today', label: 'Hari Ini', icon: Clock },
+                      { id: 'weekly', label: 'Minggu Ini', icon: Activity },
+                      { id: 'monthly', label: 'Bulanan', icon: CalendarDays },
+                      { id: 'yearly', label: 'Tahunan', icon: Calendar },
+                      { id: 'all', label: 'Semua Waktu', icon: LayoutGrid }
+                    ].find(p => p.id === soldTimeFilter);
+                    if (!activePeriod) return null;
+                    const Icon = activePeriod.icon;
+                    return (
+                      <>
+                        <Icon size={14} color={colors.accent} />
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>{activePeriod.label}</Text>
+                      </>
+                    );
+                  })()}
+                </View>
+                <ListFilter size={14} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
 
             {/* Filters */}
             {(soldTimeFilter === 'monthly' || soldTimeFilter === 'yearly') && (
@@ -3263,6 +3263,55 @@ export default function FeatureScreen({ route, navigation }: any) {
                             }}
                           >
                             <Text className="text-xs font-bold" style={{ color: isSelected ? colors.accent : colors.text }}>{year}</Text>
+                            {isSelected && <Check size={14} color={colors.accent} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            {/* Modal Dropdown Rentang Waktu */}
+            <Modal visible={showPeriodDropdown} transparent animationType="fade" onRequestClose={() => setShowPeriodDropdown(false)}>
+              <TouchableOpacity 
+                activeOpacity={1} 
+                onPress={() => setShowPeriodDropdown(false)}
+                className="flex-1 justify-center items-center px-6" 
+                style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <View className="w-full max-h-[60%] rounded-3xl p-6 shadow-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <Text className="text-sm font-black mb-4 uppercase tracking-wider" style={{ color: colors.text }}>Pilih Rentang Waktu</Text>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View className="flex gap-2">
+                      {[
+                        { id: 'today', label: 'Hari Ini', icon: Clock },
+                        { id: 'weekly', label: 'Minggu Ini', icon: Activity },
+                        { id: 'monthly', label: 'Bulanan', icon: CalendarDays },
+                        { id: 'yearly', label: 'Tahunan', icon: Calendar },
+                        { id: 'all', label: 'Semua Waktu', icon: LayoutGrid }
+                      ].map((p) => {
+                        const isSelected = soldTimeFilter === p.id;
+                        const Icon = p.icon;
+                        return (
+                          <TouchableOpacity 
+                            key={p.id} 
+                            onPress={() => {
+                              Vibration.vibrate(10);
+                              setSoldTimeFilter(p.id as any);
+                              setShowPeriodDropdown(false);
+                            }}
+                            className="p-3.5 rounded-xl border flex-row items-center justify-between"
+                            style={{ 
+                              backgroundColor: isSelected ? colors.accent + '10' : colors.bg,
+                              borderColor: isSelected ? colors.accent : colors.border
+                            }}
+                          >
+                            <View className="flex-row items-center gap-2">
+                              <Icon size={14} color={isSelected ? colors.accent : colors.textMuted} />
+                              <Text className="text-xs font-bold" style={{ color: isSelected ? colors.accent : colors.text }}>{p.label}</Text>
+                            </View>
                             {isSelected && <Check size={14} color={colors.accent} />}
                           </TouchableOpacity>
                         );
