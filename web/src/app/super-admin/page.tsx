@@ -45,6 +45,7 @@ import {
   Landmark
 } from 'lucide-react';
 import { handleExportJSON, handleImportJSON, handleImportStoreJSON } from '@/lib/backupUtils';
+import { getInfraConfig } from '@/lib/infraConfig';
 
 export default function SuperAdminPage() {
   const { user, role } = useAuthStore();
@@ -95,6 +96,8 @@ export default function SuperAdminPage() {
   const [broadcastLink, setBroadcastLink] = useState('');
   const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastImageFile, setBroadcastImageFile] = useState<File | null>(null);
+  const [broadcastImagePreview, setBroadcastImagePreview] = useState<string | null>(null);
 
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
@@ -149,6 +152,28 @@ export default function SuperAdminPage() {
 
     setIsSendingBroadcast(true);
     try {
+      let finalImageUrl = broadcastImageUrl.trim();
+
+      if (broadcastImageFile) {
+        const config = await getInfraConfig();
+        const uploadData = new FormData();
+        uploadData.append('file', broadcastImageFile);
+        uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+
+        const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST',
+          body: uploadData
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadRes.ok && uploadResult.secure_url) {
+          finalImageUrl = uploadResult.secure_url;
+        } else {
+          throw new Error(uploadResult.error?.message || 'Gagal unggah foto ke Cloudinary');
+        }
+      }
+
       const res = await fetch('/api/send-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,7 +183,7 @@ export default function SuperAdminPage() {
           message: broadcastMessage,
           data: {
             link: broadcastLink.trim() || '',
-            imageUrl: broadcastImageUrl.trim() || ''
+            imageUrl: finalImageUrl
           }
         })
       });
@@ -170,6 +195,8 @@ export default function SuperAdminPage() {
         setBroadcastMessage('');
         setBroadcastLink('');
         setBroadcastImageUrl('');
+        setBroadcastImageFile(null);
+        setBroadcastImagePreview(null);
       } else {
         alert('❌ Gagal mengirim broadcast: ' + (data.error || 'Terjadi kesalahan'));
       }
@@ -605,7 +632,7 @@ export default function SuperAdminPage() {
 
       // Cari validUntil terlama/terakhir yang aktif dari semua user di toko tersebut
       let currentMaxValidUntil: Date | null = null;
-      userSnaps.forEach((userDoc) => {
+      for (const userDoc of userSnaps.docs) {
         const uData = userDoc.data();
         if (uData.validUntil) {
           const d = new Date(uData.validUntil);
@@ -615,7 +642,7 @@ export default function SuperAdminPage() {
             }
           }
         }
-      });
+      }
 
       // Jika masa aktif masih berlaku (di masa depan), perpanjang dihitung dari tanggal tersebut
       if (currentMaxValidUntil && currentMaxValidUntil > now) {
@@ -2807,15 +2834,58 @@ export default function SuperAdminPage() {
                   </div>
 
                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">URL Gambar Lampiran (Opsional)</label>
-                     <input 
-                       type="text" 
-                       value={broadcastImageUrl}
-                       onChange={e => setBroadcastImageUrl(e.target.value)}
-                       className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all text-xs"
-                       placeholder="Contoh: https://images.unsplash.com/photo-..."
-                     />
-                  </div>
+                      <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Gambar Lampiran (Opsional)</label>
+                      <div className="w-full aspect-[2/1] md:aspect-[3/1] bg-background border-2 border-dashed border-app-border rounded-2xl relative overflow-hidden group hover:border-accent transition-colors flex flex-col items-center justify-center">
+                        {broadcastImagePreview ? (
+                          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${broadcastImagePreview})` }}>
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                setBroadcastImageFile(null);
+                                setBroadcastImagePreview(null);
+                              }}
+                              className="absolute top-2 right-2 bg-black/60 hover:bg-black text-white p-1.5 rounded-full transition-all"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-center p-4">
+                            <Upload className="w-8 h-8 text-app-text-muted mx-auto mb-2 group-hover:text-accent transition-colors" />
+                            <p className="text-[10px] text-app-text-muted font-bold">Pilih File Gambar</p>
+                          </div>
+                        )}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              const file = e.target.files[0];
+                              setBroadcastImageFile(file);
+                              setBroadcastImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                      </div>
+                   </div>
+
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Atau URL Gambar Lampiran (Opsional)</label>
+                      <input 
+                        type="text" 
+                        value={broadcastImageUrl}
+                        onChange={e => {
+                          setBroadcastImageUrl(e.target.value);
+                          if (e.target.value) {
+                            setBroadcastImageFile(null);
+                            setBroadcastImagePreview(null);
+                          }
+                        }}
+                        className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all text-xs"
+                        placeholder="Contoh: https://images.unsplash.com/photo-..."
+                      />
+                   </div>
 
                   <button 
                     type="submit" 
@@ -2860,10 +2930,10 @@ export default function SuperAdminPage() {
                            </div>
                            <h5 className="text-xs font-black text-foreground">{broadcastTitle || 'Judul Notifikasi'}</h5>
                            <p className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed break-words mb-2">{broadcastMessage || 'Isi pesan notifikasi...'}</p>
-                           {broadcastImageUrl.trim() && (
-                             <div className="w-full h-24 rounded-lg overflow-hidden border border-slate-800 mt-2 bg-slate-950">
-                               <img src={broadcastImageUrl.trim()} className="w-full h-full object-cover" alt="Preview" />
-                             </div>
+                           {(broadcastImagePreview || broadcastImageUrl.trim()) && (
+                              <div className="w-full h-24 rounded-lg overflow-hidden border border-slate-800 mt-2 bg-slate-950">
+                                <img src={broadcastImagePreview || broadcastImageUrl.trim() || undefined} className="w-full h-full object-cover" alt="Preview" />
+                              </div>
                            )}
                            {broadcastLink.trim() && (
                              <div className="flex items-center gap-1.5 mt-2 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1.5 rounded-lg text-blue-400 select-none">

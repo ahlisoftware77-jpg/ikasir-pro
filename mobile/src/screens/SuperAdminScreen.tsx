@@ -172,10 +172,44 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [broadcastLink, setBroadcastLink] = useState('');
   const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastImage, setBroadcastImage] = useState<string | null>(null);
 
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [isUpdatingMaintenance, setIsUpdatingMaintenance] = useState(false);
+
+  const pickBroadcastImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setBroadcastImage(result.assets[0].uri);
+      setBroadcastImageUrl('');
+    }
+  };
+
+  const takeBroadcastPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Ditolak', 'Maaf, kami butuh izin kamera untuk mengambil foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setBroadcastImage(result.assets[0].uri);
+      setBroadcastImageUrl('');
+    }
+  };
 
   const handleSendBroadcast = async () => {
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
@@ -194,6 +228,34 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSendingBroadcast(true);
             try {
+              let finalImageUrl = broadcastImageUrl.trim();
+
+              if (broadcastImage) {
+                const formDataUpload = new FormData();
+                const filename = broadcastImage.split('/').pop();
+                const match = /\.(\w+)$/.exec(filename || '');
+                const type = match ? `image/${match[1]}` : `image`;
+
+                formDataUpload.append('file', { uri: broadcastImage, name: filename, type } as any);
+                formDataUpload.append('upload_preset', 'kasirpos');
+
+                const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+                  method: 'POST',
+                  body: formDataUpload,
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                });
+
+                const uploadResult = await uploadRes.json();
+                if (uploadRes.ok && uploadResult.secure_url) {
+                  finalImageUrl = uploadResult.secure_url;
+                } else {
+                  console.error('Cloudinary error:', uploadResult);
+                  throw new Error('Gagal mengunggah foto');
+                }
+              }
+
               const webUrl = brandingData.webAppUrl || 'https://ikasir-pro.vercel.app';
               const res = await fetch(`${webUrl}/api/send-notification`, {
                 method: 'POST',
@@ -204,7 +266,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   message: broadcastMessage,
                   data: {
                     link: broadcastLink.trim() || '',
-                    imageUrl: broadcastImageUrl.trim() || ''
+                    imageUrl: finalImageUrl
                   }
                 })
               });
@@ -219,6 +281,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 setBroadcastMessage('');
                 setBroadcastLink('');
                 setBroadcastImageUrl('');
+                setBroadcastImage(null);
               } else {
                 Alert.alert('Gagal', 'Gagal mengirim broadcast: ' + (data.error || 'Terjadi kesalahan'));
               }
@@ -2990,12 +3053,50 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   />
                 </View>
 
+                {/* Upload Image Section */}
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Gambar Lampiran (Opsional)</Text>
+                  {broadcastImage ? (
+                    <View className="relative w-full aspect-[2/1] rounded-2xl overflow-hidden border border-dashed" style={{ borderColor: colors.border }}>
+                      <Image source={{ uri: broadcastImage }} className="w-full h-full" resizeMode="cover" />
+                      <TouchableOpacity 
+                        onPress={() => setBroadcastImage(null)}
+                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 items-center justify-center"
+                      >
+                        <X color="white" size={16} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View className="flex-row gap-3">
+                      <TouchableOpacity
+                        onPress={pickBroadcastImage}
+                        className="flex-1 py-3.5 rounded-2xl border border-dashed flex-row items-center justify-center gap-2"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.accent }}
+                      >
+                        <Upload size={16} color={colors.accent} />
+                        <Text className="text-xs font-bold" style={{ color: colors.accent }}>Pilih File</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={takeBroadcastPhoto}
+                        className="flex-1 py-3.5 rounded-2xl border border-dashed flex-row items-center justify-center gap-2"
+                        style={{ backgroundColor: colors.bg, borderColor: colors.accent }}
+                      >
+                        <Camera size={16} color={colors.accent} />
+                        <Text className="text-xs font-bold" style={{ color: colors.accent }}>Ambil Foto</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
                 {/* Image URL Input */}
                 <View className="space-y-1">
-                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">URL Gambar Lampiran (Opsional)</Text>
+                  <Text className="text-[8px] font-black uppercase tracking-widest text-slate-400">Atau URL Gambar Lampiran (Opsional)</Text>
                   <TextInput
                     value={broadcastImageUrl}
-                    onChangeText={setBroadcastImageUrl}
+                    onChangeText={(text) => {
+                      setBroadcastImageUrl(text);
+                      if (text) setBroadcastImage(null);
+                    }}
                     placeholder="Contoh: https://images.unsplash.com/photo-..."
                     placeholderTextColor={colors.textMuted}
                     className="p-4 rounded-2xl border font-bold text-xs"
@@ -3033,9 +3134,9 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     <Text className="text-xs font-black text-white">{broadcastTitle || 'Judul Notifikasi'}</Text>
                     <Text className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed mb-2">{broadcastMessage || 'Isi pesan...'}</Text>
                     
-                    {broadcastImageUrl.trim() ? (
+                    {(broadcastImage || broadcastImageUrl.trim()) ? (
                       <View className="w-full h-24 rounded-lg overflow-hidden border border-slate-700 mt-2 bg-slate-800">
-                        <Image source={{ uri: broadcastImageUrl.trim() }} className="w-full h-full" resizeMode="cover" />
+                        <Image source={{ uri: broadcastImage || broadcastImageUrl.trim() }} className="w-full h-full" resizeMode="cover" />
                       </View>
                     ) : null}
 

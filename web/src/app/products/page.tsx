@@ -15,6 +15,10 @@ import { getInfraConfig } from '@/lib/infraConfig';
 export default function ProductsPage() {
   const { storeId, user, role, permissions } = useAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
+
+  const CATEGORIES = ['Umum', 'Makanan', 'Minuman', 'Snack', 'Bahan Baku', 'Aksesoris', 'Jasa'];
+  const dynamicCategories = Array.from(new Set(products.map(p => p.category?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const allCategories = Array.from(new Set([...CATEGORIES, ...dynamicCategories]));
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1012,19 +1016,15 @@ export default function ProductsPage() {
                               setFormData({...formData, category: e.target.value});
                             } else {
                               const custom = prompt('Masukkan Kategori Baru:');
-                              if (custom) setFormData({...formData, category: custom});
+                              if (custom) setFormData({...formData, category: custom.trim()});
                             }
                           }} 
                           className="w-full p-3 bg-background border border-app-border rounded-lg text-foreground focus:outline-none focus:border-accent appearance-none pr-10"
                         >
-                          <option value="Umum">Umum</option>
-                          <option value="Makanan">Makanan</option>
-                          <option value="Minuman">Minuman</option>
-                          <option value="Snack">Snack</option>
-                          <option value="Bahan Baku">Bahan Baku</option>
-                          <option value="Aksesoris">Aksesoris</option>
-                          <option value="Jasa">Jasa</option>
-                          {formData.category && !['Umum', 'Makanan', 'Minuman', 'Snack', 'Bahan Baku', 'Aksesoris', 'Jasa'].includes(formData.category) && (
+                          {allCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          {formData.category && !allCategories.includes(formData.category) && (
                             <option value={formData.category}>{formData.category}</option>
                           )}
                           <option value="_custom">+ Kategori Lainnya...</option>
