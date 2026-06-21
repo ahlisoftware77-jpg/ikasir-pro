@@ -16,7 +16,7 @@ import {
   Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter,
-  Printer, UserCog, Download
+  Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
@@ -176,6 +176,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isResettingSold, setIsResettingSold] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [soldTimeFilter, setSoldTimeFilter] = useState<'today' | 'weekly' | 'monthly' | 'yearly' | 'all'>('monthly');
 
   // Laporan Penjualan State
   const [salesTransactions, setSalesTransactions] = useState<any[]>([]);
@@ -765,6 +766,10 @@ export default function FeatureScreen({ route, navigation }: any) {
     const itemsMap: Record<string, { id: string, name: string, qty: number, sales: number }> = {};
     let index = 0;
 
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     rawSoldTransactions.forEach(trx => {
       if (trx.paymentStatus === 'cancelled' || trx.orderStatus === 'cancelled') return;
 
@@ -772,9 +777,17 @@ export default function FeatureScreen({ route, navigation }: any) {
       
       if (salesAnalyticsClearedAt && trxDate < salesAnalyticsClearedAt) return;
 
-      if (soldMonthFilter !== 'all') {
-        if (trxDate.getMonth() !== parseInt(soldMonthFilter) || trxDate.getFullYear() !== parseInt(soldYearFilter)) return;
-      } else {
+      if (soldTimeFilter === 'today') {
+        if (trxDate < startOfToday) return;
+      } else if (soldTimeFilter === 'weekly') {
+        if (trxDate < sevenDaysAgo) return;
+      } else if (soldTimeFilter === 'monthly') {
+        if (soldMonthFilter !== 'all') {
+          if (trxDate.getMonth() !== parseInt(soldMonthFilter) || trxDate.getFullYear() !== parseInt(soldYearFilter)) return;
+        } else {
+          if (trxDate.getFullYear() !== parseInt(soldYearFilter)) return;
+        }
+      } else if (soldTimeFilter === 'yearly') {
         if (trxDate.getFullYear() !== parseInt(soldYearFilter)) return;
       }
 
@@ -790,7 +803,7 @@ export default function FeatureScreen({ route, navigation }: any) {
     });
 
     return Object.values(itemsMap).sort((a, b) => b.qty - a.qty);
-  }, [rawSoldTransactions, salesAnalyticsClearedAt, soldMonthFilter, soldYearFilter]);
+  }, [rawSoldTransactions, salesAnalyticsClearedAt, soldMonthFilter, soldYearFilter, soldTimeFilter]);
 
   const soldAvailableYears = useMemo(() => {
     const years = new Set<string>();
@@ -810,6 +823,17 @@ export default function FeatureScreen({ route, navigation }: any) {
     let rows: any[][] = [];
 
     switch (featureId) {
+      case 'terjual':
+        fileName = 'Laporan_Produk_Terjual';
+        headers = ['No', 'Nama Produk', 'Jumlah Terjual (QTY)', 'Total Pendapatan (Rp)'];
+        rows = salesSummary.map((item, index) => [
+          index + 1,
+          item.name,
+          item.qty,
+          item.sales
+        ]);
+        break;
+
       case 'lap_penjualan':
         fileName = 'Laporan_Penjualan';
         headers = ['ID Transaksi', 'Waktu', 'Kasir', 'Pelanggan', 'Metode', 'Status', 'Subtotal', 'Diskon', 'Pajak', 'Total', 'Piutang Awal', 'Piutang Terbayar', 'Sisa Piutang'];
@@ -1088,7 +1112,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   };
 
   useEffect(() => {
-    const exportableFeatures = ['lap_penjualan', 'lap_omzet', 'lap_terlaris', 'arus_kas', 'stok', 'piutang'];
+    const exportableFeatures = ['lap_penjualan', 'lap_omzet', 'lap_terlaris', 'arus_kas', 'stok', 'piutang', 'terjual'];
     if (exportableFeatures.includes(featureId)) {
       navigation.setOptions({
         headerRight: () => (
@@ -1106,7 +1130,7 @@ export default function FeatureScreen({ route, navigation }: any) {
         headerRight: undefined
       });
     }
-  }, [featureId, navigation, colors, reportsPenjualanState, omzetReportState, rawSoldTransactions, cashflows, stockLogs, debts, salesTransactions, omzetPeriodType, soldMonthFilter, soldYearFilter, salesAnalyticsClearedAt]);
+  }, [featureId, navigation, colors, reportsPenjualanState, omzetReportState, rawSoldTransactions, cashflows, stockLogs, debts, salesTransactions, omzetPeriodType, soldMonthFilter, soldYearFilter, salesAnalyticsClearedAt, soldTimeFilter, salesSummary]);
 
   // --- FORM NAV ACTION (ADD/EDIT/DELETE) ---
   const openFormModal = (item?: any) => {
@@ -2993,47 +3017,100 @@ export default function FeatureScreen({ route, navigation }: any) {
 
         return (
           <View className="flex-1">
+            {/* Time Filter Tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 8 }}>
+              {[
+                { id: 'today', label: 'Hari Ini', icon: Clock },
+                { id: 'weekly', label: 'Minggu Ini', icon: Activity },
+                { id: 'monthly', label: 'Bulanan', icon: CalendarDays },
+                { id: 'yearly', label: 'Tahunan', icon: Calendar },
+                { id: 'all', label: 'Semua Waktu', icon: LayoutGrid }
+              ].map(tab => {
+                const isActive = soldTimeFilter === tab.id;
+                const Icon = tab.icon;
+                return (
+                  <TouchableOpacity 
+                    key={tab.id}
+                    onPress={() => {
+                      Vibration.vibrate(10);
+                      setSoldTimeFilter(tab.id as any);
+                    }}
+                    activeOpacity={0.8}
+                    className="flex-row items-center gap-1.5 px-4 py-2 rounded-full border"
+                    style={{
+                      backgroundColor: isActive ? colors.accent : colors.surface,
+                      borderColor: isActive ? colors.accent : colors.border
+                    }}
+                  >
+                    <Icon size={11} color={isActive ? '#ffffff' : colors.textMuted} />
+                    <Text className="text-[11px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
             {/* Filters */}
-            <View className="flex-row items-center gap-2 mb-4">
-              <View className="flex-1 flex-row border rounded-xl overflow-hidden" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
-                <TouchableOpacity 
-                  onPress={() => { Vibration.vibrate(10); setShowMonthDropdown(true); }}
-                  activeOpacity={0.7}
-                  className="flex-1 border-r px-4 justify-center relative py-4" 
-                  style={{ borderColor: colors.border }}
-                >
-                  <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Bulan</Text>
-                  <View className="flex-row items-center justify-between mt-2">
-                    <Text className="font-black text-xs" style={{ color: colors.text }}>
-                      {MONTHS_LIST.find(m => m.id === soldMonthFilter)?.name || 'Semua Bulan'}
-                    </Text>
-                    <ListFilter size={14} color={colors.textMuted} />
-                  </View>
-                </TouchableOpacity>
+            {(soldTimeFilter === 'monthly' || soldTimeFilter === 'yearly') && (
+              <View className="flex-row items-center gap-2 mb-4">
+                <View className="flex-1 flex-row border rounded-xl overflow-hidden" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+                  {soldTimeFilter === 'monthly' && (
+                    <TouchableOpacity 
+                      onPress={() => { Vibration.vibrate(10); setShowMonthDropdown(true); }}
+                      activeOpacity={0.7}
+                      className="flex-1 border-r px-4 justify-center relative py-4" 
+                      style={{ borderColor: colors.border }}
+                    >
+                      <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Bulan</Text>
+                      <View className="flex-row items-center justify-between mt-2">
+                        <Text className="font-black text-xs" style={{ color: colors.text }}>
+                          {MONTHS_LIST.find(m => m.id === soldMonthFilter)?.name || 'Semua Bulan'}
+                        </Text>
+                        <ListFilter size={14} color={colors.textMuted} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity 
+                    onPress={() => { Vibration.vibrate(10); setShowYearDropdown(true); }}
+                    activeOpacity={0.7}
+                    className="flex-1 px-4 justify-center relative py-4"
+                  >
+                    <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Tahun</Text>
+                    <View className="flex-row items-center justify-between mt-2">
+                      <Text className="font-black text-xs" style={{ color: colors.text }}>
+                        {soldYearFilter}
+                      </Text>
+                      <ListFilter size={14} color={colors.textMuted} />
+                    </View>
+                  </TouchableOpacity>
+                </View>
 
                 <TouchableOpacity 
-                  onPress={() => { Vibration.vibrate(10); setShowYearDropdown(true); }}
-                  activeOpacity={0.7}
-                  className="w-24 px-4 justify-center relative py-4"
+                  onPress={handleResetSold}
+                  disabled={isResettingSold}
+                  className="w-12 h-12 rounded-xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
                 >
-                  <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Tahun</Text>
-                  <View className="flex-row items-center justify-between mt-2">
-                    <Text className="font-black text-xs" style={{ color: colors.text }}>
-                      {soldYearFilter}
-                    </Text>
-                    <ListFilter size={14} color={colors.textMuted} />
-                  </View>
+                  {isResettingSold ? <Activity size={16} color="#f43f5e" /> : <Trash2 size={20} color="#f43f5e" />}
                 </TouchableOpacity>
               </View>
+            )}
 
-              <TouchableOpacity 
-                onPress={handleResetSold}
-                disabled={isResettingSold}
-                className="w-12 h-12 rounded-xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
-              >
-                {isResettingSold ? <Activity size={16} color="#f43f5e" /> : <Trash2 size={20} color="#f43f5e" />}
-              </TouchableOpacity>
-            </View>
+            {/* Rentang Aktif Label & Reset (jika bukan bulanan/tahunan) */}
+            {!(soldTimeFilter === 'monthly' || soldTimeFilter === 'yearly') && (
+              <View className="flex-row justify-between items-center mb-4 px-1">
+                <Text className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                  Rentang: {soldTimeFilter === 'today' ? 'Hari Ini' : soldTimeFilter === 'weekly' ? 'Minggu Ini' : 'Semua Waktu'}
+                </Text>
+                <TouchableOpacity 
+                  onPress={handleResetSold}
+                  disabled={isResettingSold}
+                  className="flex-row items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20"
+                >
+                  {isResettingSold ? <Activity size={12} color="#f43f5e" /> : <Trash2 size={14} color="#f43f5e" />}
+                  <Text className="text-[10px] font-black text-rose-500 uppercase">Reset Analitik</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Summary Cards */}
             <View className="flex-row gap-3 mb-4">

@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
 import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck, ArrowUpDown } from 'lucide-react-native';
+import { 
+  History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, 
+  Share2, MessageCircle, ShieldCheck, ArrowUpDown, LayoutGrid, CheckCircle2, 
+  AlertTriangle, FileText, ShoppingBag, Clock, CalendarDays, Download, Search, 
+  Coins, TrendingUp, Activity
+} from 'lucide-react-native';
 import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
 
@@ -96,6 +103,8 @@ export default function TransactionsScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [storeSettings, setStoreSettings] = useState<any>({});
   const [filterTab, setFilterTab] = useState<'all' | 'completed' | 'debt' | 'estimation' | 'online'>('all');
+  const [timeFilter, setTimeFilter] = useState<'today' | 'weekly' | 'monthly' | 'yearly' | 'all'>('all');
+  const [searchText, setSearchText] = useState('');
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
@@ -106,13 +115,174 @@ export default function TransactionsScreen({ navigation }: any) {
   const [bluetoothDevices, setBluetoothDevices] = useState<any[]>([]);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
+  const isWithinTimeRange = (timestamp: any, range: typeof timeFilter) => {
+    if (range === 'all') return true;
+    if (!timestamp) return false;
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (range === 'today') {
+      return date >= startOfToday;
+    }
+    
+    if (range === 'weekly') {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return date >= sevenDaysAgo;
+    }
+    
+    if (range === 'monthly') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return date >= startOfMonth;
+    }
+    
+    if (range === 'yearly') {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      return date >= startOfYear;
+    }
+    
+    return true;
+  };
+
+  const getLeftCardDateTime = (timestamp: any) => {
+    if (!timestamp) return { day: '--', monthYear: '---', time: '--:--:--' };
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const day = date.getDate().toString().padStart(2, '0');
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+    const monthYear = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    const time = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+    return {
+      day,
+      monthYear,
+      time
+    };
+  };
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(trx => {
+      let matchStatus = true;
+      if (filterTab === 'completed') {
+        matchStatus = trx.paymentStatus === 'paid';
+      } else if (filterTab === 'debt') {
+        matchStatus = trx.paymentStatus === 'unpaid' || trx.paymentStatus === 'partially_paid' || trx.paymentCategory === 'debt';
+      } else if (filterTab === 'online') {
+        matchStatus = trx.orderType === 'online';
+      }
+
+      const matchTime = isWithinTimeRange(trx.timestamp, timeFilter);
+
+      let matchSearch = true;
+      if (searchText.trim() !== '') {
+        const queryText = searchText.toLowerCase().trim();
+        const trxId = (trx.id || '').toLowerCase();
+        const custName = (trx.customerName || 'umum').toLowerCase();
+        const cashier = (trx.cashierName || '').toLowerCase();
+        const paymentM = (trx.paymentMethod || '').toLowerCase();
+        matchSearch = trxId.includes(queryText) || custName.includes(queryText) || cashier.includes(queryText) || paymentM.includes(queryText);
+      }
+
+      return matchStatus && matchTime && matchSearch;
+    });
+  }, [transactions, filterTab, timeFilter, searchText]);
+
   const sortedTransactions = useMemo(() => {
-    return [...transactions].sort((a, b) => {
+    return [...filteredTransactions].sort((a, b) => {
       const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
       const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
       return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
     });
-  }, [transactions, sortOrder]);
+  }, [filteredTransactions, sortOrder]);
+
+  const metrics = useMemo(() => {
+    let totalOmzet = 0;
+    let totalProfit = 0;
+    let totalQtyTerjual = 0;
+    
+    filteredTransactions.forEach(trx => {
+      const omzetVal = trx.total || 0;
+      totalOmzet += omzetVal;
+
+      let trxHpp = 0;
+      trx.items?.forEach((item: any) => {
+        const qty = item.qty || 0;
+        totalQtyTerjual += qty;
+        trxHpp += qty * (item.purchasePrice || 0);
+      });
+
+      totalProfit += (omzetVal - trxHpp);
+    });
+
+    return {
+      totalTrx: filteredTransactions.length,
+      totalQty: totalQtyTerjual,
+      omzet: totalOmzet,
+      profit: totalProfit
+    };
+  }, [filteredTransactions]);
+
+  const exportTransactionsToExcel = async () => {
+    if (sortedTransactions.length === 0) {
+      Alert.alert("Perhatian", "Tidak ada data transaksi untuk diekspor.");
+      return;
+    }
+
+    try {
+      let csvContent = '\uFEFF';
+      csvContent += 'ID Transaksi,Tanggal,Jam,Staf/Kasir,Pelanggan,Status,Metode Pembayaran,Item,Omzet (Rp),Profit (Rp)\n';
+
+      sortedTransactions.forEach(trx => {
+        const trxId = trx.id || '';
+        const dateObj = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date(trx.timestamp);
+        const tanggal = dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const jam = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+        const cashier = trx.cashierName || '';
+        const customer = trx.customerName || 'Umum';
+        
+        let status = 'Lunas';
+        if (trx.paymentStatus === 'partially_paid') status = 'Dicicil';
+        else if (trx.paymentStatus === 'unpaid') status = 'Belum Dibayar';
+        
+        const paymentMethod = trx.paymentMethod || trx.paymentCategory || '';
+        const itemNames = trx.items?.map((i: any) => `${i.productName} (${i.qty}x)`).join('; ') || '';
+        const omzet = trx.total || 0;
+        
+        let trxHpp = 0;
+        trx.items?.forEach((i: any) => {
+          trxHpp += (i.purchasePrice || 0) * (i.qty || 0);
+        });
+        const profit = omzet - trxHpp;
+
+        const escapedItems = `"${itemNames.replace(/"/g, '""')}"`;
+        const escapedCustomer = `"${customer.replace(/"/g, '""')}"`;
+        const escapedCashier = `"${cashier.replace(/"/g, '""')}"`;
+
+        csvContent += `${trxId},${tanggal},${jam},${escapedCashier},${escapedCustomer},${status},${paymentMethod},${escapedItems},${omzet},${profit}\n`;
+      });
+
+      const fileName = `Laporan_Transaksi_${new Date().toISOString().slice(0,10)}.csv`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8
+      });
+
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Unduh Laporan Penjualan (Excel)',
+          UTI: 'public.comma-separated-values-text'
+        });
+      } else {
+        Alert.alert("Error", "Fitur berbagi file tidak tersedia di perangkat ini.");
+      }
+    } catch (error) {
+      console.error("Gagal mengekspor laporan:", error);
+      Alert.alert("Gagal Mengekspor", "Terjadi kesalahan saat memproses laporan penjualan.");
+    }
+  };
+
 
   const checkBluetoothState = async () => {
     if (!BluetoothManager) {
@@ -377,16 +547,14 @@ export default function TransactionsScreen({ navigation }: any) {
     if (!storeId) return;
     setLoading(true);
 
-    let collectionRef = collection(db, 'transactions');
-    if (filterTab === 'estimation') {
-      collectionRef = collection(db, 'estimations');
-    }
+    const isEstimation = filterTab === 'estimation';
+    let collectionRef = collection(db, isEstimation ? 'estimations' : 'transactions');
 
     const q = query(
       collectionRef, 
       where('storeId', '==', storeId),
       orderBy('timestamp', 'desc'),
-      limit(50)
+      limit(200)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -394,17 +562,10 @@ export default function TransactionsScreen({ navigation }: any) {
       snapshot.forEach((doc) => {
         trx.push({ id: doc.id, ...doc.data() } as Transaction);
       });
-
-      let filteredTrx = trx;
-      if (filterTab === 'completed') {
-        filteredTrx = trx.filter(t => t.paymentStatus === 'paid');
-      } else if (filterTab === 'debt') {
-        filteredTrx = trx.filter(t => t.paymentStatus === 'unpaid' || t.paymentStatus === 'partially_paid' || t.paymentCategory === 'debt');
-      } else if (filterTab === 'online') {
-        filteredTrx = trx.filter(t => t.orderType === 'online');
-      }
-
-      setTransactions(filteredTrx);
+      setTransactions(trx);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error subscribing to transactions:", error);
       setLoading(false);
     });
 
@@ -421,7 +582,7 @@ export default function TransactionsScreen({ navigation }: any) {
     fetchSettings();
     
     return () => unsubscribe();
-  }, [storeId, filterTab]);
+  }, [storeId, filterTab === 'estimation']);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '...';
@@ -569,45 +730,6 @@ export default function TransactionsScreen({ navigation }: any) {
     );
   };
 
-  const renderStatusBadge = (trx: Transaction) => {
-    let text = trx.paymentMethod || trx.paymentCategory || '';
-    let bgColor = 'bg-slate-500/10';
-    let textColor = 'text-slate-500';
-
-    if (trx.paymentStatus === 'paid') {
-      text = 'Lunas';
-      bgColor = 'bg-emerald-500/10';
-      textColor = 'text-emerald-500';
-    } else if (trx.paymentStatus === 'partially_paid') {
-      text = 'Dicicil';
-      bgColor = 'bg-amber-500/10';
-      textColor = 'text-amber-500';
-    } else if (trx.paymentStatus === 'unpaid') {
-      text = 'Belum Dibayar';
-      bgColor = 'bg-rose-500/10';
-      textColor = 'text-rose-500';
-    }
-
-    if (trx.orderType === 'online') {
-      return (
-        <View className="flex-row items-center gap-1">
-          <View className={`px-2.5 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/10`}>
-            <Text className="text-[8px] font-black uppercase text-emerald-500">Online Order</Text>
-          </View>
-          <View className={`px-2.5 py-0.5 rounded-full border border-slate-500/20 ${bgColor}`}>
-            <Text className={`text-[8px] font-black uppercase ${textColor}`}>{text}</Text>
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <View className={`px-2.5 py-0.5 rounded-full border border-slate-500/20 ${bgColor}`}>
-        <Text className={`text-[8px] font-black uppercase ${textColor}`}>{text}</Text>
-      </View>
-    );
-  };
-
   const handleDeleteAllTrx = () => {
     let title = "Hapus Semua Transaksi";
     let msg = "Apakah Anda yakin ingin menghapus SEMUA riwayat transaksi?";
@@ -679,62 +801,189 @@ export default function TransactionsScreen({ navigation }: any) {
         <FlatList
           data={sortedTransactions}
           keyExtractor={item => item.id!}
-          contentContainerStyle={{ padding: 24 }}
+          contentContainerStyle={{ padding: 20 }}
           ListHeaderComponent={
-            <View>
-              {/* Tab Filters */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row" contentContainerStyle={{ gap: 8 }}>
+            <View className="mb-4">
+              {/* Search Bar */}
+              <View className="flex-row items-center mb-4 px-4 py-2.5 rounded-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <Search size={16} color={colors.textMuted} className="mr-2" />
+                <TextInput
+                  className="flex-1 text-xs font-bold p-0"
+                  style={{ color: colors.text }}
+                  placeholder="Cari ID transaksi, kasir, pelanggan..."
+                  placeholderTextColor={colors.textMuted}
+                  value={searchText}
+                  onChangeText={setSearchText}
+                />
+                {searchText !== '' && (
+                  <TouchableOpacity onPress={() => setSearchText('')}>
+                    <X size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Status Tab Filters */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 8 }}>
                 {[
-                  { id: 'all', label: 'Semua' },
-                  { id: 'completed', label: 'Selesai' },
-                  { id: 'debt', label: 'Piutang' },
-                  { id: 'estimation', label: 'Estimasi' },
-                  { id: 'online', label: 'Online Order' }
+                  { id: 'all', label: 'Semua', icon: LayoutGrid },
+                  { id: 'completed', label: 'Selesai', icon: CheckCircle2 },
+                  { id: 'debt', label: 'Piutang', icon: AlertTriangle },
+                  { id: 'estimation', label: 'Estimasi', icon: FileText },
+                  { id: 'online', label: 'Online Order', icon: ShoppingBag }
                 ].map(tab => {
                   const isActive = filterTab === tab.id;
+                  const Icon = tab.icon;
                   return (
                     <TouchableOpacity 
                       key={tab.id}
-                      onPress={() => setFilterTab(tab.id as any)}
+                      onPress={() => {
+                        Vibration.vibrate(10);
+                        setFilterTab(tab.id as any);
+                      }}
                       activeOpacity={0.8}
-                      className={`px-5 py-2.5 rounded-full border`}
+                      className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-full border"
                       style={{
-                        backgroundColor: isActive ? colors.text : 'transparent',
+                        backgroundColor: isActive ? colors.text : colors.surface,
                         borderColor: isActive ? colors.text : colors.border
                       }}
                     >
-                      <Text className="text-xs font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.textMuted }}>{tab.label}</Text>
+                      <Icon size={12} color={isActive ? colors.bg : colors.textMuted} />
+                      <Text className="text-xs font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.text }}>{tab.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
 
-              <View className="flex-row justify-between items-center mb-4">
-                <TouchableOpacity 
-                  onPress={() => {
-                    Vibration.vibrate(10);
-                    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
-                  }}
-                  activeOpacity={0.8}
-                  className="flex-row items-center gap-2 px-4 py-2 rounded-full border"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                >
-                  <ArrowUpDown color={colors.accent} size={12} />
-                  <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
-                    Urutan: {sortOrder === 'desc' ? 'Terbaru' : 'Terlama'}
-                  </Text>
-                </TouchableOpacity>
+              {/* Time Tab Filters */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row" contentContainerStyle={{ gap: 8 }}>
+                {[
+                  { id: 'all', label: 'Semua Waktu', icon: Calendar },
+                  { id: 'today', label: 'Hari Ini', icon: Clock },
+                  { id: 'weekly', label: 'Minggu Ini', icon: Activity },
+                  { id: 'monthly', label: 'Bulan Ini', icon: CalendarDays },
+                  { id: 'yearly', label: 'Tahun Ini', icon: Calendar }
+                ].map(tab => {
+                  const isActive = timeFilter === tab.id;
+                  const Icon = tab.icon;
+                  return (
+                    <TouchableOpacity 
+                      key={tab.id}
+                      onPress={() => {
+                        Vibration.vibrate(10);
+                        setTimeFilter(tab.id as any);
+                      }}
+                      activeOpacity={0.8}
+                      className="flex-row items-center gap-1.5 px-4 py-2 rounded-full border"
+                      style={{
+                        backgroundColor: isActive ? colors.accent : colors.surface,
+                        borderColor: isActive ? colors.accent : colors.border
+                      }}
+                    >
+                      <Icon size={11} color={isActive ? '#ffffff' : colors.textMuted} />
+                      <Text className="text-[11px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
 
-                {transactions.length > 0 ? (
+              {/* Summary Cards Grid */}
+              <View className="flex-row flex-wrap gap-3 mb-5">
+                {/* Card 1: Jumlah Transaksi */}
+                <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transaksi</Text>
+                    <View className="p-1 rounded-lg bg-indigo-500/10">
+                      <History size={12} color="#6366f1" />
+                    </View>
+                  </View>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>{metrics.totalTrx} Trx</Text>
+                </View>
+
+                {/* Card 2: Produk Terjual */}
+                <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-center mb-1">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Terjual</Text>
+                    <View className="p-1 rounded-lg bg-sky-500/10">
+                      <ShoppingBag size={12} color="#0284c7" />
+                    </View>
+                  </View>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>{metrics.totalQty} Qty</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      Vibration.vibrate(10);
+                      navigation.navigate('FeatureDetails', { featureId: 'terjual', title: 'Analitik Terjual' });
+                    }}
+                    className="flex-row items-center mt-1"
+                  >
+                    <Text className="text-[9px] font-black text-sky-500 mr-0.5">Lihat Detail</Text>
+                    <ChevronRight size={10} color="#0284c7" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Card 3: Omzet */}
+                <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Omzet</Text>
+                    <View className="p-1 rounded-lg bg-emerald-500/10">
+                      <TrendingUp size={12} color="#10b981" />
+                    </View>
+                  </View>
+                  <Text className="text-base font-black text-emerald-500">Rp{metrics.omzet.toLocaleString('id-ID')}</Text>
+                </View>
+
+                {/* Card 4: Profit */}
+                <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Profit</Text>
+                    <View className="p-1 rounded-lg bg-amber-500/10">
+                      <Coins size={12} color="#f59e0b" />
+                    </View>
+                  </View>
+                  <Text className="text-base font-black text-amber-500">Rp{metrics.profit.toLocaleString('id-ID')}</Text>
+                </View>
+              </View>
+
+              {/* Utility Row (Sort, Excel, Delete) */}
+              <View className="flex-row justify-between items-center gap-2 mb-2">
+                <View className="flex-row gap-2">
+                  <TouchableOpacity 
+                    onPress={() => {
+                      Vibration.vibrate(10);
+                      setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                    }}
+                    activeOpacity={0.8}
+                    className="flex-row items-center gap-1.5 px-3 py-2 rounded-full border"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
+                    <ArrowUpDown color={colors.accent} size={11} />
+                    <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                      {sortOrder === 'desc' ? 'Terbaru' : 'Terlama'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={exportTransactionsToExcel}
+                    activeOpacity={0.8}
+                    className="flex-row items-center gap-1.5 px-3 py-2 rounded-full border"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
+                    <Download color={colors.accent} size={11} />
+                    <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                      Unduh Excel
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {transactions.length > 0 && filterTab !== 'estimation' ? (
                   <TouchableOpacity 
                     onPress={handleDeleteAllTrx}
                     activeOpacity={0.8}
-                    className="flex-row items-center gap-2 px-4 py-2 rounded-full border"
+                    className="flex-row items-center gap-1.5 px-3 py-2 rounded-full border"
                     style={{ backgroundColor: 'rgba(244,63,94,0.08)', borderColor: 'rgba(244,63,94,0.15)' }}
                   >
-                    <Trash2 color="#f43f5e" size={12} />
+                    <Trash2 color="#f43f5e" size={11} />
                     <Text className="text-[9px] font-black text-rose-500 uppercase tracking-wider">
-                      {filterTab === 'all' ? 'Hapus Semua' : filterTab === 'completed' ? 'Hapus Lunas' : filterTab === 'debt' ? 'Hapus Piutang' : filterTab === 'online' ? 'Hapus Online' : 'Hapus Estimasi'}
+                      Hapus Semua
                     </Text>
                   </TouchableOpacity>
                 ) : null}
@@ -749,53 +998,83 @@ export default function TransactionsScreen({ navigation }: any) {
               tintColor={colors.accent}
             />
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity 
-              onPress={() => navigation.navigate('TransactionDetail', { trx: item, storeSettings })}
-              activeOpacity={0.7}
-              className="flex-row items-center mb-4 p-5 rounded-[28px] border"
-              style={{ 
-                backgroundColor: colors.surface, 
-                borderColor: colors.border,
-                shadowColor: colors.text,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.03,
-                shadowRadius: 12,
-                elevation: 2
-              }}
-            >
-              <View 
-                 className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
-                 style={{ backgroundColor: colors.bg }}
+          renderItem={({ item }) => {
+            const { day, monthYear, time } = getLeftCardDateTime(item.timestamp);
+            
+            let badgeBg = 'bg-rose-50 border-rose-200';
+            let badgeTextColor = 'text-rose-600';
+            let methodLabel = (item.paymentMethod || item.paymentCategory || 'Tunai').toUpperCase();
+            
+            if (item.paymentStatus === 'paid') {
+              badgeBg = 'bg-emerald-50 border-emerald-200';
+              badgeTextColor = 'text-emerald-600';
+            } else if (item.paymentStatus === 'partially_paid') {
+              badgeBg = 'bg-amber-50 border-amber-200';
+              badgeTextColor = 'text-amber-600';
+            }
+
+            return (
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('TransactionDetail', { trx: item, storeSettings })}
+                activeOpacity={0.7}
+                className="flex-row items-stretch mb-4 rounded-3xl border overflow-hidden shadow-sm"
+                style={{ 
+                  backgroundColor: colors.surface, 
+                  borderColor: colors.border,
+                  minHeight: 90
+                }}
               >
-                 <History color={colors.accent} size={20} />
-              </View>
-              
-              <View className="flex-1">
-                <View className="flex-row justify-between items-start">
-                   <Text className="text-[17px] font-black" style={{ color: colors.text }}>
-                     Rp {item.total.toLocaleString('id-ID')}
-                   </Text>
-                   {renderStatusBadge(item)}
+                {/* Blok Kiri: Tanggal Kuning */}
+                <View 
+                  className="w-[84px] items-center justify-center p-2.5"
+                  style={{ backgroundColor: '#F1B903' }}
+                >
+                  <Text className="text-2xl font-black text-slate-900 leading-none">{day}</Text>
+                  <Text className="text-[9px] font-black text-slate-900 mt-1 uppercase tracking-wider">{monthYear}</Text>
+                  <Text className="text-[10px] font-bold text-slate-900 mt-1.5 tracking-tighter">{time}</Text>
                 </View>
-                <View className="flex-row items-center mt-1.5 flex-wrap">
-                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>
-                      {formatDate(item.timestamp)}
+
+                {/* Blok Kanan: Detail Transaksi */}
+                <View className="flex-1 p-3.5 justify-between">
+                  {/* Baris 1: ID Transaksi & Badge Tipe Pembayaran */}
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-[11px] font-bold text-slate-400 tracking-wider uppercase" numberOfLines={1}>
+                      {item.id?.substring(0, 16).toUpperCase() || 'TRANSAKSI'}
                     </Text>
-                    <View className="w-1.5 h-1.5 rounded-full mx-2" style={{ backgroundColor: colors.border }} />
-                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }} numberOfLines={1}>
+                    <View className={`px-2 py-0.5 rounded border ${badgeBg}`}>
+                      <Text className={`text-[8px] font-black uppercase ${badgeTextColor}`}>
+                        {methodLabel}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Baris 2: Nama Pelanggan & Dibuat Oleh Label */}
+                  <View className="flex-row justify-between items-center my-1.5">
+                    <Text className="text-xs font-black flex-1 mr-2" style={{ color: colors.text }} numberOfLines={1}>
                       {item.customerName || 'Umum'}
                     </Text>
-                </View>
-              </View>
+                    <Text className="text-[9px] font-bold text-slate-400 text-right">
+                      Dibuat Oleh
+                    </Text>
+                  </View>
 
-              <ChevronRight color={colors.textMuted} size={18} />
-            </TouchableOpacity>
-          )}
+                  {/* Baris 3: Nominal Rp & Nama Pembuat (Staf) */}
+                  <View className="flex-row justify-between items-end">
+                    <Text className="text-base font-black text-emerald-500 leading-none">
+                      Rp{item.total.toLocaleString('id-ID')}
+                    </Text>
+                    <Text className="text-[11px] font-black text-rose-500 leading-none text-right" numberOfLines={1}>
+                      {item.cashierName || 'Admin'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
           ListEmptyComponent={
             <View className="items-center py-20 opacity-30">
                <History color={colors.textMuted} size={64} />
-               <Text className="text-app-text-muted font-bold mt-4">Belum ada riwayat transaksi</Text>
+               <Text className="text-sm font-black mt-4 uppercase tracking-wider" style={{ color: colors.textMuted }}>Belum ada riwayat transaksi</Text>
             </View>
           }
         />
