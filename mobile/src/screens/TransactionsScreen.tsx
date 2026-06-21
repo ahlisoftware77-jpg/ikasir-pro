@@ -823,7 +823,7 @@ export default function TransactionsScreen({ navigation }: any) {
               </View>
 
               {/* Status Tab Filters */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 6 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3" contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
                 {[
                   { id: 'all', label: 'Semua', icon: LayoutGrid },
                   { id: 'completed', label: 'Selesai', icon: CheckCircle2 },
@@ -855,7 +855,7 @@ export default function TransactionsScreen({ navigation }: any) {
               </ScrollView>
 
               {/* Time Tab Filters */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row" contentContainerStyle={{ gap: 6 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4" contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
                 {[
                   { id: 'all', label: 'Semua Waktu', icon: Calendar },
                   { id: 'today', label: 'Hari Ini', icon: Clock },
