@@ -3036,14 +3036,14 @@ export default function FeatureScreen({ route, navigation }: any) {
                       setSoldTimeFilter(tab.id as any);
                     }}
                     activeOpacity={0.8}
-                    className="flex-row items-center gap-1 px-2.5 py-1 rounded-full border"
+                    className="flex-row items-center gap-1 px-3 py-1.5 rounded-full border"
                     style={{
-                      backgroundColor: isActive ? colors.accent : colors.surface,
-                      borderColor: isActive ? colors.accent : colors.border
+                      backgroundColor: isActive ? colors.text : colors.surface,
+                      borderColor: isActive ? colors.text : colors.border
                     }}
                   >
-                    <Icon size={10} color={isActive ? '#ffffff' : colors.textMuted} />
-                    <Text className="text-[10px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
+                    <Icon size={11} color={isActive ? colors.bg : colors.textMuted} />
+                    <Text className="text-[11px] font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.text }}>{tab.label}</Text>
                   </TouchableOpacity>
                 );
               })}
