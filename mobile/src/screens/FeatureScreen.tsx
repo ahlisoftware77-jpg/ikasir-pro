@@ -3018,7 +3018,7 @@ export default function FeatureScreen({ route, navigation }: any) {
         return (
           <View className="flex-1">
             {/* Time Filter Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 6 }}>
               {[
                 { id: 'today', label: 'Hari Ini', icon: Clock },
                 { id: 'weekly', label: 'Minggu Ini', icon: Activity },
@@ -3036,14 +3036,14 @@ export default function FeatureScreen({ route, navigation }: any) {
                       setSoldTimeFilter(tab.id as any);
                     }}
                     activeOpacity={0.8}
-                    className="flex-row items-center gap-1.5 px-4 py-2 rounded-full border"
+                    className="flex-row items-center gap-1 px-2.5 py-1 rounded-full border"
                     style={{
                       backgroundColor: isActive ? colors.accent : colors.surface,
                       borderColor: isActive ? colors.accent : colors.border
                     }}
                   >
-                    <Icon size={11} color={isActive ? '#ffffff' : colors.textMuted} />
-                    <Text className="text-[11px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
+                    <Icon size={10} color={isActive ? '#ffffff' : colors.textMuted} />
+                    <Text className="text-[10px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
                   </TouchableOpacity>
                 );
               })}

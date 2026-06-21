@@ -823,7 +823,7 @@ export default function TransactionsScreen({ navigation }: any) {
               </View>
 
               {/* Status Tab Filters */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 6 }}>
                 {[
                   { id: 'all', label: 'Semua', icon: LayoutGrid },
                   { id: 'completed', label: 'Selesai', icon: CheckCircle2 },
@@ -841,21 +841,21 @@ export default function TransactionsScreen({ navigation }: any) {
                         setFilterTab(tab.id as any);
                       }}
                       activeOpacity={0.8}
-                      className="flex-row items-center gap-1.5 px-4 py-2.5 rounded-full border"
+                      className="flex-row items-center gap-1 px-3 py-1.5 rounded-full border"
                       style={{
                         backgroundColor: isActive ? colors.text : colors.surface,
                         borderColor: isActive ? colors.text : colors.border
                       }}
                     >
-                      <Icon size={12} color={isActive ? colors.bg : colors.textMuted} />
-                      <Text className="text-xs font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.text }}>{tab.label}</Text>
+                      <Icon size={11} color={isActive ? colors.bg : colors.textMuted} />
+                      <Text className="text-[11px] font-black tracking-wide" style={{ color: isActive ? colors.bg : colors.text }}>{tab.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
 
               {/* Time Tab Filters */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row" contentContainerStyle={{ gap: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row" contentContainerStyle={{ gap: 6 }}>
                 {[
                   { id: 'all', label: 'Semua Waktu', icon: Calendar },
                   { id: 'today', label: 'Hari Ini', icon: Clock },
@@ -873,14 +873,14 @@ export default function TransactionsScreen({ navigation }: any) {
                         setTimeFilter(tab.id as any);
                       }}
                       activeOpacity={0.8}
-                      className="flex-row items-center gap-1.5 px-4 py-2 rounded-full border"
+                      className="flex-row items-center gap-1 px-2.5 py-1 rounded-full border"
                       style={{
                         backgroundColor: isActive ? colors.accent : colors.surface,
                         borderColor: isActive ? colors.accent : colors.border
                       }}
                     >
-                      <Icon size={11} color={isActive ? '#ffffff' : colors.textMuted} />
-                      <Text className="text-[11px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
+                      <Icon size={10} color={isActive ? '#ffffff' : colors.textMuted} />
+                      <Text className="text-[10px] font-black" style={{ color: isActive ? '#ffffff' : colors.text }}>{tab.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -1024,14 +1024,14 @@ export default function TransactionsScreen({ navigation }: any) {
                   minHeight: 90
                 }}
               >
-                {/* Blok Kiri: Tanggal Kuning */}
+                {/* Blok Kiri: Tanggal Neon Orange */}
                 <View 
                   className="w-[84px] items-center justify-center p-2.5"
-                  style={{ backgroundColor: '#F1B903' }}
+                  style={{ backgroundColor: '#ff5c00' }}
                 >
-                  <Text className="text-2xl font-black text-slate-900 leading-none">{day}</Text>
-                  <Text className="text-[9px] font-black text-slate-900 mt-1 uppercase tracking-wider">{monthYear}</Text>
-                  <Text className="text-[10px] font-bold text-slate-900 mt-1.5 tracking-tighter">{time}</Text>
+                  <Text className="text-2xl font-black text-white leading-none">{day}</Text>
+                  <Text className="text-[9px] font-black text-white mt-1 uppercase tracking-wider">{monthYear}</Text>
+                  <Text className="text-[10px] font-bold text-white mt-1.5 tracking-tighter">{time}</Text>
                 </View>
 
                 {/* Blok Kanan: Detail Transaksi */}
