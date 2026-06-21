@@ -1,5 +1,41 @@
 import { Transaction } from '@/types';
 import toast from 'react-hot-toast';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useAuthStore } from '@/store/auth';
+
+const checkSubscriptionExpired = async (storeId: string | null | undefined): Promise<boolean> => {
+  if (!storeId) return true;
+  try {
+    const q = query(collection(db, 'users'), where('storeId', '==', storeId));
+    const userSnaps = await getDocs(q);
+    
+    if (userSnaps.empty) {
+      return true;
+    }
+    
+    const now = new Date();
+    let hasActiveSub = false;
+    userSnaps.forEach((userDoc) => {
+      const uData = userDoc.data();
+      if (uData.validUntil) {
+        const d = new Date(uData.validUntil);
+        if (!isNaN(d.getTime()) && d > now) {
+          hasActiveSub = true;
+        }
+      }
+    });
+    
+    return !hasActiveSub;
+  } catch (err) {
+    console.warn("Failed to check subscription from Firestore:", err);
+    try {
+      return useAuthStore.getState().isSubscriptionExpired;
+    } catch (storeErr) {
+      return true;
+    }
+  }
+};
 
 const urlToBase64 = (url: string): Promise<string> => {
   return new Promise((resolve) => {
@@ -52,6 +88,7 @@ const urlToBase64 = (url: string): Promise<string> => {
 };
 
 export const printReceipt = async (trx: Transaction, storeSettings: any, branding?: any) => {
+  const isExpired = await checkSubscriptionExpired(trx.storeId);
   const is80mm = storeSettings.paperSize === '80mm';
   const paperWidth = is80mm ? '300px' : '220px'; // Approx width for browser
   const fontSize = is80mm ? '14px' : '12px';
@@ -252,7 +289,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
   text += `\n${wrapCenter(isEstimation ? '[ DOKUMEN PENAWARAN ]' : `[ ${trx.paymentStatus === 'paid' ? 'LUNAS' : 'BELUM LUNAS'} - ${trx.paymentMethod || '-'} ]`, width)}\n`;
   text += `${hr}`;
   text += `${wrapCenter(storeSettings.receiptMessage || 'Terima Kasih', width)}\n`;
-  if (branding?.receiptWatermark) {
+  if (isExpired && branding?.receiptWatermark) {
     text += `\n${wrapCenter(branding.receiptWatermark, width)}\n`;
   }
 
@@ -554,7 +591,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
         ${renderCenteredLines(storeSettings.receiptMessage || 'Terima Kasih')}
       </div>
       
-      ${branding?.receiptWatermark ? `
+      ${isExpired && branding?.receiptWatermark ? `
         <div class="text-center" style="margin-top: 20px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px solid #eee; padding-top: 5px;">
            ${renderCenteredLines(branding.receiptWatermark)}
         </div>

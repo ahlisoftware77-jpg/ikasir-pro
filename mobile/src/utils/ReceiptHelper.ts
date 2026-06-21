@@ -4,7 +4,43 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Transaction } from '../types';
 
-export const generateReceiptHtml = (transaction: any, storeSettings?: any) => {
+const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean> => {
+  if (!storeId) return true;
+  try {
+    const { db } = require('../lib/firebase');
+    const { collection, query, where, getDocs } = require('firebase/firestore');
+    const q = query(collection(db, 'users'), where('storeId', '==', storeId));
+    const userSnaps = await getDocs(q);
+    
+    if (userSnaps.empty) {
+      return true;
+    }
+    
+    const now = new Date();
+    let hasActiveSub = false;
+    userSnaps.forEach((userDoc: any) => {
+      const uData = userDoc.data();
+      if (uData.validUntil) {
+        const d = new Date(uData.validUntil);
+        if (!isNaN(d.getTime()) && d > now) {
+          hasActiveSub = true;
+        }
+      }
+    });
+    
+    return !hasActiveSub;
+  } catch (err) {
+    console.warn("Failed to check subscription from Firestore:", err);
+    try {
+      const { useAuthStore } = require('../store/authStore');
+      return useAuthStore.getState().isSubscriptionExpired;
+    } catch (storeErr) {
+      return true;
+    }
+  }
+};
+
+export const generateReceiptHtml = (transaction: any, storeSettings?: any, branding?: any, isExpired = true) => {
   let date: Date;
   if (transaction.timestamp?.seconds) {
     date = new Date(transaction.timestamp.seconds * 1000);
@@ -76,12 +112,18 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any) => {
           <p>${isEstimation ? 'Terima kasih atas kepercayaan Anda!' : 'Terima kasih telah berbelanja!'}</p>
           <p>${isEstimation ? 'Silakan hubungi kami untuk konfirmasi lebih lanjut.' : 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.'}</p>
         </div>
+
+        ${isExpired && branding?.receiptWatermark ? `
+          <div style="text-align: center; margin-top: 20px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px dashed #ccc; padding-top: 10px; color: #999; letter-spacing: 2px;">
+            ${branding.receiptWatermark}
+          </div>
+        ` : ''}
       </body>
     </html>
   `;
 };
 
-export const generateA4Html = (trx: any, storeSettings?: any) => {
+export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
   let date: Date;
   if (trx.timestamp?.seconds) {
     date = new Date(trx.timestamp.seconds * 1000);
@@ -315,9 +357,11 @@ export const generateA4Html = (trx: any, storeSettings?: any) => {
         </div>
       </div>
 
-      <div class="watermark">
-        IKASIR PRO - MODERN POS SYSTEM
-      </div>
+      ${isExpired ? `
+        <div class="watermark">
+          ${branding?.receiptWatermark || 'IKASIR PRO - MODERN POS SYSTEM'}
+        </div>
+      ` : ''}
     </body>
     </html>
   `;
@@ -333,7 +377,7 @@ const BluetoothManager = hasBluetoothNativeModule
   ? require('react-native-bluetooth-escpos-printer')?.BluetoothManager
   : null;
 
-export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, branding?: any) => {
+export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
   if (!BluetoothEscposPrinter) {
     throw new Error('Bluetooth printer module is not available');
   }
@@ -585,7 +629,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   }
 
   // ─── BRANDING WATERMARK ────────────────────────────────────────
-  if (branding?.receiptWatermark) {
+  if (isExpired && branding?.receiptWatermark) {
     await BluetoothEscposPrinter.printText(`\n\r`, {});
     for (const line of wrapText(branding.receiptWatermark)) {
       await BluetoothEscposPrinter.printText(`${line}\n\r`, {});
@@ -599,6 +643,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
   let settings = storeSettings;
   
   let branding: any = null;
+  const isExpired = await checkSubscriptionExpired(transaction?.storeId);
 
   if (transaction?.storeId) {
     try {
@@ -644,7 +689,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
           console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
         }
         
-        await printReceiptViaBluetooth(transaction, settings, branding);
+        await printReceiptViaBluetooth(transaction, settings, branding, isExpired);
         
         if (Platform.OS === 'android') {
           ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
@@ -657,7 +702,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
           ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
         }
         // Fallback for older installations that only saved printer name
-        await printReceiptViaBluetooth(transaction, settings, branding);
+        await printReceiptViaBluetooth(transaction, settings, branding, isExpired);
         
         if (Platform.OS === 'android') {
           ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
@@ -707,7 +752,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
       finalSettings = { ...finalSettings, logoUrl: base64Logo };
     }
 
-    const html = generateReceiptHtml(transaction, finalSettings);
+    const html = generateReceiptHtml(transaction, finalSettings, branding, isExpired);
     await Print.printAsync({
       html,
     });
@@ -719,6 +764,9 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
 
 export const printA4 = async (trx: any, storeSettings?: any) => {
   let settings = storeSettings;
+  let branding: any = null;
+  const isExpired = await checkSubscriptionExpired(trx?.storeId);
+
   if (trx?.storeId) {
     try {
       const { db } = require('../lib/firebase');
@@ -730,6 +778,18 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
     } catch (err) {
       console.warn("Failed to fetch settings from Firestore in printA4:", err);
     }
+  }
+
+  // Fetch branding (watermark) from system_settings/branding
+  try {
+    const { db } = require('../lib/firebase');
+    const { doc, getDoc } = require('firebase/firestore');
+    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    if (brandingSnap.exists()) {
+      branding = brandingSnap.data();
+    }
+  } catch (err) {
+    console.warn("Failed to fetch branding in printA4:", err);
   }
 
   let base64Logo = '';
@@ -765,7 +825,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
   }
 
   try {
-    const html = generateA4Html(trx, settings);
+    const html = generateA4Html(trx, settings, branding, isExpired);
     await Print.printAsync({
       html,
     });
@@ -775,7 +835,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
   }
 };
 
-export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
+export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
   let date: Date;
   if (trx.timestamp?.seconds) {
     date = new Date(trx.timestamp.seconds * 1000);
@@ -908,9 +968,11 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
         </div>
       </div>
 
-      <div class="watermark">
-        IKASIR PRO - DELIVERY SYSTEM
-      </div>
+      ${isExpired ? `
+        <div class="watermark">
+          ${branding?.receiptWatermark || 'IKASIR PRO - DELIVERY SYSTEM'}
+        </div>
+      ` : ''}
     </body>
     </html>
   `;
@@ -918,6 +980,9 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any) => {
 
 export const printA4Delivery = async (trx: any, storeSettings?: any) => {
   let settings = storeSettings;
+  let branding: any = null;
+  const isExpired = await checkSubscriptionExpired(trx?.storeId);
+
   if (trx?.storeId) {
     try {
       const { db } = require('../lib/firebase');
@@ -929,6 +994,18 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
     } catch (err) {
       console.warn("Failed to fetch settings from Firestore in printA4Delivery:", err);
     }
+  }
+
+  // Fetch branding (watermark) from system_settings/branding
+  try {
+    const { db } = require('../lib/firebase');
+    const { doc, getDoc } = require('firebase/firestore');
+    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    if (brandingSnap.exists()) {
+      branding = brandingSnap.data();
+    }
+  } catch (err) {
+    console.warn("Failed to fetch branding in printA4Delivery:", err);
   }
 
   let base64Logo = '';
@@ -964,7 +1041,7 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
   }
 
   try {
-    const html = generateA4DeliveryHtml(trx, settings);
+    const html = generateA4DeliveryHtml(trx, settings, branding, isExpired);
     await Print.printAsync({
       html,
     });

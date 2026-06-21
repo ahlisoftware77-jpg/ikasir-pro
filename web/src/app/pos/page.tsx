@@ -74,7 +74,7 @@ interface CartItem extends Product {
 }
 
 export default function POSPage() {
-  const { user, userName, role, storeId, setSyncing, isOnline } = useAuthStore();
+  const { user, userName, role, storeId, setSyncing, isOnline, isSubscriptionExpired } = useAuthStore();
   const { branding } = useBranding();
   const [products, setProducts] = useState<Product[]>([]);
   const [discounts, setDiscounts] = useState<Discount[]>([]);
@@ -2250,7 +2250,7 @@ export default function POSPage() {
 
                  <div className="text-center pt-6 space-y-1">
                     <p className="font-bold text-slate-900">{storeSettings?.receiptMessage || 'Terima Kasih Atas Kunjungan Anda'}</p>
-                    {branding?.receiptWatermark && <p className="text-slate-400 uppercase tracking-widest mt-2 text-[8px]">{branding.receiptWatermark}</p>}
+                    {isSubscriptionExpired && branding?.receiptWatermark && <p className="text-slate-400 uppercase tracking-widest mt-2 text-[8px]">{branding.receiptWatermark}</p>}
                  </div>
               </div>
 
