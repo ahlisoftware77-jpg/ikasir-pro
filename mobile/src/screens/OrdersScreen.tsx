@@ -84,6 +84,16 @@ export default function OrdersScreen() {
   const { colors } = useTheme();
   const { storeId, user } = useAuthStore();
   
+  const getLeftCardDateTime = (timestamp: any) => {
+    if (!timestamp) return { day: '--', monthYear: '---', time: '--:--' };
+    const date = timestamp.toDate ? timestamp.toDate() : (timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp));
+    const day = date.getDate().toString().padStart(2, '0');
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+    const monthYear = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    const time = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':');
+    return { day, monthYear, time };
+  };
+  
   const [orders, setOrders] = useState<any[]>([]);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
@@ -737,6 +747,7 @@ export default function OrdersScreen() {
           <View className="flex gap-4">
             {filteredOrders.map((order) => {
               const isExpanded = expandedOrderId === order.id;
+              const { day, monthYear, time } = getLeftCardDateTime(order.timestamp);
               const formattedTime = order.timestamp?.seconds 
                 ? new Date(order.timestamp.seconds * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':')
                 : new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':');
@@ -744,60 +755,72 @@ export default function OrdersScreen() {
               return (
                 <View 
                   key={order.id} 
-                  className="rounded-[28px] border overflow-hidden"
+                  className="rounded-[28px] border overflow-hidden mb-4"
                   style={{ 
                     backgroundColor: colors.surface, 
                     borderColor: isExpanded ? colors.accent : colors.border 
                   }}
                 >
-                  {/* Card Header Tap Area */}
-                  <TouchableOpacity
-                    onPress={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                    activeOpacity={0.9}
-                    className="p-5 flex-row justify-between items-center"
-                  >
-                    <View className="flex-1 pr-4">
-                      <View className="flex-row items-center gap-2 flex-wrap">
-                        <Text className="text-base font-black" style={{ color: colors.text }}>
-                          {order.customerName || 'Pelanggan'}
-                        </Text>
-                        <Text className="text-[10px] font-black text-rose-500">
-                          #{order.queueNumber || '0'}
-                        </Text>
-                      </View>
+                  <View className="flex-row items-stretch">
+                    {/* Blok Kiri: Ungu Tanggal / Waktu */}
+                    <View 
+                      className="w-[84px] items-center justify-center p-2.5"
+                      style={{ backgroundColor: '#7c3aed' }}
+                    >
+                      <Text className="text-2xl font-black text-white leading-none">{day}</Text>
+                      <Text className="text-[9px] font-black text-white mt-1 uppercase tracking-wider text-center">{monthYear}</Text>
+                      <Text className="text-[10px] font-bold text-white mt-1.5 tracking-tighter">{time}</Text>
+                    </View>
 
-                      <View className="flex-row items-center gap-2 mt-2 flex-wrap">
-                        {getStatusBadge(order)}
-                        
-                        <View className="bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                          <Text className="text-[9px] font-black text-indigo-500 uppercase">
-                            {order.orderType === 'dine-in' ? 'Dine In' : order.orderType === 'online' ? 'Online' : 'Takeaway'}
+                    {/* Card Header Tap Area */}
+                    <TouchableOpacity
+                      onPress={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                      activeOpacity={0.9}
+                      className="flex-1 p-5 flex-row justify-between items-center"
+                    >
+                      <View className="flex-1 pr-4">
+                        <View className="flex-row items-center gap-2 flex-wrap">
+                          <Text className="text-base font-black" style={{ color: colors.text }}>
+                            {order.customerName || 'Pelanggan'}
+                          </Text>
+                          <Text className="text-[10px] font-black text-rose-500">
+                            #{order.queueNumber || '0'}
                           </Text>
                         </View>
 
-                        <View 
-                          className="px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: order.paymentStatus === 'paid' ? '#10b98120' : '#ef444420' }}
-                        >
-                          <Text 
-                            className="text-[9px] font-black uppercase" 
-                            style={{ color: order.paymentStatus === 'paid' ? '#10b981' : '#ef4444' }}
+                        <View className="flex-row items-center gap-2 mt-2 flex-wrap">
+                          {getStatusBadge(order)}
+                          
+                          <View className="bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                            <Text className="text-[9px] font-black text-indigo-500 uppercase">
+                              {order.orderType === 'dine-in' ? 'Dine In' : order.orderType === 'online' ? 'Online' : 'Takeaway'}
+                            </Text>
+                          </View>
+
+                          <View 
+                            className="px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: order.paymentStatus === 'paid' ? '#10b98120' : '#ef444420' }}
                           >
-                            {order.paymentStatus === 'paid' ? 'Lunas' : 'Belum Lunas'}
-                          </Text>
+                            <Text 
+                              className="text-[9px] font-black uppercase" 
+                              style={{ color: order.paymentStatus === 'paid' ? '#10b981' : '#ef4444' }}
+                            >
+                              {order.paymentStatus === 'paid' ? 'Lunas' : 'Belum Lunas'}
+                            </Text>
+                          </View>
                         </View>
                       </View>
-                    </View>
 
-                    <View className="items-end">
-                      <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>
-                        {formattedTime}
-                      </Text>
-                      <Text className="text-base font-black text-emerald-500 mt-1">
-                        Rp {order.total?.toLocaleString('id-ID')}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                      <View className="items-end">
+                        <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>
+                          {formattedTime}
+                        </Text>
+                        <Text className="text-base font-black text-emerald-500 mt-1">
+                          Rp {order.total?.toLocaleString('id-ID')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
 
                   {/* Expanded Accordion Area */}
                   {isExpanded && (
