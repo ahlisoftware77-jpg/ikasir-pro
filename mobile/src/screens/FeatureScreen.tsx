@@ -3982,25 +3982,32 @@ export default function FeatureScreen({ route, navigation }: any) {
 
         return (
           <View className="flex-1">
-            {/* Top Summaries Dashboard (Scrollable horizontally) */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-row gap-2 max-h-[85px]">
-              <View className="p-3.5 rounded-2xl border w-36 mr-2 bg-emerald-500/10 border-emerald-500/20">
-                <Text className="text-[8px] font-black uppercase text-emerald-500 tracking-wider mb-1">Laci (Tunai)</Text>
-                <Text className="text-xs font-black text-emerald-400" numberOfLines={1}>Rp {cashInflow.toLocaleString('id-ID')}</Text>
+            {/* Top Summaries Dashboard (2x2 Grid) */}
+            <View className="mb-4 flex-col gap-3">
+              {/* Row 1 */}
+              <View className="flex-row gap-3">
+                <View className="flex-1 p-3.5 rounded-2xl border" style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}>
+                  <Text className="text-[9px] font-black uppercase text-white/80 tracking-wider mb-1">Laci (Tunai)</Text>
+                  <Text className="text-base font-black text-white" numberOfLines={1}>Rp {cashInflow.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="flex-1 p-3.5 rounded-2xl border" style={{ backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}>
+                  <Text className="text-[9px] font-black uppercase text-white/80 tracking-wider mb-1">Bank & QRIS</Text>
+                  <Text className="text-base font-black text-white" numberOfLines={1}>Rp {bankInflow.toLocaleString('id-ID')}</Text>
+                </View>
               </View>
-              <View className="p-3.5 rounded-2xl border w-36 mr-2 bg-blue-500/10 border-blue-500/20">
-                <Text className="text-[8px] font-black uppercase text-blue-500 tracking-wider mb-1">Bank & QRIS</Text>
-                <Text className="text-xs font-black text-blue-400" numberOfLines={1}>Rp {bankInflow.toLocaleString('id-ID')}</Text>
+
+              {/* Row 2 */}
+              <View className="flex-row gap-3">
+                <View className="flex-1 p-3.5 rounded-2xl border" style={{ backgroundColor: '#f43f5e', borderColor: '#f43f5e' }}>
+                  <Text className="text-[9px] font-black uppercase text-white/80 tracking-wider mb-1">Biaya & Keluar</Text>
+                  <Text className="text-base font-black text-white" numberOfLines={1}>Rp {tOutflow.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="flex-1 p-3.5 rounded-2xl border" style={{ backgroundColor: '#f97316', borderColor: '#f97316' }}>
+                  <Text className="text-[9px] font-black uppercase text-white/80 tracking-wider mb-1">Laba Bersih Kas</Text>
+                  <Text className="text-base font-black text-white" numberOfLines={1}>Rp {(tInflow - tOutflow).toLocaleString('id-ID')}</Text>
+                </View>
               </View>
-              <View className="p-3.5 rounded-2xl border w-36 mr-2 bg-rose-500/10 border-rose-500/20">
-                <Text className="text-[8px] font-black uppercase text-rose-500 tracking-wider mb-1">Biaya & Keluar</Text>
-                <Text className="text-xs font-black text-rose-400" numberOfLines={1}>Rp {tOutflow.toLocaleString('id-ID')}</Text>
-              </View>
-              <View className="p-3.5 rounded-2xl border w-36 bg-amber-500/10 border-amber-500/20">
-                <Text className="text-[8px] font-black uppercase text-amber-500 tracking-wider mb-1">Laba Bersih Kas</Text>
-                <Text className="text-xs font-black text-amber-400" numberOfLines={1}>Rp {(tInflow - tOutflow).toLocaleString('id-ID')}</Text>
-              </View>
-            </ScrollView>
+            </View>
 
             {/* Date Preset Filter */}
             <View className="flex-row bg-black/10 p-1 rounded-2xl gap-1 mb-3">
