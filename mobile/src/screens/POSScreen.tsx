@@ -488,6 +488,9 @@ export default function POSScreen({ route, navigation }: any) {
   const [manualItemName, setManualItemName] = useState('');
   const [manualItemPrice, setManualItemPrice] = useState('');
   const [manualItemCategory, setManualItemCategory] = useState('Jasa');
+  const [showManualCategoryModal, setShowManualCategoryModal] = useState(false);
+  const [showManualCustomCategoryModal, setShowManualCustomCategoryModal] = useState(false);
+  const [manualCustomCategoryText, setManualCustomCategoryText] = useState('');
   const [saveToCatalog, setSaveToCatalog] = useState(false);
   // Checkout configuration
   const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'estimasi' | 'merge'>('direct');
@@ -743,6 +746,11 @@ export default function POSScreen({ route, navigation }: any) {
   const categories = useMemo(() => {
     const cats = new Set(products.map(p => p.category || 'Umum'));
     return ['Semua', ...Array.from(cats)];
+  }, [products]);
+
+  const categoriesList = useMemo(() => {
+    const cats = new Set(['Umum', 'Makanan', 'Minuman', 'Snack', 'Bahan Baku', 'Aksesoris', 'Jasa', ...products.map(p => p.category || 'Umum')]);
+    return Array.from(cats).sort((a, b) => a.localeCompare(b));
   }, [products]);
 
   const filteredProducts = products.filter(p => {
@@ -1999,14 +2007,16 @@ export default function POSScreen({ route, navigation }: any) {
 
               <View className="space-y-1">
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Kategori</Text>
-                <TextInput
-                  placeholder="e.g. Jasa / Umum / Ongkir"
-                  placeholderTextColor={colors.textMuted}
-                  value={manualItemCategory}
-                  onChangeText={setManualItemCategory}
-                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                />
+                <TouchableOpacity
+                  onPress={() => setShowManualCategoryModal(true)}
+                  className="border rounded-2xl py-3.5 px-4 flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-sm" style={{ color: manualItemCategory ? colors.text : colors.textMuted }}>
+                    {manualItemCategory || 'Pilih Kategori'}
+                  </Text>
+                  <ChevronDown size={16} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
 
               <TouchableOpacity 
@@ -2034,6 +2044,101 @@ export default function POSScreen({ route, navigation }: any) {
             >
               <Text className="font-black text-sm text-slate-950">TAMBAHKAN ITEM</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Manual Item Category Selection Drawer Modal */}
+      <Modal visible={showManualCategoryModal} animationType="slide" transparent onRequestClose={() => setShowManualCategoryModal(false)}>
+        <View className="flex-1 bg-black/60 justify-end">
+          <View className="h-[60%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.bg }}>
+            <View className="flex-row justify-between items-center mb-6">
+              <View>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Pilih Kategori</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Kategori item manual</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowManualCategoryModal(false)} className="w-10 h-10 rounded-full bg-black/10 items-center justify-center">
+                <X color={colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="flex-1">
+              <View className="flex gap-2">
+                {categoriesList.map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => {
+                      setManualItemCategory(cat);
+                      setShowManualCategoryModal(false);
+                    }}
+                    className="p-4 rounded-2xl border flex-row items-center justify-between"
+                    style={{ 
+                      backgroundColor: colors.surface, 
+                      borderColor: manualItemCategory === cat ? colors.accent : colors.border 
+                    }}
+                  >
+                    <Text className="font-bold" style={{ color: colors.text }}>{cat}</Text>
+                    {manualItemCategory === cat && <Check size={18} color={colors.accent} />}
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowManualCategoryModal(false);
+                    setTimeout(() => {
+                      setShowManualCustomCategoryModal(true);
+                    }, 400);
+                  }}
+                  className="p-4 rounded-2xl border flex-row items-center justify-center border-dashed"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.accent }}
+                >
+                  <Plus size={18} color={colors.accent} style={{ marginRight: 8 }} />
+                  <Text className="font-black" style={{ color: colors.accent }}>Kategori Kustom Baru...</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Manual Item Custom Category Input Dialog Modal */}
+      <Modal visible={showManualCustomCategoryModal} animationType="fade" transparent onRequestClose={() => setShowManualCustomCategoryModal(false)}>
+        <View className="flex-1 bg-black/75 items-center justify-center p-6">
+          <View className="w-full max-w-sm rounded-[32px] p-6 items-center" style={{ backgroundColor: colors.surface }}>
+            <Text className="text-base font-black text-center mb-4" style={{ color: colors.text }}>Kategori Kustom Baru</Text>
+            <TextInput
+              placeholder="Masukkan nama kategori..."
+              placeholderTextColor={colors.textMuted + '60'}
+              value={manualCustomCategoryText}
+              onChangeText={setManualCustomCategoryText}
+              className="w-full p-4 rounded-2xl border font-bold mb-4"
+              style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+            />
+            <View className="flex-row gap-3 w-full">
+              <TouchableOpacity 
+                onPress={() => {
+                  setShowManualCustomCategoryModal(false);
+                  setManualCustomCategoryText('');
+                }} 
+                className="flex-1 py-3.5 rounded-xl bg-background border items-center justify-center"
+                style={{ borderColor: colors.border }}
+              >
+                <Text className="font-bold text-xs" style={{ color: colors.textMuted }}>Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => {
+                  if (manualCustomCategoryText.trim()) {
+                    setManualItemCategory(manualCustomCategoryText.trim());
+                    setShowManualCustomCategoryModal(false);
+                    setManualCustomCategoryText('');
+                  } else {
+                    Alert.alert('Error', 'Nama kategori tidak boleh kosong.');
+                  }
+                }} 
+                className="flex-1 py-3.5 rounded-xl items-center justify-center"
+                style={{ backgroundColor: colors.accent }}
+              >
+                <Text className="font-black text-xs" style={{ color: colors.text }}>Tambah</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
