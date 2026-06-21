@@ -3018,7 +3018,7 @@ export default function FeatureScreen({ route, navigation }: any) {
         return (
           <View className="flex-1">
             {/* Time Filter Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 flex-row" contentContainerStyle={{ gap: 6 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3" contentContainerStyle={{ gap: 6 }}>
               {[
                 { id: 'today', label: 'Hari Ini', icon: Clock },
                 { id: 'weekly', label: 'Minggu Ini', icon: Activity },
