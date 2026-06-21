@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -16,11 +16,16 @@ interface Product {
   id?: string;
   name: string;
   price: number;
+  purchasePrice?: number;
+  wholesalePrice?: number;
   stock: number;
+  manageStock?: boolean;
   category: string;
   imageUrl?: string;
   sku?: string;
   barcode?: string;
+  hasExtras?: boolean;
+  createdAt?: any;
 }
 
 const CODE128_PATTERNS = [
@@ -153,6 +158,16 @@ export default function ProductsScreen({ navigation }: any) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
+
+  const getFormattedDate = (createdAt: any) => {
+    if (!createdAt) return '-';
+    try {
+      const date = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+      return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return '-';
+    }
+  };
   const [isBluetoothScanning, setIsBluetoothScanning] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isBluetoothActive, setIsBluetoothActive] = useState(true);
@@ -982,72 +997,117 @@ export default function ProductsScreen({ navigation }: any) {
                     navigation.navigate('EditProduct', { product: item });
                   }
                 }}
-                className="flex-row items-center mb-4 p-4 rounded-[28px] border"
+                className="flex-col mb-4 p-4 rounded-[28px] border"
                 style={{ 
                   backgroundColor: isSelected ? colors.accent + '08' : colors.surface, 
                   borderColor: isSelected ? colors.accent : colors.border 
                 }}
               >
-                {isSelectMode && (
-                  <View className="mr-3">
-                    {isSelected ? (
-                      <CheckSquare size={22} color={colors.accent} strokeWidth={2.5} />
+                {/* Top Section */}
+                <View className="flex-row items-center">
+                  {isSelectMode && (
+                    <View className="mr-3">
+                      {isSelected ? (
+                        <CheckSquare size={22} color={colors.accent} strokeWidth={2.5} />
+                      ) : (
+                        <Square size={22} color={colors.textMuted} strokeWidth={2} />
+                      )}
+                    </View>
+                  )}
+
+                  <View 
+                    className="w-16 h-16 rounded-2xl bg-black/5 overflow-hidden items-center justify-center border"
+                    style={{ borderColor: colors.border }}
+                  >
+                    {item.imageUrl ? (
+                      <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     ) : (
-                      <Square size={22} color={colors.textMuted} strokeWidth={2} />
+                      <Package color={colors.textMuted} opacity={0.2} size={24} />
                     )}
                   </View>
-                )}
-
-                <View 
-                  className="w-16 h-16 rounded-2xl bg-black/20 overflow-hidden items-center justify-center border"
-                  style={{ borderColor: colors.border }}
-                >
-                  {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                  ) : (
-                    <Package color={colors.textMuted} opacity={0.2} size={24} />
-                  )}
-                </View>
-                
-                <View className="flex-1 ml-4">
-                  <Text className="text-base font-black" style={{ color: colors.text }} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: colors.textMuted }}>
-                    SKU: {item.sku || 'N/A'} • {item.category}
-                  </Text>
-                  <View className="flex-row items-center mt-1.5 gap-2">
-                     <Text className="font-black text-emerald-500 text-sm">Rp {item.price.toLocaleString('id-ID')}</Text>
-                     <View className="w-1 h-1 rounded-full bg-slate-400" />
-                     {item.stock === 0 ? (
-                       <View className="bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg">
-                         <Text className="text-[9px] font-black text-rose-500 uppercase">Stok Habis</Text>
-                       </View>
-                     ) : item.stock <= 5 ? (
-                       <View className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                         <Text className="text-[9px] font-black text-amber-500 uppercase">Stok Tipis: {item.stock}</Text>
-                       </View>
-                     ) : (
-                       <View className="bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
-                         <Text className="text-[9px] font-black text-emerald-500 uppercase">Stok: {item.stock}</Text>
-                       </View>
-                     )}
+                  
+                  <View className="flex-1 ml-4 justify-center">
+                    <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                    <Text className="text-xs text-slate-500 mt-1 font-bold">
+                      Beli <Text className="font-black" style={{ color: colors.text }}>Rp {(item.purchasePrice || 0).toLocaleString('id-ID')}</Text>
+                    </Text>
+                    <Text className="text-xs text-slate-500 mt-0.5 font-bold">
+                      Jual <Text className="font-black" style={{ color: colors.text }}>Rp {(item.price || 0).toLocaleString('id-ID')}</Text>
+                    </Text>
                   </View>
                 </View>
 
+                {/* Separator */}
+                <View className="h-[1px] my-3.5" style={{ backgroundColor: colors.border }} />
+
+                {/* Details Section (Grid / 2 Columns) */}
+                <View className="flex-row justify-between mb-2">
+                  {/* Column 1 */}
+                  <View className="flex-1 pr-2 gap-1.5">
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Terdaftar <Text className="font-black" style={{ color: colors.text }}>{getFormattedDate(item.createdAt)}</Text>
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Stok <Text className="font-black" style={{ color: item.stock <= 0 ? '#f43f5e' : item.stock <= 5 ? '#f59e0b' : colors.text }}>{item.stock}</Text>
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Manajemen Stok <Text className="font-black" style={{ color: colors.text }}>{item.manageStock !== false ? 'Ya' : 'Tidak'}</Text>
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Harga Grosir <Text className="font-black" style={{ color: colors.text }}>{item.wholesalePrice ? `Rp ${item.wholesalePrice.toLocaleString('id-ID')}` : 'Tidak'}</Text>
+                    </Text>
+                  </View>
+
+                  {/* Column 2 */}
+                  <View className="flex-1 pl-2 gap-1.5">
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Kategori <Text className="font-black" style={{ color: colors.text }}>{item.category || '-'}</Text>
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      SKU <Text className="font-black" style={{ color: colors.text }}>{item.sku || '-'}</Text>
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Barcode <Text className="font-black" style={{ color: colors.text }}>{item.barcode || '-'}</Text>
+                    </Text>
+                    <Text className="text-[10px] text-slate-500 font-bold">
+                      Produk Ekstra <Text className="font-black" style={{ color: colors.text }}>{item.hasExtras ? 'Ya' : 'Tidak'}</Text>
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Bottom Section (Buttons) */}
                 {!isSelectMode && (
-                  <View className="flex-row gap-2">
+                  <View className="flex-row gap-3 mt-2">
                     <TouchableOpacity 
-                       onPress={() => navigation.navigate('EditProduct', { product: item })}
-                       className="w-10 h-10 items-center justify-center rounded-xl bg-blue-500/10"
+                      onPress={() => navigation.navigate('EditProduct', { product: item })}
+                      className="flex-1 py-2.5 items-center justify-center rounded-xl border bg-transparent"
+                      style={{ borderColor: colors.accent }}
                     >
-                      <Edit2 size={18} color={colors.accent} />
+                      <Text className="text-xs font-black" style={{ color: colors.accent }}>Ubah</Text>
                     </TouchableOpacity>
+                    
                     <TouchableOpacity 
-                       onPress={() => handleDelete(item.id!)}
-                       className="w-10 h-10 items-center justify-center rounded-xl bg-rose-500/10"
+                      onPress={() => {
+                        Vibration.vibrate(10);
+                        Alert.alert(
+                          'Pilihan Produk',
+                          `Pilih tindakan untuk ${item.name}:`,
+                          [
+                            { text: 'Batal', style: 'cancel' },
+                            { 
+                              text: 'Hapus Produk', 
+                              style: 'destructive', 
+                              onPress: () => handleDelete(item.id!) 
+                            }
+                          ]
+                        );
+                      }}
+                      className="w-11 h-11 items-center justify-center rounded-xl border bg-transparent"
+                      style={{ borderColor: colors.accent }}
                     >
-                      <Trash2 size={18} color="#f43f5e" />
+                      <MoreVertical size={16} color={colors.accent} />
                     </TouchableOpacity>
                   </View>
                 )}
