@@ -20,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
+import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
@@ -110,6 +111,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [discountStartDate, setDiscountStartDate] = useState('');
   const [discountEndDate, setDiscountEndDate] = useState('');
   const [discountIsActive, setDiscountIsActive] = useState(true);
+  const [discountDatePicker, setDiscountDatePicker] = useState<{ visible: boolean; field: 'startDate' | 'endDate' | null }>({ visible: false, field: null });
 
   // --- SYNCED FINANCE AND TRANSACTION STATES ---
   // Arus Kas States
@@ -2270,19 +2272,55 @@ export default function FeatureScreen({ route, navigation }: any) {
               'numeric'
             )}
 
-            {renderTextInput(
-              'Tanggal Mulai (YYYY-MM-DD)',
-              discountStartDate,
-              setDiscountStartDate,
-              'e.g. 2026-05-29'
-            )}
+            <View className="mb-4">
+              <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Tanggal Mulai (YYYY-MM-DD)</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setDiscountDatePicker({ visible: true, field: 'startDate' });
+                }}
+                activeOpacity={0.8}
+                className="px-4 py-3.5 rounded-2xl border flex-row items-center justify-between"
+                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+              >
+                <Text className="font-bold text-xs" style={{ color: discountStartDate ? colors.text : colors.textMuted }}>
+                  {discountStartDate || 'Pilih Tanggal Mulai'}
+                </Text>
+                <CalendarRange size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
 
-            {renderTextInput(
-              'Tanggal Akhir (YYYY-MM-DD, Opsional)',
-              discountEndDate,
-              setDiscountEndDate,
-              'e.g. 2026-06-30'
-            )}
+            <View className="mb-4">
+              <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Tanggal Akhir (YYYY-MM-DD, Opsional)</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setDiscountDatePicker({ visible: true, field: 'endDate' });
+                }}
+                activeOpacity={0.8}
+                className="px-4 py-3.5 rounded-2xl border flex-row items-center justify-between"
+                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+              >
+                <View className="flex-row items-center justify-between flex-1">
+                  <Text className="font-bold text-xs" style={{ color: discountEndDate ? colors.text : colors.textMuted }}>
+                    {discountEndDate || 'Pilih Tanggal Akhir (Opsional)'}
+                  </Text>
+                  {discountEndDate ? (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        Vibration.vibrate(10);
+                        setDiscountEndDate('');
+                      }}
+                      className="p-1"
+                    >
+                      <X size={14} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <CalendarRange size={16} color={colors.textMuted} className="ml-2" />
+              </TouchableOpacity>
+            </View>
 
             <View className="flex-row items-center justify-between border-t border-b py-4" style={{ borderColor: colors.border + '15' }}>
               <View>
@@ -5528,6 +5566,62 @@ export default function FeatureScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* CALENDAR DATE PICKER MODAL FOR DISCOUNTS */}
+      {discountDatePicker.visible && (
+        <Modal visible={true} animationType="fade" transparent onRequestClose={() => setDiscountDatePicker({ visible: false, field: null })}>
+          <View className="flex-1 bg-black/80 justify-center items-center p-6">
+            <View className="w-full max-w-sm rounded-[36px] overflow-hidden" style={{ backgroundColor: colors.surface }}>
+              <View className="flex-row justify-between items-center p-6 border-b" style={{ borderColor: colors.border + '30' }}>
+                <Text className="text-base font-black" style={{ color: colors.text }}>
+                  {discountDatePicker.field === 'startDate' ? 'Pilih Tanggal Mulai' : 'Pilih Tanggal Akhir'}
+                </Text>
+                <TouchableOpacity onPress={() => setDiscountDatePicker({ visible: false, field: null })}>
+                  <X size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <RNCalendar
+                theme={{
+                  backgroundColor: colors.surface,
+                  calendarBackground: colors.surface,
+                  textSectionTitleColor: colors.textMuted,
+                  selectedDayBackgroundColor: colors.accent,
+                  selectedDayTextColor: '#ffffff',
+                  todayTextColor: colors.accent,
+                  dayTextColor: colors.text,
+                  textDisabledColor: colors.textMuted + '50',
+                  monthTextColor: colors.text,
+                  arrowColor: colors.accent,
+                  textDayFontWeight: 'bold',
+                  textMonthFontWeight: '900',
+                  textDayHeaderFontWeight: '800'
+                }}
+                current={
+                  discountDatePicker.field === 'startDate'
+                    ? (discountStartDate || undefined)
+                    : (discountEndDate || undefined)
+                }
+                markedDates={{
+                  [(discountDatePicker.field === 'startDate' ? discountStartDate : discountEndDate) || '']: {
+                    selected: true,
+                    disableTouchEvent: true,
+                    selectedColor: colors.accent,
+                    selectedTextColor: '#ffffff'
+                  }
+                }}
+                onDayPress={(day: any) => {
+                  if (discountDatePicker.field === 'startDate') {
+                    setDiscountStartDate(day.dateString);
+                  } else {
+                    setDiscountEndDate(day.dateString);
+                  }
+                  setDiscountDatePicker({ visible: false, field: null });
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
 
     </SafeAreaView>
   );
