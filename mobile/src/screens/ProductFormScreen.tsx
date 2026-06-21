@@ -55,8 +55,10 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const [hasWarranty, setHasWarranty] = useState(Number(editProduct?.warrantyDuration) > 0);
 
   const [availableExtras, setAvailableExtras] = useState<any[]>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>([]);
 
   const CATEGORIES = ['Umum', 'Makanan', 'Minuman', 'Snack', 'Bahan Baku', 'Aksesoris', 'Jasa'];
+  const allCategories = Array.from(new Set([...CATEGORIES, ...dynamicCategories]));
 
   const UNIT_CATEGORIES = [
     { 
@@ -104,6 +106,27 @@ export default function ProductFormScreen({ route, navigation }: any) {
         exts.push({ id: doc.id, ...doc.data() });
       });
       setAvailableExtras(exts.filter(e => e.isActive));
+    });
+    return () => unsubscribe();
+  }, [storeId]);
+
+  // Fetch dynamic categories from all products of current store
+  useEffect(() => {
+    if (!storeId) return;
+    const qProducts = query(
+      collection(db, 'products'),
+      where('storeId', '==', storeId)
+    );
+    const unsubscribe = onSnapshot(qProducts, (snapshot) => {
+      const categoriesSet = new Set<string>();
+      snapshot.forEach((doc) => {
+        const prodData = doc.data();
+        if (prodData.category) {
+          categoriesSet.add(prodData.category.trim());
+        }
+      });
+      const sortedCategories = Array.from(categoriesSet).sort((a, b) => a.localeCompare(b));
+      setDynamicCategories(sortedCategories);
     });
     return () => unsubscribe();
   }, [storeId]);
@@ -860,7 +883,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
             </View>
             <ScrollView className="flex-1">
               <View className="flex gap-2">
-                {CATEGORIES.map(cat => (
+                {allCategories.map(cat => (
                   <TouchableOpacity
                     key={cat}
                     onPress={() => {
