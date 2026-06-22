@@ -1017,7 +1017,18 @@ export default function TransactionsScreen({ navigation }: any) {
 
             return (
               <TouchableOpacity 
-                onPress={() => navigation.navigate('TransactionDetail', { trx: item, storeSettings })}
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  if (filterTab === 'debt') {
+                    navigation.navigate('FeatureDetails', { featureId: 'piutang', title: 'Hutang Piutang' });
+                  } else if (filterTab === 'estimation') {
+                    navigation.navigate('FeatureDetails', { featureId: 'estimasi', title: 'Estimasi Biaya' });
+                  } else if (filterTab === 'online') {
+                    navigation.navigate('Pesanan');
+                  } else {
+                    navigation.navigate('TransactionDetail', { trx: item, storeSettings });
+                  }
+                }}
                 activeOpacity={0.7}
                 className="flex-row items-stretch mb-4 rounded-3xl border overflow-hidden shadow-sm"
                 style={{ 
