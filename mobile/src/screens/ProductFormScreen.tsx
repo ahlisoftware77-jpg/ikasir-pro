@@ -38,7 +38,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
     warrantyUnit: editProduct?.warrantyUnit || 'months'
   });
 
-  const [image, setImage] = useState<string | null>(editProduct?.imageUrl || null);
+  const [images, setImages] = useState<string[]>(editProduct?.imageUrls || (editProduct?.imageUrl ? [editProduct?.imageUrl] : []));
   const [isSaving, setIsSaving] = useState(false);
 
   const [showScanner, setShowScanner] = useState(false);
@@ -162,7 +162,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
@@ -180,7 +180,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
@@ -220,34 +220,40 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
     setIsSaving(true);
     try {
-      let finalImageUrl = formData.imageUrl;
+      const finalImageUrls: string[] = [];
 
-      // Handle Image Upload to Cloudinary if image changed
-      if (image && image !== formData.imageUrl) {
-        const formDataUpload = new FormData();
-        const filename = image.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename || '');
-        const type = match ? `image/${match[1]}` : `image`;
-
-        formDataUpload.append('file', { uri: image, name: filename, type } as any);
-        formDataUpload.append('upload_preset', 'kasirpos');
-
-        const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
-          method: 'POST',
-          body: formDataUpload,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        const uploadResult = await uploadRes.json();
-        if (uploadRes.ok && uploadResult.secure_url) {
-          finalImageUrl = uploadResult.secure_url;
+      for (const img of images) {
+        if (img.startsWith('http://') || img.startsWith('https://')) {
+          finalImageUrls.push(img);
         } else {
-          console.error('Cloudinary error:', uploadResult);
-          throw new Error('Gagal mengunggah foto');
+          // Upload new image to Cloudinary
+          const formDataUpload = new FormData();
+          const filename = img.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename || '');
+          const type = match ? `image/${match[1]}` : `image`;
+
+          formDataUpload.append('file', { uri: img, name: filename, type } as any);
+          formDataUpload.append('upload_preset', 'kasirpos');
+
+          const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+            method: 'POST',
+            body: formDataUpload,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+
+          const uploadResult = await uploadRes.json();
+          if (uploadRes.ok && uploadResult.secure_url) {
+            finalImageUrls.push(uploadResult.secure_url);
+          } else {
+            console.error('Cloudinary error:', uploadResult);
+            throw new Error('Gagal mengunggah salah satu foto produk');
+          }
         }
       }
+
+      const finalImageUrl = finalImageUrls[0] || '';
 
       const productData = {
         name: formData.name,
@@ -265,6 +271,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         expiryDate: hasExpiryDate ? formData.expiryDate : '',
         entryDate: formData.entryDate || new Date().toISOString().split('T')[0],
         imageUrl: finalImageUrl,
+        imageUrls: finalImageUrls,
         hasExtras: formData.hasExtras,
         extras: formData.hasExtras ? formData.extras : [],
         warrantyDuration: hasWarranty ? Number(formData.warrantyDuration) || 0 : 0,
@@ -363,46 +370,81 @@ export default function ProductFormScreen({ route, navigation }: any) {
         
         {activeTab === 'info' && (
           <View className="flex gap-5 animate-in fade-in duration-200">
-            {/* Image Section */}
-            <View className="items-center mb-4">
-              <TouchableOpacity 
-                onPress={pickImage}
-                className="w-40 h-40 rounded-[32px] overflow-hidden items-center justify-center border-2 border-dashed"
-                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-              >
-                {image ? (
-                  <Image source={{ uri: image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                ) : (
-                  <View className="items-center">
-                    <ImageIcon color={colors.textMuted} size={40} opacity={0.3} />
-                    <Text className="text-[10px] font-bold mt-2" style={{ color: colors.textMuted }}>Pilih Foto</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View className="flex-row gap-4 mt-4">
-                 <TouchableOpacity 
-                    onPress={takePhoto}
-                    className="flex-row items-center gap-2 px-4 py-2 rounded-xl bg-accent/10"
-                 >
-                    <CameraIcon size={16} color={colors.accent} />
-                    <Text className="text-xs font-bold" style={{ color: colors.accent }}>Ambil Foto</Text>
-                 </TouchableOpacity>
+            {/* Image Section (Multi-Photo) */}
+            <View className="mb-4">
+              <View className="flex-row justify-between items-center mb-2 px-1">
+                <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: colors.textMuted }}>Foto Barang ({images.length}/5)</Text>
               </View>
-              <View className="w-full mt-4 flex gap-1">
+              
+              <View className="p-4 rounded-3xl border w-full flex-row items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }} className="flex-row">
+                  {images.map((uri, index) => (
+                    <View key={index} className="w-24 h-24 rounded-2xl bg-black/5 border overflow-hidden mr-3 justify-center items-center relative" style={{ borderColor: colors.border }}>
+                      <Image source={{ uri }} className="w-full h-full" style={{ resizeMode: 'cover' }} />
+                      <TouchableOpacity 
+                        onPress={() => setImages(prev => prev.filter((_, idx) => idx !== index))}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500 items-center justify-center shadow shadow-black/20"
+                      >
+                        <X size={12} color="#ffffff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  
+                  {images.length < 5 && (
+                    <View className="flex-row gap-3">
+                      <TouchableOpacity
+                        onPress={takePhoto}
+                        className="w-24 h-24 rounded-2xl border border-dashed justify-center items-center bg-black/5 flex-col"
+                        style={{ borderColor: colors.border }}
+                      >
+                        <CameraIcon size={20} color={colors.accent} />
+                        <Text className="text-[8px] font-black uppercase text-slate-400 mt-1">Kamera</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={pickImage}
+                        className="w-24 h-24 rounded-2xl border border-dashed justify-center items-center bg-black/5 flex-col"
+                        style={{ borderColor: colors.border }}
+                      >
+                        <ImageIcon size={20} color={colors.accent} />
+                        <Text className="text-[8px] font-black uppercase text-slate-400 mt-1">Galeri</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  
+                  {images.length === 0 && (
+                    <View className="ml-2 flex-1 justify-center py-4">
+                      <Text className="text-[10px] font-bold text-slate-400 italic">Belum ada foto. Gunakan tombol Kamera/Galeri untuk menambahkan foto produk.</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+              
+              {/* input URL paste helper */}
+              <View className="w-full mt-3 flex gap-1">
                 <Text className="text-[8px] font-black text-app-text-muted uppercase tracking-wider ml-1" style={{ color: colors.textMuted }}>
-                  Atau URL Gambar
+                  Atau Tempel URL Gambar untuk Ditambahkan
                 </Text>
-                <TextInput 
-                  placeholder="https://example.com/image.jpg"
-                  placeholderTextColor={colors.textMuted + '60'}
-                  value={formData.imageUrl} 
-                  onChangeText={(text) => {
-                    setFormData(prev => ({ ...prev, imageUrl: text }));
-                    setImage(text || null);
-                  }}
-                  className="p-3 rounded-xl border text-xs font-bold"
-                  style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
-                />
+                <View className="flex-row gap-2">
+                  <TextInput 
+                    placeholder="https://example.com/image.jpg"
+                    placeholderTextColor={colors.textMuted + '60'}
+                    value={formData.imageUrl} 
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, imageUrl: text }))}
+                    className="flex-1 p-3 rounded-xl border text-xs font-bold"
+                    style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (formData.imageUrl.trim()) {
+                        setImages(prev => [...prev, formData.imageUrl.trim()]);
+                        setFormData(prev => ({ ...prev, imageUrl: '' }));
+                      }
+                    }}
+                    className="px-4 rounded-xl items-center justify-center bg-accent"
+                  >
+                    <Text className="text-white text-xs font-black uppercase">Tambah</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
 

@@ -47,6 +47,7 @@ export default function ProductsPage() {
     expiryDate: '',
     entryDate: new Date().toISOString().split('T')[0],
     imageUrl: '',
+    imageUrls: [],
     hasExtras: false,
     extras: [],
     warrantyDuration: 0,
@@ -55,8 +56,7 @@ export default function ProductsPage() {
 
   const [formData, setFormData] = useState<Product>(defaultForm);
   const [editId, setEditId] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<{ id: string; url: string; file?: File; }[]>([]);
   const [useAdvancedUnit, setUseAdvancedUnit] = useState(false);
   const [hasExpiryDate, setHasExpiryDate] = useState(false);
 
@@ -173,30 +173,25 @@ export default function ProductsPage() {
   };
 
   const openModal = (product?: Product) => {
-    setImageFile(null);
     if (product) {
       setEditId(product.id!);
       setFormData({ ...defaultForm, ...product });
-      setImagePreview(product.imageUrl || null);
+      const initialImages = (product.imageUrls || (product.imageUrl ? [product.imageUrl] : [])).map((url, idx) => ({
+        id: `old-${idx}-${Date.now()}`,
+        url
+      }));
+      setImages(initialImages);
       // If unit is not default 'pcs', enable advanced unit toggle
       setUseAdvancedUnit(product.unit !== 'pcs' && !!product.unit);
       setHasExpiryDate(!!product.expiryDate);
     } else {
       setEditId(null);
       setFormData(defaultForm);
-      setImagePreview(null);
+      setImages([]);
       setUseAdvancedUnit(false);
       setHasExpiryDate(false);
     }
     setIsModalOpen(true);
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
   };
 
   const startCamera = async () => {
@@ -240,8 +235,15 @@ export default function ProductsPage() {
         canvas.toBlob((blob) => {
           if (blob) {
             const file = new File([blob], `camera-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            setImageFile(file);
-            setImagePreview(URL.createObjectURL(file));
+            if (images.length < 5) {
+              setImages(prev => [...prev, {
+                id: `new-${Math.random().toString(36).substring(2, 9)}`,
+                url: URL.createObjectURL(file),
+                file
+              }]);
+            } else {
+              alert('Maksimal 5 foto produk.');
+            }
             stopCamera();
           }
         }, 'image/jpeg', 0.9);
@@ -326,29 +328,39 @@ export default function ProductsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      let uploadedUrl = formData.imageUrl;
+      const config = await getInfraConfig();
+      const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+      const uploadPreset = config.cloudinary_upload_preset || 'kasirpos';
       
-      if (imageFile) {
-        const config = await getInfraConfig();
-        const uploadData = new FormData();
-        uploadData.append('file', imageFile);
-        uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+      const uploadedUrls: string[] = [];
+      
+      for (const img of images) {
+        if (img.file) {
+          const uploadData = new FormData();
+          uploadData.append('file', img.file);
+          uploadData.append('upload_preset', uploadPreset);
 
-        const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
-        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-          method: 'POST',
-          body: uploadData
-        });
+          const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: 'POST',
+            body: uploadData
+          });
 
-        const uploadResult = await uploadRes.json();
-        if (uploadRes.ok && uploadResult.secure_url) {
-          uploadedUrl = uploadResult.secure_url;
+          const uploadResult = await uploadRes.json();
+          if (uploadRes.ok && uploadResult.secure_url) {
+            uploadedUrls.push(uploadResult.secure_url);
+          } else {
+            throw new Error(uploadResult.error?.message || 'Gagal unggah foto ke Cloudinary');
+          }
         } else {
-          throw new Error(uploadResult.error?.message || 'Gagal unggah foto ke Cloudinary');
+          uploadedUrls.push(img.url);
         }
       }
 
-      const finalData = { ...formData, imageUrl: uploadedUrl || '' };
+      const finalData = { 
+        ...formData, 
+        imageUrl: uploadedUrls[0] || '',
+        imageUrls: uploadedUrls
+      };
 
       if (editId) {
         await updateDoc(doc(db, 'products', editId), { ...finalData, updatedAt: serverTimestamp() });
@@ -543,6 +555,7 @@ export default function ProductsPage() {
             barcode: trimBarcode,
             description: description || '',
             imageUrl: imageUrl || '',
+            imageUrls: imageUrl ? [imageUrl] : [],
             manageStock: true,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -738,8 +751,8 @@ export default function ProductsPage() {
                     <td className="p-5">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-background border border-app-border rounded-xl overflow-hidden shadow-sm flex-shrink-0 group-hover:border-accent/30 transition-colors">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                          {product.imageUrl || (product.imageUrls && product.imageUrls.length > 0 && product.imageUrls[0]) ? (
+                            <img src={product.imageUrl || product.imageUrls?.[0]} alt={product.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-app-text-muted opacity-30">
                               <ImageIcon size={24} />
@@ -828,8 +841,8 @@ export default function ProductsPage() {
                     {selectedProductIds.includes(product.id!) ? <Check size={12} strokeWidth={4} /> : null}
                   </button>
                   <div className="w-16 h-16 bg-background border border-app-border rounded-xl overflow-hidden shrink-0">
-                    {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                    {product.imageUrl || (product.imageUrls && product.imageUrls.length > 0 && product.imageUrls[0]) ? (
+                      <img src={product.imageUrl || product.imageUrls?.[0]} alt={product.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-app-text-muted opacity-20">
                         <ImageIcon size={20} />
@@ -942,47 +955,92 @@ export default function ProductsPage() {
                 {/* Image Section */}
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-app-text-muted mb-2">Foto Produk Utama</label>
-                    <div className="w-full aspect-square bg-background border-2 border-dashed border-app-border rounded-xl relative overflow-hidden group hover:border-accent transition-colors flex flex-col items-center justify-center">
-                      {imagePreview ? (
-                        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${imagePreview})` }}>
+                    <label className="block text-sm font-medium text-app-text-muted mb-2">Foto Produk ({images.length}/5)</label>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {images.map((img, index) => (
+                        <div key={img.id} className="relative aspect-square bg-background border border-app-border rounded-xl overflow-hidden group">
+                          <img src={img.url} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button 
+                              type="button"
+                              onClick={() => setImages(prev => prev.filter(item => item.id !== img.id))}
+                              className="p-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors"
+                              title="Hapus Foto"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          {index === 0 && (
+                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-accent text-[8px] font-black text-foreground rounded uppercase tracking-wider">
+                              Utama
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        <div className="text-center p-4">
-                          <UploadCloud className="w-10 h-10 text-app-text-muted mx-auto mb-2 group-hover:text-accent transition-colors" />
-                          <p className="text-xs text-app-text-muted font-medium">Klik Area ini untuk Foto atau Pilih File</p>
+                      ))}
+                      
+                      {images.length < 5 && (
+                        <div className="relative aspect-square bg-background border-2 border-dashed border-app-border hover:border-accent hover:bg-accent/5 rounded-xl transition-all flex flex-col items-center justify-center cursor-pointer group">
+                          <UploadCloud className="w-5 h-5 text-app-text-muted group-hover:text-accent transition-colors" />
+                          <span className="text-[9px] text-app-text-muted mt-1 font-bold text-center">Pilih</span>
+                          <input 
+                            type="file" 
+                            multiple 
+                            accept="image/*" 
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              const limit = 5 - images.length;
+                              const filesToAdd = files.slice(0, limit);
+                              const newImages = filesToAdd.map(file => ({
+                                id: `new-${Math.random().toString(36).substring(2, 9)}`,
+                                url: URL.createObjectURL(file),
+                                file
+                              }));
+                              setImages(prev => [...prev, ...newImages]);
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                          />
                         </div>
                       )}
-                      {/* Invisible Input covering the area */}
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                      />
                     </div>
                     
                     <button 
                       type="button" 
                       onClick={startCamera}
-                      className="w-full mt-2 flex items-center justify-center gap-2 py-3 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl transition-all font-bold border border-accent/30"
+                      className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl transition-all font-bold border border-accent/30 text-xs"
                     >
-                      <Camera size={18} /> Buka Kamera (Real-time)
+                      <Camera size={16} /> Buka Kamera (Real-time)
                     </button>
 
                     <div className="mt-4 space-y-1">
                       <label className="block text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Atau Lampirkan URL Gambar</label>
-                      <input 
-                        type="text" 
-                        value={formData.imageUrl || ''} 
-                        onChange={e => {
-                          setFormData({...formData, imageUrl: e.target.value});
-                          setImagePreview(e.target.value || null);
-                          setImageFile(null); // Clear file if URL is being used
-                        }}
-                        placeholder="https://example.com/image.jpg"
-                        className="w-full p-3 bg-background border border-app-border rounded-xl text-xs font-bold focus:outline-none focus:border-accent transition-all"
-                      />
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          id="manualUrlInput"
+                          placeholder="https://example.com/image.jpg"
+                          className="flex-1 p-2.5 bg-background border border-app-border rounded-xl text-xs font-bold focus:outline-none focus:border-accent transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const input = document.getElementById('manualUrlInput') as HTMLInputElement;
+                            if (input && input.value.trim()) {
+                              if (images.length < 5) {
+                                setImages(prev => [...prev, {
+                                  id: `url-${Math.random().toString(36).substring(2, 9)}`,
+                                  url: input.value.trim()
+                                }]);
+                                input.value = '';
+                              } else {
+                                alert('Maksimal 5 foto produk.');
+                              }
+                            }
+                          }}
+                          className="px-3 bg-accent/10 border border-accent/20 hover:bg-accent/20 text-accent font-bold text-xs rounded-xl transition-all"
+                        >
+                          Tambah
+                        </button>
+                      </div>
                     </div>
                   </div>
 

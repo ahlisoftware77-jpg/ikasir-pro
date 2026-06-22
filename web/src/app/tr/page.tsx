@@ -59,6 +59,7 @@ interface Product {
   price: number;
   category: string;
   imageUrl?: string;
+  imageUrls?: string[];
   stock: number;
   manageStock?: boolean;
   hasExtras?: boolean;
@@ -855,8 +856,8 @@ function PublicOrderContent() {
                {filteredProducts.map(p => (
                  <div key={p.id} className="bg-white border border-slate-100 rounded-3xl p-5 flex gap-5 hover:border-tr/30 transition-all group shadow-sm">
                     <div className="w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100">
-                       {p.imageUrl ? (
-                          <img src={p.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                       {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
+                          <img src={p.imageUrl || p.imageUrls?.[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                        ) : (
                           <div className="w-full h-full flex items-center justify-center opacity-10">
                              <ShoppingBag size={32} />

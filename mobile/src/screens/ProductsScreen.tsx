@@ -22,6 +22,7 @@ interface Product {
   manageStock?: boolean;
   category: string;
   imageUrl?: string;
+  imageUrls?: string[];
   sku?: string;
   barcode?: string;
   hasExtras?: boolean;
@@ -1019,8 +1020,8 @@ export default function ProductsScreen({ navigation }: any) {
                     className="w-16 h-16 rounded-2xl bg-black/5 overflow-hidden items-center justify-center border"
                     style={{ borderColor: colors.border }}
                   >
-                    {item.imageUrl ? (
-                      <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    {item.imageUrl || (item.imageUrls && item.imageUrls.length > 0 && item.imageUrls[0]) ? (
+                      <Image source={{ uri: item.imageUrl || item.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     ) : (
                       <Package color={colors.textMuted} opacity={0.2} size={24} />
                     )}

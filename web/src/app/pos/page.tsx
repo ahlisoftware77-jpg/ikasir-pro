@@ -1325,8 +1325,8 @@ export default function POSPage() {
                     className="flex flex-col text-left bg-background border border-app-border hover:border-accent rounded-xl p-4 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
                     <div className="w-full aspect-square bg-surface rounded-lg mb-3 flex items-center justify-center relative overflow-hidden shadow-inner">
-                      {product.imageUrl ? (
-                        <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" style={{ backgroundImage: `url(${product.imageUrl})` }}></div>
+                      {product.imageUrl || (product.imageUrls && product.imageUrls.length > 0 && product.imageUrls[0]) ? (
+                        <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" style={{ backgroundImage: `url(${product.imageUrl || product.imageUrls?.[0]})` }}></div>
                       ) : null}
                       
                       {isOutOfStock && (
@@ -1377,8 +1377,8 @@ export default function POSPage() {
                   className="flex items-center gap-4 text-left bg-background border border-app-border hover:border-accent rounded-xl p-4 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                   <div className="w-16 h-16 bg-surface rounded-lg flex items-center justify-center relative overflow-hidden shrink-0 shadow-inner">
-                    {product.imageUrl ? (
-                      <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" style={{ backgroundImage: `url(${product.imageUrl})` }}></div>
+                    {product.imageUrl || (product.imageUrls && product.imageUrls.length > 0 && product.imageUrls[0]) ? (
+                      <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" style={{ backgroundImage: `url(${product.imageUrl || product.imageUrls?.[0]})` }}></div>
                     ) : (
                       <div className="w-8 h-8 bg-app-border/20 rounded-full"></div>
                     )}
@@ -1836,8 +1836,8 @@ export default function POSPage() {
             <div className="p-6 border-b border-app-border flex items-center justify-between bg-surface sticky top-0 z-10">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-background border border-app-border overflow-hidden shadow-inner flex items-center justify-center">
-                   {activeExtrasProduct.imageUrl ? (
-                     <img src={activeExtrasProduct.imageUrl} alt="" className="w-full h-full object-cover" />
+                   {activeExtrasProduct.imageUrl || (activeExtrasProduct.imageUrls && activeExtrasProduct.imageUrls.length > 0 && activeExtrasProduct.imageUrls[0]) ? (
+                     <img src={activeExtrasProduct.imageUrl || activeExtrasProduct.imageUrls?.[0]} alt="" className="w-full h-full object-cover" />
                    ) : <Package className="text-app-text-muted opacity-20" />}
                 </div>
                 <div>

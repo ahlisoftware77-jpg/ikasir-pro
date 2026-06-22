@@ -16,6 +16,7 @@ export interface Product {
   extras?: string[];
   hasExtras?: boolean;
   imageUrl?: string;
+  imageUrls?: string[];
   expiryDate?: string;
   entryDate?: string;
   warrantyDuration?: number;
