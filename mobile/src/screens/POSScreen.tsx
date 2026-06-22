@@ -67,6 +67,8 @@ import {
   Shield
 } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera, Image as ImageIcon } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { printReceipt } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -511,6 +513,7 @@ export default function POSScreen({ route, navigation }: any) {
   const [manualItemWarrantyUnit, setManualItemWarrantyUnit] = useState<'days' | 'months' | 'years'>('months');
   const [scanTarget, setScanTarget] = useState<'cart' | 'manual_barcode'>('cart');
   const [manualItemCalendarVisible, setManualItemCalendarVisible] = useState(false);
+  const [manualItemImage, setManualItemImage] = useState('');
   // Checkout configuration
   const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'estimasi' | 'merge'>('direct');
   const [selectedOrderToMerge, setSelectedOrderToMerge] = useState<string>('');
@@ -1093,6 +1096,37 @@ export default function POSScreen({ route, navigation }: any) {
     }
   };
 
+  const pickManualItemImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setManualItemImage(result.assets[0].uri);
+    }
+  };
+
+  const takeManualItemPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Izin Ditolak', 'Maaf, kami butuh izin kamera untuk mengambil foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setManualItemImage(result.assets[0].uri);
+    }
+  };
+
   // Add manual item handler
   const addManualItem = async () => {
     if (!manualItemName || !manualItemPrice) {
@@ -1106,6 +1140,35 @@ export default function POSScreen({ route, navigation }: any) {
 
     setIsProcessing(true);
     try {
+      let finalImageUrl = '';
+
+      // Upload to Cloudinary if manualItemImage is selected
+      if (manualItemImage) {
+        const formDataUpload = new FormData();
+        const filename = manualItemImage.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename || '');
+        const type = match ? `image/${match[1]}` : `image`;
+
+        formDataUpload.append('file', { uri: manualItemImage, name: filename, type } as any);
+        formDataUpload.append('upload_preset', 'kasirpos');
+
+        const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+          method: 'POST',
+          body: formDataUpload,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadRes.ok && uploadResult.secure_url) {
+          finalImageUrl = uploadResult.secure_url;
+        } else {
+          console.error('Cloudinary error:', uploadResult);
+          throw new Error('Gagal mengunggah foto produk manual');
+        }
+      }
+
       if (saveToCatalog) {
         const prodData = {
           storeId,
@@ -1120,6 +1183,7 @@ export default function POSScreen({ route, navigation }: any) {
           expiryDate: manualItemExpiryDate.trim() || '',
           warrantyDuration: Number(manualItemWarrantyDuration) || 0,
           warrantyUnit: manualItemWarrantyUnit,
+          imageUrl: finalImageUrl,
           createdAt: new Date()
         };
         const docRef = await addDoc(collection(db, 'products'), prodData);
@@ -1142,6 +1206,7 @@ export default function POSScreen({ route, navigation }: any) {
         expiryDate: manualItemExpiryDate.trim() || '',
         warrantyDuration: Number(manualItemWarrantyDuration) || 0,
         warrantyUnit: manualItemWarrantyUnit,
+        imageUrl: finalImageUrl,
         selectedExtras: [],
         discountName: null,
         note: ''
@@ -1158,10 +1223,11 @@ export default function POSScreen({ route, navigation }: any) {
       setManualItemExpiryDate('');
       setManualItemWarrantyDuration('');
       setManualItemWarrantyUnit('months');
+      setManualItemImage('');
       Vibration.vibrate(15);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Alert.alert('Gagal', 'Gagal menambahkan item manual.');
+      Alert.alert('Gagal', err.message || 'Gagal menambahkan item manual.');
     } finally {
       setIsProcessing(false);
     }
@@ -2048,6 +2114,48 @@ export default function POSScreen({ route, navigation }: any) {
             </View>
 
             <ScrollView className="flex-1 space-y-4">
+              {/* Foto Produk Manual */}
+              <View className="space-y-2 items-center mb-2">
+                <Text className="text-[10px] font-black uppercase tracking-widest self-start pl-1" style={{ color: colors.textMuted }}>Foto Produk (Opsional)</Text>
+                <View className="flex-row items-center gap-4 w-full p-4 rounded-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="w-20 h-20 rounded-xl bg-black/5 border overflow-hidden items-center justify-center relative" style={{ borderColor: colors.border }}>
+                    {manualItemImage ? (
+                      <Image source={{ uri: manualItemImage }} className="w-full h-full" style={{ resizeMode: 'cover' }} />
+                    ) : (
+                      <View className="items-center justify-center">
+                        <ImageIcon size={24} color={colors.textMuted} />
+                        <Text className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-tight text-center">NO FOTO</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View className="flex-1 gap-2 flex-row">
+                    <TouchableOpacity 
+                      onPress={takeManualItemPhoto}
+                      className="flex-1 py-3 rounded-2xl items-center justify-center flex-row gap-1 bg-accent active:opacity-80"
+                    >
+                      <Camera size={14} color="#0f172a" />
+                      <Text className="text-[10px] font-black text-[#0f172a] uppercase tracking-wider">Kamera</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={pickManualItemImage}
+                      className="flex-1 py-3 rounded-2xl items-center justify-center flex-row gap-1 border active:opacity-80"
+                      style={{ borderColor: colors.border, backgroundColor: colors.bg }}
+                    >
+                      <ImageIcon size={14} color={colors.text} />
+                      <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Galeri</Text>
+                    </TouchableOpacity>
+                    {manualItemImage !== '' && (
+                      <TouchableOpacity 
+                        onPress={() => setManualItemImage('')}
+                        className="px-4 rounded-2xl items-center justify-center border border-rose-500/20 bg-rose-500/10 active:opacity-80"
+                      >
+                        <Trash2 size={14} color="#f43f5e" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+
               <View className="space-y-1">
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nama Item</Text>
                 <TextInput
