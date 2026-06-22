@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar as RNCalendar } from 'react-native-calendars';
 import { 
   View, 
   Text, 
@@ -506,6 +507,8 @@ export default function POSScreen({ route, navigation }: any) {
   const [manualItemExpiryDate, setManualItemExpiryDate] = useState('');
   const [manualItemWarrantyDuration, setManualItemWarrantyDuration] = useState('');
   const [manualItemWarrantyUnit, setManualItemWarrantyUnit] = useState<'days' | 'months' | 'years'>('months');
+  const [scanTarget, setScanTarget] = useState<'cart' | 'manual_barcode'>('cart');
+  const [manualItemCalendarVisible, setManualItemCalendarVisible] = useState(false);
   // Checkout configuration
   const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'estimasi' | 'merge'>('direct');
   const [selectedOrderToMerge, setSelectedOrderToMerge] = useState<string>('');
@@ -1488,7 +1491,8 @@ export default function POSScreen({ route, navigation }: any) {
     }
   };
 
-  const startScanning = async () => {
+  const startScanning = async (target: 'cart' | 'manual_barcode' = 'cart') => {
+    setScanTarget(target);
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
@@ -1518,6 +1522,15 @@ export default function POSScreen({ route, navigation }: any) {
   const onBarcodeScanned = ({ data }: { data: string }) => {
     if (isScanning) return;
     setIsScanning(true);
+    
+    if (scanTarget === 'manual_barcode') {
+      playBeep();
+      setManualItemBarcode(data);
+      Vibration.vibrate(15);
+      setShowScanner(false);
+      setIsScanning(false);
+      return;
+    }
     
     const product = products.find(p => p.barcode === data || (p.sku && p.sku === data));
     if (product) {
@@ -1660,7 +1673,7 @@ export default function POSScreen({ route, navigation }: any) {
               style={{ color: colors.text }}
             />
             <TouchableOpacity 
-              onPress={startScanning}
+              onPress={() => startScanning('cart')}
               className="p-2 -mr-2"
             >
               <Scan size={18} color={colors.accent} />
@@ -2069,7 +2082,6 @@ export default function POSScreen({ route, navigation }: any) {
                   <ChevronDown size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-
               {/* Barcode / Scan / Auto Generate */}
               <View className="space-y-1">
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Barcode (Opsional)</Text>
@@ -2082,6 +2094,13 @@ export default function POSScreen({ route, navigation }: any) {
                     className="flex-1 border rounded-2xl py-3.5 px-4 text-sm font-bold"
                     style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                   />
+                  <TouchableOpacity
+                    onPress={() => startScanning('manual_barcode')}
+                    className="p-3.5 rounded-2xl border justify-center items-center bg-accent/10"
+                    style={{ borderColor: 'rgba(241,185,3,0.3)' }}
+                  >
+                    <Scan size={16} color={colors.accent} />
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
                       const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
@@ -2099,14 +2118,27 @@ export default function POSScreen({ route, navigation }: any) {
               {/* Masa Berlaku (Expired) */}
               <View className="space-y-1">
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Masa Berlaku / Kedaluwarsa (Opsional)</Text>
-                <TextInput
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  value={manualItemExpiryDate}
-                  onChangeText={setManualItemExpiryDate}
-                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                />
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={() => setManualItemCalendarVisible(true)}
+                    className="flex-1 border rounded-2xl py-3.5 px-4 flex-row items-center justify-between"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                  >
+                    <Text className="font-bold text-sm" style={{ color: manualItemExpiryDate ? colors.text : colors.textMuted }}>
+                      {manualItemExpiryDate || 'Pilih Tanggal Kedaluwarsa'}
+                    </Text>
+                    <Calendar size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  {manualItemExpiryDate ? (
+                    <TouchableOpacity
+                      onPress={() => setManualItemExpiryDate('')}
+                      className="px-4 border rounded-2xl items-center justify-center bg-rose-500/10"
+                      style={{ borderColor: 'rgba(244,63,94,0.2)' }}
+                    >
+                      <X size={16} color="#f43f5e" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
 
               {/* Garansi Produk */}
@@ -2186,6 +2218,50 @@ export default function POSScreen({ route, navigation }: any) {
             >
               <Text className="font-black text-sm text-slate-950">TAMBAHKAN ITEM</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Calendar Date Picker Modal for Manual Item Expiry */}
+      <Modal visible={manualItemCalendarVisible} animationType="fade" transparent onRequestClose={() => setManualItemCalendarVisible(false)}>
+        <View className="flex-1 bg-black/80 justify-center items-center p-6">
+          <View className="w-full max-w-sm rounded-[36px] overflow-hidden" style={{ backgroundColor: colors.surface }}>
+            <View className="flex-row justify-between items-center p-6 border-b" style={{ borderColor: colors.border + '30' }}>
+              <Text className="text-base font-black" style={{ color: colors.text }}>Pilih Masa Berlaku</Text>
+              <TouchableOpacity onPress={() => setManualItemCalendarVisible(false)}>
+                <X size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <RNCalendar
+              theme={{
+                backgroundColor: colors.surface,
+                calendarBackground: colors.surface,
+                textSectionTitleColor: colors.textMuted,
+                selectedDayBackgroundColor: colors.accent,
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: colors.accent,
+                dayTextColor: colors.text,
+                textDisabledColor: colors.textMuted + '50',
+                monthTextColor: colors.text,
+                arrowColor: colors.accent,
+                textDayFontWeight: 'bold',
+                textMonthFontWeight: '900',
+                textDayHeaderFontWeight: '800'
+              }}
+              current={manualItemExpiryDate || undefined}
+              markedDates={{
+                [manualItemExpiryDate || '']: {
+                  selected: true,
+                  disableTouchEvent: true,
+                  selectedColor: colors.accent,
+                  selectedTextColor: '#ffffff'
+                }
+              }}
+              onDayPress={(day: any) => {
+                setManualItemExpiryDate(day.dateString);
+                setManualItemCalendarVisible(false);
+              }}
+            />
           </View>
         </View>
       </Modal>
