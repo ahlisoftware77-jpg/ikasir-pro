@@ -4,6 +4,51 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Transaction } from '../types';
 
+const getMimeTypeFromBase64 = (base64Str: string): string => {
+  if (base64Str.startsWith('iVBORw0KGgo')) return 'image/png';
+  if (base64Str.startsWith('/9j/')) return 'image/jpeg';
+  if (base64Str.startsWith('UklGR')) return 'image/webp';
+  if (base64Str.startsWith('R0lGOD')) return 'image/gif';
+  if (base64Str.startsWith('PHN2Zy') || base64Str.startsWith('PD94bWw')) return 'image/svg+xml';
+  return 'image/jpeg'; // default fallback
+};
+
+const convertUrlToBase64 = async (url: string, prefixName: string): Promise<string> => {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url;
+  
+  try {
+    // 1. Auto-upgrade http ke https untuk kecocokan kebijakan cleartext traffic Android APK
+    let secureUrl = url;
+    if (url.startsWith('http://')) {
+      secureUrl = 'https://' + url.substring(7);
+    }
+
+    const uniqueId = Math.random().toString(36).substring(7);
+    // 2. Tambahkan ekstensi file .tmp untuk memastikan sistem operasi Android membuat file dengan benar
+    const tempFile = `${FileSystem.cacheDirectory}${prefixName}_${uniqueId}.tmp`;
+    
+    const { uri } = await FileSystem.downloadAsync(secureUrl, tempFile);
+    const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+    const mimeType = getMimeTypeFromBase64(base64Image);
+    const base64DataUri = `data:${mimeType};base64,${base64Image}`;
+
+    try {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+    } catch (delErr) {}
+    
+    return base64DataUri;
+  } catch (err: any) {
+    console.warn(`Failed to convert image url to base64 for ${prefixName}:`, err);
+    // Tampilkan Alert untuk membantu mengidentifikasi pesan error eksak di perangkat mobile
+    Alert.alert(
+      "Gagal Cetak Gambar",
+      `Gagal memproses gambar ${prefixName} ke format cetak.\n\nDetail Error: ${err?.message || String(err)}\nURL: ${url}`
+    );
+    return url; // Fallback ke URL asli
+  }
+};
+
 const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean> => {
   if (!storeId) return true;
   try {
@@ -124,6 +169,34 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
 };
 
 export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
+  const terbilang = (nilai: number): string => {
+    const bilangan = [
+      '', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 
+      'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'
+    ];
+    let temp = '';
+    if (nilai < 12) {
+      temp = ' ' + bilangan[Math.floor(nilai)];
+    } else if (nilai < 20) {
+      temp = terbilang(nilai - 10) + ' Belas';
+    } else if (nilai < 100) {
+      temp = terbilang(nilai / 10) + ' Puluh' + terbilang(nilai % 10);
+    } else if (nilai < 200) {
+      temp = ' Seratus' + terbilang(nilai - 100);
+    } else if (nilai < 1000) {
+      temp = terbilang(nilai / 100) + ' Ratus' + terbilang(nilai % 100);
+    } else if (nilai < 2000) {
+      temp = ' Seribu' + terbilang(nilai - 1000);
+    } else if (nilai < 1000000) {
+      temp = terbilang(nilai / 1000) + ' Ribu' + terbilang(nilai % 1000);
+    } else if (nilai < 1000000000) {
+      temp = terbilang(nilai / 1000000) + ' Juta' + terbilang(nilai % 1000000);
+    } else if (nilai < 1000000000000) {
+      temp = terbilang(nilai / 1000000000) + ' Milyar' + terbilang(nilai % 1000000000);
+    }
+    return temp.trim();
+  };
+
   let date: Date;
   if (trx.timestamp?.seconds) {
     date = new Date(trx.timestamp.seconds * 1000);
@@ -161,6 +234,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
   const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
   const address = storeSettings?.address || '';
   const phone = storeSettings?.phone || '';
+  const storeNpwp = storeSettings?.npwp ? `<p class="store-info">NPWP: ${storeSettings.npwp}</p>` : '';
   
   const itemsHtml = (trx.items || []).map((item: any) => `
     <tr style="border-bottom: 1px solid #eee;">
@@ -176,6 +250,60 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
   `).join('');
 
   const validUntilStr = trx.validUntil ? new Date(trx.validUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+
+  let stampDateStr = dateStr;
+  if (trx.paymentStatus === 'paid' && trx.paymentHistory && trx.paymentHistory.length > 0) {
+    try {
+      const sortedHistory = [...trx.paymentHistory].sort((a: any, b: any) => {
+        const timeA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
+        const timeB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
+        return timeA - timeB;
+      });
+      const lastPayment = sortedHistory[sortedHistory.length - 1];
+      let lastPaymentDate: Date | null = null;
+      if (lastPayment.date?.seconds) {
+        lastPaymentDate = new Date(lastPayment.date.seconds * 1000);
+      } else if (lastPayment.date?.toDate) {
+        lastPaymentDate = lastPayment.date.toDate();
+      } else if (lastPayment.date instanceof Date) {
+        lastPaymentDate = lastPayment.date;
+      } else if (lastPayment.date) {
+        lastPaymentDate = new Date(lastPayment.date);
+      }
+      
+      if (lastPaymentDate && !isNaN(lastPaymentDate.getTime())) {
+        stampDateStr = lastPaymentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+    } catch (e) {
+      console.warn("Failed to parse last payment date:", e);
+    }
+  }
+
+  const paidStamp = trx.paymentStatus === 'paid' && !isEstimation ? `
+    <div style="position: absolute; top: 120px; right: 60px; border: 4px double #10b981; color: #10b981; font-size: 20px; font-weight: 900; padding: 10px 20px; border-radius: 8px; text-transform: uppercase; transform: rotate(-10deg); opacity: 0.85; letter-spacing: 2px; font-family: 'Courier New', Courier, monospace; background-color: rgba(16, 185, 129, 0.05); text-align: center; pointer-events: none;">
+      LUNAS / PAID
+      <div style="font-size: 8px; margin-top: 4px; font-family: sans-serif; font-weight: bold; letter-spacing: 0.5px;">${stampDateStr}</div>
+    </div>
+  ` : '';
+
+  const bankName = storeSettings?.bankName || '';
+  const bankAccount = storeSettings?.bankAccount || '';
+  const bankAccountName = storeSettings?.bankAccountName || '';
+  const bankInfoHtml = bankName && bankAccount ? `
+    <div style="margin-top: 15px; padding: 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 10px; color: #475569; line-height: 1.4;">
+      <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 9px; display: block; margin-bottom: 5px; letter-spacing: 0.5px;">Informasi Rekening Pembayaran:</span>
+      Transfer Bank: <strong>${bankName}</strong><br/>
+      No. Rekening: <strong>${bankAccount}</strong><br/>
+      Atas Nama: <strong>${bankAccountName}</strong>
+    </div>
+  ` : '';
+
+  const terbilangStr = total > 0 ? terbilang(total) + ' Rupiah' : 'Nol Rupiah';
+  const terbilangHtml = `
+    <div style="margin-top: 12px; padding: 10px 15px; background-color: #f8fafc; border-left: 4px solid #0f172a; font-size: 11px; color: #1e293b; font-style: italic; font-weight: bold; border-radius: 0 8px 8px 0; border: 1px solid #e2e8f0; border-left: 4px solid #0f172a; margin-bottom: 24px;">
+      Terbilang: ${terbilangStr}
+    </div>
+  `;
 
   return `
     <!DOCTYPE html>
@@ -206,15 +334,16 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
         .grand-total-label { font-size: 11px; letter-spacing: 1px; align-self: center; }
         .signatures { display: flex; justify-content: space-between; padding: 0 50px; margin-top: 60px; text-align: center; }
         .signature-box { width: 150px; position: relative; }
-        .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 70px; }
+        .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
         .sig-name { font-size: 12px; font-weight: 900; color: #1e293b; text-transform: uppercase; border-top: 1.5px solid #0f172a; padding-top: 5px; }
         .watermark { text-align: center; font-size: 9px; font-weight: 900; color: #cbd5e1; letter-spacing: 4px; margin-top: 80px; text-transform: uppercase; }
       </style>
     </head>
     <body>
+      ${paidStamp}
       <table class="header-table">
         <tr>
-          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `
+          ${storeSettings?.logoUrl ? `
           <td style="padding-bottom: 20px; width: 100px; vertical-align: top;">
             <img src="${storeSettings.logoUrl}" style="max-width: 90px; max-height: 90px; display: block;" />
           </td>
@@ -223,6 +352,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
             <h1 class="store-title">${cleanStoreName}</h1>
             <p class="store-info">${address}</p>
             <p class="store-info">Telp: ${phone}</p>
+            ${storeNpwp}
           </td>
           <td style="text-align: right; padding-bottom: 20px; vertical-align: top;">
             <h2 class="doc-title">${isEstimation ? 'ESTIMASI BIAYA' : 'INVOICE'}</h2>
@@ -237,6 +367,8 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
           <p class="info-label">Tagihan Kepada:</p>
           <p class="info-value">${trx.customerName || 'Pelanggan Umum'}</p>
           ${trx.customerPhone ? `<p class="info-subvalue">Hubungi: ${trx.customerPhone}</p>` : ''}
+          ${trx.customerNpwp ? `<p class="info-subvalue">NPWP: ${trx.customerNpwp}</p>` : ''}
+          ${(trx.customerAddress || trx.address) ? `<p class="info-subvalue">Alamat: ${trx.customerAddress || trx.address}</p>` : ''}
         </div>
         <div class="info-card">
           <p class="info-label">${isEstimation ? 'Masa Berlaku Penawaran:' : 'Status Pembayaran:'}</p>
@@ -265,6 +397,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
         <div class="notes-section">
           <p style="font-weight: bold; color: #0f172a; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; font-size: 11px;">Catatan / Syarat & Ketentuan:</p>
           <p style="margin: 0; line-height: 1.4;">${docNoteHtml}</p>
+          ${bankInfoHtml}
         </div>
         <div class="total-section">
           <div class="total-row">
@@ -297,6 +430,8 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
           ` : ''}
         </div>
       </div>
+
+      ${terbilangHtml}
 
       ${trx.paymentHistory && trx.paymentHistory.length > 0 ? `
         <div style="margin-bottom: 24px; padding-top: 16px; border-top: 2px dashed #e2e8f0;">
@@ -339,20 +474,20 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
       <div class="signatures">
         <div class="signature-box">
           <p class="sig-label">Hormat Kami,</p>
-          ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
-            <div style="position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
-              <img src="${storeSettings.signatureUrl}" style="max-height: 55px; width: auto; object-fit: contain; mix-blend-multiply: multiply;" />
-            </div>
-          ` : ''}
+          <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+            ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
+              <img src="${storeSettings.signatureUrl}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+            ` : ''}
+          </div>
           <p class="sig-name">${trx.cashierName || 'Store Admin'}</p>
         </div>
         <div class="signature-box">
           <p class="sig-label">Penerima,</p>
-          ${trx.signatureBase64 ? `
-            <div style="position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
-              <img src="${trx.signatureBase64}" style="max-height: 55px; width: auto; object-fit: contain; mix-blend-multiply: multiply;" />
-            </div>
-          ` : ''}
+          <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+            ${trx.signatureBase64 ? `
+              <img src="${trx.signatureBase64}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+            ` : ''}
+          </div>
           <p class="sig-name">${trx.customerName || 'Pelanggan'}</p>
         </div>
       </div>
@@ -450,7 +585,8 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {
     try {
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-      const tempFile = FileSystem.cacheDirectory + 'temp_receipt_logo.jpg';
+      const uniqueId = Math.random().toString(36).substring(7);
+      const tempFile = `${FileSystem.cacheDirectory}temp_bt_logo_${uniqueId}.jpg`;
       const { uri } = await FileSystem.downloadAsync(activeLogoUrl, tempFile);
       const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       
@@ -462,10 +598,12 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       const leftPad = Math.floor((printerWidth - picWidth) / 2);
 
       await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
-      // Gambar sudah tercetak
+      
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (delErr) {}
     } catch (err: any) {
       console.warn("Gagal mencetak logo Bluetooth:", err);
-      // Tampilkan error di layar HP agar kita tahu kenapa gagal
       Alert.alert('Info Logo', 'Gagal mencetak logo: ' + (err.message || String(err)));
     }
   }
@@ -738,14 +876,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
 
     let base64Logo = '';
     if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
-      try {
-        const tempFile = FileSystem.cacheDirectory + 'temp_receipt_logo_pdf.jpg';
-        const { uri } = await FileSystem.downloadAsync(finalSettings.logoUrl, tempFile);
-        const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        base64Logo = `data:image/jpeg;base64,${base64Image}`;
-      } catch (err) {
-        console.warn("Failed to convert receipt logo to base64:", err);
-      }
+      base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_receipt_logo');
     }
 
     if (base64Logo) {
@@ -793,15 +924,8 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
   }
 
   let base64Logo = '';
-  if (settings?.showLogoOnReceipt !== false && settings?.logoUrl) {
-    try {
-      const tempFile = FileSystem.cacheDirectory + 'temp_a4_logo.jpg';
-      const { uri } = await FileSystem.downloadAsync(settings.logoUrl, tempFile);
-      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      base64Logo = `data:image/jpeg;base64,${base64Image}`;
-    } catch (err) {
-      console.warn("Failed to convert A4 logo to base64:", err);
-    }
+  if (settings?.logoUrl) {
+    base64Logo = await convertUrlToBase64(settings.logoUrl, 'temp_a4_logo');
   }
 
   if (base64Logo) {
@@ -810,14 +934,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
 
   let base64Signature = '';
   if (settings?.showSignature !== false && settings?.signatureUrl) {
-    try {
-      const tempFile = FileSystem.cacheDirectory + 'temp_a4_signature.png';
-      const { uri } = await FileSystem.downloadAsync(settings.signatureUrl, tempFile);
-      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      base64Signature = `data:image/png;base64,${base64Image}`;
-    } catch (err) {
-      console.warn("Failed to convert A4 signature to base64:", err);
-    }
+    base64Signature = await convertUrlToBase64(settings.signatureUrl, 'temp_a4_sig');
   }
 
   if (base64Signature) {
@@ -890,7 +1007,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
         .items-table td { padding: 12px 10px; font-size: 12px; }
         .signatures { display: flex; justify-content: space-between; padding: 0 50px; margin-top: 60px; text-align: center; }
         .signature-box { width: 150px; position: relative; }
-        .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 70px; }
+        .sig-label { font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
         .sig-name { font-size: 10px; font-weight: 900; color: #1e293b; text-transform: uppercase; border-top: 1.5px solid #0f172a; padding-top: 5px; }
         .watermark { text-align: center; font-size: 9px; font-weight: 900; color: #cbd5e1; letter-spacing: 4px; margin-top: 80px; text-transform: uppercase; }
       </style>
@@ -898,7 +1015,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
     <body>
       <table class="header-table">
         <tr>
-          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `
+          ${storeSettings?.logoUrl ? `
           <td style="padding-bottom: 20px; width: 100px; vertical-align: top;">
             <img src="${storeSettings.logoUrl}" style="max-width: 90px; max-height: 90px; display: block;" />
           </td>
@@ -951,19 +1068,21 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
       <div class="signatures">
         <div class="signature-box">
           <p class="sig-label">Penerima,</p>
+          <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;"></div>
           <p class="sig-name">Nama Terang & Stempel</p>
         </div>
         <div class="signature-box">
           <p class="sig-label">Sopir / Pengantar,</p>
+          <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;"></div>
           <p class="sig-name">Nama Terang</p>
         </div>
         <div class="signature-box">
           <p class="sig-label">Hormat Kami,</p>
-          ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
-            <div style="position: absolute; top: 15px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none;">
-              <img src="${storeSettings.signatureUrl}" style="max-height: 55px; width: auto; object-fit: contain; mix-blend-multiply: multiply;" />
-            </div>
-          ` : ''}
+          <div style="height: 65px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+            ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
+              <img src="${storeSettings.signatureUrl}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+            ` : ''}
+          </div>
           <p class="sig-name" style="font-size: 12px;">${(trx.cashierName || 'Store Admin').split('@')[0]}</p>
         </div>
       </div>
@@ -1009,15 +1128,8 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
   }
 
   let base64Logo = '';
-  if (settings?.showLogoOnReceipt !== false && settings?.logoUrl) {
-    try {
-      const tempFile = FileSystem.cacheDirectory + 'temp_a4_delivery_logo.jpg';
-      const { uri } = await FileSystem.downloadAsync(settings.logoUrl, tempFile);
-      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      base64Logo = `data:image/jpeg;base64,${base64Image}`;
-    } catch (err) {
-      console.warn("Failed to convert A4 delivery logo to base64:", err);
-    }
+  if (settings?.logoUrl) {
+    base64Logo = await convertUrlToBase64(settings.logoUrl, 'temp_a4_delivery_logo');
   }
 
   if (base64Logo) {
@@ -1026,14 +1138,7 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
 
   let base64Signature = '';
   if (settings?.showSignature !== false && settings?.signatureUrl) {
-    try {
-      const tempFile = FileSystem.cacheDirectory + 'temp_a4_delivery_signature.png';
-      const { uri } = await FileSystem.downloadAsync(settings.signatureUrl, tempFile);
-      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      base64Signature = `data:image/png;base64,${base64Image}`;
-    } catch (err) {
-      console.warn("Failed to convert A4 delivery signature to base64:", err);
-    }
+    base64Signature = await convertUrlToBase64(settings.signatureUrl, 'temp_a4_delivery_sig');
   }
 
   if (base64Signature) {

@@ -440,6 +440,82 @@ export default function OrdersScreen() {
     return o.orderStatus === activeTab;
   });
 
+  const getTabCount = (tabId: string) => {
+    return orders.filter((o) => {
+      if (!o.orderStatus && o.paymentStatus === 'paid') return false;
+      if (tabId === 'all') {
+        return (
+          (o.orderStatus !== 'completed' && o.orderStatus !== 'cancelled') ||
+          o.paymentStatus === 'pending' ||
+          o.paymentStatus === 'unpaid' ||
+          o.paymentStatus === 'partially_paid'
+        );
+      }
+      return o.orderStatus === tabId;
+    }).length;
+  };
+
+  const handleFinishOrder = async (order: any) => {
+    if (order.paymentStatus === 'paid') {
+      processStatusUpdate(order.id, 'completed');
+    } else {
+      Alert.alert(
+        'Selesaikan Pesanan',
+        'Pesanan ini belum lunas. Bagaimana Anda ingin menyelesaikannya?',
+        [
+          { text: 'Batal', style: 'cancel' },
+          { 
+            text: 'Selesaikan & Tetap Piutang', 
+            onPress: async () => {
+              setIsProcessing(order.id);
+              try {
+                await updateDoc(doc(db, 'transactions', order.id), {
+                  orderStatus: 'completed',
+                  paymentCategory: 'debt',
+                  lastUpdate: serverTimestamp()
+                });
+                Vibration.vibrate(15);
+                Alert.alert('Sukses', 'Pesanan diselesaikan dan dicatat sebagai piutang.');
+              } catch (err) {
+                console.error(err);
+                Alert.alert('Gagal', 'Gagal menyelesaikan pesanan.');
+              } finally {
+                setIsProcessing(null);
+              }
+            }
+          },
+          { 
+            text: 'Lunasi (Tunai) & Selesaikan', 
+            style: 'default',
+            onPress: async () => {
+              setIsProcessing(order.id);
+              try {
+                await updateDoc(doc(db, 'transactions', order.id), {
+                  orderStatus: 'completed',
+                  paymentStatus: 'paid',
+                  paymentMethod: 'cash',
+                  paymentCategory: 'direct',
+                  paidAmount: order.total,
+                  debtAmount: 0,
+                  cashReceived: order.total,
+                  change: 0,
+                  lastUpdate: serverTimestamp()
+                });
+                Vibration.vibrate([0, 15, 80, 15]);
+                Alert.alert('Sukses', 'Pesanan berhasil dilunasi secara tunai dan diselesaikan!');
+              } catch (err) {
+                console.error(err);
+                Alert.alert('Gagal', 'Gagal melunasi pesanan.');
+              } finally {
+                setIsProcessing(null);
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
   const handleUpdateStatus = async (order: any, newStatus: string) => {
     // Validate order queue progression warning
     if (newStatus === 'processing') {
@@ -687,11 +763,12 @@ export default function OrdersScreen() {
   };
 
   const tabs = [
-    { id: 'all', label: 'Semua' },
-    { id: 'new', label: 'Baru' },
-    { id: 'processing', label: 'Proses' },
-    { id: 'ready', label: 'Siap' },
-    { id: 'cancelled', label: 'Batal' }
+    { id: 'all', label: 'Semua', icon: ClipboardList },
+    { id: 'new', label: 'Baru', icon: ShoppingBag },
+    { id: 'processing', label: 'Proses', icon: ChefHat },
+    { id: 'ready', label: 'Siap', icon: CheckCircle2 },
+    { id: 'completed', label: 'Selesai', icon: Check },
+    { id: 'cancelled', label: 'Batal', icon: Ban }
   ];
 
   return (
@@ -699,25 +776,46 @@ export default function OrdersScreen() {
       
       {/* Tabs Filter Header */}
       <View className="p-4 border-b" style={{ borderColor: colors.border }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              onPress={() => setActiveTab(tab.id as any)}
-              className="px-4 py-2.5 rounded-2xl border"
-              style={{
-                backgroundColor: activeTab === tab.id ? colors.accent : colors.surface,
-                borderColor: activeTab === tab.id ? colors.accent : colors.border
-              }}
-            >
-              <Text 
-                className="text-[10px] font-black uppercase tracking-wider" 
-                style={{ color: activeTab === tab.id ? '#ffffff' : colors.textMuted }}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, alignItems: 'center' }}>
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            const count = getTabCount(tab.id);
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setActiveTab(tab.id as any);
+                }}
+                activeOpacity={0.8}
+                className="flex-row items-center gap-1.5 px-4 py-2 rounded-2xl border"
+                style={{
+                  backgroundColor: isActive ? colors.accent : colors.surface,
+                  borderColor: isActive ? colors.accent : colors.border,
+                  flexShrink: 0
+                }}
               >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Icon size={12} color={isActive ? '#ffffff' : colors.textMuted} />
+                <Text 
+                  className="text-[10px] font-black uppercase tracking-wider" 
+                  style={{ color: isActive ? '#ffffff' : colors.text, flexShrink: 0 }}
+                >
+                  {tab.label}
+                </Text>
+                {count > 0 && (
+                  <View 
+                    className="ml-1 px-1.5 py-0.5 rounded-full items-center justify-center" 
+                    style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : colors.accent + '15' }}
+                  >
+                    <Text className="text-[8px] font-black" style={{ color: isActive ? '#ffffff' : colors.accent }}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -755,13 +853,13 @@ export default function OrdersScreen() {
               return (
                 <View 
                   key={order.id} 
-                  className="rounded-[28px] border overflow-hidden mb-4"
+                  className="rounded-3xl border overflow-hidden mb-4 shadow-sm"
                   style={{ 
                     backgroundColor: colors.surface, 
                     borderColor: isExpanded ? colors.accent : colors.border 
                   }}
                 >
-                  <View className="flex-row items-stretch">
+                  <View className="flex-row items-stretch" style={{ minHeight: 90 }}>
                     {/* Blok Kiri: Ungu Tanggal / Waktu */}
                     <View 
                       className="w-[84px] items-center justify-center p-2.5"
@@ -776,33 +874,36 @@ export default function OrdersScreen() {
                     <TouchableOpacity
                       onPress={() => setExpandedOrderId(isExpanded ? null : order.id)}
                       activeOpacity={0.9}
-                      className="flex-1 p-5 flex-row justify-between items-center"
+                      className="flex-1 p-3.5 justify-between"
                     >
-                      <View className="flex-1 pr-4">
-                        <View className="flex-row items-center gap-2 flex-wrap">
-                          <Text className="text-base font-black" style={{ color: colors.text }}>
-                            {order.customerName || 'Pelanggan'}
-                          </Text>
-                          <Text className="text-[10px] font-black text-rose-500">
-                            #{order.queueNumber || '0'}
-                          </Text>
-                        </View>
+                      {/* Baris 1: ID/No Antrean & Badge Status */}
+                      <View className="flex-row justify-between items-center">
+                        <Text className="text-[11px] font-bold text-slate-400 tracking-wider uppercase flex-1 mr-2" numberOfLines={1}>
+                          #{order.queueNumber || '0'} • {order.id?.substring(0, 8).toUpperCase() || 'ORDER'}
+                        </Text>
+                        {getStatusBadge(order)}
+                      </View>
 
-                        <View className="flex-row items-center gap-2 mt-2 flex-wrap">
-                          {getStatusBadge(order)}
-                          
-                          <View className="bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                            <Text className="text-[9px] font-black text-indigo-500 uppercase">
+                      {/* Baris 2: Nama Pelanggan & Badge Detail */}
+                      <View className="flex-row justify-between items-center my-1.5">
+                        <Text className="text-xs font-black flex-1 mr-2" style={{ color: colors.text }} numberOfLines={1}>
+                          {order.customerName || 'Pelanggan'}
+                        </Text>
+                        <View className="flex-row items-center gap-1.5">
+                          <View className="bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                            <Text className="text-[8px] font-black text-indigo-500 uppercase">
                               {order.orderType === 'dine-in' ? 'Dine In' : order.orderType === 'online' ? 'Online' : 'Takeaway'}
                             </Text>
                           </View>
-
                           <View 
-                            className="px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: order.paymentStatus === 'paid' ? '#10b98120' : '#ef444420' }}
+                            className="px-1.5 py-0.5 rounded border"
+                            style={{ 
+                              backgroundColor: order.paymentStatus === 'paid' ? '#10b98110' : '#ef444410',
+                              borderColor: order.paymentStatus === 'paid' ? '#10b98120' : '#ef444420'
+                            }}
                           >
                             <Text 
-                              className="text-[9px] font-black uppercase" 
+                              className="text-[8px] font-black uppercase" 
                               style={{ color: order.paymentStatus === 'paid' ? '#10b981' : '#ef4444' }}
                             >
                               {order.paymentStatus === 'paid' ? 'Lunas' : 'Belum Lunas'}
@@ -811,12 +912,13 @@ export default function OrdersScreen() {
                         </View>
                       </View>
 
-                      <View className="items-end">
-                        <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>
-                          {formattedTime}
+                      {/* Baris 3: Nominal Rp & Kasir */}
+                      <View className="flex-row justify-between items-end">
+                        <Text className="text-base font-black text-emerald-500 leading-none">
+                          Rp{order.total?.toLocaleString('id-ID')}
                         </Text>
-                        <Text className="text-base font-black text-emerald-500 mt-1">
-                          Rp {order.total?.toLocaleString('id-ID')}
+                        <Text className="text-[11px] font-black text-rose-500 leading-none text-right" numberOfLines={1}>
+                          {order.cashierName || 'Admin'}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -958,13 +1060,13 @@ export default function OrdersScreen() {
                               </TouchableOpacity>
                             )}
 
-                            {order.orderStatus === 'ready' && order.paymentStatus === 'paid' && (
+                            {order.orderStatus === 'ready' && (
                               <TouchableOpacity 
-                                onPress={() => handleUpdateStatus(order, 'completed')}
+                                onPress={() => handleFinishOrder(order)}
                                 className="flex-1 bg-blue-500 h-12 rounded-xl items-center justify-center flex-row gap-1.5"
                               >
                                 <CheckCircle2 size={16} color="white" />
-            <Text className="text-xs font-black text-white">SELESAIKAN ORDER</Text>
+                                <Text className="text-xs font-black text-white">SELESAIKAN ORDER</Text>
                               </TouchableOpacity>
                             )}
                           </View>

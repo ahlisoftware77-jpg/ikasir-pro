@@ -1948,6 +1948,76 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   };
 
+  const handleDeleteInstallment = async (histId: string) => {
+    if (!selectedDebt || !selectedDebt.id || !selectedDebt.paymentHistory) return;
+    
+    const installmentToDelete = selectedDebt.paymentHistory.find((h: any, i: number) => {
+      const id = h.id || i.toString();
+      return id === histId;
+    });
+
+    if (!installmentToDelete) return;
+
+    Alert.alert(
+      'Hapus Pembayaran Cicilan',
+      `Apakah Anda yakin ingin menghapus catatan cicilan Rp ${installmentToDelete.amount?.toLocaleString('id-ID')} ini? Nominal hutang akan dikembalikan ke status belum terbayar.`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Ya, Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const amount = installmentToDelete.amount || 0;
+              const currentPaid = selectedDebt.paidAmount ?? selectedDebt.cashReceived ?? 0;
+              const newPaid = Math.max(0, currentPaid - amount);
+              const remaining = selectedDebt.total - newPaid;
+              
+              let newStatus = 'partially_paid';
+              if (newPaid <= 0) {
+                newStatus = 'unpaid';
+              } else if (remaining <= 0) {
+                newStatus = 'paid';
+              }
+
+              const updatedHistory = selectedDebt.paymentHistory.filter((h: any, i: number) => {
+                const id = h.id || i.toString();
+                return id !== histId;
+              });
+
+              const change = remaining < 0 ? Math.abs(remaining) : 0;
+
+              const updateData = {
+                paidAmount: newPaid,
+                debtAmount: Math.max(0, remaining),
+                cashReceived: newPaid,
+                change: change,
+                paymentStatus: newStatus,
+                paymentHistory: updatedHistory,
+                updatedAt: new Date().toISOString()
+              };
+
+              await updateDoc(doc(db, 'transactions', selectedDebt.id), {
+                ...updateData
+              });
+
+              setSelectedDebt({
+                ...selectedDebt,
+                ...updateData
+              });
+
+              Vibration.vibrate(15);
+              Alert.alert('Sukses', 'Pembayaran cicilan berhasil dihapus dan nominal hutang telah dikembalikan.');
+            } catch (err) {
+              console.error(err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat menghapus pembayaran cicilan.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleDeleteDebtItem = async (idx: number) => {
     if (!selectedDebt || !selectedDebt.id || !selectedDebt.items) return;
     try {
@@ -5357,6 +5427,9 @@ export default function FeatureScreen({ route, navigation }: any) {
                                       <Text className="text-[10px] font-bold" style={{ color: colors.text }}>{hist.note || 'Pembayaran cicilan mobile'}</Text>
                                       <TouchableOpacity onPress={() => { setEditingDebtNoteId(currentHistId); setEditDebtNoteValue(hist.note || 'Pembayaran cicilan mobile'); }}>
                                         <Edit2 size={10} color={colors.accent} />
+                                      </TouchableOpacity>
+                                      <TouchableOpacity onPress={() => handleDeleteInstallment(currentHistId)} className="ml-1">
+                                        <Trash2 size={10} color="#f43f5e" />
                                       </TouchableOpacity>
                                     </View>
                                     <Text className="text-[8px] text-slate-400 font-bold uppercase">Oleh: {hist.cashierName}</Text>

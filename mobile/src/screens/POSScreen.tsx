@@ -481,7 +481,11 @@ export default function POSScreen({ route, navigation }: any) {
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
-  const [allCustomers, setAllCustomers] = useState<{id: string, name: string}[]>([]);
+  const [newCustomerNpwp, setNewCustomerNpwp] = useState('');
+  const [newCustomerAddress, setNewCustomerAddress] = useState('');
+  const [allCustomers, setAllCustomers] = useState<{id: string, name: string, phone?: string}[]>([]);
+  const [showCustomerListModal, setShowCustomerListModal] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
 
   // Manual Item States
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -1032,6 +1036,8 @@ export default function POSScreen({ route, navigation }: any) {
       const docRef = await addDoc(collection(db, 'customers'), {
         name: newCustomerName.trim(),
         phone: newCustomerPhone.trim(),
+        npwp: newCustomerNpwp.trim(),
+        address: newCustomerAddress.trim(),
         createdAt: new Date(),
         totalOrders: 0,
         storeId: storeId
@@ -1042,12 +1048,31 @@ export default function POSScreen({ route, navigation }: any) {
       setIsAddCustomerModalOpen(false);
       setNewCustomerName('');
       setNewCustomerPhone('');
+      setNewCustomerNpwp('');
+      setNewCustomerAddress('');
       Vibration.vibrate(15);
     } catch (err) {
       console.error(err);
       Alert.alert('Gagal', 'Gagal menyimpan pelanggan baru.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const loadAllCustomers = async () => {
+    if (!storeId) return;
+    try {
+      const q = query(collection(db, 'customers'), where('storeId', '==', storeId));
+      const snap = await getDocs(q);
+      const list = snap.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        phone: doc.data().phone || ''
+      }));
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setAllCustomers(list);
+    } catch (err) {
+      console.error("Error loading all customers:", err);
     }
   };
 
@@ -2349,13 +2374,26 @@ export default function POSScreen({ route, navigation }: any) {
               <View className="space-y-2">
                 <View className="flex-row justify-between items-center ml-1">
                   <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Data Pelanggan</Text>
-                  <TouchableOpacity 
-                    onPress={() => setIsAddCustomerModalOpen(true)}
-                    className="flex-row items-center bg-accent/10 px-3 py-1.5 rounded-xl border border-accent/20"
-                  >
-                    <UserPlus size={12} color={colors.accent} />
-                    <Text className="text-[9px] font-black text-accent ml-1.5 uppercase">Baru</Text>
-                  </TouchableOpacity>
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity 
+                      onPress={() => {
+                        loadAllCustomers();
+                        setCustomerSearchQuery('');
+                        setShowCustomerListModal(true);
+                      }}
+                      className="flex-row items-center bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20"
+                    >
+                      <Users size={12} color="#8b5cf6" />
+                      <Text className="text-[9px] font-black text-indigo-400 ml-1.5 uppercase">Pilih</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => setIsAddCustomerModalOpen(true)}
+                      className="flex-row items-center bg-accent/10 px-3 py-1.5 rounded-xl border border-accent/20"
+                    >
+                      <UserPlus size={12} color={colors.accent} />
+                      <Text className="text-[9px] font-black text-accent ml-1.5 uppercase">Baru</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View className="flex-row gap-2 relative">
@@ -2693,10 +2731,86 @@ export default function POSScreen({ route, navigation }: any) {
         )}
       </View>
 
+      {/* Customer List Modal */}
+      <Modal visible={showCustomerListModal} animationType="slide" transparent onRequestClose={() => setShowCustomerListModal(false)}>
+        <View className="flex-1 bg-black/60 justify-end">
+          <View className="h-[75%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
+            <View className="flex-row items-center justify-between mb-6">
+              <View>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Daftar Pelanggan</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Pilih pelanggan untuk transaksi</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowCustomerListModal(false)}>
+                <X color={colors.textMuted} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Local Search Input inside Modal */}
+            <View className="bg-black/5 rounded-2xl flex-row items-center px-4 mb-4">
+              <Search size={16} color={colors.textMuted} />
+              <TextInput
+                placeholder="Cari berdasarkan nama atau telepon..."
+                placeholderTextColor={colors.textMuted}
+                value={customerSearchQuery}
+                onChangeText={setCustomerSearchQuery}
+                className="flex-1 ml-2.5 py-3.5 text-xs font-bold"
+                style={{ color: colors.text }}
+              />
+              {customerSearchQuery !== '' && (
+                <TouchableOpacity onPress={() => setCustomerSearchQuery('')} className="p-1 bg-rose-500/10 rounded-full">
+                  <X size={12} color="#f43f5e" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+              <View className="flex gap-2">
+                {allCustomers.filter(c => 
+                  c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+                  (c.phone && c.phone.includes(customerSearchQuery))
+                ).length === 0 ? (
+                  <Text className="text-xs font-bold text-center text-rose-400 py-8">Pelanggan tidak ditemukan.</Text>
+                ) : (
+                  allCustomers.filter(c => 
+                    c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+                    (c.phone && c.phone.includes(customerSearchQuery))
+                  ).map(c => {
+                    const isSelected = selectedCustomer?.id === c.id;
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        onPress={() => {
+                          setSelectedCustomer(c);
+                          setCustomerQuery(c.name);
+                          setShowCustomerListModal(false);
+                        }}
+                        className="p-4 rounded-2xl border flex-row items-center justify-between"
+                        style={{ 
+                          backgroundColor: colors.bg, 
+                          borderColor: isSelected ? colors.accent : colors.border 
+                        }}
+                      >
+                        <View className="flex-1">
+                          <Text className="font-bold text-sm" style={{ color: colors.text }}>{c.name}</Text>
+                          {c.phone ? (
+                            <Text className="text-[10px] font-medium mt-0.5" style={{ color: colors.textMuted }}>{c.phone}</Text>
+                          ) : null}
+                        </View>
+                        {isSelected && <Check size={18} color={colors.accent} />}
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Quick Add Customer Modal */}
       <Modal visible={isAddCustomerModalOpen} animationType="slide" transparent onRequestClose={() => setIsAddCustomerModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[50%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
+          <View className="h-[75%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
             <View className="flex-row items-center justify-between mb-6">
               <View>
                 <Text className="text-lg font-black" style={{ color: colors.text }}>Registrasi Pelanggan Baru</Text>
@@ -2730,6 +2844,32 @@ export default function POSScreen({ route, navigation }: any) {
                   onChangeText={setNewCustomerPhone}
                   className="border rounded-2xl py-3 px-4 text-sm font-bold"
                   style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                />
+              </View>
+
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nomor NPWP Pelanggan</Text>
+                <TextInput
+                  placeholder="e.g. 01.234.567.8-901.000"
+                  placeholderTextColor={colors.textMuted}
+                  value={newCustomerNpwp}
+                  onChangeText={setNewCustomerNpwp}
+                  className="border rounded-2xl py-3 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                />
+              </View>
+
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Alamat Lengkap</Text>
+                <TextInput
+                  placeholder="Alamat pelanggan..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={2}
+                  value={newCustomerAddress}
+                  onChangeText={setNewCustomerAddress}
+                  className="border rounded-2xl py-3 px-4 text-sm font-bold min-h-[60px]"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text, textAlignVertical: 'top' }}
                 />
               </View>
             </ScrollView>

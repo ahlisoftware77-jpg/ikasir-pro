@@ -148,9 +148,64 @@ function InvoiceA4Content() {
     return res.trim();
   };
 
+  // Hitung tanggal pembayaran terakhir untuk stempel lunas
+  let stampDateStr = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (trx.paymentStatus === 'paid' && trx.paymentHistory && trx.paymentHistory.length > 0) {
+    try {
+      const sortedHistory = [...trx.paymentHistory].sort((a: any, b: any) => {
+        const timeA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
+        const timeB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
+        return timeA - timeB;
+      });
+      const lastPayment = sortedHistory[sortedHistory.length - 1];
+      let lastPaymentDate: Date | null = null;
+      if (lastPayment.date?.seconds) {
+        lastPaymentDate = new Date(lastPayment.date.seconds * 1000);
+      } else if (lastPayment.date) {
+        lastPaymentDate = new Date(lastPayment.date);
+      }
+      
+      if (lastPaymentDate && !isNaN(lastPaymentDate.getTime())) {
+        stampDateStr = lastPaymentDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+    } catch (e) {
+      console.warn("Failed to parse last payment date:", e);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 py-8 print:bg-white print:py-0 font-sans">
       <div className="bg-white text-black p-[15mm] w-[210mm] min-h-[297mm] mx-auto shadow-2xl print:shadow-none print:w-full print:p-[10mm] relative">
+        {/* Paid Stamp */}
+        {trx.paymentStatus === 'paid' && !isEstimation && (
+          <div 
+            style={{
+              position: 'absolute',
+              top: '120px',
+              right: '60px',
+              border: '4px double #10b981',
+              color: '#10b981',
+              fontSize: '20px',
+              fontWeight: 900,
+              padding: '10px 20px',
+              borderRadius: '8px',
+              textTransform: 'uppercase',
+              transform: 'rotate(-10deg)',
+              opacity: 0.85,
+              letterSpacing: '2px',
+              fontFamily: "'Courier New', Courier, monospace",
+              backgroundColor: 'rgba(16, 185, 129, 0.05)',
+              textAlign: 'center',
+              pointerEvents: 'none',
+              zIndex: 50
+            }}
+          >
+            LUNAS / PAID
+            <div style={{ fontSize: '8px', marginTop: '4px', fontFamily: 'sans-serif', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+              {stampDateStr}
+            </div>
+          </div>
+        )}
         {/* HEADER SECTION - USING TABLE FOR MAXIMUM PRINT STABILITY */}
         <table className="w-full mb-6 border-b-2 border-slate-900">
           <tbody>

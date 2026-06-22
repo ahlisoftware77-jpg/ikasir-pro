@@ -118,6 +118,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     storeName: '',
     address: '',
     phone: '',
+    npwp: '',
     bankInfo: '',
     useTax: true,
     taxRate: 11,
@@ -1076,6 +1077,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               storeName: data.storeName || '',
               address: data.address || '',
               phone: data.phone || '',
+              npwp: data.npwp || '',
               bankInfo: data.bankInfo || '',
               useTax: data.useTax !== false,
               taxRate: data.taxRate || 0,
@@ -1371,6 +1373,19 @@ export default function StoreSettingsScreen({ navigation }: any) {
                         placeholder="e.g. 0812-3456-7890"
                         placeholderTextColor={colors.textMuted}
                         keyboardType="phone-pad"
+                        className="p-4 rounded-2xl border font-bold text-xs"
+                        style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                      />
+                    </View>
+
+                    {/* NPWP Toko Input */}
+                    <View className="space-y-1">
+                      <Text className="text-[9px] font-black uppercase tracking-wider pl-1" style={{ color: colors.textMuted }}>Nomor NPWP Toko</Text>
+                      <TextInput
+                        value={storeSettings.npwp}
+                        onChangeText={(txt) => setStoreSettings(prev => ({ ...prev, npwp: txt }))}
+                        placeholder="e.g. 01.234.567.8-901.000"
+                        placeholderTextColor={colors.textMuted}
                         className="p-4 rounded-2xl border font-bold text-xs"
                         style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
                       />

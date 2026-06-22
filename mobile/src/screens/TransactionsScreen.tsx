@@ -81,6 +81,7 @@ interface Transaction {
   timestamp: any;
   items: any[];
   dueDate?: string;
+  downPayment?: number;
   paidAmount?: number;
   debtAmount?: number;
   cashReceived?: number;
@@ -199,6 +200,11 @@ export default function TransactionsScreen({ navigation }: any) {
     let totalProfit = 0;
     let totalQtyTerjual = 0;
     
+    // Additional metrics for Piutang
+    let totalPiutangAwal = 0;
+    let totalPiutangTerbayar = 0;
+    let totalSisaPiutang = 0;
+    
     filteredTransactions.forEach(trx => {
       const omzetVal = trx.total || 0;
       totalOmzet += omzetVal;
@@ -211,13 +217,23 @@ export default function TransactionsScreen({ navigation }: any) {
       });
 
       totalProfit += (omzetVal - trxHpp);
+      
+      // Calculate Piutang metrics
+      let dp = trx.downPayment || 0;
+      let paid = trx.paidAmount || 0;
+      totalPiutangAwal += Math.max(0, (trx.total || 0) - dp);
+      totalPiutangTerbayar += Math.max(0, paid - dp);
+      totalSisaPiutang += trx.debtAmount !== undefined ? trx.debtAmount : Math.max(0, (trx.total || 0) - paid);
     });
 
     return {
       totalTrx: filteredTransactions.length,
       totalQty: totalQtyTerjual,
       omzet: totalOmzet,
-      profit: totalProfit
+      profit: totalProfit,
+      piutangAwal: totalPiutangAwal,
+      piutangTerbayar: totalPiutangTerbayar,
+      sisaPiutang: totalSisaPiutang
     };
   }, [filteredTransactions]);
 
@@ -890,30 +906,46 @@ export default function TransactionsScreen({ navigation }: any) {
 
               {/* Summary Cards Grid */}
               <View className="flex-row flex-wrap gap-3 mb-5">
-                {/* Card 1: Jumlah Transaksi */}
+                {/* Card 1: Jumlah Transaksi / Estimasi / Piutang / Pesanan */}
                 <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transaksi</Text>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                      {filterTab === 'debt' ? 'Transaksi Piutang' : filterTab === 'estimation' ? 'Total Estimasi' : filterTab === 'online' ? 'Pesanan Online' : 'Transaksi'}
+                    </Text>
                     <View className="p-1 rounded-lg bg-indigo-500/10">
                       <History size={12} color="#6366f1" />
                     </View>
                   </View>
-                  <Text className="text-base font-black" style={{ color: colors.text }}>{metrics.totalTrx} Trx</Text>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>
+                    {metrics.totalTrx} {filterTab === 'estimation' ? 'Est' : 'Trx'}
+                  </Text>
                 </View>
 
-                {/* Card 2: Produk Terjual */}
+                {/* Card 2: Produk Terjual / Estimasi / Sisa Piutang / Pesanan */}
                 <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   <View className="flex-row justify-between items-center mb-1">
-                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Terjual</Text>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                      {filterTab === 'debt' ? 'Sisa Piutang' : filterTab === 'estimation' ? 'Produk Estimasi' : filterTab === 'online' ? 'Item Terjual' : 'Terjual'}
+                    </Text>
                     <View className="p-1 rounded-lg bg-sky-500/10">
                       <ShoppingBag size={12} color="#0284c7" />
                     </View>
                   </View>
-                  <Text className="text-base font-black" style={{ color: colors.text }}>{metrics.totalQty} Qty</Text>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>
+                    {filterTab === 'debt' ? `Rp${metrics.sisaPiutang.toLocaleString('id-ID')}` : `${metrics.totalQty} Qty`}
+                  </Text>
                   <TouchableOpacity 
                     onPress={() => {
                       Vibration.vibrate(10);
-                      navigation.navigate('FeatureDetails', { featureId: 'terjual', title: 'Analitik Terjual' });
+                      if (filterTab === 'debt') {
+                        navigation.navigate('FeatureDetails', { featureId: 'piutang', title: 'Hutang Piutang' });
+                      } else if (filterTab === 'estimation') {
+                        navigation.navigate('FeatureDetails', { featureId: 'estimasi', title: 'Estimasi Biaya' });
+                      } else if (filterTab === 'online') {
+                        navigation.navigate('Pesanan');
+                      } else {
+                        navigation.navigate('FeatureDetails', { featureId: 'terjual', title: 'Analitik Terjual' });
+                      }
                     }}
                     className="flex-row items-center mt-1"
                   >
@@ -922,26 +954,34 @@ export default function TransactionsScreen({ navigation }: any) {
                   </TouchableOpacity>
                 </View>
 
-                {/* Card 3: Omzet */}
+                {/* Card 3: Omzet / Piutang Awal */}
                 <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Omzet</Text>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                      {filterTab === 'debt' ? 'Piutang Awal' : filterTab === 'estimation' ? 'Nilai Estimasi' : filterTab === 'online' ? 'Omzet Online' : 'Omzet'}
+                    </Text>
                     <View className="p-1 rounded-lg bg-emerald-500/10">
                       <TrendingUp size={12} color="#10b981" />
                     </View>
                   </View>
-                  <Text className="text-base font-black text-emerald-500">Rp{metrics.omzet.toLocaleString('id-ID')}</Text>
+                  <Text className="text-base font-black text-emerald-500">
+                    Rp{(filterTab === 'debt' ? metrics.piutangAwal : metrics.omzet).toLocaleString('id-ID')}
+                  </Text>
                 </View>
 
-                {/* Card 4: Profit */}
+                {/* Card 4: Profit / Piutang Terbayar */}
                 <View className="flex-1 min-w-[45%] p-4 rounded-[20px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Profit</Text>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                      {filterTab === 'debt' ? 'Piutang Terbayar' : filterTab === 'estimation' ? 'Potensi Profit' : filterTab === 'online' ? 'Profit Online' : 'Profit'}
+                    </Text>
                     <View className="p-1 rounded-lg bg-amber-500/10">
                       <Coins size={12} color="#f59e0b" />
                     </View>
                   </View>
-                  <Text className="text-base font-black text-amber-500">Rp{metrics.profit.toLocaleString('id-ID')}</Text>
+                  <Text className="text-base font-black text-amber-500">
+                    Rp{(filterTab === 'debt' ? metrics.piutangTerbayar : metrics.profit).toLocaleString('id-ID')}
+                  </Text>
                 </View>
               </View>
 
