@@ -13,7 +13,7 @@ import {
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
-  Wrench, ExternalLink, MessageSquare, Landmark
+  Wrench, ExternalLink, MessageSquare, Landmark, UserPlus
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -148,6 +148,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [superAdminStores, setSuperAdminStores] = useState<any[]>([]);
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
   
@@ -405,6 +406,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     let unsubBranding: any = () => {};
     let unsubMaint: any = () => {};
     let unsubFeedback: any = () => {};
+    let unsubRegistrations: any = () => {};
 
     // Always fetch branding for potential preview checks
     unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
@@ -529,6 +531,21 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       });
     }
 
+    if (featureId === 'superAdminRegistrations') {
+      unsubRegistrations = onSnapshot(collection(db, 'registrations'), (snapshot) => {
+        const regs: any[] = [];
+        snapshot.forEach((d) => regs.push({ id: d.id, ...d.data() }));
+        regs.sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+        setRegistrations(regs);
+      }, (err) => {
+        console.error("Error listening to registrations in SuperAdminScreen:", err);
+      });
+    }
+
     return () => {
       unsubUsers();
       unsubStores();
@@ -538,6 +555,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       unsubBranding();
       unsubMaint();
       unsubFeedback();
+      unsubRegistrations();
     };
   }, [featureId]);
 
@@ -1647,6 +1665,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             } catch (err: any) {
               console.error(err);
               Alert.alert('Gagal', 'Gagal menghapus: ' + err.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteRegistration = async (id: string) => {
+    Alert.alert(
+      'Konfirmasi Hapus',
+      'Apakah Anda yakin ingin menghapus log pendaftaran ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              await deleteDoc(doc(db, 'registrations', id));
+              Alert.alert('Sukses', 'Log pendaftaran berhasil dihapus.');
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal menghapus log pendaftaran: ' + err.message);
             } finally {
               setIsSaving(false);
             }
@@ -3207,6 +3251,109 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             </View>
           </ScrollView>
         );
+
+      case 'superAdminRegistrations': {
+        const filteredRegs = registrations.filter(r => 
+          r.ownerName?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) ||
+          r.storeName?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) ||
+          r.email?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) ||
+          r.storeId?.toLowerCase().includes(superAdminSearchQuery.toLowerCase())
+        );
+
+        return (
+          <View className="flex-1">
+            {/* Search Bar */}
+            <View className="flex-row gap-3 mb-4">
+              <View className="flex-1 flex-row items-center border rounded-2xl px-4 py-1" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+                <TextInput
+                  placeholder="Cari pendaftaran (nama/toko/email)..."
+                  placeholderTextColor={colors.textMuted + '80'}
+                  value={superAdminSearchQuery}
+                  onChangeText={setSuperAdminSearchQuery}
+                  className="flex-1 h-12 font-bold text-xs"
+                  style={{ color: colors.text }}
+                />
+                {superAdminSearchQuery !== '' && (
+                  <TouchableOpacity onPress={() => setSuperAdminSearchQuery('')}>
+                    <X size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+              <View className="space-y-4 pb-20">
+                {filteredRegs.map((reg) => (
+                  <View 
+                    key={reg.id} 
+                    className="p-5 rounded-3xl border mb-3" 
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
+                    <View className="flex-row justify-between items-start mb-3">
+                      <View className="flex-1 pr-2">
+                        {/* Badges: Platform & Method */}
+                        <View className="flex-row items-center gap-2 mb-2 flex-wrap">
+                          <Text className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${reg.platform === 'mobile' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                            {reg.platform || 'web'}
+                          </Text>
+                          <Text className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${reg.method === 'google' ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                            {reg.method || 'email'}
+                          </Text>
+                          <Text className="text-[9px] font-mono font-black uppercase text-slate-400">
+                            ID: {reg.storeId || '-'}
+                          </Text>
+                        </View>
+                        
+                        {/* Store Name & Owner */}
+                        <Text className="text-sm font-black uppercase" style={{ color: colors.text }} numberOfLines={1}>
+                          {reg.storeName || '-'}
+                        </Text>
+                        <Text className="text-xs font-bold text-slate-400 mt-0.5">
+                          Owner: <Text style={{ color: colors.text }}>{reg.ownerName || '-'}</Text>
+                        </Text>
+                      </View>
+                      
+                      {/* Delete Log Button */}
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteRegistration(reg.id)}
+                        disabled={isSaving}
+                        className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl"
+                      >
+                        <Trash2 size={14} color="#f43f5e" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Metadata & Contact info */}
+                    <View className="bg-black/10 p-3 rounded-2xl space-y-1">
+                      <View className="flex-row justify-between">
+                        <Text className="text-[8px] font-black text-slate-500">EMAIL:</Text>
+                        <Text className="text-[9px] font-bold" style={{ color: colors.text }}>{reg.email || '-'}</Text>
+                      </View>
+                      <View className="flex-row justify-between">
+                        <Text className="text-[8px] font-black text-slate-500">WHATSAPP:</Text>
+                        <Text className="text-[9px] font-bold" style={{ color: colors.text }}>{reg.phone || '-'}</Text>
+                      </View>
+                      <View className="flex-row justify-between pt-1 border-t border-slate-800/10">
+                        <Text className="text-[8px] font-black text-slate-500">WAKTU DAFTAR:</Text>
+                        <Text className="text-[8px] font-bold text-slate-400">
+                          {reg.createdAt ? new Date(reg.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+                
+                {filteredRegs.length === 0 && (
+                  <View className="py-20 items-center opacity-30">
+                    <UserPlus size={48} color={colors.textMuted} />
+                    <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada pendaftaran akun baru.</Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        );
+      }
 
       default:
         return null;

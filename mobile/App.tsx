@@ -323,9 +323,9 @@ function NavigationRoot() {
       spinValue.setValue(0);
     }
   }, [maintenance?.isActive, role]);
-
   useEffect(() => {
     if (!user?.uid) return;
+    let unsubSuperadminNotifications: (() => void) | null = null;
 
     const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
       if (docSnap.exists()) {
@@ -390,6 +390,55 @@ function NavigationRoot() {
 
         if (userData.role) {
           useAuthStore.getState().setRole(userData.role);
+          
+          if (userData.role === 'super-admin' || userData.role === 'superadmin') {
+            if (!unsubSuperadminNotifications) {
+              unsubSuperadminNotifications = onSnapshot(collection(db, 'superadmin_notifications'), async (snapshot) => {
+                try {
+                  const processedStr = await AsyncStorage.getItem('kasir-pro-mobile-processed-superadmin-notifications');
+                  const processedIds = processedStr ? JSON.parse(processedStr) : [];
+                  const newProcessedIds = [...processedIds];
+                  let changed = false;
+
+                  snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                      const data = change.doc.data();
+                      const id = change.doc.id;
+
+                      if (!processedIds.includes(id)) {
+                        useNotificationStore.getState().addNotification({
+                          title: data.title,
+                          body: data.message,
+                          data: {
+                            superadminNotificationId: id,
+                            createdAt: data.createdAt,
+                            type: data.type,
+                            registrationId: data.registrationId
+                          }
+                        });
+                        newProcessedIds.push(id);
+                        changed = true;
+                      }
+                    }
+                  });
+
+                  if (changed) {
+                    await AsyncStorage.setItem('kasir-pro-mobile-processed-superadmin-notifications', JSON.stringify(newProcessedIds));
+                  }
+                } catch (err) {
+                  console.error("Error syncing superadmin notifications on mobile:", err);
+                }
+              }, (err) => {
+                console.error("Error listening to superadmin notifications in App.tsx:", err);
+              });
+            }
+          } else {
+            if (unsubSuperadminNotifications) {
+              unsubSuperadminNotifications();
+              unsubSuperadminNotifications = null;
+            }
+          }
+
           let userPermissions = null;
           if (userData.role === 'admin' || userData.role === 'super-admin' || userData.role === 'superadmin') {
             userPermissions = {
@@ -487,6 +536,9 @@ function NavigationRoot() {
     return () => {
       unsubUser();
       unsubBroadcasts();
+      if (unsubSuperadminNotifications) {
+        unsubSuperadminNotifications();
+      }
     };
   }, [user?.uid]);
 

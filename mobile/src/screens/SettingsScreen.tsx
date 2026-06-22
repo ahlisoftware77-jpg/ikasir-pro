@@ -19,7 +19,7 @@ import {
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
   Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save,
-  MessageCircle, QrCode, Landmark, Wallet, HelpCircle, MessageSquare
+  MessageCircle, QrCode, Landmark, Wallet, HelpCircle, MessageSquare, UserPlus
 } from 'lucide-react-native';
 import { db, auth, storage } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -1438,6 +1438,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               {renderMenuItem('Kritik & Saran', MessageSquare, '#a855f7', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminFeedback', title: 'Kritik & Saran' });
+              })}
+              {renderMenuItem('Registrasi', UserPlus, '#06b6d4', () => {
+                Vibration.vibrate(10);
+                navigation.navigate('SuperAdminScreen', { featureId: 'superAdminRegistrations', title: 'Pendaftaran Baru' });
               })}
             </View>
           </View>

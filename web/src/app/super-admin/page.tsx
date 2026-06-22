@@ -66,10 +66,10 @@ export default function SuperAdminPage() {
     storeId: '',
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast' | 'feedback'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast' | 'feedback' | 'registrations'>('users');
 
   useEffect(() => {
-    if (tabParam && ['users', 'stores', 'branding', 'infrastructure', 'subscriptions', 'broadcast', 'feedback'].includes(tabParam)) {
+    if (tabParam && ['users', 'stores', 'branding', 'infrastructure', 'subscriptions', 'broadcast', 'feedback', 'registrations'].includes(tabParam)) {
       setActiveTab(tabParam as any);
     }
   }, [tabParam]);
@@ -90,6 +90,7 @@ export default function SuperAdminPage() {
   const [migrationMode, setMigrationMode] = useState<'standard' | 'mass'>('standard');
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
   
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -358,11 +359,24 @@ export default function SuperAdminPage() {
       setFeedbacks(fbs);
     });
 
+    const qRegistrations = query(collection(primaryDb, 'registrations'));
+    const unsubscribeRegistrations = onSnapshot(qRegistrations, (snapshot) => {
+      const regs: any[] = [];
+      snapshot.forEach((d) => regs.push({ id: d.id, ...d.data() }));
+      regs.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      setRegistrations(regs);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeStores();
       unsubscribeSubscriptions();
       unsubscribeFeedback();
+      unsubscribeRegistrations();
     };
   }, []);
 
@@ -373,6 +387,16 @@ export default function SuperAdminPage() {
       alert('Kritik & saran berhasil dihapus.');
     } catch (err: any) {
       alert('Gagal menghapus: ' + err.message);
+    }
+  };
+
+  const handleDeleteRegistration = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus riwayat pendaftaran ini secara permanen dari log?')) return;
+    try {
+      await deleteDoc(doc(primaryDb, 'registrations', id));
+      alert('Riwayat pendaftaran berhasil dihapus.');
+    } catch (err: any) {
+      alert('Gagal menghapus riwayat: ' + err.message);
     }
   };
 
@@ -1560,6 +1584,12 @@ export default function SuperAdminPage() {
                className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl font-black text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 ${activeTab === 'feedback' ? 'bg-accent text-foreground shadow-lg' : 'text-app-text-muted hover:text-foreground'}`}
              >
                 <MessageSquare size={16} /> KRITIK & SARAN
+             </button>
+             <button 
+               onClick={() => setActiveTab('registrations')}
+               className={`flex-1 md:flex-none px-6 md:px-8 py-3 rounded-xl font-black text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 shrink-0 ${activeTab === 'registrations' ? 'bg-accent text-foreground shadow-lg' : 'text-app-text-muted hover:text-foreground'}`}
+             >
+                <UserPlus size={16} /> REGISTRASI
              </button>
           </div>
 
@@ -3000,6 +3030,81 @@ export default function SuperAdminPage() {
                               <td className="p-4 text-xs font-bold text-center">
                                  <button 
                                     onClick={() => handleDeleteFeedback(fb.id)}
+                                    className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 transition-all active:scale-95"
+                                 >
+                                    <Trash2 size={14} />
+                                 </button>
+                              </td>
+                           </tr>
+                        ))
+                     )}
+                  </tbody>
+               </table>
+            </div>
+         </div>
+      )}
+
+      {activeTab === 'registrations' && (
+         <div className="bg-surface border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-xl relative overflow-hidden transition-colors duration-300">
+            <h2 className="text-xl font-black text-foreground mb-6 flex items-center gap-3 uppercase tracking-wider">
+               <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <UserPlus className="text-accent" />
+               </div>
+               Pendaftaran Akun Baru (IKASIR)
+            </h2>
+            
+            <div className="overflow-x-auto rounded-2xl border border-app-border bg-background/50">
+               <table className="w-full border-collapse text-left">
+                  <thead>
+                     <tr className="border-b border-app-border bg-background">
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Waktu Daftar</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Nama Pemilik</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Nama Toko</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Email</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">No WhatsApp / HP</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Platform</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest">Metode</th>
+                        <th className="p-4 text-[10px] font-black text-app-text-muted uppercase tracking-widest text-center">Aksi</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     {registrations.filter(r => 
+                       r.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       r.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       r.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                     ).length === 0 ? (
+                        <tr>
+                           <td colSpan={8} className="p-8 text-center text-xs text-app-text-muted font-bold italic">
+                              Tidak ada data pendaftaran yang sesuai.
+                           </td>
+                        </tr>
+                     ) : (
+                        registrations.filter(r => 
+                          r.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          r.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          r.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                        ).map((r) => (
+                           <tr key={r.id} className="border-b border-app-border/40 hover:bg-surface/10 transition-colors">
+                              <td className="p-4 text-xs font-black text-foreground">
+                                 {r.createdAt ? new Date(r.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+                              </td>
+                              <td className="p-4 text-xs font-bold text-foreground">{r.ownerName || '-'}</td>
+                              <td className="p-4 text-xs font-black text-accent uppercase tracking-wider">{r.storeName || '-'} <span className="text-[10px] font-mono text-app-text-muted lowercase tracking-normal">({r.storeId || r.id})</span></td>
+                              <td className="p-4 text-xs font-bold text-foreground">{r.email || '-'}</td>
+                              <td className="p-4 text-xs font-bold text-foreground">{r.phone || '-'}</td>
+                              <td className="p-4 text-xs font-bold">
+                                 <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${r.platform === 'mobile' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                    {r.platform || 'web'}
+                                 </span>
+                              </td>
+                              <td className="p-4 text-xs font-bold">
+                                 <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${r.method === 'google' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                    {r.method || 'email'}
+                                 </span>
+                              </td>
+                              <td className="p-4 text-xs font-bold text-center">
+                                 <button 
+                                    onClick={() => handleDeleteRegistration(r.id)}
                                     className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 transition-all active:scale-95"
                                  >
                                     <Trash2 size={14} />

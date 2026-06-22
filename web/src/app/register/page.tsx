@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, addDoc, collection } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
   ShoppingBag, 
@@ -84,7 +84,7 @@ export default function RegisterPage() {
     }
     setIsLoading(true);
     try {
-      const { doc, getDoc, setDoc } = await import('firebase/firestore');
+      const { doc, getDoc, setDoc, addDoc, collection } = await import('firebase/firestore');
       
       let baseStoreId = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
       if (!baseStoreId) baseStoreId = 'store';
@@ -129,6 +129,28 @@ export default function RegisterPage() {
         receiptMessage: 'Terima kasih telah berbelanja!',
         paperSize: '58mm',
         storeId: storeId
+      });
+
+      // Rekam Pendataan Pendaftaran
+      await setDoc(doc(db, 'registrations', storeId), {
+        ownerName: userName,
+        storeName: storeName,
+        email: googleUser.email,
+        phone: phone,
+        createdAt: new Date().toISOString(),
+        method: 'google',
+        platform: 'web',
+        storeId: storeId
+      });
+
+      // Kirim Notifikasi Superadmin
+      await addDoc(collection(db, 'superadmin_notifications'), {
+        title: 'Pendaftaran Baru (Google)',
+        message: `Toko "${storeName}" (${userName}) terdaftar via Web.`,
+        createdAt: new Date().toISOString(),
+        type: 'registration',
+        read: false,
+        registrationId: storeId
       });
 
       await logActivity({
@@ -218,6 +240,28 @@ export default function RegisterPage() {
         receiptMessage: 'Terima kasih telah berbelanja!',
         paperSize: '58mm',
         storeId: storeId
+      });
+
+      // Rekam Pendataan Pendaftaran
+      await setDoc(doc(db, 'registrations', storeId), {
+        ownerName: formData.ownerName,
+        storeName: formData.storeName,
+        email: formData.email,
+        phone: '-',
+        createdAt: new Date().toISOString(),
+        method: 'email',
+        platform: 'web',
+        storeId: storeId
+      });
+
+      // Kirim Notifikasi Superadmin
+      await addDoc(collection(db, 'superadmin_notifications'), {
+        title: 'Pendaftaran Baru (Email)',
+        message: `Toko "${formData.storeName}" (${formData.ownerName}) terdaftar via Web.`,
+        createdAt: new Date().toISOString(),
+        type: 'registration',
+        read: false,
+        registrationId: storeId
       });
 
       // Log Registration

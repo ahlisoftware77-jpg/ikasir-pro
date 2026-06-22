@@ -32,6 +32,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     let unsubscribeUser: (() => void) | null = null;
     let unsubscribeBroadcasts: (() => void) | null = null;
+    let unsubscribeSuperAdminNotifications: (() => void) | null = null;
     
     // Monitor branding global settings
     const unsubscribeBranding = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
@@ -52,6 +53,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (unsubscribeBroadcasts) {
         unsubscribeBroadcasts();
         unsubscribeBroadcasts = null;
+      }
+      if (unsubscribeSuperAdminNotifications) {
+        unsubscribeSuperAdminNotifications();
+        unsubscribeSuperAdminNotifications = null;
       }
 
       if (user) {
@@ -134,6 +139,53 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                   }
                 } catch (err) {
                   console.error("Error processing broadcasts for admin:", err);
+                }
+              }
+            );
+          }
+
+          // Add superadmin registrations notification listener
+          if (!unsubscribeSuperAdminNotifications) {
+            const { collection, onSnapshot: fireOnSnapshot } = await import('firebase/firestore');
+            const { useNotificationStore } = await import('@/store/notifications');
+            
+            unsubscribeSuperAdminNotifications = fireOnSnapshot(
+              collection(primaryDb, 'superadmin_notifications'),
+              (snapshot) => {
+                try {
+                  const processedStr = localStorage.getItem('kasir-pro-processed-superadmin-notifications');
+                  const processedIds = processedStr ? JSON.parse(processedStr) : [];
+                  const newProcessedIds = [...processedIds];
+                  let changed = false;
+                  
+                  snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                      const data = change.doc.data();
+                      const id = change.doc.id;
+                      
+                      if (!processedIds.includes(id)) {
+                        useNotificationStore.getState().addNotification({
+                          title: data.title,
+                          body: data.message,
+                          type: 'system',
+                          metadata: {
+                            superadminNotificationId: id,
+                            createdAt: data.createdAt,
+                            type: data.type,
+                            registrationId: data.registrationId
+                          }
+                        });
+                        newProcessedIds.push(id);
+                        changed = true;
+                      }
+                    }
+                  });
+                  
+                  if (changed) {
+                    localStorage.setItem('kasir-pro-processed-superadmin-notifications', JSON.stringify(newProcessedIds));
+                  }
+                } catch (err) {
+                  console.error("Error processing superadmin notifications:", err);
                 }
               }
             );

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal, Linking } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
@@ -143,6 +143,28 @@ export default function LoginScreen() {
         receiptMessage: 'Terima kasih telah berbelanja!',
         paperSize: '58mm',
         storeId: storeIdStr
+      });
+
+      // Rekam Pendataan Pendaftaran
+      await setDoc(doc(db, 'registrations', storeIdStr), {
+        ownerName: name,
+        storeName: storeName,
+        email: email,
+        phone: '-',
+        createdAt: new Date().toISOString(),
+        method: 'email',
+        platform: 'mobile',
+        storeId: storeIdStr
+      });
+
+      // Kirim Notifikasi Superadmin
+      await addDoc(collection(db, 'superadmin_notifications'), {
+        title: 'Pendaftaran Baru (Email)',
+        message: `Toko "${storeName}" (${name}) terdaftar via Mobile.`,
+        createdAt: new Date().toISOString(),
+        type: 'registration',
+        read: false,
+        registrationId: storeIdStr
       });
 
       setRole('admin');
@@ -289,6 +311,28 @@ export default function LoginScreen() {
         receiptMessage: 'Terima kasih telah berbelanja!',
         paperSize: '58mm',
         storeId: storeIdStr
+      });
+
+      // Rekam Pendataan Pendaftaran
+      await setDoc(doc(db, 'registrations', storeIdStr), {
+        ownerName: displayName,
+        storeName: storeName,
+        email: googleUser.email,
+        phone: phone,
+        createdAt: new Date().toISOString(),
+        method: 'google',
+        platform: 'mobile',
+        storeId: storeIdStr
+      });
+
+      // Kirim Notifikasi Superadmin
+      await addDoc(collection(db, 'superadmin_notifications'), {
+        title: 'Pendaftaran Baru (Google)',
+        message: `Toko "${storeName}" (${displayName}) terdaftar via Mobile.`,
+        createdAt: new Date().toISOString(),
+        type: 'registration',
+        read: false,
+        registrationId: storeIdStr
       });
 
       setShowGoogleModal(false);
