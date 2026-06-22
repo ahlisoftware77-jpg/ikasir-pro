@@ -189,6 +189,8 @@ export default function POSScreen({ route, navigation }: any) {
     receiptMessage: '',
     qrisUrl: '',
     bankInfo: '',
+    storeBanks: [] as any[],
+    storeEwallets: [] as any[],
   });
 
   const { width, height } = useWindowDimensions();
@@ -622,6 +624,8 @@ export default function POSScreen({ route, navigation }: any) {
             receiptMessage: data.receiptMessage || '',
             qrisUrl: data.qrisUrl || '',
             bankInfo: data.bankInfo || '',
+            storeBanks: data.storeBanks || [],
+            storeEwallets: data.storeEwallets || [],
             ...data
           });
         }
@@ -2754,7 +2758,7 @@ export default function POSScreen({ route, navigation }: any) {
 
                   {/* QRIS details */}
                   {paymentMethod === 'qris' && (
-                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl items-center">
+                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl items-center w-full">
                       <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Scan QRIS untuk Membayar</Text>
                       {storeSettings.qrisUrl ? (
                         <View className="p-2 bg-white rounded-2xl border border-black/5 shadow-sm">
@@ -2766,17 +2770,44 @@ export default function POSScreen({ route, navigation }: any) {
                           <Text className="text-[10px] font-bold text-slate-500 text-center mt-1">Silakan unggah foto QRIS di menu Pengaturan Toko terlebih dahulu.</Text>
                         </View>
                       )}
-                      {storeSettings.qrisUrl && (
-                         <Text className="text-[10px] font-black" style={{ color: colors.accent }}>Total Tagihan: Rp {total.toLocaleString('id-ID')}</Text>
+                      
+                      {/* E-Wallets List if configured */}
+                      {storeSettings.storeEwallets && storeSettings.storeEwallets.length > 0 && (
+                        <View className="space-y-1.5 w-full mt-2">
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Akun E-Wallet Pendukung</Text>
+                          {storeSettings.storeEwallets.map((ew: any) => (
+                            <View key={ew.id} className="p-2.5 bg-white rounded-xl border border-black/5 flex-row justify-between items-center">
+                              <View>
+                                <Text className="text-[9px] font-black uppercase text-indigo-600">{ew.ewalletName}</Text>
+                                <Text className="text-xs font-black text-slate-900 mt-0.5">{ew.phoneNumber}</Text>
+                                <Text className="text-[8px] font-bold text-slate-400">a.n. {ew.accountHolder}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {(storeSettings.qrisUrl || (storeSettings.storeEwallets && storeSettings.storeEwallets.length > 0)) && (
+                         <Text className="text-[10px] font-black mt-2 text-center" style={{ color: colors.accent }}>Total Tagihan: Rp {total.toLocaleString('id-ID')}</Text>
                       )}
                     </View>
                   )}
-
+ 
                   {/* Bank Transfer details */}
                   {paymentMethod === 'transfer' && (
-                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl items-center">
+                    <View className="space-y-3 bg-black/5 p-4 rounded-2xl w-full">
                       <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Info Rekening Transfer</Text>
-                      {storeSettings.bankInfo ? (
+                      {storeSettings.storeBanks && storeSettings.storeBanks.length > 0 ? (
+                        <View className="space-y-2 w-full">
+                          {storeSettings.storeBanks.map((bank: any) => (
+                            <View key={bank.id} className="p-3 bg-white rounded-xl border border-black/5 shadow-sm">
+                              <Text className="text-[9px] font-black uppercase text-emerald-600">{bank.bankName}</Text>
+                              <Text className="text-xs font-black text-slate-900 mt-0.5">{bank.accountNumber}</Text>
+                              <Text className="text-[8px] font-bold text-slate-400">a.n. {bank.accountHolder}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : storeSettings.bankInfo ? (
                         <View className="p-4 bg-white rounded-2xl border border-black/5 shadow-sm w-full">
                           <Text className="text-sm font-black text-center" style={{ color: colors.text }}>{storeSettings.bankInfo}</Text>
                         </View>
@@ -2786,8 +2817,8 @@ export default function POSScreen({ route, navigation }: any) {
                           <Text className="text-[10px] font-bold text-slate-500 text-center mt-1">Silakan atur Info Rekening di menu Pengaturan Toko.</Text>
                         </View>
                       )}
-                      {storeSettings.bankInfo && (
-                         <Text className="text-[10px] font-black" style={{ color: colors.accent }}>Total Tagihan: Rp {total.toLocaleString('id-ID')}</Text>
+                      {(storeSettings.bankInfo || (storeSettings.storeBanks && storeSettings.storeBanks.length > 0)) && (
+                         <Text className="text-[10px] font-black text-center mt-2" style={{ color: colors.accent }}>Total Tagihan: Rp {total.toLocaleString('id-ID')}</Text>
                       )}
                     </View>
                   )}
