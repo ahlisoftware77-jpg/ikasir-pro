@@ -1724,19 +1724,19 @@ export default function POSScreen({ route, navigation }: any) {
                   disabled={isOutOfStock}
                   className="flex-1 m-2 p-3 rounded-[24px] border"
                   style={{ 
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: '#F1B903',
+                    borderColor: '#ca8a04',
                     opacity: isOutOfStock ? 0.6 : 1
                   }}
                 >
                   <View 
                     className="w-full aspect-square rounded-2xl mb-3 overflow-hidden items-center justify-center relative"
-                    style={{ backgroundColor: colors.bg }}
+                    style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}
                   >
                     {item.imageUrl ? (
                       <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     ) : (
-                      <Package color={colors.textMuted} opacity={0.2} size={40} />
+                      <Package color="#0f172a" opacity={0.2} size={40} />
                     )}
                     
                     {isOutOfStock && (
@@ -1754,32 +1754,32 @@ export default function POSScreen({ route, navigation }: any) {
                     )}
 
                     {item.hasExtras && (
-                      <View className="absolute top-2 right-2 bg-accent px-2 py-0.5 rounded-lg">
+                      <View className="absolute top-2 right-2 bg-emerald-500 px-2 py-0.5 rounded-lg">
                         <Text className="text-[8px] font-black text-white">+ EXTRA</Text>
                       </View>
                     )}
                   </View>
                   
-                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>{item.category || 'Umum'}</Text>
-                  <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: colors.text }} numberOfLines={2}>{item.name}</Text>
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: '#0f172a', opacity: 0.8 }}>{item.category || 'Umum'}</Text>
+                  <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: '#0f172a' }} numberOfLines={2}>{item.name}</Text>
                   
-                  <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: 'rgba(15,23,42,0.15)' }}>
                     <View>
                       {hasPromo && (
-                        <Text className="text-[9px] text-slate-500 line-through">
+                        <Text className="text-[9px] line-through text-slate-700">
                           Rp {item.price.toLocaleString('id-ID')}
                         </Text>
                       )}
-                      <Text className="font-black text-emerald-500 text-xs">
+                      <Text className="font-black text-emerald-900 text-xs">
                         Rp {displayPrice.toLocaleString('id-ID')}
                       </Text>
                     </View>
                     
                     <View 
                       className="w-7 h-7 rounded-xl items-center justify-center border"
-                      style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '40' }}
+                      style={{ backgroundColor: 'rgba(15,23,42,0.1)', borderColor: 'rgba(15,23,42,0.2)' }}
                     >
-                      <Plus size={14} color={colors.accent} />
+                      <Plus size={14} color="#0f172a" />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -1794,21 +1794,21 @@ export default function POSScreen({ route, navigation }: any) {
                   disabled={isOutOfStock}
                   className="mx-2 my-1.5 p-3 rounded-2xl border flex-row items-center justify-between"
                   style={{ 
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: '#F1B903',
+                    borderColor: '#ca8a04',
                     opacity: isOutOfStock ? 0.6 : 1
                   }}
                 >
                   <View className="flex-1 pr-4">
-                    <Text className="text-xs font-bold" style={{ color: colors.text }} numberOfLines={1}>{item.name}</Text>
-                    <Text className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">{item.category || 'Umum'}</Text>
+                    <Text className="text-xs font-bold" style={{ color: '#0f172a' }} numberOfLines={1}>{item.name}</Text>
+                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: '#475569' }}>{item.category || 'Umum'}</Text>
                   </View>
                   <View className="items-end shrink-0">
-                    <Text className="font-black text-emerald-500 text-xs">
+                    <Text className="font-black text-emerald-900 text-xs">
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.manageStock !== false && (
-                      <Text className="text-[9px] text-slate-400 font-bold mt-0.5">
+                      <Text className="text-[9px] font-bold mt-0.5" style={{ color: '#475569' }}>
                         Stok: {item.stock}
                       </Text>
                     )}
@@ -1825,19 +1825,19 @@ export default function POSScreen({ route, navigation }: any) {
                 disabled={isOutOfStock}
                 className="mx-2 my-1.5 p-3 rounded-[24px] border flex-row items-center gap-3.5"
                 style={{ 
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
+                  backgroundColor: '#F1B903',
+                  borderColor: '#ca8a04',
                   opacity: isOutOfStock ? 0.6 : 1
                 }}
               >
                 <View 
                   className="w-16 h-16 rounded-2xl overflow-hidden items-center justify-center relative shrink-0"
-                  style={{ backgroundColor: colors.bg }}
+                  style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}
                 >
                   {item.imageUrl ? (
                     <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                   ) : (
-                    <Package color={colors.textMuted} opacity={0.2} size={24} />
+                    <Package color="#0f172a" opacity={0.2} size={24} />
                   )}
                   
                   {isOutOfStock && (
@@ -1848,14 +1848,14 @@ export default function POSScreen({ route, navigation }: any) {
                 </View>
 
                 <View className="flex-1 min-w-0">
-                  <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: colors.accent }}>{item.category || 'Umum'}</Text>
-                  <Text className="text-sm font-black mb-1 truncate" style={{ color: colors.text }}>{item.name}</Text>
+                  <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#475569' }}>{item.category || 'Umum'}</Text>
+                  <Text className="text-sm font-black mb-1 truncate" style={{ color: '#0f172a' }}>{item.name}</Text>
                   <View className="flex-row items-center gap-2">
-                    <Text className="font-black text-emerald-500 text-xs">
+                    <Text className="font-black text-emerald-900 text-xs">
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.sku && (
-                      <Text className="text-[9px] text-slate-400 font-mono">
+                      <Text className="text-[9px] font-mono" style={{ color: '#475569' }}>
                         SKU: {item.sku}
                       </Text>
                     )}
@@ -1866,11 +1866,11 @@ export default function POSScreen({ route, navigation }: any) {
                   {item.manageStock !== false && (
                     <View 
                       className="px-2 py-0.5 rounded-lg"
-                      style={{ backgroundColor: item.stock > 10 ? '#10b98115' : '#f43f5e15' }}
+                      style={{ backgroundColor: 'rgba(16,185,129,0.15)' }}
                     >
                       <Text 
                         className="text-[9px] font-black uppercase tracking-wider"
-                        style={{ color: item.stock > 10 ? '#10b981' : '#f43f5e' }}
+                        style={{ color: '#10b981' }}
                       >
                         Stok: {item.stock}
                       </Text>
