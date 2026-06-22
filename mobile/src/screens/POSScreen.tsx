@@ -1770,7 +1770,7 @@ export default function POSScreen({ route, navigation }: any) {
                           Rp {item.price.toLocaleString('id-ID')}
                         </Text>
                       )}
-                      <Text className="font-black text-xs" style={{ color: '#00c853' }}>
+                      <Text className="font-black text-xs" style={{ color: '#15803d' }}>
                         Rp {displayPrice.toLocaleString('id-ID')}
                       </Text>
                     </View>
@@ -1804,7 +1804,7 @@ export default function POSScreen({ route, navigation }: any) {
                     <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
                   </View>
                   <View className="items-end shrink-0">
-                    <Text className="font-black text-xs" style={{ color: '#00c853' }}>
+                    <Text className="font-black text-xs" style={{ color: '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.manageStock !== false && (
@@ -1851,7 +1851,7 @@ export default function POSScreen({ route, navigation }: any) {
                   <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
                   <Text className="text-sm font-black mb-1 truncate" style={{ color: '#0f172a' }}>{item.name}</Text>
                   <View className="flex-row items-center gap-2">
-                    <Text className="font-black text-xs" style={{ color: '#00c853' }}>
+                    <Text className="font-black text-xs" style={{ color: '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.sku && (
