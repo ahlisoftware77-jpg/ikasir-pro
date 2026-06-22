@@ -60,7 +60,10 @@ import {
   UserPlus,
   LayoutGrid,
   List,
-  LayoutList
+  LayoutList,
+  Sparkles,
+  Calendar,
+  Shield
 } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
@@ -84,6 +87,8 @@ interface Product {
   extras?: string[];
   barcode?: string;
   sku?: string;
+  description?: string;
+  expiryDate?: string;
   warrantyDuration?: number;
   warrantyUnit?: 'days' | 'months' | 'years';
 }
@@ -496,6 +501,11 @@ export default function POSScreen({ route, navigation }: any) {
   const [showManualCustomCategoryModal, setShowManualCustomCategoryModal] = useState(false);
   const [manualCustomCategoryText, setManualCustomCategoryText] = useState('');
   const [saveToCatalog, setSaveToCatalog] = useState(false);
+  const [manualItemBarcode, setManualItemBarcode] = useState('');
+  const [manualItemDescription, setManualItemDescription] = useState('');
+  const [manualItemExpiryDate, setManualItemExpiryDate] = useState('');
+  const [manualItemWarrantyDuration, setManualItemWarrantyDuration] = useState('');
+  const [manualItemWarrantyUnit, setManualItemWarrantyUnit] = useState<'days' | 'months' | 'years'>('months');
   // Checkout configuration
   const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'estimasi' | 'merge'>('direct');
   const [selectedOrderToMerge, setSelectedOrderToMerge] = useState<string>('');
@@ -1098,6 +1108,11 @@ export default function POSScreen({ route, navigation }: any) {
           stock: 999,
           manageStock: false,
           category: manualItemCategory,
+          barcode: manualItemBarcode.trim() || '',
+          description: manualItemDescription.trim() || '',
+          expiryDate: manualItemExpiryDate.trim() || '',
+          warrantyDuration: Number(manualItemWarrantyDuration) || 0,
+          warrantyUnit: manualItemWarrantyUnit,
           createdAt: new Date()
         };
         const docRef = await addDoc(collection(db, 'products'), prodData);
@@ -1115,6 +1130,11 @@ export default function POSScreen({ route, navigation }: any) {
         stock: 999999,
         manageStock: false,
         category: saveToCatalog ? manualItemCategory : 'Manual',
+        barcode: manualItemBarcode.trim() || '',
+        description: manualItemDescription.trim() || '',
+        expiryDate: manualItemExpiryDate.trim() || '',
+        warrantyDuration: Number(manualItemWarrantyDuration) || 0,
+        warrantyUnit: manualItemWarrantyUnit,
         selectedExtras: [],
         discountName: null,
         note: ''
@@ -1124,7 +1144,13 @@ export default function POSScreen({ route, navigation }: any) {
       setIsManualModalOpen(false);
       setManualItemName('');
       setManualItemPrice('');
+      setManualItemCategory('Jasa');
       setSaveToCatalog(false);
+      setManualItemBarcode('');
+      setManualItemDescription('');
+      setManualItemExpiryDate('');
+      setManualItemWarrantyDuration('');
+      setManualItemWarrantyUnit('months');
       Vibration.vibrate(15);
     } catch (err) {
       console.error(err);
@@ -1993,7 +2019,7 @@ export default function POSScreen({ route, navigation }: any) {
       {/* Manual Item Modal */}
       <Modal visible={isManualModalOpen} animationType="slide" transparent onRequestClose={() => setIsManualModalOpen(false)}>
         <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[75%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
+          <View className="h-[85%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.surface }}>
             <View className="flex-row items-center justify-between mb-6">
               <View>
                 <Text className="text-lg font-black" style={{ color: colors.text }}>Tambah Item Manual</Text>
@@ -2042,6 +2068,97 @@ export default function POSScreen({ route, navigation }: any) {
                   </Text>
                   <ChevronDown size={16} color={colors.textMuted} />
                 </TouchableOpacity>
+              </View>
+
+              {/* Barcode / Scan / Auto Generate */}
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Barcode (Opsional)</Text>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    placeholder="Barcode / scan / ketik..."
+                    placeholderTextColor={colors.textMuted}
+                    value={manualItemBarcode}
+                    onChangeText={setManualItemBarcode}
+                    className="flex-1 border rounded-2xl py-3.5 px-4 text-sm font-bold"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+                      setManualItemBarcode(randomBarcode);
+                      Vibration.vibrate(10);
+                    }}
+                    className="px-4 bg-accent rounded-2xl flex-row items-center justify-center gap-1 shadow-md shadow-accent/20"
+                  >
+                    <Sparkles size={14} color="#0f172a" />
+                    <Text className="text-[10px] font-black text-[#0f172a] uppercase tracking-wider">AUTO</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Masa Berlaku (Expired) */}
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Masa Berlaku / Kedaluwarsa (Opsional)</Text>
+                <TextInput
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textMuted}
+                  value={manualItemExpiryDate}
+                  onChangeText={setManualItemExpiryDate}
+                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                />
+              </View>
+
+              {/* Garansi Produk */}
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Garansi Produk (Opsional)</Text>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    placeholder="Durasi (e.g. 1)"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="numeric"
+                    value={manualItemWarrantyDuration}
+                    onChangeText={setManualItemWarrantyDuration}
+                    className="flex-[1.2] border rounded-2xl py-3.5 px-4 text-sm font-bold"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                  <View className="flex-1 flex-row border rounded-2xl p-1" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                    {(['days', 'months', 'years'] as const).map((unit) => {
+                      const label = unit === 'days' ? 'Hari' : unit === 'months' ? 'Bln' : 'Thn';
+                      const isSelected = manualItemWarrantyUnit === unit;
+                      return (
+                        <TouchableOpacity
+                          key={unit}
+                          onPress={() => setManualItemWarrantyUnit(unit)}
+                          className="flex-1 rounded-xl items-center justify-center"
+                          style={{
+                            backgroundColor: isSelected ? colors.accent : 'transparent'
+                          }}
+                        >
+                          <Text className="text-[10px] font-black" style={{ color: isSelected ? '#0f172a' : colors.textMuted }}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              {/* Deskripsi */}
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Deskripsi (Opsional)</Text>
+                <TextInput
+                  placeholder="Tambahkan deskripsi atau detail..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={3}
+                  value={manualItemDescription}
+                  onChangeText={setManualItemDescription}
+                  className="border rounded-2xl py-3.5 px-4 text-sm font-medium h-24 text-start"
+                  textAlignVertical="top"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                />
               </View>
 
               <TouchableOpacity 
