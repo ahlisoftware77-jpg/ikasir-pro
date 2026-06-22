@@ -1760,7 +1760,7 @@ export default function POSScreen({ route, navigation }: any) {
                     )}
                   </View>
                   
-                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: '#0f172a', opacity: 0.8 }}>{item.category || 'Umum'}</Text>
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
                   <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: '#0f172a' }} numberOfLines={2}>{item.name}</Text>
                   
                   <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: 'rgba(15,23,42,0.15)' }}>
@@ -1770,7 +1770,7 @@ export default function POSScreen({ route, navigation }: any) {
                           Rp {item.price.toLocaleString('id-ID')}
                         </Text>
                       )}
-                      <Text className="font-black text-emerald-900 text-xs">
+                      <Text className="font-black text-xs" style={{ color: '#00c853' }}>
                         Rp {displayPrice.toLocaleString('id-ID')}
                       </Text>
                     </View>
@@ -1801,10 +1801,10 @@ export default function POSScreen({ route, navigation }: any) {
                 >
                   <View className="flex-1 pr-4">
                     <Text className="text-xs font-bold" style={{ color: '#0f172a' }} numberOfLines={1}>{item.name}</Text>
-                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: '#475569' }}>{item.category || 'Umum'}</Text>
+                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
                   </View>
                   <View className="items-end shrink-0">
-                    <Text className="font-black text-emerald-900 text-xs">
+                    <Text className="font-black text-xs" style={{ color: '#00c853' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.manageStock !== false && (
@@ -1848,10 +1848,10 @@ export default function POSScreen({ route, navigation }: any) {
                 </View>
 
                 <View className="flex-1 min-w-0">
-                  <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#475569' }}>{item.category || 'Umum'}</Text>
+                  <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
                   <Text className="text-sm font-black mb-1 truncate" style={{ color: '#0f172a' }}>{item.name}</Text>
                   <View className="flex-row items-center gap-2">
-                    <Text className="font-black text-emerald-900 text-xs">
+                    <Text className="font-black text-xs" style={{ color: '#00c853' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.sku && (
