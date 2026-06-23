@@ -112,6 +112,11 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
         <div style="font-weight: bold;">${item.productName || item.name}</div>
         <div style="font-size: 10px; color: #666;">${item.qty || 1} x Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
         ${item.selectedExtras?.map((e: any) => `<div style="font-size: 9px; margin-left: 10px;">+ ${e.optionName || e.name} (Rp ${(e.price || 0).toLocaleString('id-ID')})</div>`).join('') || ''}
+        ${item.warrantyExpiry ? `
+          <div style="font-size: 9px; color: #10b981; font-weight: bold; margin-top: 2px;">
+            🛡️ Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        ` : ''}
       </div>
       <div style="font-weight: bold;">Rp ${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</div>
     </div>
@@ -240,6 +245,11 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     <tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 10px; text-align: left;">
         <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+        ${item.warrantyExpiry ? `
+          <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+            🛡️ Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        ` : ''}
         ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
         ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
       </td>
@@ -678,6 +688,12 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     const subtotalVal = item.subtotal || ((item.price || 0) * (item.qty || 1));
     const right = subtotalVal.toLocaleString('id-ID');
     await BluetoothEscposPrinter.printText(`${lr(left, right)}\n\r`, {});
+
+    // Garansi
+    if (item.warrantyExpiry) {
+      const wDate = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
+      await BluetoothEscposPrinter.printText(` [Garansi s/d: ${wDate}]\n\r`, {});
+    }
   }
 
   await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
@@ -977,6 +993,11 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
       <td style="padding: 10px; text-align: left; color: #64748b;">${idx + 1}</td>
       <td style="padding: 10px; text-align: left;">
         <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+        ${item.warrantyExpiry ? `
+          <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+            🛡️ Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        ` : ''}
         ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
         ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
       </td>

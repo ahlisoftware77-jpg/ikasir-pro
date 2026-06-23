@@ -201,6 +201,11 @@ function DeliveryOrderContent() {
                     <td className="p-2 py-3 text-slate-400">{idx + 1}</td>
                     <td className="p-2 py-3">
                        <p className="text-slate-900 text-[11px] font-black tracking-tight leading-tight">{item.productName || item.name}</p>
+                       {item.warrantyExpiry && (
+                          <p className="text-[8px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                             🛡 Garansi s/d: {new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          </p>
+                       )}
                        {item.selectedExtras && item.selectedExtras.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                              {item.selectedExtras.map((ext: any, eIdx: number) => (
