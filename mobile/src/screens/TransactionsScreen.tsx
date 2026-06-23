@@ -785,7 +785,7 @@ export default function TransactionsScreen({ navigation }: any) {
 
     Alert.alert(
       title,
-      msg + " Tindakan ini tidak dapat dibatalkan.",
+      msg + " Data akan dipindahkan ke Kotak Sampah selama 3 bulan.",
       [
         { text: "Batal", style: "cancel" },
         { 
@@ -812,13 +812,38 @@ export default function TransactionsScreen({ navigation }: any) {
                 docsToDelete = snap.docs.filter(d => d.data().orderType === 'online');
               }
 
-              const deletePromises = docsToDelete.map(document => deleteDoc(doc(db, colName, document.id)));
-              await Promise.all(deletePromises);
+              if (docsToDelete.length > 0) {
+                // Soft-delete dalam chunk 200 dokumen untuk menghindari batasan 500 operasi writeBatch
+                const chunkSize = 200;
+                for (let i = 0; i < docsToDelete.length; i += chunkSize) {
+                  const chunk = docsToDelete.slice(i, i + chunkSize);
+                  const batch = writeBatch(db);
+                  
+                  chunk.forEach(docSnap => {
+                    const docData = docSnap.data();
+                    const docId = docSnap.id;
+                    
+                    // Set di recycle_bin
+                    const recycleRef = doc(db, 'recycle_bin', docId);
+                    batch.set(recycleRef, {
+                      ...docData,
+                      deletedAt: new Date().toISOString(),
+                      originalCollection: colName
+                    });
+                    
+                    // Hapus dokumen asli
+                    batch.delete(docSnap.ref);
+                  });
+                  
+                  await batch.commit();
+                }
+              }
+
               Vibration.vibrate(15);
-              Alert.alert("Sukses", `${docsToDelete.length} dokumen berhasil dihapus.`);
+              Alert.alert("Sukses", `${docsToDelete.length} dokumen berhasil dipindahkan ke Kotak Sampah.`);
             } catch (error) {
               console.error("Gagal hapus semua transaksi:", error);
-              Alert.alert("Error", "Gagal menghapus transaksi");
+              Alert.alert("Error", "Gagal memindahkan transaksi ke Kotak Sampah");
             } finally {
               setLoading(false);
             }

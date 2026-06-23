@@ -19,7 +19,7 @@ export default function RecycleBinScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'transactions' | 'products'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'transactions' | 'products' | 'estimations'>('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -248,7 +248,8 @@ export default function RecycleBinScreen({ navigation }: any) {
                 {[
                   { id: 'all', label: 'Semua Tipe' },
                   { id: 'transactions', label: 'Transaksi' },
-                  { id: 'products', label: 'Produk' }
+                  { id: 'products', label: 'Produk' },
+                  { id: 'estimations', label: 'Estimasi' }
                 ].map(tab => {
                   const isActive = filterType === tab.id;
                   return (
@@ -471,10 +472,10 @@ export default function RecycleBinScreen({ navigation }: any) {
                         <Text className="text-xs font-bold" style={{ color: colors.text }}>Rp {selectedItem.costPrice?.toLocaleString('id-ID')}</Text>
                       </View>
                     )}
-                    <div className="flex-row justify-between py-2 border-b" style={{ borderColor: colors.border + '50' }}>
+                    <View className="flex-row justify-between py-2 border-b" style={{ borderColor: colors.border + '50' }}>
                       <Text className="text-xs" style={{ color: colors.textMuted }}>Stok Sisa</Text>
                       <Text className="text-xs font-bold" style={{ color: colors.text }}>{selectedItem.stock || 0}</Text>
-                    </div>
+                    </View>
                     <View className="flex-row justify-between py-2">
                       <Text className="text-xs" style={{ color: colors.textMuted }}>SKU / Barcode</Text>
                       <Text className="text-xs font-mono font-bold" style={{ color: colors.text }}>{selectedItem.sku || '-'}</Text>

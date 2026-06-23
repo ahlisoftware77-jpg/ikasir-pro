@@ -8,7 +8,7 @@ import { initializeApp, getApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { 
   collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, 
-  orderBy, limit, getDocs, getDoc, setDoc
+  orderBy, limit, getDocs, getDoc, setDoc, writeBatch
 } from 'firebase/firestore';
 import { 
   Plus, Play, Search, Calculator, CreditCard, History, Package, Home, PlusCircle, 
@@ -1329,9 +1329,17 @@ export default function FeatureScreen({ route, navigation }: any) {
   };
 
   const handleDelete = async (id: string, colName: string) => {
+    let title = 'Konfirmasi Hapus';
+    let message = 'Apakah Anda yakin ingin menghapus data ini secara permanen?';
+    
+    if (colName === 'piutang' || colName === 'estimasi') {
+      title = 'Hapus ke Kotak Sampah';
+      message = 'Apakah Anda yakin ingin menghapus data ini? Data akan dipindahkan ke Kotak Sampah selama 3 bulan.';
+    }
+
     Alert.alert(
-      'Konfirmasi Hapus',
-      'Apakah Anda yakin ingin menghapus data ini secara permanen?',
+      title,
+      message,
       [
         { text: 'Batal', style: 'cancel' },
         { 
@@ -1355,8 +1363,30 @@ export default function FeatureScreen({ route, navigation }: any) {
               else if (colName === 'expired') col = 'products';
               
               if (col) {
-                await deleteDoc(doc(db, col, id));
-                Alert.alert('Berhasil', 'Data berhasil dihapus.');
+                if (colName === 'piutang' || colName === 'estimasi') {
+                  const docRef = doc(db, col, id);
+                  const docSnap = await getDoc(docRef);
+                  if (!docSnap.exists()) {
+                    Alert.alert('Error', 'Data tidak ditemukan');
+                    return;
+                  }
+                  const docData = docSnap.data();
+                  const batch = writeBatch(db);
+                  
+                  const recycleRef = doc(db, 'recycle_bin', id);
+                  batch.set(recycleRef, {
+                    ...docData,
+                    deletedAt: new Date().toISOString(),
+                    originalCollection: col
+                  });
+                  
+                  batch.delete(docRef);
+                  await batch.commit();
+                  Alert.alert('Berhasil', 'Data berhasil dipindahkan ke Kotak Sampah.');
+                } else {
+                  await deleteDoc(doc(db, col, id));
+                  Alert.alert('Berhasil', 'Data berhasil dihapus.');
+                }
               }
             } catch (err) {
               console.error(err);
