@@ -259,6 +259,8 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     </tr>
   `).join('');
 
+  const docType = isEstimation ? 'PENAWARAN' : 'INVOICE';
+  const docId = (trx.id || '').substring(0, 10).toUpperCase();
   const validUntilStr = trx.validUntil ? new Date(trx.validUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
   let stampDateStr = dateStr;
@@ -316,7 +318,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>Cetak A4 #${trx.id}</title>
+      <title>${docType} - ${cleanStoreName.trim()} - ${docId}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
@@ -981,6 +983,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
   
   const storeName = storeSettings?.storeName || 'KASIR PRO STORE';
   const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
+  const docId = (trx.id || '').substring(0, 10).toUpperCase();
   const address = storeSettings?.address || '';
   const phone = storeSettings?.phone || '';
   
@@ -1006,7 +1009,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>Surat Jalan #${trx.id}</title>
+      <title>SURAT JALAN - ${cleanStoreName.trim()} - ${docId}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }

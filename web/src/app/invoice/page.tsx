@@ -135,10 +135,10 @@ function InvoiceA4Content() {
     // Only print if everything is loaded including the logo base64
     if (!loading && trx && isLogoReady) {
       // Set document title for suggested PDF filename
-      const storeName = (settings?.storeName || 'IKASIR PRO').split('@')[0];
-      const docType = isEstimation ? 'EST' : 'INV';
-      const docId = trx.id?.substring(0, 10).toUpperCase();
-      document.title = `${storeName} - ${docType}-${docId}`;
+      const cleanStoreName = (settings?.storeName || 'IKASIR PRO').split('@')[0].trim();
+      const docType = isEstimation ? 'PENAWARAN' : 'INVOICE';
+      const docId = (trx.id || '').substring(0, 10).toUpperCase();
+      document.title = `${docType} - ${cleanStoreName} - ${docId}`;
 
       const timer = setTimeout(() => {
         window.print();
