@@ -261,6 +261,10 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
 
   const docType = isEstimation ? 'PENAWARAN' : 'INVOICE';
   const docId = (trx.id || '').substring(0, 10).toUpperCase();
+  
+  const rawCustomer = trx.customerName || '';
+  const hasCustomer = rawCustomer && rawCustomer !== 'Pelanggan Umum' && rawCustomer !== 'Tanpa Nama';
+  const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
   const validUntilStr = trx.validUntil ? new Date(trx.validUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
 
   let stampDateStr = dateStr;
@@ -318,7 +322,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>${docType} - ${cleanStoreName.trim()} - ${docId}</title>
+      <title>${docType} - #${docId}${customerPart} - ${cleanStoreName.trim()}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
@@ -984,6 +988,10 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
   const storeName = storeSettings?.storeName || 'KASIR PRO STORE';
   const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
   const docId = (trx.id || '').substring(0, 10).toUpperCase();
+  
+  const rawCustomer = trx.customerName || '';
+  const hasCustomer = rawCustomer && rawCustomer !== 'Pelanggan Umum' && rawCustomer !== 'Tanpa Nama';
+  const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
   const address = storeSettings?.address || '';
   const phone = storeSettings?.phone || '';
   
@@ -1009,7 +1017,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>SURAT JALAN - ${cleanStoreName.trim()} - ${docId}</title>
+      <title>SURAT JALAN - #${docId}${customerPart} - ${cleanStoreName.trim()}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }

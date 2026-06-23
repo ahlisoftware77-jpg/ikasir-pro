@@ -138,7 +138,12 @@ function InvoiceA4Content() {
       const cleanStoreName = (settings?.storeName || 'IKASIR PRO').split('@')[0].trim();
       const docType = isEstimation ? 'PENAWARAN' : 'INVOICE';
       const docId = (trx.id || '').substring(0, 10).toUpperCase();
-      document.title = `${docType} - ${cleanStoreName} - ${docId}`;
+      
+      const rawCustomer = trx.customerName || '';
+      const hasCustomer = rawCustomer && rawCustomer !== 'Pelanggan Umum' && rawCustomer !== 'Tanpa Nama';
+      const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
+      
+      document.title = `${docType} - #${docId}${customerPart} - ${cleanStoreName}`;
 
       const timer = setTimeout(() => {
         window.print();
