@@ -46,7 +46,43 @@ Berikut adalah perintah-perintah penting yang sering digunakan untuk pengembanga
 
 ## 📝 Catatan Perubahan & Fitur (Changelog)
 
+### [2026-06-23] - Fitur Kotak Sampah (Recycle Bin) Web & Mobile
+#### Perubahan / Penambahan Fitur:
+1. **Fitur Kotak Sampah (Recycle Bin) Terintegrasi**:
+   - **Dashboard Web**: Membuat halaman `/recycle-bin` baru untuk mengelola data terhapus (soft-delete) dengan kemampuan menyaring tipe data (transaksi/produk), pemulihan data (Restore), hapus permanen, kosongkan sampah, serta modal info pratinjau detail sebelum restore. Menu ini ditambahkan di Sidebar navigasi.
+   - **Aplikasi Mobile**: Memperbarui fungsi hapus transaksi di `TransactionsScreen` dan `TransactionDetailScreen` ke sistem soft-delete (memindahkan data ke koleksi `recycle_bin` dengan metadata `deletedAt` dan `originalCollection`). Dibuat screen `RecycleBinScreen` yang menampilkan item terhapus secara real-time, tombol Restore, Hapus Permanen, dan Kosongkan Kotak Sampah. Menambahkan menu Kotak Sampah pada `SettingsScreen` (khusus Admin/Owner).
+2. **Optimalisasi Keamanan Git**:
+   - Memperbarui file `.gitignore` di aplikasi mobile untuk mengabaikan berkas-berkas logcat debug crash (seperti `*crash_log*.txt` dan `*live_crash*.txt`).
+
+#### Berkas yang Dimodifikasi:
+* **Web**:
+  - [Sidebar.tsx](file:///e:/yadiapp-project/KASIR/web/src/components/Sidebar.tsx) - Menambahkan link menu Kotak Sampah.
+  - [page.tsx](file:///e:/yadiapp-project/KASIR/web/src/app/recycle-bin/page.tsx) - Halaman panel kontrol Kotak Sampah admin web.
+* **Mobile**:
+  - [App.tsx](file:///e:/yadiapp-project/KASIR/mobile/App.tsx) - Pendaftaran rute navigasi Screen `RecycleBin`.
+  - [SettingsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/SettingsScreen.tsx) - Menambahkan menu navigasi Kotak Sampah di bawah bagian Keuangan & Transaksi (hanya Owner/Admin).
+  - [TransactionsScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/TransactionsScreen.tsx) - Migrasi fitur hapus ke Soft-Delete.
+  - [TransactionDetailScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/TransactionDetailScreen.tsx) - Migrasi fitur hapus detail ke Soft-Delete.
+  - [RecycleBinScreen.tsx](file:///e:/yadiapp-project/KASIR/mobile/src/screens/RecycleBinScreen.tsx) - Halaman antarmuka list dan aksi Kotak Sampah di mobile.
+  - [.gitignore](file:///e:/yadiapp-project/KASIR/mobile/.gitignore) - Menambahkan pengabaian file log debug.
+
+#### Catatan Deployment & Perintah yang Dijalankan:
+1. **Git Commit & Push**:
+   - *Perintah*: `git add .` dan `git commit -m "feat: implement Recycle Bin (Kotak Sampah) for web and mobile"` dan `git push origin main`
+   - *Hasil*: Commit `662510da` sukses dipush ke GitHub repo `ahlisoftware77-jpg/ikasir-pro`.
+2. **Expo OTA Update**:
+   - *Perintah*: `npx eas-cli update --channel production --message "feat: Recycle Bin (Kotak Sampah) for transactions on web and mobile" --non-interactive`
+   - *Hasil*: OTA Update sukses dipublikasikan ke EAS.
+     - **Runtime Version**: `1.0.1`
+     - **Update Group ID**: `b483aac6-7330-46b6-8295-c46e545f9cd4`
+     - **Android Update ID**: `019ef271-90c0-76e8-b027-a42cc088f4ce`
+     - **iOS Update ID**: `019ef271-90c0-7f45-a6a1-e5efa1ac71d9`
+     - **Tautan EAS Dashboard**: [Expo Dev Update](https://expo.dev/accounts/ahlisoftware77/projects/mobile/updates/b483aac6-7330-46b6-8295-c46e545f9cd4)
+
+---
+
 ### [2026-06-14] - Fitur Deskripsi, Revert Mode Cloudinary, & Cetak Barcode Mobile
+
 #### Perubahan / Penambahan Fitur:
 1. **Fitur Deskripsi Produk Lengkap**:
    - Menambahkan kolom **Deskripsi** di tabel daftar produk admin web (`/products`) dengan batasan `line-clamp-2` dan HTML `title` tooltip.
