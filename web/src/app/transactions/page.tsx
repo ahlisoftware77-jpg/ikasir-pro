@@ -149,11 +149,32 @@ export default function TransactionsPage() {
   };
 
   const handleDeleteTrx = async (trxId: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini? Data yang dihapus tidak dapat dikembalikan.')) return;
+    if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini? Transaksi akan dipindahkan ke Kotak Sampah selama 3 bulan.')) return;
     
     try {
-      await deleteDoc(doc(db, 'transactions', trxId));
-      toast.success('Transaksi berhasil dihapus');
+      const trxRef = doc(db, 'transactions', trxId);
+      const trxSnap = await getDoc(trxRef);
+      if (!trxSnap.exists()) {
+        toast.error('Transaksi tidak ditemukan');
+        return;
+      }
+      
+      const trxData = trxSnap.data();
+      const batch = writeBatch(db);
+      
+      // Copy to recycle_bin
+      const recycleRef = doc(db, 'recycle_bin', trxId);
+      batch.set(recycleRef, {
+        ...trxData,
+        deletedAt: new Date().toISOString(),
+        originalCollection: 'transactions'
+      });
+      
+      // Delete original
+      batch.delete(trxRef);
+      
+      await batch.commit();
+      toast.success('Transaksi dipindahkan ke Kotak Sampah');
       if (selectedTrx?.id === trxId) {
         setSelectedTrx(null);
       }

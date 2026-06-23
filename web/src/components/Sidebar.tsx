@@ -12,7 +12,8 @@ import {
   UserCircle,
   Bell,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Trash2
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useNotificationStore } from '@/store/notifications';
@@ -64,6 +65,7 @@ const menuItems = [
   },
   { name: 'Manajemen User', path: '/users', icon: Users, permission: 'canManageUsers' },
   { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, permission: 'canViewLogs' },
+  { name: 'Kotak Sampah', path: '/recycle-bin', icon: Trash2, permission: 'canEditSettings' },
   { name: 'Profil Saya', path: '/profile', icon: UserCircle },
   { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
   { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: HelpCircle },

@@ -6,6 +6,74 @@ import { auth, db, primaryDb, activeFirebaseConfig, isDynamicConfig } from '@/li
 import { useAuthStore } from '@/store/auth';
 import { doc, getDoc, setDoc, onSnapshotsInSync, onSnapshot } from 'firebase/firestore';
 
+const runBackgroundCleanup = async (storeId: string) => {
+  try {
+    const { collection, query, where, getDocs, writeBatch, doc: fireDoc } = await import('firebase/firestore');
+    
+    // 1. Cleanup activity_logs (> 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const qLogsTimestamp = query(
+      collection(db, 'activity_logs'),
+      where('storeId', '==', storeId),
+      where('timestamp', '<', thirtyDaysAgo)
+    );
+    
+    const qLogsString = query(
+      collection(db, 'activity_logs'),
+      where('storeId', '==', storeId),
+      where('timestamp', '<', thirtyDaysAgo.toISOString())
+    );
+
+    const [snapTimestamp, snapString] = await Promise.all([
+      getDocs(qLogsTimestamp),
+      getDocs(qLogsString)
+    ]);
+
+    const batch = writeBatch(db);
+    let count = 0;
+
+    snapTimestamp.forEach((d) => {
+      batch.delete(fireDoc(db, 'activity_logs', d.id));
+      count++;
+    });
+
+    snapString.forEach((d) => {
+      batch.delete(fireDoc(db, 'activity_logs', d.id));
+      count++;
+    });
+
+    // 2. Cleanup recycle_bin (> 90 days / 3 months)
+    const qRecycle = query(
+      collection(db, 'recycle_bin'),
+      where('storeId', '==', storeId)
+    );
+    const snapRecycle = await getDocs(qRecycle);
+    
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    snapRecycle.forEach((d) => {
+      const data = d.data();
+      if (data.deletedAt) {
+        const deletedDate = new Date(data.deletedAt);
+        if (deletedDate < ninetyDaysAgo) {
+          batch.delete(fireDoc(db, 'recycle_bin', d.id));
+          count++;
+        }
+      }
+    });
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`[Cleanup] Berhasil menghapus ${count} dokumen kedaluwarsa.`);
+    }
+  } catch (err) {
+    console.error('[Cleanup] Gagal membersihkan data lama:', err);
+  }
+};
+
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { 
     setUser, setRole, setLoading, setBlockingDetails, 
@@ -248,6 +316,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                     setUser(user);
                     setRole(userData.role as any);
                     setStoreId(sId);
+                    if (sId && sId !== 'default-store') {
+                      const sessionKey = `kasir-cleanup-done-${sId}`;
+                      if (typeof window !== 'undefined' && !sessionStorage.getItem(sessionKey)) {
+                        sessionStorage.setItem(sessionKey, 'true');
+                        runBackgroundCleanup(sId);
+                      }
+                    }
                     setStoreName(storeData ? storeData.name : 'Toko Saya');
                     setUserName(userData.name || user.email);
                     setDisabledMenus(storeData ? (storeData.disabledMenus || []) : []);

@@ -9,8 +9,76 @@ import { activateKeepAwakeAsync } from 'expo-keep-awake';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from './src/lib/firebase';
+
+let isCleanupDone = false;
+
+const runBackgroundCleanup = async (storeId: string) => {
+  try {
+    // 1. Cleanup activity_logs (> 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const qLogsTimestamp = query(
+      collection(db, 'activity_logs'),
+      where('storeId', '==', storeId),
+      where('timestamp', '<', thirtyDaysAgo)
+    );
+
+    const qLogsString = query(
+      collection(db, 'activity_logs'),
+      where('storeId', '==', storeId),
+      where('timestamp', '<', thirtyDaysAgo.toISOString())
+    );
+
+    const [snapTimestamp, snapString] = await Promise.all([
+      getDocs(qLogsTimestamp),
+      getDocs(qLogsString)
+    ]);
+
+    const batch = writeBatch(db);
+    let count = 0;
+
+    snapTimestamp.forEach((d) => {
+      batch.delete(doc(db, 'activity_logs', d.id));
+      count++;
+    });
+
+    snapString.forEach((d) => {
+      batch.delete(doc(db, 'activity_logs', d.id));
+      count++;
+    });
+
+    // 2. Cleanup recycle_bin (> 90 days)
+    const qRecycle = query(
+      collection(db, 'recycle_bin'),
+      where('storeId', '==', storeId)
+    );
+    const snapRecycle = await getDocs(qRecycle);
+
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    snapRecycle.forEach((d) => {
+      const data = d.data();
+      if (data.deletedAt) {
+        const deletedDate = new Date(data.deletedAt);
+        if (deletedDate < ninetyDaysAgo) {
+          batch.delete(doc(db, 'recycle_bin', d.id));
+          count++;
+        }
+      }
+    });
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`[Cleanup Mobile] Berhasil menghapus ${count} dokumen kedaluwarsa.`);
+    }
+  } catch (err) {
+    console.error('[Cleanup Mobile] Gagal membersihkan data lama:', err);
+  }
+};
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
@@ -33,6 +101,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import OrderNotificationListener from './src/components/OrderNotificationListener';
 import SuperAdminScreen from './src/screens/SuperAdminScreen';
+import RecycleBinScreen from './src/screens/RecycleBinScreen';
 
 // Icons
 import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag, Wrench, AlertCircle, LogOut } from 'lucide-react-native';
@@ -476,6 +545,10 @@ function NavigationRoot() {
         }
         if (userData.storeId) {
           useAuthStore.getState().setStoreId(userData.storeId);
+          if (userData.storeId !== 'default-store' && !isCleanupDone) {
+            isCleanupDone = true;
+            runBackgroundCleanup(userData.storeId);
+          }
           getDoc(doc(db, 'stores', userData.storeId)).then((storeSnap) => {
             if (storeSnap.exists()) {
               const storeData = storeSnap.data();
@@ -788,6 +861,17 @@ function NavigationRoot() {
               name="TransactionDetail" 
               component={TransactionDetailScreen} 
               options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="RecycleBin" 
+              component={RecycleBinScreen} 
+              options={{ 
+                headerShown: true, 
+                title: 'KOTAK SAMPAH',
+                headerStyle: { backgroundColor: colors.surface },
+                headerTitleStyle: { color: colors.text, fontWeight: '900', fontSize: 16 },
+                headerTintColor: colors.text
+              }} 
             />
           </>
         )}

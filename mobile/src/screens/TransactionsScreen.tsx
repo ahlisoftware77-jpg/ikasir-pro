@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
-import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
@@ -723,7 +723,7 @@ export default function TransactionsScreen({ navigation }: any) {
   const handleDeleteTrx = (trxId: string) => {
     Alert.alert(
       'Hapus Transaksi',
-      'Apakah Anda yakin ingin menghapus transaksi ini? Data tidak dapat dikembalikan.',
+      'Apakah Anda yakin ingin menghapus transaksi ini? Transaksi akan dipindahkan ke Kotak Sampah selama 3 bulan.',
       [
         { text: 'Batal', style: 'cancel' },
         { 
@@ -731,8 +731,27 @@ export default function TransactionsScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteDoc(doc(db, 'transactions', trxId));
+              const trxRef = doc(db, 'transactions', trxId);
+              const trxSnap = await getDoc(trxRef);
+              if (!trxSnap.exists()) {
+                Alert.alert('Error', 'Transaksi tidak ditemukan');
+                return;
+              }
+              const trxData = trxSnap.data();
+              const batch = writeBatch(db);
+              
+              const recycleRef = doc(db, 'recycle_bin', trxId);
+              batch.set(recycleRef, {
+                ...trxData,
+                deletedAt: new Date().toISOString(),
+                originalCollection: 'transactions'
+              });
+              
+              batch.delete(trxRef);
+              await batch.commit();
+              
               Vibration.vibrate(15);
+              Alert.alert('Sukses', 'Transaksi dipindahkan ke Kotak Sampah');
               if (selectedTrx?.id === trxId) {
                 setSelectedTrx(null);
               }

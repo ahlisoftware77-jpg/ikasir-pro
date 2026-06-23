@@ -1310,6 +1310,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               Vibration.vibrate(10);
               navigation.navigate('Notifications');
             })}
+            {renderMenuItem('Kotak Sampah', Trash2, '#ef4444', () => {
+              Vibration.vibrate(10);
+              navigation.navigate('RecycleBin');
+            }, true, false, 0)}
           </View>
         </View>
 
