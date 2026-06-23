@@ -289,13 +289,7 @@ function InvoiceA4Content() {
               </td>
               <td className="pb-4 text-right align-top">
                 <h2 className="text-2xl font-black text-slate-200 tracking-[0.2em] mb-2 leading-none uppercase">
-                  {isEstimation 
-                    ? 'ESTIMASI BIAYA' 
-                    : trx.paymentStatus === 'paid' 
-                      ? 'INVOICE' 
-                      : trx.paymentStatus === 'partially_paid' 
-                        ? 'INVOICE (PIUTANG)' 
-                        : 'INVOICE (BELUM LUNAS)'}
+                  {isEstimation ? 'ESTIMASI BIAYA' : 'INVOICE'}
                 </h2>
                 <div className="text-[9px] font-black uppercase space-y-0.5 leading-none">
                   <p className="text-slate-900">{isEstimation ? 'NO. PENAWARAN' : 'NO.'} #{trx.id?.substring(0, 10).toUpperCase()}</p>
