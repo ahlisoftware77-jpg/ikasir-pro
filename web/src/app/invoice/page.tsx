@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Loader2, Printer, MapPin, Phone, Globe, CreditCard, History } from 'lucide-react';
 
 const FONT_OPTIONS = [
@@ -28,6 +28,8 @@ function InvoiceA4Content() {
   const isDebt = searchParams?.get('type') === 'debt' || trx?.paymentCategory === 'debt';
   const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
   const [isLogoReady, setIsLogoReady] = useState(false);
+  const [isExpired, setIsExpired] = useState(true);
+  const [branding, setBranding] = useState<any>(null);
 
   // Effect to fetch and convert logo to Base64
   useEffect(() => {
@@ -85,6 +87,37 @@ function InvoiceA4Content() {
             const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
             if (settingsSnap.exists()) {
               setSettings(settingsSnap.data());
+            }
+
+            // Check subscription status
+            try {
+              const q = query(collection(db, 'users'), where('storeId', '==', storeId));
+              const userSnaps = await getDocs(q);
+              
+              let hasActiveSub = false;
+              const now = new Date();
+              userSnaps.forEach((userDoc: any) => {
+                const uData = userDoc.data();
+                if (uData.validUntil) {
+                  const d = new Date(uData.validUntil);
+                  if (!isNaN(d.getTime()) && d > now) {
+                    hasActiveSub = true;
+                  }
+                }
+              });
+              setIsExpired(!hasActiveSub);
+            } catch (err) {
+              console.warn("Failed to check subscription status:", err);
+            }
+
+            // Fetch branding watermark
+            try {
+              const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+              if (brandingSnap.exists()) {
+                setBranding(brandingSnap.data());
+              }
+            } catch (err) {
+              console.warn("Failed to fetch branding:", err);
             }
           }
         }
@@ -279,6 +312,8 @@ function InvoiceA4Content() {
              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Tagihan Kepada:</p>
              <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight leading-none">{trx.customerName || 'Pelanggan Umum'}</p>
              {trx.customerPhone && <p className="text-[9px] text-slate-500 font-bold mt-1 leading-none">{trx.customerPhone}</p>}
+             {trx.customerNpwp && <p className="text-[9px] text-slate-500 font-bold mt-1 leading-none">NPWP: {trx.customerNpwp}</p>}
+             {(trx.customerAddress || trx.address) && <p className="text-[9px] text-slate-500 font-bold mt-1 leading-none">Alamat: {trx.customerAddress || trx.address}</p>}
           </div>
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex justify-between items-center">
              <div className="leading-none">
@@ -356,9 +391,9 @@ function InvoiceA4Content() {
                 <p className="text-[10px] font-black italic text-slate-700 leading-tight">" {terbilang(total)} Rupiah "</p>
              </div>
              {settings?.bankInfo && (
-               <div className="px-1 text-[9px] border-l-[3px] border-emerald-500 pl-3">
-                  <p className="font-black text-emerald-600 uppercase text-[8px] tracking-widest mb-1">Info Pembayaran / Transfer:</p>
-                  <p className="font-bold text-slate-800 whitespace-pre-line leading-normal">{settings.bankInfo}</p>
+               <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[9px] text-slate-600 leading-normal">
+                  <p className="font-black text-emerald-600 uppercase text-[8px] tracking-widest mb-1.5">Info Pembayaran / Transfer:</p>
+                  <p className="font-bold text-slate-800 whitespace-pre-line leading-relaxed">{settings.bankInfo}</p>
                </div>
              )}
              <p className="text-[8px] text-slate-400 font-bold italic leading-tight whitespace-pre-line">
@@ -428,7 +463,7 @@ function InvoiceA4Content() {
         <div className="mt-8 flex justify-between px-16 text-center">
           <div className="w-32 relative">
              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-12">Hormat Kami,</p>
-             {settings?.showSignature && settings?.signatureUrl && (
+             {settings?.showSignature !== false && settings?.signatureUrl && (
                <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
                  <img 
                     src={settings.signatureUrl} 
@@ -463,9 +498,13 @@ function InvoiceA4Content() {
         </div>
 
         {/* FOOTER WATERMARK */}
-        <div className="absolute bottom-6 left-0 right-0 text-center opacity-20 pointer-events-none select-none">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">IKASIR PRO - MODERN POS SYSTEM</p>
-        </div>
+        {isExpired && (
+          <div className="absolute bottom-6 left-0 right-0 text-center opacity-20 pointer-events-none select-none">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.5em]">
+              {branding?.receiptWatermark || 'IKASIR PRO - MODERN POS SYSTEM'}
+            </p>
+          </div>
+        )}
       </div>
       
       {/* PRINT STYLES */}
