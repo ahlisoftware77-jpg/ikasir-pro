@@ -30,8 +30,7 @@ export default function RecycleBinScreen({ navigation }: any) {
 
     const q = query(
       collection(db, 'recycle_bin'),
-      where('storeId', '==', storeId),
-      orderBy('deletedAt', 'desc')
+      where('storeId', '==', storeId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
