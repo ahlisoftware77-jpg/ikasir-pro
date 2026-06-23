@@ -296,15 +296,11 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     </div>
   ` : '';
 
-  const bankName = storeSettings?.bankName || '';
-  const bankAccount = storeSettings?.bankAccount || '';
-  const bankAccountName = storeSettings?.bankAccountName || '';
-  const bankInfoHtml = bankName && bankAccount ? `
-    <div style="margin-top: 15px; padding: 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 10px; color: #475569; line-height: 1.4;">
-      <span style="font-weight: 900; color: #0f172a; text-transform: uppercase; font-size: 9px; display: block; margin-bottom: 5px; letter-spacing: 0.5px;">Informasi Rekening Pembayaran:</span>
-      Transfer Bank: <strong>${bankName}</strong><br/>
-      No. Rekening: <strong>${bankAccount}</strong><br/>
-      Atas Nama: <strong>${bankAccountName}</strong>
+  const bankInfo = storeSettings?.bankInfo || '';
+  const bankInfoHtml = bankInfo ? `
+    <div style="margin-top: 15px; padding: 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 10px; color: #475569; line-height: 1.4; white-space: pre-line;">
+      <span style="font-weight: 900; color: #10b981; text-transform: uppercase; font-size: 9px; display: block; margin-bottom: 5px; letter-spacing: 0.5px;">Info Pembayaran / Transfer:</span>
+      ${bankInfo.replace(/\n/g, '<br/>')}
     </div>
   ` : '';
 

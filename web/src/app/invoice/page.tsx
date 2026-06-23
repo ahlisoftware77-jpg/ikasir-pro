@@ -137,15 +137,29 @@ function InvoiceA4Content() {
   const sisa = trx.paymentStatus === 'paid' ? 0 : Math.max(0, total - paid);
 
   const terbilang = (n: number): string => {
+    if (n < 0) return "";
     const words = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
     let res = "";
-    if (n < 12) res = words[n];
-    else if (n < 20) res = terbilang(n - 10) + " Belas";
-    else if (n < 100) res = terbilang(Math.floor(n / 10)) + " Puluh " + terbilang(n % 10);
-    else if (n < 1000) res = terbilang(Math.floor(n / 100)) + " Ratus " + terbilang(n % 100);
-    else if (n < 1000000) res = terbilang(Math.floor(n / 1000)) + " Ribu " + terbilang(n % 1000);
-    else if (n < 1000000000) res = terbilang(Math.floor(n / 1000000)) + " Juta " + terbilang(n % 1000000);
-    return res.trim();
+    if (n < 12) {
+      res = words[n];
+    } else if (n < 20) {
+      res = terbilang(n - 10) + " Belas";
+    } else if (n < 100) {
+      res = terbilang(Math.floor(n / 10)) + " Puluh " + terbilang(n % 10);
+    } else if (n < 200) {
+      res = "Seratus " + terbilang(n - 100);
+    } else if (n < 1000) {
+      res = terbilang(Math.floor(n / 100)) + " Ratus " + terbilang(n % 100);
+    } else if (n < 2000) {
+      res = "Seribu " + terbilang(n - 1000);
+    } else if (n < 1000000) {
+      res = terbilang(Math.floor(n / 1000)) + " Ribu " + terbilang(n % 1000);
+    } else if (n < 1000000000) {
+      res = terbilang(Math.floor(n / 1000000)) + " Juta " + terbilang(n % 1000000);
+    } else if (n < 1000000000000) {
+      res = terbilang(Math.floor(n / 1000000000)) + " Miliar " + terbilang(n % 1000000000);
+    }
+    return res.trim().replace(/\s+/g, " ");
   };
 
   // Hitung tanggal pembayaran terakhir untuk stempel lunas
