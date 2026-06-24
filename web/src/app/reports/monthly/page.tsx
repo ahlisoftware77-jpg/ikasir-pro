@@ -12,7 +12,7 @@ export default function MonthlyReportPage() {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [periodType, setPeriodType] = useState<'monthly' | 'yearly'>('monthly');
+  const [periodType, setPeriodType] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedYear, setSelectedYear] = useState<string>('Semua');
 
   useEffect(() => {
@@ -43,17 +43,40 @@ export default function MonthlyReportPage() {
   }, [data]);
 
   const filteredData = useMemo(() => {
+    let filtered = data.filter(t => t.paymentStatus === 'paid' && t.timestamp);
     if (periodType === 'monthly' && selectedYear !== 'Semua') {
-      return data.filter(trx => {
-        if (!trx.timestamp) return false;
+      filtered = filtered.filter(trx => {
         const date = trx.timestamp.toDate ? trx.timestamp.toDate() : new Date(trx.timestamp);
         return String(date.getFullYear()) === selectedYear;
       });
     }
-    return data;
+    return filtered;
   }, [data, periodType, selectedYear]);
 
   const stats = useMemo(() => {
+    if (periodType === 'weekly') {
+      const now = new Date();
+      const weeksData = [
+        { name: 'Minggu 4 (Terkini)', total: 0, count: 0, rangeStart: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), sortKey: '3' },
+        { name: 'Minggu 3', total: 0, count: 0, rangeStart: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), sortKey: '2' },
+        { name: 'Minggu 2', total: 0, count: 0, rangeStart: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), sortKey: '1' },
+        { name: 'Minggu 1', total: 0, count: 0, rangeStart: new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000), rangeEnd: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), sortKey: '0' },
+      ];
+
+      filteredData.forEach(t => {
+        const date = t.timestamp.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        for (const wk of weeksData) {
+          if (date >= wk.rangeStart && (!wk.rangeEnd || date < wk.rangeEnd)) {
+            wk.total += (t.total || 0);
+            wk.count += 1;
+            break;
+          }
+        }
+      });
+
+      return weeksData.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+    }
+
     const res: Record<string, { total: number; count: number; name: string; sortKey: string }> = {};
     
     filteredData.forEach(trx => {
@@ -89,11 +112,14 @@ export default function MonthlyReportPage() {
 
   const handleExport = () => {
     const formattedData = stats.map(stat => ({
-      [periodType === 'monthly' ? 'Bulan' : 'Tahun']: stat.name,
+      [periodType === 'weekly' ? 'Minggu' : periodType === 'monthly' ? 'Bulan' : 'Tahun']: stat.name,
       'Total Transaksi': stat.count,
       'Omzet (Rp)': stat.total,
     }));
-    exportToExcel(formattedData, periodType === 'monthly' ? 'Laporan_Omzet_Bulanan' : 'Laporan_Omzet_Tahunan');
+    exportToExcel(
+      formattedData, 
+      periodType === 'weekly' ? 'Laporan_Omzet_Mingguan' : periodType === 'monthly' ? 'Laporan_Omzet_Bulanan' : 'Laporan_Omzet_Tahunan'
+    );
   };
 
   return (
@@ -101,10 +127,10 @@ export default function MonthlyReportPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
-            Omzet per {periodType === 'monthly' ? 'Bulan' : 'Tahun'}
+            Omzet per {periodType === 'weekly' ? 'Minggu' : periodType === 'monthly' ? 'Bulan' : 'Tahun'}
           </h1>
           <p className="text-sm text-app-text-muted mt-1 font-medium">
-            Laporan akumulasi pendapatan {periodType === 'monthly' ? 'bulanan' : 'tahunan'}
+            Laporan akumulasi pendapatan {periodType === 'weekly' ? 'mingguan' : periodType === 'monthly' ? 'bulanan' : 'tahunan'}
           </p>
         </div>
         <button 
@@ -119,6 +145,16 @@ export default function MonthlyReportPage() {
       {/* Filter Toggles */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-surface border border-app-border p-4 rounded-3xl shadow-sm">
         <div className="flex gap-2 p-1 bg-background border border-app-border rounded-2xl">
+          <button
+            onClick={() => setPeriodType('weekly')}
+            className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
+              periodType === 'weekly'
+                ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                : 'text-app-text-muted hover:text-foreground'
+            }`}
+          >
+            Mingguan
+          </button>
           <button
             onClick={() => setPeriodType('monthly')}
             className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
@@ -170,20 +206,21 @@ export default function MonthlyReportPage() {
           <div className="py-20 text-center text-app-text-muted italic opacity-50">Belum ada data omzet tersedia</div>
         ) : (
           <div className="space-y-6">
-            {stats.map(stat => {
+            {stats.map((stat, index) => {
               const percentage = maxTotal > 0 ? (stat.total / maxTotal) * 100 : 0;
+              const isActive = index === 0;
               return (
-                <div key={stat.sortKey} className="group">
+                <div key={stat.sortKey || index} className="group">
                   <div className="flex justify-between items-end mb-2">
                     <div>
-                       <span className="font-bold text-foreground">{stat.name}</span>
+                       <span className={`font-bold ${isActive ? 'text-foreground' : 'text-app-text-muted'}`}>{stat.name}</span>
                        <span className="text-[10px] text-app-text-muted ml-2">{stat.count} Transaksi</span>
                     </div>
                     <span className="font-black text-emerald-400">Rp {stat.total.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="h-4 bg-background border border-app-border rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-accent rounded-full transition-all duration-1000"
+                      className={`h-full rounded-full transition-all duration-1000 ${isActive ? 'bg-accent' : 'bg-accent/40'}`}
                       style={{ width: `${percentage}%` }}
                     />
                   </div>

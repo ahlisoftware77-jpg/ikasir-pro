@@ -1115,7 +1115,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   };
 
   useEffect(() => {
-    const exportableFeatures = ['lap_penjualan', 'lap_omzet', 'lap_terlaris', 'arus_kas', 'stok', 'piutang', 'terjual'];
+    const exportableFeatures = ['lap_penjualan', 'lap_terlaris', 'arus_kas', 'stok', 'piutang', 'terjual'];
     if (exportableFeatures.includes(featureId)) {
       navigation.setOptions({
         headerRight: () => (
