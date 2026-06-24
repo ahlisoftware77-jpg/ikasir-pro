@@ -18,7 +18,8 @@ import {
   useWindowDimensions,
   NativeModules,
   Platform,
-  PermissionsAndroid
+  PermissionsAndroid,
+  Animated
 } from 'react-native';
 import { 
   collection, 
@@ -220,6 +221,236 @@ const getCategoryColors = (categoryName: string, isDarkTheme: boolean) => {
   }
   
   return chosen;
+};
+
+interface SuccessTransactionModalProps {
+  visible: boolean;
+  successTrx: any;
+  onClose: () => void;
+  onViewReceipt: (trx: any) => void;
+  colors: any;
+}
+
+const SuccessTransactionModal: React.FC<SuccessTransactionModalProps> = ({
+  visible,
+  successTrx,
+  onClose,
+  onViewReceipt,
+  colors
+}) => {
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.7)).current;
+  const pulseAnim = React.useRef(new Animated.Value(0)).current;
+  const iconScaleAnim = React.useRef(new Animated.Value(0)).current;
+  const checkmarkScale = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      // Reset values
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.7);
+      pulseAnim.setValue(0);
+      iconScaleAnim.setValue(0);
+      checkmarkScale.setValue(0);
+
+      // Start animation sequence
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 6,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(100),
+          Animated.spring(iconScaleAnim, {
+            toValue: 1,
+            friction: 5,
+            tension: 50,
+            useNativeDriver: true,
+          }),
+          Animated.spring(checkmarkScale, {
+            toValue: 1,
+            friction: 4,
+            tension: 60,
+            useNativeDriver: true,
+          })
+        ]),
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, {
+              toValue: 1,
+              duration: 2000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(pulseAnim, {
+              toValue: 0,
+              duration: 0,
+              useNativeDriver: true,
+            })
+          ])
+        )
+      ]).start();
+
+      // Trigger premium double-vibration haptic feedback
+      try {
+        Vibration.vibrate([0, 50, 40, 80]);
+      } catch (e) {}
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  const pulseScale1 = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 2.2],
+  });
+
+  const pulseOpacity1 = pulseAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.35, 0.15, 0],
+  });
+
+  const pulseScale2 = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 2.6],
+  });
+
+  const pulseOpacity2 = pulseAnim.interpolate({
+    inputRange: [0, 0.7, 1],
+    outputRange: [0.25, 0.08, 0],
+  });
+
+  return (
+    <Modal visible={visible} animationType="none" transparent onRequestClose={onClose}>
+      <Animated.View 
+        className="flex-1 bg-black/80 items-center justify-center p-6"
+        style={{ opacity: fadeAnim }}
+      >
+        <Animated.View 
+          className="w-full max-w-sm rounded-[40px] p-8 items-center border" 
+          style={{ 
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            transform: [{ scale: scaleAnim }],
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 12 },
+            shadowOpacity: 0.3,
+            shadowRadius: 16,
+            elevation: 10,
+          }}
+        >
+          {/* Animated Success Icon Container */}
+          <View className="items-center justify-center mb-6 relative w-28 h-28">
+            {/* Pulsing rings in background */}
+            <Animated.View 
+              style={{
+                position: 'absolute',
+                width: 68,
+                height: 68,
+                borderRadius: 34,
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                transform: [{ scale: pulseScale1 }],
+                opacity: pulseOpacity1,
+              }}
+            />
+            <Animated.View 
+              style={{
+                position: 'absolute',
+                width: 68,
+                height: 68,
+                borderRadius: 34,
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                transform: [{ scale: pulseScale2 }],
+                opacity: pulseOpacity2,
+              }}
+            />
+
+            {/* Glowing Icon Base */}
+            <Animated.View 
+              className="w-20 h-20 rounded-full items-center justify-center border-4"
+              style={{ 
+                backgroundColor: '#10b981', 
+                borderColor: '#a7f3d0',
+                transform: [{ scale: iconScaleAnim }],
+                shadowColor: '#10b981',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+            >
+              {/* Checkmark inside */}
+              <Animated.View style={{ transform: [{ scale: checkmarkScale }] }}>
+                <Check color="white" size={38} strokeWidth={4.5} />
+              </Animated.View>
+            </Animated.View>
+          </View>
+
+          <Text className="text-xl font-black text-center mb-2" style={{ color: colors.text }}>
+            {successTrx?.isEstimation ? 'ESTIMASI SUKSES' : 'TRANSAKSI SUKSES'}
+          </Text>
+          <Text className="text-xs text-app-text-muted text-center mb-6">
+            {successTrx?.isEstimation 
+              ? `Tercatat di data penawaran/estimasi dengan ID #${successTrx?.id}` 
+              : `Tercatat di antrean/transaksi dengan ID #${successTrx?.id?.substring(0, 8)}`}
+          </Text>
+
+          <View className="w-full border p-4 rounded-2xl mb-6 text-sm space-y-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+            <View className="flex-row justify-between">
+              <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Total Tagihan</Text>
+              <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.total.toLocaleString('id-ID')}</Text>
+            </View>
+            {successTrx?.paymentCategory === 'direct' && successTrx?.paymentMethod === 'cash' && (
+              <>
+                <View className="flex-row justify-between">
+                  <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Diterima</Text>
+                  <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.cashReceived.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-[10px] font-bold text-emerald-500">Kembalian</Text>
+                  <Text className="text-xs font-black text-emerald-500">Rp {successTrx?.change.toLocaleString('id-ID')}</Text>
+                </View>
+              </>
+            )}
+            {successTrx?.paymentCategory === 'debt' && (
+              <>
+                <View className="flex-row justify-between">
+                  <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Dibayar (DP)</Text>
+                  <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.paidAmount?.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-[10px] font-bold text-rose-500">Sisa Piutang</Text>
+                  <Text className="text-xs font-black text-rose-500">Rp {successTrx?.debtAmount?.toLocaleString('id-ID')}</Text>
+                </View>
+              </>
+            )}
+          </View>
+
+          <View className="w-full gap-2">
+            <TouchableOpacity 
+              onPress={() => onViewReceipt(successTrx)} 
+              className="w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 active:opacity-95"
+              style={{ backgroundColor: colors.accent }}
+            >
+              <Printer color="white" size={18} />
+              <Text className="text-center font-black text-xs text-white">LIHAT STRUK DIGITAL</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={onClose} className="w-full py-4 rounded-2xl bg-accent/10 active:opacity-90">
+              <Text className="text-center font-black text-xs" style={{ color: colors.accent }}>SELESAI</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
 };
 
 export default function POSScreen({ route, navigation }: any) {
@@ -3325,66 +3556,13 @@ export default function POSScreen({ route, navigation }: any) {
       </Modal>
 
       {/* Success Receipt Modal */}
-      <Modal visible={successTrx !== null} animationType="fade" transparent onRequestClose={() => setSuccessTrx(null)}>
-        <View className="flex-1 bg-black/80 items-center justify-center p-6">
-          <View className="w-full max-w-sm rounded-[40px] p-8 items-center" style={{ backgroundColor: colors.surface }}>
-            <CheckCircle2 color="#10b981" size={60} className="mb-4" />
-            <Text className="text-xl font-black text-center mb-2" style={{ color: colors.text }}>
-              {successTrx?.isEstimation ? 'ESTIMASI SUKSES' : 'TRANSAKSI SUKSES'}
-            </Text>
-            <Text className="text-xs text-app-text-muted text-center mb-6">
-              {successTrx?.isEstimation 
-                ? `Tercatat di data penawaran/estimasi dengan ID #${successTrx?.id}` 
-                : `Tercatat di antrean/transaksi dengan ID #${successTrx?.id?.substring(0, 8)}`}
-            </Text>
-            <View className="w-full border p-4 rounded-2xl mb-6 text-sm space-y-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
-              <View className="flex-row justify-between">
-                <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Total Tagihan</Text>
-                <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.total.toLocaleString('id-ID')}</Text>
-              </View>
-              {successTrx?.paymentCategory === 'direct' && successTrx?.paymentMethod === 'cash' && (
-                <>
-                  <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Diterima</Text>
-                    <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.cashReceived.toLocaleString('id-ID')}</Text>
-                  </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-bold text-emerald-400">Kembalian</Text>
-                    <Text className="text-xs font-black text-emerald-400">Rp {successTrx?.change.toLocaleString('id-ID')}</Text>
-                  </View>
-                </>
-              )}
-              {successTrx?.paymentCategory === 'debt' && (
-                <>
-                  <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>Dibayar (DP)</Text>
-                    <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {successTrx?.paidAmount?.toLocaleString('id-ID')}</Text>
-                  </View>
-                  <View className="flex-row justify-between">
-                    <Text className="text-[10px] font-bold text-rose-400">Sisa Piutang</Text>
-                    <Text className="text-xs font-black text-rose-400">Rp {successTrx?.debtAmount?.toLocaleString('id-ID')}</Text>
-                  </View>
-                </>
-              )}
-            </View>
-
-            <View className="w-full gap-2">
-              <TouchableOpacity 
-                onPress={() => setViewingReceipt(successTrx)} 
-                className="w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 active:opacity-95"
-                style={{ backgroundColor: colors.accent }}
-              >
-                <Printer color="white" size={18} />
-                <Text className="text-center font-black text-xs text-white">LIHAT STRUK DIGITAL</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => setSuccessTrx(null)} className="w-full py-4 rounded-2xl bg-accent/10 active:opacity-90">
-                <Text className="text-center font-black text-xs" style={{ color: colors.accent }}>SELESAI</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <SuccessTransactionModal
+        visible={successTrx !== null}
+        successTrx={successTrx}
+        onClose={() => setSuccessTrx(null)}
+        onViewReceipt={(trx) => setViewingReceipt(trx)}
+        colors={colors}
+      />
 
       {/* Digital Receipt Modal (Struk Digital) */}
       <Modal visible={viewingReceipt !== null} animationType="slide" transparent onRequestClose={() => setViewingReceipt(null)}>
