@@ -6,13 +6,12 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updateProfile, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { User as UserIcon, UserCircle, Mail, Shield, Key, Loader2, Save, AlertCircle, CheckCircle2, ChevronRight, Camera } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
 import toast from 'react-hot-toast';
 import { logActivity } from '@/lib/activity';
+import { getInfraConfig } from '@/lib/infraConfig';
 
 export default function ProfilePage() {
-  const { user, role, storeId, storeName, userName, setUserName } = useAuthStore();
+  const { user, role, storeId, storeName, userName, setUserName, setUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -49,17 +48,21 @@ export default function ProfilePage() {
     try {
       // 1. Update Firebase Auth Profile
       await updateProfile(user, {
-        displayName: formData.name
+        displayName: formData.name,
+        photoURL: photoUrl || ''
       });
 
       // 2. Update Firestore Users Collection
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
-        name: formData.name
+        name: formData.name,
+        photoURL: photoUrl || '',
+        photoUrl: photoUrl || ''
       });
 
       // 3. Update Global Store
       setUserName(formData.name);
+      setUser({ ...user, displayName: formData.name, photoURL: photoUrl || '' } as any);
 
       // 4. Log Activity
       await logActivity({
@@ -129,18 +132,29 @@ export default function ProfilePage() {
     
     setIsUploading(true);
     try {
-       const storageRef = ref(storage, `profiles/${user.uid}_${Date.now()}`);
-       await uploadBytes(storageRef, file);
-       const url = await getDownloadURL(storageRef);
-       
-       await updateProfile(user, { photoURL: url });
-       await updateDoc(doc(db, 'users', user.uid), { photoUrl: url });
-       
-       setPhotoUrl(url);
-       toast.success('Foto profil berhasil diperbarui!');
+       const config = await getInfraConfig();
+       const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+       const uploadPreset = config.cloudinary_upload_preset || 'kasirpos';
+
+       const uploadData = new FormData();
+       uploadData.append('file', file);
+       uploadData.append('upload_preset', uploadPreset);
+
+       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+         method: 'POST',
+         body: uploadData
+       });
+
+       const uploadResult = await uploadRes.json();
+       if (uploadRes.ok && uploadResult.secure_url) {
+         setPhotoUrl(uploadResult.secure_url);
+         toast.success('Foto profil berhasil terunggah! Klik "Simpan Perubahan" untuk menyimpan secara permanen.');
+       } else {
+         throw new Error(uploadResult.error?.message || 'Gagal mengunggah foto ke Cloudinary.');
+       }
     } catch (err: any) {
        console.error(err);
-       toast.error('Gagal mengunggah foto');
+       toast.error('Gagal mengunggah foto: ' + (err.message || 'Server error'));
     } finally {
        setIsUploading(false);
        e.target.value = '';
