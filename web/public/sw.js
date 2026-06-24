@@ -162,6 +162,7 @@ async function checkNewOrders() {
           vibrate: [0, 500, 250, 500],
           tag: transactionId,
           requireInteraction: true,
+          sound: '/sound/pesanan.mp3',
           data: { url: `/orders?id=${transactionId}` }
         });
 
@@ -271,6 +272,7 @@ self.addEventListener('push', (event) => {
     vibrate: [200, 100, 200],
     tag: data.tag || 'general-notification',
     data: data,
+    sound: '/sound/pesanan.mp3',
     requireInteraction: true
   };
 

@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/store/auth';
 import Sidebar from './Sidebar';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, ReactNode, useState, useMemo } from 'react';
+import { useEffect, ReactNode, useState, useMemo, useRef } from 'react';
 import { Menu, LogOut, Cloud, ShieldCheck, User as UserIcon, X, Store, Loader2, Bell } from 'lucide-react';
 import { useBranding } from '@/context/BrandingContext';
 import PWAInstallButton from './PWAInstallButton';
@@ -23,6 +23,15 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil, expiredDisabledMenus } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const orderAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const audio = new Audio('/sound/pesanan.mp3');
+      audio.preload = 'auto';
+      orderAudioRef.current = audio;
+    }
+  }, []);
 
   const sisaHari = useMemo(() => {
     if (!subscriptionUntil) return null;
@@ -85,9 +94,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       if (!isInitialLoad) {
         const hasNew = snapshot.docChanges().some(change => change.type === 'added');
         if (hasNew && newCount > lastKnownCount) {
-          // Play Sound
-          const audio = new Audio('/sound/pesanan.mp3');
-          audio.play().catch(e => console.error("Auto-play pesanan terblokir browser:", e));
+          // Play Sound via pre-unlocked ref
+          if (orderAudioRef.current) {
+            orderAudioRef.current.currentTime = 0;
+            orderAudioRef.current.volume = 1.0;
+            orderAudioRef.current.play().catch(e => console.error("Auto-play pesanan terblokir browser:", e));
+          }
 
           // Notifikasi Mengambang (Floating Toast untuk Android Web)
           toast.success("🚨 PESANAN BARU MASUK!", { 
@@ -121,21 +133,23 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         try {
            const registration = await navigator.serviceWorker.ready;
            registration.showNotification('PESANAN BARU!', {
-          body: 'Ada pelanggan baru yang melakukan pemesanan online. Klik untuk memproses!',
-          icon: logoUrl || '/icon-192.png',
-          badge: '/icon-192.png',
-          vibrate: [200, 100, 200],
-          tag: 'new-order',
-          renotify: true,
-          requireInteraction: true
-        } as any);
+            body: 'Ada pelanggan baru yang melakukan pemesanan online. Klik untuk memproses!',
+            icon: logoUrl || '/icon-192.png',
+            badge: '/icon-192.png',
+            vibrate: [200, 100, 200],
+            tag: 'new-order',
+            renotify: true,
+            requireInteraction: true,
+            sound: '/sound/pesanan.mp3'
+          } as any);
         } catch (err) {
           console.error("Failed to show service worker notification:", err);
           // Fallback to basic notification if SW fails
           new Notification('PESANAN BARU!', {
             body: 'Ada pelanggan baru yang melakukan pemesanan online. Klik untuk memproses!',
-            icon: logoUrl || '/icon-192.png'
-          });
+            icon: logoUrl || '/icon-192.png',
+            sound: '/sound/pesanan.mp3'
+          } as any);
         }
       }
     };
@@ -187,15 +201,20 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
     // Pre-unlock Audio for foreground sound autoplay resilience
     const unlockAudio = () => {
-      const audio = new Audio('/sound/pesanan.mp3');
-      audio.volume = 0; // silent playback to register interaction
-      audio.play()
-        .then(() => {
-          console.log("Audio system pre-unlocked successfully");
-          window.removeEventListener('click', unlockAudio);
-          window.removeEventListener('touchstart', unlockAudio);
-        })
-        .catch(e => console.log("Audio pre-unlock waiting for user interaction:", e));
+      const audio = orderAudioRef.current;
+      if (audio) {
+        audio.volume = 0; // silent playback to register interaction
+        audio.play()
+          .then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 1.0;
+            console.log("Audio system pre-unlocked successfully");
+            window.removeEventListener('click', unlockAudio);
+            window.removeEventListener('touchstart', unlockAudio);
+          })
+          .catch(e => console.log("Audio pre-unlock waiting for user interaction:", e));
+      }
     };
     if (typeof window !== 'undefined') {
       window.addEventListener('click', unlockAudio);
