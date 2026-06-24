@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput, Image, Linking } from 'react-native';
-import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
@@ -97,6 +97,93 @@ export default function DashboardScreen({ navigation }: any) {
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  const [brandingData, setBrandingData] = useState<any>({
+    pkg_1m_price: 30000,
+    pkg_1m_discount_type: 'none',
+    pkg_1m_discount_val: 0,
+    pkg_3m_price: 84000,
+    pkg_3m_discount_type: 'none',
+    pkg_3m_discount_val: 0,
+    pkg_6m_price: 159000,
+    pkg_6m_discount_type: 'none',
+    pkg_6m_discount_val: 0,
+    pkg_12m_price: 306000,
+    pkg_12m_discount_type: 'none',
+    pkg_12m_discount_val: 0,
+  });
+
+  const SUBSCRIPTION_PACKAGES = useMemo(() => {
+    const pkgs = [
+      { id: '1m', title: '1 Bulan', defaultPrice: 30000, months: 1 },
+      { id: '3m', title: '3 Bulan', defaultPrice: 84000, months: 3 },
+      { id: '6m', title: '6 Bulan', defaultPrice: 159000, months: 6 },
+      { id: '12m', title: '12 Bulan', defaultPrice: 306000, months: 12 },
+    ];
+
+    return pkgs.map(p => {
+      const priceKey = `pkg_${p.id}_price`;
+      const typeKey = `pkg_${p.id}_discount_type`;
+      const valKey = `pkg_${p.id}_discount_val`;
+
+      const basePrice = Number((brandingData as any)[priceKey] ?? p.defaultPrice);
+      const discountType = (brandingData as any)[typeKey] || 'none';
+      const discountVal = Number((brandingData as any)[valKey] ?? 0);
+
+      let finalPrice = basePrice;
+      let discountLabel = '';
+
+      if (discountType === 'percent') {
+        finalPrice = Math.max(0, basePrice * (1 - discountVal / 100));
+        discountLabel = `${discountVal}% OFF`;
+      } else if (discountType === 'nominal') {
+        finalPrice = Math.max(0, basePrice - discountVal);
+        discountLabel = `HEMAT Rp ${discountVal.toLocaleString('id-ID')}`;
+      }
+
+      const pricePerMonth = Math.round(finalPrice / p.months);
+
+      const defaultDiscountLabels: Record<string, string> = {
+        '3m': 'HEMAT 7%',
+        '6m': 'HEMAT 12%',
+        '12m': 'HEMAT 15%'
+      };
+      const finalDiscountLabel = discountLabel || defaultDiscountLabels[p.id] || '';
+
+      return {
+        id: p.id,
+        title: p.title,
+        price: finalPrice,
+        pricePerMonth,
+        discountLabel: finalDiscountLabel
+      };
+    });
+  }, [brandingData]);
+
+  useEffect(() => {
+    const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBrandingData({
+          pkg_1m_price: Number(data.pkg_1m_price ?? 30000),
+          pkg_1m_discount_type: data.pkg_1m_discount_type || 'none',
+          pkg_1m_discount_val: Number(data.pkg_1m_discount_val ?? 0),
+          pkg_3m_price: Number(data.pkg_3m_price ?? 84000),
+          pkg_3m_discount_type: data.pkg_3m_discount_type || 'none',
+          pkg_3m_discount_val: Number(data.pkg_3m_discount_val ?? 0),
+          pkg_6m_price: Number(data.pkg_6m_price ?? 159000),
+          pkg_6m_discount_type: data.pkg_6m_discount_type || 'none',
+          pkg_6m_discount_val: Number(data.pkg_6m_discount_val ?? 0),
+          pkg_12m_price: Number(data.pkg_12m_price ?? 306000),
+          pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
+          pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
+        });
+      }
+    }, (error) => {
+      console.error("Error loading branding in mobile dashboard:", error);
+    });
+    return () => unsubBranding();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -462,35 +549,41 @@ export default function DashboardScreen({ navigation }: any) {
 
           {/* Pricing Grid */}
           <View className="flex-row flex-wrap gap-2.5 my-5 justify-between">
-            <View className="bg-white/5 border border-white/10 rounded-xl p-3 w-[48%]">
-              <Text className="text-[8px] font-black uppercase text-white/60 tracking-wider">1 Bulan</Text>
-              <Text className="text-sm font-black text-white mt-0.5">Rp 30.000</Text>
-              <Text className="text-[7px] text-white/50 font-bold">Rp 30.000 / bln</Text>
-            </View>
-            <View className="bg-white/5 border border-white/10 rounded-xl p-3 w-[48%] relative overflow-hidden">
-              <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
-                <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">Hemat 7%</Text>
-              </View>
-              <Text className="text-[8px] font-black uppercase text-white/60 tracking-wider font-mono">3 Bulan</Text>
-              <Text className="text-sm font-black text-white mt-0.5 font-sans">Rp 84.000</Text>
-              <Text className="text-[7px] text-emerald-200 font-bold">Rp 28.000 / bln</Text>
-            </View>
-            <View className="bg-white/5 border border-white/10 rounded-xl p-3 w-[48%] relative overflow-hidden">
-              <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
-                <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">Hemat 12%</Text>
-              </View>
-              <Text className="text-[8px] font-black uppercase text-white/60 tracking-wider font-mono">6 Bulan</Text>
-              <Text className="text-sm font-black text-white mt-0.5 font-sans">Rp 159.000</Text>
-              <Text className="text-[7px] text-emerald-200 font-bold">Rp 26.500 / bln</Text>
-            </View>
-            <View className="bg-emerald-500/20 border border-emerald-400/30 rounded-xl p-3 w-[48%] relative overflow-hidden">
-              <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
-                <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">Best</Text>
-              </View>
-              <Text className="text-[8px] font-black uppercase text-emerald-200 tracking-wider font-mono">12 Bulan</Text>
-              <Text className="text-sm font-black text-emerald-200 mt-0.5 font-sans">Rp 306.000</Text>
-              <Text className="text-[7px] text-white/80 font-bold">Rp 25.500 / bln</Text>
-            </View>
+            {SUBSCRIPTION_PACKAGES.map((pkg) => {
+              const is12m = pkg.id === '12m';
+              const hasDiscount = pkg.id !== '1m';
+              return (
+                <View 
+                  key={pkg.id}
+                  className={`border rounded-xl p-3 w-[48%] relative overflow-hidden ${
+                    is12m ? 'bg-emerald-500/20 border-emerald-400/30' : 'bg-white/5 border-white/10'
+                  }`}
+                >
+                  {pkg.discountLabel ? (
+                    <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
+                      <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">
+                        {pkg.discountLabel}
+                      </Text>
+                    </View>
+                  ) : is12m ? (
+                    <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
+                      <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">
+                        Best
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text className={`text-[8px] font-black uppercase tracking-wider ${is12m ? 'text-emerald-200' : 'text-white/60'}`}>
+                    {pkg.title}
+                  </Text>
+                  <Text className={`text-sm font-black mt-0.5 ${is12m ? 'text-emerald-200' : 'text-white'}`}>
+                    Rp {pkg.price.toLocaleString('id-ID')}
+                  </Text>
+                  <Text className={`text-[7px] font-bold ${is12m ? 'text-white/80' : hasDiscount ? 'text-emerald-200' : 'text-white/50'}`}>
+                    Rp {pkg.pricePerMonth.toLocaleString('id-ID')} / bln
+                  </Text>
+                </View>
+              );
+            })}
           </View>
 
           {/* Action Button */}

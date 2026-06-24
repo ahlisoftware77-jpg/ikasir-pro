@@ -7,9 +7,11 @@ import { db, primaryDb } from '@/lib/firebase';
 import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download, ChevronLeft, ChevronRight, Sparkles, CheckCircle, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import { useBranding } from '@/context/BrandingContext';
 
 export default function Home() {
   const { user, role, storeId } = useAuthStore();
+  const { branding } = useBranding();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customersCount, setCustomersCount] = useState(0);
 
@@ -22,6 +24,53 @@ export default function Home() {
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+  const SUBSCRIPTION_PACKAGES = useMemo(() => {
+    const pkgs = [
+      { id: '1m', title: '1 Bulan', defaultPrice: 30000, months: 1 },
+      { id: '3m', title: '3 Bulan', defaultPrice: 84000, months: 3 },
+      { id: '6m', title: '6 Bulan', defaultPrice: 159000, months: 6 },
+      { id: '12m', title: '12 Bulan', defaultPrice: 306000, months: 12 },
+    ];
+
+    return pkgs.map(p => {
+      const priceKey = `pkg_${p.id}_price`;
+      const typeKey = `pkg_${p.id}_discount_type`;
+      const valKey = `pkg_${p.id}_discount_val`;
+
+      const basePrice = Number((branding as any)[priceKey] ?? p.defaultPrice);
+      const discountType = (branding as any)[typeKey] || 'none';
+      const discountVal = Number((branding as any)[valKey] ?? 0);
+
+      let finalPrice = basePrice;
+      let discountLabel = '';
+
+      if (discountType === 'percent') {
+        finalPrice = Math.max(0, basePrice * (1 - discountVal / 100));
+        discountLabel = `${discountVal}% OFF`;
+      } else if (discountType === 'nominal') {
+        finalPrice = Math.max(0, basePrice - discountVal);
+        discountLabel = `HEMAT Rp ${discountVal.toLocaleString('id-ID')}`;
+      }
+
+      const pricePerMonth = Math.round(finalPrice / p.months);
+
+      const defaultDiscountLabels: Record<string, string> = {
+        '3m': 'HEMAT 7%',
+        '6m': 'HEMAT 12%',
+        '12m': 'HEMAT 15%'
+      };
+      const finalDiscountLabel = discountLabel || defaultDiscountLabels[p.id] || '';
+
+      return {
+        id: p.id,
+        title: p.title,
+        price: finalPrice,
+        pricePerMonth,
+        discountLabel: finalDiscountLabel
+      };
+    });
+  }, [branding]);
 
   const handleResetRevenue = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,29 +348,36 @@ export default function Home() {
             <div>
               <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-4">Pilihan Paket Premium</p>
               <div className="grid grid-cols-2 gap-3 text-white">
-                <div className="bg-white/5 border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors">
-                  <p className="text-[10px] font-black uppercase text-white/60 tracking-wider font-mono">1 Bulan</p>
-                  <p className="text-lg font-black mt-1">Rp 30.000</p>
-                  <p className="text-[9px] text-white/50 font-bold mt-0.5">Rp 30.000 / bln</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden">
-                  <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg">Hemat 7%</div>
-                  <p className="text-[10px] font-black uppercase text-white/60 tracking-wider font-mono">3 Bulan</p>
-                  <p className="text-lg font-black mt-1">Rp 84.000</p>
-                  <p className="text-[9px] text-emerald-300 font-bold mt-0.5">Rp 28.000 / bln</p>
-                </div>
-                <div className="bg-white/5 border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden">
-                  <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg">Hemat 12%</div>
-                  <p className="text-[10px] font-black uppercase text-white/60 tracking-wider font-mono">6 Bulan</p>
-                  <p className="text-lg font-black mt-1">Rp 159.000</p>
-                  <p className="text-[9px] text-emerald-300 font-bold mt-0.5">Rp 26.500 / bln</p>
-                </div>
-                <div className="bg-emerald-500/20 border border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden">
-                  <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg font-bold">Terpopuler</div>
-                  <p className="text-[10px] font-black uppercase text-emerald-300 tracking-wider font-mono">12 Bulan</p>
-                  <p className="text-lg font-black mt-1 text-emerald-300">Rp 306.000</p>
-                  <p className="text-[9px] text-white/80 font-bold mt-0.5">Rp 25.500 / bln</p>
-                </div>
+                {SUBSCRIPTION_PACKAGES.map((pkg) => {
+                  const is12m = pkg.id === '12m';
+                  return (
+                    <div 
+                      key={pkg.id} 
+                      className={`border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden ${
+                        is12m ? 'bg-emerald-500/20 border-emerald-400/30' : 'bg-white/5'
+                      }`}
+                    >
+                      {pkg.discountLabel ? (
+                        <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg">
+                          {pkg.discountLabel}
+                        </div>
+                      ) : is12m ? (
+                        <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg font-bold">
+                          Terpopuler
+                        </div>
+                      ) : null}
+                      <p className={`text-[10px] font-black uppercase tracking-wider font-mono ${is12m ? 'text-emerald-300' : 'text-white/60'}`}>
+                        {pkg.title}
+                      </p>
+                      <p className={`text-lg font-black mt-1 ${is12m ? 'text-emerald-300' : ''}`}>
+                        Rp {pkg.price.toLocaleString('id-ID')}
+                      </p>
+                      <p className={`text-[9px] font-bold mt-0.5 ${is12m ? 'text-white/80' : 'text-emerald-300'}`}>
+                        Rp {pkg.pricePerMonth.toLocaleString('id-ID')} / bln
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
