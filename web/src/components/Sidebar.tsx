@@ -27,53 +27,63 @@ import { useBranding } from '@/context/BrandingContext';
 import toast from 'react-hot-toast';
 
 const menuItems = [
-  { name: 'Kasir (POS)', path: '/pos', icon: Calculator, permission: 'canAccessPOS' },
-  { name: 'Daftar Pesanan', path: '/orders', icon: ClipboardList, permission: 'canManageOrders' },
-  { name: 'Estimasi Biaya', path: '/estimations', icon: FileText, permission: 'canManageEstimations' },
-  { name: 'Panel Super Admin', path: '/super-admin', icon: ShieldCheck, superOnly: true },
-  { name: 'Shift Karyawan', path: '/shifts', icon: History, permission: 'canAccessPOS' },
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard, permission: 'canViewReports' },
+  { name: 'Kasir (POS)', path: '/pos', icon: '🛒', permission: 'canAccessPOS' },
+  { name: 'Daftar Pesanan', path: '/orders', icon: '📦', permission: 'canManageOrders' },
+  { name: 'Estimasi Biaya', path: '/estimations', icon: '📋', permission: 'canManageEstimations' },
+  { name: 'Panel Super Admin', path: '/super-admin', icon: '🔑', superOnly: true },
+  { name: 'Shift Karyawan', path: '/shifts', icon: '⏰', permission: 'canAccessPOS' },
+  { name: 'Dashboard', path: '/', icon: '📊', permission: 'canViewReports' },
   { 
     name: 'Manajemen Produk', 
     path: '/products', 
-    icon: Package, 
+    icon: '📦', 
     permission: 'canManageProducts',
     subItems: [
-      { name: 'Daftar Produk', path: '/products', icon: List },
-      { name: 'Gudang Stok', path: '/products/warehouse', icon: Warehouse },
-      { name: 'Produk Ekstra', path: '/products/extras', icon: Layers },
-      { name: 'Diskon Harga', path: '/products/discounts', icon: Tag },
-      { name: 'Produk Terjual', path: '/products/sold', icon: ShoppingBag },
-      { name: 'Riwayat Stok', path: '/products/stock-history', icon: History },
-      { name: 'Masa Berlaku', path: '/products/expiry', icon: Calendar },
+      { name: 'Daftar Produk', path: '/products', icon: '📦' },
+      { name: 'Gudang Stok', path: '/products/warehouse', icon: '🏢' },
+      { name: 'Produk Ekstra', path: '/products/extras', icon: '➕' },
+      { name: 'Diskon Harga', path: '/products/discounts', icon: '🏷️' },
+      { name: 'Produk Terjual', path: '/products/sold', icon: '🛍️' },
+      { name: 'Riwayat Stok', path: '/products/stock-history', icon: '🔄' },
+      { name: 'Masa Berlaku', path: '/products/expiry', icon: '📅' },
     ]
   },
-  { name: 'Transaksi', path: '/transactions', icon: ShoppingCart, permission: 'canAccessPOS' },
-  { name: 'Hutang Piutang', path: '/debts', icon: BookOpen, permission: 'canManageDebts' },
+  { name: 'Transaksi', path: '/transactions', icon: '💰', permission: 'canAccessPOS' },
+  { name: 'Hutang Piutang', path: '/debts', icon: '💸', permission: 'canManageDebts' },
   { 
     name: 'Laporan', 
     path: '/reports', 
-    icon: PieChart, 
+    icon: '📊', 
     permission: 'canViewReports',
     subItems: [
-      { name: 'Transaksi Penjualan', path: '/reports/sales', icon: BarChart3 },
-      { name: 'Omzet per Bulan', path: '/reports/monthly', icon: TrendingUp },
-      { name: 'Produk Terlaris', path: '/reports/best-sellers', icon: Star },
-      { name: 'Arus Kas', path: '/reports/cash-flow', icon: ArrowRightLeft },
-      { name: 'Transaksi Pelanggan', path: '/reports/customers', icon: Users },
-      { name: 'Riwayat Tutup', path: '/reports/cashier-closes', icon: Archive },
+      { name: 'Transaksi Penjualan', path: '/reports/sales', icon: '📊' },
+      { name: 'Omzet per Bulan', path: '/reports/monthly', icon: '📈' },
+      { name: 'Produk Terlaris', path: '/reports/best-sellers', icon: '🔥' },
+      { name: 'Arus Kas', path: '/reports/cash-flow', icon: '💰' },
+      { name: 'Transaksi Pelanggan', path: '/reports/customers', icon: '👥' },
+      { name: 'Riwayat Tutup', path: '/reports/cashier-closes', icon: '📥' },
     ]
   },
-  { name: 'Manajemen User', path: '/users', icon: Users, permission: 'canManageUsers' },
-  { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, permission: 'canViewLogs' },
-  { name: 'Kotak Sampah', path: '/recycle-bin', icon: Trash2, permission: 'canEditSettings' },
-  { name: 'Profil Saya', path: '/profile', icon: UserCircle },
-  { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
-  { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: HelpCircle },
-  { name: 'Unduh App Android (APK)', path: 'https://bit.ly/ikasirpro', icon: Download },
-  { name: 'Kritik & Saran', path: '#feedback', icon: MessageSquare },
-  { name: 'Pengaturan', path: '/settings', icon: Settings, permission: 'canEditSettings' },
+  { name: 'Manajemen User', path: '/users', icon: '👥', permission: 'canManageUsers' },
+  { name: 'Log Aktifitas', path: '/logs', icon: '📝', permission: 'canViewLogs' },
+  { name: 'Kotak Sampah', path: '/recycle-bin', icon: '🗑️', permission: 'canEditSettings' },
+  { name: 'Profil Saya', path: '/profile', icon: '👤' },
+  { name: 'Paket Langganan', path: '#subscription', icon: '💎' },
+  { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: '💬' },
+  { name: 'Unduh App Android (APK)', path: 'https://bit.ly/ikasirpro', icon: '📲' },
+  { name: 'Kritik & Saran', path: '#feedback', icon: '📩' },
+  { name: 'Pengaturan', path: '/settings', icon: '⚙️', permission: 'canEditSettings' },
 ];
+
+const renderIcon = (icon: any, size: number, className?: string) => {
+  if (!icon) return null;
+  if (typeof icon === 'string') {
+    const sizeClass = size <= 12 ? 'text-xs w-4 h-4' : 'text-base w-5 h-5';
+    return <span className={`leading-none flex items-center justify-center shrink-0 ${sizeClass} ${className || ''}`}>{icon}</span>;
+  }
+  const Icon = icon;
+  return <Icon size={size} className={`shrink-0 ${className || ''}`} />;
+};
 
 interface SidebarProps {
   isOpen: boolean;
@@ -222,7 +232,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                   >
                     <span className="uiverse-btn-top w-full justify-between">
                       <span className="flex items-center gap-3">
-                        <Icon size={18} />
+                        {renderIcon(Icon, 18)}
                         <span className="text-sm">{item.name}</span>
                       </span>
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -243,7 +253,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                                 : 'text-app-text-muted hover:text-foreground hover:bg-accent/5 font-bold border-transparent'
                             }`}
                           >
-                            {sub.icon && <sub.icon size={12} className={isSubActive ? 'text-accent' : 'text-app-text-muted/60'} />}
+                            {sub.icon && renderIcon(sub.icon, 12, isSubActive ? 'text-accent' : 'text-app-text-muted/60')}
                             {sub.name}
                           </Link>
                         )
@@ -269,7 +279,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                     className="uiverse-btn border border-emerald-500/20 rounded-xl"
                   >
                     <span className="uiverse-btn-top w-full">
-                      <Icon size={18} className="text-emerald-400 animate-pulse" />
+                      {renderIcon(Icon, 18, 'text-emerald-400 animate-pulse')}
                       <span className="text-sm flex-1 text-left text-emerald-400 font-black">{item.name}</span>
                     </span>
                   </button>
@@ -287,7 +297,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                       className={`uiverse-btn ${pathname === '/super-admin' ? 'active-btn' : ''}`}
                     >
                       <span className="uiverse-btn-top w-full">
-                        <Icon size={18} />
+                        {renderIcon(Icon, 18)}
                         <span className="text-sm flex-1 text-left">{item.name}</span>
                       </span>
                     </Link>
@@ -304,7 +314,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                     className="uiverse-btn"
                   >
                     <span className="uiverse-btn-top w-full">
-                      <Icon size={18} />
+                      {renderIcon(Icon, 18)}
                       <span className="text-sm flex-1 text-left">{item.name}</span>
                     </span>
                   </button>
@@ -322,7 +332,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                     className="uiverse-btn"
                   >
                     <span className="uiverse-btn-top w-full">
-                      <Icon size={18} />
+                      {renderIcon(Icon, 18)}
                       <span className="text-sm flex-1 text-left">{item.name}</span>
                     </span>
                   </a>
@@ -347,7 +357,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
                   className={`uiverse-btn ${pathname === item.path ? 'active-btn' : ''} ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                 >
                   <span className="uiverse-btn-top">
-                    <Icon size={18} />
+                    {renderIcon(Icon, 18)}
                     <span className="text-sm flex-1 text-left">{item.name}</span>
                     {item.path === '/orders' && newOrderCount > 0 && (
                       <span className="bg-rose-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-md shadow-sm border border-rose-600 animate-pulse">
