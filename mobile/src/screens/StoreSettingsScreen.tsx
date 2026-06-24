@@ -157,6 +157,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     logoUrl: '',
     thermalLogoUrl: '',
     signatureUrl: '',
+    qrisUrl: '',
     storeNameFont: 'sans',
     a4InvoiceNote: '',
     a4EstimationNote: '',
@@ -169,6 +170,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingThermalLogo, setIsUploadingThermalLogo] = useState(false);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+  const [isUploadingQris, setIsUploadingQris] = useState(false);
   const [showSignaturePadMobile, setShowSignaturePadMobile] = useState(false);
 
   const [newStoreBankName, setNewStoreBankName] = useState('');
@@ -1033,6 +1035,53 @@ export default function StoreSettingsScreen({ navigation }: any) {
     }
   };
 
+  const handlePickQrisMobile = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setIsUploadingQris(true);
+        const localUri = result.assets[0].uri;
+        const filename = localUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename || '');
+        const type = match ? `image/${match[1]}` : `image`;
+
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
+        formDataUpload.append('upload_preset', 'kasirpos');
+
+        const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+          method: 'POST',
+          body: formDataUpload,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadRes.ok && uploadResult.secure_url) {
+          setStoreSettings(prev => ({ ...prev, qrisUrl: uploadResult.secure_url }));
+          const settingsRef = doc(db, 'settings', `store_${storeId}`);
+          await setDoc(settingsRef, { qrisUrl: uploadResult.secure_url }, { merge: true });
+          Alert.alert('Berhasil', 'Foto QRIS berhasil diunggah!');
+        } else {
+          console.error(uploadResult);
+          Alert.alert('Gagal', 'Gagal mengunggah QRIS ke server.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Gagal memilih QRIS.');
+    } finally {
+      setIsUploadingQris(false);
+    }
+  };
+
   const handleSaveSignatureMobile = async (base64: string) => {
     setShowSignaturePadMobile(false);
     setIsUploadingSignature(true);
@@ -1116,6 +1165,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               logoUrl: data.logoUrl || '',
               thermalLogoUrl: data.thermalLogoUrl || '',
               signatureUrl: data.signatureUrl || '',
+              qrisUrl: data.qrisUrl || '',
               storeNameFont: data.storeNameFont || 'sans',
               a4InvoiceNote: data.a4InvoiceNote || '',
               a4EstimationNote: data.a4EstimationNote || '',
@@ -1327,6 +1377,42 @@ export default function StoreSettingsScreen({ navigation }: any) {
                           {storeSettings.thermalLogoUrl !== '' && (
                             <TouchableOpacity 
                               onPress={() => setStoreSettings(prev => ({ ...prev, thermalLogoUrl: '' }))}
+                              className="px-4 py-2 rounded-xl items-center justify-center border border-rose-500/20 bg-rose-500/10"
+                            >
+                              <Text className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Hapus</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Foto QRIS Section */}
+                    <View className="space-y-2">
+                      <Text className="text-[9px] font-black uppercase tracking-wider pl-1" style={{ color: colors.textMuted }}>Foto QRIS Pembayaran</Text>
+                      <View className="flex-row items-center gap-4 p-4 rounded-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                        <View className="w-16 h-16 rounded-xl bg-white border overflow-hidden items-center justify-center" style={{ borderColor: colors.border }}>
+                          {storeSettings.qrisUrl ? (
+                            <Image source={{ uri: storeSettings.qrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+                          ) : (
+                            <Text className="text-[8px] font-bold text-slate-500 uppercase tracking-tight text-center">NO QRIS</Text>
+                          )}
+                        </View>
+                        <View className="flex-1 gap-2">
+                          <TouchableOpacity 
+                            onPress={handlePickQrisMobile}
+                            disabled={isUploadingQris}
+                            className="px-4 py-2.5 rounded-xl items-center justify-center"
+                            style={{ backgroundColor: colors.accent }}
+                          >
+                            {isUploadingQris ? (
+                              <ActivityIndicator size="small" color="#ffffff" />
+                            ) : (
+                              <Text className="text-[10px] font-black text-white uppercase tracking-wider">Pilih Foto QRIS</Text>
+                            )}
+                          </TouchableOpacity>
+                          {storeSettings.qrisUrl !== '' && (
+                            <TouchableOpacity 
+                              onPress={() => setStoreSettings(prev => ({ ...prev, qrisUrl: '' }))}
                               className="px-4 py-2 rounded-xl items-center justify-center border border-rose-500/20 bg-rose-500/10"
                             >
                               <Text className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Hapus</Text>
