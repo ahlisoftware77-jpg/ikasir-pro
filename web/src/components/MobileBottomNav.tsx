@@ -71,10 +71,10 @@ export default function MobileBottomNav() {
 
   // MAIN TAB MAPPING
   const mainTabs = [
-    { name: 'Dasbor', path: '/', icon: LayoutDashboard, show: (isAdmin || (permissions as any)?.canViewReports) },
-    { name: 'Kasir', path: '/pos', icon: Calculator, show: (isAdmin || (permissions as any)?.canAccessPOS) },
-    { name: 'Pesanan', path: '/orders', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canManageOrders) },
-    { name: 'Riwayat', path: '/transactions', icon: ShoppingCart, show: (isAdmin || (permissions as any)?.canAccessPOS) },
+    { name: 'Beranda', path: '/', icon: '📊', show: (isAdmin || (permissions as any)?.canViewReports) },
+    { name: 'Kasir', path: '/pos', icon: '🛒', show: (isAdmin || (permissions as any)?.canAccessPOS) },
+    { name: 'Pesanan', path: '/orders', icon: '📦', show: (isAdmin || (permissions as any)?.canManageOrders) },
+    { name: 'Transaksi', path: '/transactions', icon: '💰', show: (isAdmin || (permissions as any)?.canAccessPOS) },
   ].filter(t => t.show !== false);
 
   // Take top 4 max for clean UI, leaving 1 slot for "Lainnya"
@@ -82,46 +82,46 @@ export default function MobileBottomNav() {
 
   // MORE SHEET MAPPING
   const moreMenus = [
-    { name: 'Estimasi Biaya', path: '/estimations', icon: FileText, show: (isAdmin || (permissions as any)?.canManageEstimations) },
-    { name: 'Hutang Piutang', path: '/debts', icon: BookOpen, show: (isAdmin || (permissions as any)?.canManageDebts) },
-    { name: 'Shift Karyawan', path: '/shifts', icon: History, show: (isAdmin || (permissions as any)?.canAccessPOS) },
+    { name: 'Estimasi Biaya', path: '/estimations', icon: '📋', show: (isAdmin || (permissions as any)?.canManageEstimations) },
+    { name: 'Hutang Piutang', path: '/debts', icon: '💸', show: (isAdmin || (permissions as any)?.canManageDebts) },
+    { name: 'Shift Karyawan', path: '/shifts', icon: '⏰', show: (isAdmin || (permissions as any)?.canAccessPOS) },
     { 
       name: 'Laporan', 
       path: '/reports', 
-      icon: PieChart, 
+      icon: '📊', 
       show: (isAdmin || (permissions as any)?.canViewReports),
       subItems: [
-        { name: 'Penjualan', path: '/reports/sales', icon: BarChart3 },
-        { name: 'Omzet', path: '/reports/monthly', icon: TrendingUp },
-        { name: 'Terlaris', path: '/reports/best-sellers', icon: Star },
-        { name: 'Arus Kas', path: '/reports/cash-flow', icon: ArrowRightLeft },
-        { name: 'Pelanggan', path: '/reports/customers', icon: Users },
-        { name: 'Riwayat Tutup', path: '/reports/cashier-closes', icon: Archive },
+        { name: 'Penjualan', path: '/reports/sales', icon: '📊' },
+        { name: 'Omzet', path: '/reports/monthly', icon: '📈' },
+        { name: 'Terlaris', path: '/reports/best-sellers', icon: '🔥' },
+        { name: 'Arus Kas', path: '/reports/cash-flow', icon: '💰' },
+        { name: 'Pelanggan', path: '/reports/customers', icon: '👥' },
+        { name: 'Riwayat Tutup', path: '/reports/cashier-closes', icon: '📥' },
       ]
     },
     { 
       name: 'Manajemen Produk', 
       path: '/products', 
-      icon: Package, 
+      icon: '📦', 
       show: (isAdmin || (permissions as any)?.canManageProducts),
       subItems: [
-        { name: 'Produk', path: '/products', icon: List },
-        { name: 'Gudang', path: '/products/warehouse', icon: Warehouse },
-        { name: 'Ekstra', path: '/products/extras', icon: Layers },
-        { name: 'Diskon', path: '/products/discounts', icon: Tag },
-        { name: 'Terjual', path: '/products/sold', icon: ShoppingBag },
-        { name: 'Stok', path: '/products/stock-history', icon: History },
-        { name: 'Expired', path: '/products/expiry', icon: Calendar },
+        { name: 'Produk', path: '/products', icon: '📦' },
+        { name: 'Gudang', path: '/products/warehouse', icon: '🏢' },
+        { name: 'Ekstra', path: '/products/extras', icon: '➕' },
+        { name: 'Diskon', path: '/products/discounts', icon: '🏷️' },
+        { name: 'Terjual', path: '/products/sold', icon: '🛍️' },
+        { name: 'Stok', path: '/products/stock-history', icon: '🔄' },
+        { name: 'Expired', path: '/products/expiry', icon: '📅' },
       ]
     },
-    { name: 'Staf & User', path: '/users', icon: Users, show: (isAdmin || (permissions as any)?.canManageUsers) },
-    { name: 'Log Aktifitas', path: '/logs', icon: ClipboardList, show: (isAdmin || (permissions as any)?.canViewLogs) },
-    { name: 'Profil', path: '/profile', icon: UserCircle },
-    { name: 'Paket Langganan', path: '#subscription', icon: Sparkles },
-    { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: HelpCircle },
-    { name: 'Kritik & Saran', path: '#feedback', icon: MessageSquare },
-    { name: 'Pengaturan', path: '/settings', icon: Settings, show: isAdmin || (permissions as any)?.canEditSettings },
-    { name: 'Super Admin', path: '/super-admin', icon: ShieldCheck, show: role === 'super-admin' || role === 'superadmin' },
+    { name: 'Staf & User', path: '/users', icon: '👥', show: (isAdmin || (permissions as any)?.canManageUsers) },
+    { name: 'Log Aktifitas', path: '/logs', icon: '📝', show: (isAdmin || (permissions as any)?.canViewLogs) },
+    { name: 'Profil', path: '/profile', icon: '👤' },
+    { name: 'Paket Langganan', path: '#subscription', icon: '💎' },
+    { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: '💬' },
+    { name: 'Kritik & Saran', path: '#feedback', icon: '📩' },
+    { name: 'Pengaturan', path: '/settings', icon: '⚙️', show: isAdmin || (permissions as any)?.canEditSettings },
+    { name: 'Super Admin', path: '/super-admin', icon: '🔑', show: role === 'super-admin' || role === 'superadmin' },
   ].filter(m => m.show !== false);
 
   const themes = [
@@ -168,7 +168,7 @@ export default function MobileBottomNav() {
             const isSuperAdminBlocked = disabledMenus?.includes(tab.path === '/' ? '/reports' : tab.path);
             const blockedWhenExpired = expiredDisabledMenus || [];
             const isBlocked = (isSubscriptionExpired && blockedWhenExpired.includes(tab.path)) || isSuperAdminBlocked;
-            const Icon = tab.icon;
+            const Icon = tab.icon as any;
             return (
               <Link
                 href={isBlocked ? '#' : tab.path}
@@ -192,7 +192,13 @@ export default function MobileBottomNav() {
                 } ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <div className={`p-1.5 rounded-md transition-all relative ${isActive ? 'bg-accent/15' : ''}`}>
-                  <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'animate-bounce-short' : ''} />
+                  {typeof tab.icon === 'string' ? (
+                    <span className={`text-xl leading-none flex items-center justify-center shrink-0 w-6 h-6 ${isActive ? 'animate-bounce-short' : ''}`}>
+                      {tab.icon}
+                    </span>
+                  ) : (
+                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'animate-bounce-short' : ''} />
+                  )}
                   {tab.path === '/orders' && newOrderCount > 0 && (
                      <div className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-sm border border-surface shadow-sm animate-pulse">
                         {newOrderCount}
@@ -213,7 +219,9 @@ export default function MobileBottomNav() {
             }`}
           >
             <div className={`p-1.5 rounded-md transition-all ${isMoreOpen ? 'bg-accent/15' : ''}`}>
-              <Menu size={20} className={isMoreOpen ? 'animate-pulse' : ''} />
+              <span className={`text-xl leading-none flex items-center justify-center shrink-0 w-6 h-6 ${isMoreOpen ? 'animate-pulse' : ''}`}>
+                ⚙️
+              </span>
             </div>
             <span className={`text-[9px] mt-0.5 tracking-wide ${isMoreOpen ? 'font-black' : 'font-bold'}`}>Lainnya</span>
           </button>
@@ -302,7 +310,16 @@ export default function MobileBottomNav() {
                      >
                        <span className="uiverse-btn-top w-full justify-between">
                          <span className="flex items-center gap-3">
-                           <menu.icon size={18} />
+                           {typeof menu.icon === 'string' ? (
+                             <span className="text-lg leading-none flex items-center justify-center shrink-0 w-5 h-5">
+                               {menu.icon}
+                             </span>
+                           ) : (
+                             (() => {
+                               const IconComponent = menu.icon as any;
+                               return <IconComponent size={18} />;
+                             })()
+                           )}
                            <span className="text-sm font-bold text-foreground">{menu.name}</span>
                          </span>
                          {hasSubItems ? (
@@ -328,7 +345,18 @@ export default function MobileBottomNav() {
                                   : 'bg-surface border-app-border text-app-text-muted hover:border-accent/30'
                               }`}
                             >
-                              {sub.icon && <sub.icon size={16} className={pathname === sub.path ? 'text-foreground' : 'text-accent'} />}
+                               {sub.icon && (
+                                 typeof sub.icon === 'string' ? (
+                                   <span className="text-base leading-none flex items-center justify-center shrink-0 w-4 h-4">
+                                     {sub.icon}
+                                   </span>
+                                 ) : (
+                                   (() => {
+                                     const SubIcon = sub.icon as any;
+                                     return <SubIcon size={16} className={pathname === sub.path ? 'text-foreground' : 'text-accent'} />;
+                                   })()
+                                 )
+                               )}
                               <span className="text-[9px] font-black uppercase tracking-tighter line-clamp-1">{sub.name}</span>
                             </Link>
                           ))}
