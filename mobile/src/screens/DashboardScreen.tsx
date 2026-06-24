@@ -540,7 +540,7 @@ export default function DashboardScreen({ navigation }: any) {
               </Text>
             </View>
             <View className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center">
-              <DollarSign color="#10b981" size={24} />
+              <Text className="text-xl">💰</Text>
             </View>
           </View>
 
@@ -562,7 +562,7 @@ export default function DashboardScreen({ navigation }: any) {
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
           >
             <View className="w-8 h-8 rounded-lg bg-blue-500/10 items-center justify-center mb-2">
-              <ShoppingBag color="#3b82f6" size={16} />
+              <Text className="text-base">🛒</Text>
             </View>
             <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>TRANSAKSI</Text>
             <Text className="text-sm font-black mt-1" style={{ color: colors.text }}>{transactions.length}</Text>
@@ -574,7 +574,7 @@ export default function DashboardScreen({ navigation }: any) {
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
           >
             <View className="w-8 h-8 rounded-lg bg-purple-500/10 items-center justify-center mb-2">
-              <Package color="#8b5cf6" size={16} />
+              <Text className="text-base">📦</Text>
             </View>
             <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>TERJUAL</Text>
             <Text className="text-sm font-black mt-1" style={{ color: colors.text }}>{totalProductsSold}</Text>
@@ -586,7 +586,7 @@ export default function DashboardScreen({ navigation }: any) {
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
           >
             <View className="w-8 h-8 rounded-lg bg-rose-500/10 items-center justify-center mb-2">
-              <Users color="#f43f5e" size={16} />
+              <Text className="text-base">👥</Text>
             </View>
             <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>PELANGGAN</Text>
             <Text className="text-sm font-black mt-1" style={{ color: colors.text }}>{customersCount}</Text>
@@ -601,7 +601,7 @@ export default function DashboardScreen({ navigation }: any) {
         >
           <View className="flex-row items-center gap-4 mb-4">
             <View className="w-12 h-12 rounded-2xl items-center justify-center bg-blue-500/10 border border-blue-500/20">
-              <ShoppingBag color={colors.accent} size={22} />
+              <Text className="text-xl">🔗</Text>
             </View>
             <View className="flex-1">
               <Text className="text-sm font-black" style={{ color: colors.text }}>Outlet Online Aktif</Text>
@@ -651,12 +651,12 @@ export default function DashboardScreen({ navigation }: any) {
               <Text className="text-sm font-black uppercase tracking-wider" style={{ color: colors.text }}>Top 5 Produk Terlaris</Text>
               <Text className="text-[9px] font-bold mt-0.5" style={{ color: colors.textMuted }}>Kalkulasi produk berdasarkan volume PCS</Text>
             </View>
-            <TrendingUp size={18} color={colors.accent} />
+            <Text className="text-lg">📈</Text>
           </View>
 
           {topProducts.length === 0 ? (
             <View className="items-center py-10 opacity-30">
-              <Package size={44} color={colors.textMuted} />
+              <Text className="text-3xl">📦</Text>
               <Text className="text-xs font-bold mt-3" style={{ color: colors.textMuted }}>Belum ada produk terjual</Text>
             </View>
           ) : (

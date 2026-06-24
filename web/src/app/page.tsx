@@ -154,10 +154,10 @@ export default function Home() {
   }, [transactions]);
 
   const stats = [
-    { name: 'Total Pendapatan', value: `Rp ${totalPendapatan.toLocaleString('id-ID')}`, icon: DollarSign, change: 'Realtime', positive: true },
-    { name: 'Total Transaksi', value: transactions.length.toLocaleString(), icon: ShoppingBag, change: 'Realtime', positive: true },
-    { name: 'Produk Terjual', value: totalProduk.toLocaleString(), icon: Package, change: 'Realtime', positive: true },
-    { name: 'Total Pelanggan', value: customersCount.toLocaleString(), icon: Users, change: 'Realtime', positive: true },
+    { name: 'Total Pendapatan', value: `Rp ${totalPendapatan.toLocaleString('id-ID')}`, icon: '💰', change: 'Realtime', positive: true },
+    { name: 'Total Transaksi', value: transactions.length.toLocaleString(), icon: '🛒', change: 'Realtime', positive: true },
+    { name: 'Produk Terjual', value: totalProduk.toLocaleString(), icon: '📦', change: 'Realtime', positive: true },
+    { name: 'Total Pelanggan', value: customersCount.toLocaleString(), icon: '👥', change: 'Realtime', positive: true },
   ];
 
   return (
@@ -339,8 +339,8 @@ export default function Home() {
       {/* SHARE STORE LINK CARD */}
       <div className="bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20 rounded-[2rem] p-6 mb-4 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-accent/40 transition-all duration-500 shadow-xl shadow-accent/5">
         <div className="flex items-center gap-5 w-full md:w-auto">
-          <div className="w-16 h-16 rounded-2xl bg-accent text-foreground flex items-center justify-center shadow-lg shadow-accent/30 group-hover:scale-110 transition-transform duration-500">
-            <ShoppingBag size={32} />
+          <div className="w-16 h-16 rounded-2xl bg-accent text-foreground flex items-center justify-center shadow-lg shadow-accent/30 group-hover:scale-110 transition-transform duration-500 text-3xl">
+            🔗
           </div>
           <div>
             <h2 className="text-xl font-black text-foreground tracking-tight">Link Pemesanan Online</h2>
@@ -387,8 +387,8 @@ export default function Home() {
       {/* DOWNLOAD APK BANNER */}
       <div className="bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 border border-indigo-500/20 rounded-[2rem] p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-indigo-500/40 transition-all duration-500 shadow-xl shadow-indigo-500/5">
         <div className="flex items-center gap-5 w-full md:w-auto">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-500">
-            <Download size={32} />
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-500 text-3xl">
+            📲
           </div>
           <div>
             <h2 className="text-xl font-black text-foreground tracking-tight">Aplikasi Android iKasir Pro</h2>
@@ -413,7 +413,14 @@ export default function Home() {
           <div key={stat.name} className="bg-surface border border-app-border rounded-2xl md:rounded-[2rem] p-4 md:p-8 shadow-xl shadow-black/5 hover:border-accent/30 transition-all group active:scale-95 duration-300">
             <div className="flex items-center justify-between mb-4 md:mb-6">
               <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-background border border-app-border flex items-center justify-center shadow-inner group-hover:bg-accent/10 group-hover:border-accent/30 transition-all">
-                <stat.icon className="w-5 h-5 md:w-7 md:h-7 text-accent" />
+                {typeof stat.icon === 'string' ? (
+                  <span className="text-lg md:text-2xl leading-none">{stat.icon}</span>
+                ) : (
+                  (() => {
+                    const IconComp = stat.icon as any;
+                    return <IconComp className="w-5 h-5 md:w-7 md:h-7 text-accent" />;
+                  })()
+                )}
               </div>
               <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black border ${stat.positive ? 'bg-emerald-400/10 border-emerald-400/20 text-emerald-400' : 'bg-rose-400/10 border-rose-400/20 text-rose-400'}`}>
                 {stat.change}
@@ -448,7 +455,7 @@ export default function Home() {
           </h2>
           <div className="flex-1 flex items-center justify-center border-4 border-dashed border-app-border/50 rounded-[2rem] bg-background/50">
             <div className="text-center group">
-               <TrendingUp className="w-16 h-16 text-app-text-muted mx-auto mb-4 opacity-20 group-hover:scale-110 group-hover:text-accent group-hover:opacity-100 transition-all duration-500" />
+               <span className="text-5xl block mx-auto mb-4 opacity-20 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500">📈</span>
                <p className="text-app-text-muted font-bold italic">Integrasi Grafik ke Laporan Omzet</p>
             </div>
           </div>
@@ -461,9 +468,9 @@ export default function Home() {
                <div className="text-center text-app-text-muted font-bold text-sm mt-10 opacity-50">Belum ada barang terjual</div>
             ) : topProducts.map((item, index) => (
               <div key={index} className="flex items-center gap-5 group cursor-pointer">
-                <div className="w-14 h-14 rounded-2xl bg-background border border-app-border flex-shrink-0 relative overflow-hidden shadow-inner group-hover:border-accent transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-background border border-app-border flex-shrink-0 relative overflow-hidden shadow-inner group-hover:border-accent transition-colors flex items-center justify-center">
                   <div className="absolute inset-0 bg-accent/5 animate-pulse"></div>
-                  <Package className="absolute inset-0 m-auto w-6 h-6 text-app-text-muted opacity-20 group-hover:text-accent group-hover:opacity-100 transition-all" />
+                  <span className="text-xl opacity-20 group-hover:opacity-100 transition-all">📦</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-foreground truncate group-hover:text-accent transition-colors">{item.name}</p>
