@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth';
-import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download } from 'lucide-react';
+import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit } from 'firebase/firestore';
+import { db, primaryDb } from '@/lib/firebase';
+import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download, Megaphone, ChevronLeft, ChevronRight, Sparkles, CheckCircle, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SubscriptionModal from '@/components/SubscriptionModal';
 
 export default function Home() {
   const { user, role, storeId } = useAuthStore();
@@ -15,6 +16,12 @@ export default function Home() {
   const [isResetRevenueModalOpen, setIsResetRevenueModalOpen] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+
+  // State for Announcements and Subscription Card
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   const handleResetRevenue = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +89,49 @@ export default function Home() {
     return () => { unsubTrx(); unsubCust(); };
   }, [storeId]);
 
+  // Load announcements (broadcasts)
+  useEffect(() => {
+    const q = query(
+      collection(primaryDb, 'broadcasts'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const list: any[] = [];
+      snap.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setBroadcasts(list);
+      setIsLoadingBroadcasts(false);
+    }, (error) => {
+      console.error("Error fetching broadcasts:", error);
+      setIsLoadingBroadcasts(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const activeBroadcasts = useMemo(() => {
+    if (broadcasts.length > 0) return broadcasts;
+    return [
+      {
+        id: 'default-welcome',
+        title: 'Selamat Datang di iKasir Pro Web Dashboard!',
+        message: 'Kelola transaksi, produk, stok, laporan keuangan, dan lainnya secara real-time dengan mudah di satu tempat.',
+        createdAt: new Date().toISOString(),
+        data: { link: 'https://yadiapp.com' }
+      }
+    ];
+  }, [broadcasts]);
+
+  // Auto-slide announcements
+  useEffect(() => {
+    if (activeBroadcasts.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [activeBroadcasts.length]);
+
   const { totalPendapatan, totalProduk, topProducts } = useMemo(() => {
     let rev = 0;
     let qty = 0;
@@ -116,6 +166,169 @@ export default function Home() {
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">Dashboard</h1>
           <p className="text-xs md:text-sm text-app-text-muted mt-2 font-medium">Selamat datang kembali, <span className="text-accent font-bold">{user?.email}</span> 👋</p>
+        </div>
+      </div>
+
+      {/* SECTION: ANNOUNCEMENTS CAROUSEL */}
+      {!isLoadingBroadcasts && activeBroadcasts.length > 0 && (
+        <div className="relative overflow-hidden bg-card border border-app-border rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-black/5 hover:border-accent/20 transition-all duration-300">
+          <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-accent animate-bounce" />
+              <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Pengumuman & Info Terbaru</h2>
+            </div>
+            {activeBroadcasts.length > 1 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev === 0 ? activeBroadcasts.length - 1 : prev - 1))}
+                  className="w-8 h-8 rounded-lg bg-surface border border-app-border flex items-center justify-center text-app-text-muted hover:text-foreground transition-all hover:scale-105 active:scale-95"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length)}
+                  className="w-8 h-8 rounded-lg bg-surface border border-app-border flex items-center justify-center text-app-text-muted hover:text-foreground transition-all hover:scale-105 active:scale-95"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="min-h-[120px] flex flex-col md:flex-row items-center gap-6">
+            <div className="flex-1 space-y-3 w-full">
+              <span className="inline-block text-[9px] font-black uppercase tracking-widest bg-accent/15 text-accent px-2.5 py-1 rounded-md">
+                {new Date(activeBroadcasts[currentSlide].createdAt || Date.now()).toLocaleDateString('id-ID', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}
+              </span>
+              <h3 className="text-lg md:text-xl font-black text-foreground tracking-tight leading-snug">
+                {activeBroadcasts[currentSlide].title}
+              </h3>
+              <p className="text-xs md:text-sm text-app-text-muted font-medium leading-relaxed max-w-3xl">
+                {activeBroadcasts[currentSlide].message}
+              </p>
+              {activeBroadcasts[currentSlide].data?.link && (
+                <a
+                  href={activeBroadcasts[currentSlide].data.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-accent hover:text-accent-hover mt-2"
+                >
+                  Lihat Selengkapnya <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
+
+            {activeBroadcasts[currentSlide].data?.imageUrl && (
+              <div className="w-full md:w-1/3 aspect-[2/1] md:aspect-[3/2] rounded-2xl overflow-hidden border border-app-border bg-background relative shrink-0 shadow-inner">
+                <img
+                  src={activeBroadcasts[currentSlide].data.imageUrl}
+                  alt={activeBroadcasts[currentSlide].title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Dots Indicator */}
+          {activeBroadcasts.length > 1 && (
+            <div className="flex justify-center gap-1.5 mt-6">
+              {activeBroadcasts.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    currentSlide === idx ? 'w-6 bg-accent' : 'w-2 bg-app-border'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECTION: PRICING CARD - GREEN GRADIENT */}
+      <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 border border-emerald-500/30 rounded-[2.5rem] p-6 md:p-8 text-white shadow-xl shadow-emerald-950/20 group hover:border-emerald-400/40 transition-all duration-500 relative overflow-hidden">
+        <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-white/5 blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
+        <div className="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
+
+        <div className="flex flex-col xl:flex-row items-stretch gap-8 relative z-10">
+          <div className="flex-1 flex flex-col justify-between space-y-6">
+            <div>
+              <div className="flex items-center gap-2 bg-white/10 border border-white/20 px-3.5 py-1.5 rounded-full w-fit mb-4">
+                <Sparkles size={14} className="text-yellow-300 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-yellow-300">Promo Spesial Langganan</span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-tight">Mulai Berlangganan iKasir Pro</h2>
+              <p className="text-white/80 text-xs md:text-sm font-medium mt-2 leading-relaxed max-w-xl">
+                Buka semua fitur premium seperti Cetak Struk A4 & Kasir, multi-rekening bank toko, multi-kasir, kelola stok gudang tak terbatas, dan analisis laporan detail.
+              </p>
+            </div>
+
+            <div className="space-y-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <CheckCircle size={12} className="text-emerald-300" />
+                </div>
+                <span className="text-xs font-bold text-white/95">Semua Laporan Omzet, Terlaris, & Arus Kas Lengkap</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <CheckCircle size={12} className="text-emerald-300" />
+                </div>
+                <span className="text-xs font-bold text-white/95">Halaman Toko Online & Pemesanan Mandiri Pelanggan</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <CheckCircle size={12} className="text-emerald-300" />
+                </div>
+                <span className="text-xs font-bold text-white/95">Dukungan Multi-User, Printer Bluetooth & TTD Digital Kasir</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing Grid */}
+          <div className="w-full xl:w-[480px] bg-black/15 border border-white/10 rounded-[2rem] p-6 flex flex-col justify-between gap-6 backdrop-blur-md">
+            <div>
+              <p className="text-[10px] font-black text-emerald-300 uppercase tracking-widest mb-4">Pilihan Paket Premium</p>
+              <div className="grid grid-cols-2 gap-3 text-white">
+                <div className="bg-white/5 border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors">
+                  <p className="text-[10px] font-black uppercase text-white/60 tracking-wider font-mono">1 Bulan</p>
+                  <p className="text-lg font-black mt-1">Rp 30.000</p>
+                  <p className="text-[9px] text-white/50 font-bold mt-0.5">Rp 30.000 / bln</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden">
+                  <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg">Hemat 7%</div>
+                  <p className="text-[10px] font-black uppercase text-white/60 tracking-wider font-mono">3 Bulan</p>
+                  <p className="text-lg font-black mt-1">Rp 84.000</p>
+                  <p className="text-[9px] text-emerald-300 font-bold mt-0.5">Rp 28.000 / bln</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 hover:border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden">
+                  <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg">Hemat 12%</div>
+                  <p className="text-[10px] font-black uppercase text-white/60 tracking-wider font-mono">6 Bulan</p>
+                  <p className="text-lg font-black mt-1">Rp 159.000</p>
+                  <p className="text-[9px] text-emerald-300 font-bold mt-0.5">Rp 26.500 / bln</p>
+                </div>
+                <div className="bg-emerald-500/20 border border-emerald-400/30 rounded-2xl p-4 transition-colors relative overflow-hidden">
+                  <div className="absolute right-0 top-0 bg-yellow-400 text-teal-950 font-black text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-bl-lg font-bold">Terpopuler</div>
+                  <p className="text-[10px] font-black uppercase text-emerald-300 tracking-wider font-mono">12 Bulan</p>
+                  <p className="text-lg font-black mt-1 text-emerald-300">Rp 306.000</p>
+                  <p className="text-[9px] text-white/80 font-bold mt-0.5">Rp 25.500 / bln</p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowSubscriptionModal(true)}
+              className="w-full py-4 bg-white hover:bg-emerald-50 text-teal-900 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-black/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <CreditCard size={14} className="stroke-[2.5]" />
+              Aktifkan Langganan Sekarang
+            </button>
+          </div>
         </div>
       </div>
 
@@ -307,6 +520,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Subscription Checkout Modal */}
+      <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
     </div>
   );
 }
