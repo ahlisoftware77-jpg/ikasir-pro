@@ -7,6 +7,7 @@ import { db, primaryDb } from '@/lib/firebase';
 import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download, ChevronLeft, ChevronRight, Sparkles, CheckCircle, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import Link from 'next/link';
 import { useBranding } from '@/context/BrandingContext';
 
 export default function Home() {
@@ -509,12 +510,16 @@ export default function Home() {
              <div className="w-2 h-8 bg-accent rounded-full"></div>
              Grafik Penjualan
           </h2>
-          <div className="flex-1 flex items-center justify-center border-4 border-dashed border-app-border/50 rounded-[2rem] bg-background/50">
+          <Link 
+            href="/reports/monthly" 
+            className="flex-1 flex items-center justify-center border-4 border-dashed border-app-border/50 rounded-[2rem] bg-background/50 hover:border-accent/40 hover:bg-accent/5 transition-all duration-300 cursor-pointer group/card"
+          >
             <div className="text-center group">
-               <span className="text-5xl block mx-auto mb-4 opacity-20 group-hover:scale-110 group-hover:opacity-100 transition-all duration-500">📈</span>
-               <p className="text-app-text-muted font-bold italic">Integrasi Grafik ke Laporan Omzet</p>
+               <span className="text-5xl block mx-auto mb-4 opacity-20 group-hover:scale-110 group-hover:opacity-100 group-hover/card:scale-110 group-hover/card:opacity-100 transition-all duration-500">📈</span>
+               <p className="text-app-text-muted font-black group-hover/card:text-accent transition-colors">Buka Laporan Omzet & Grafik</p>
+               <p className="text-[10px] text-app-text-muted font-bold mt-1">Klik untuk melihat detail grafik bulanan & tahunan</p>
             </div>
-          </div>
+          </Link>
         </div>
 
         <div className="bg-surface border border-app-border rounded-[2.5rem] p-8 shadow-xl shadow-black/5 flex flex-col transition-colors duration-300">
