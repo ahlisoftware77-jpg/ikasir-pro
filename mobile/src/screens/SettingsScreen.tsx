@@ -440,20 +440,27 @@ export default function SettingsScreen({ navigation, route }: any) {
         discountLabel = `HEMAT Rp ${discountVal.toLocaleString('id-ID')}`;
       }
 
-      const pricePerMonth = Math.round(finalPrice / p.months);
-
-      const desc = p.months === 1 
-        ? `1 Bulan = Rp ${finalPrice.toLocaleString('id-ID')}` 
-        : `${p.months} Bulan x Rp ${pricePerMonth.toLocaleString('id-ID')} = Rp ${finalPrice.toLocaleString('id-ID')}`;
-
-      return {
-        id: p.id,
-        title: p.title,
-        price: finalPrice,
-        basePrice,
-        discountLabel,
-        desc
-      };
+       const pricePerMonth = Math.round(finalPrice / p.months);
+ 
+       const desc = p.months === 1 
+         ? `1 Bulan = Rp ${finalPrice.toLocaleString('id-ID')}` 
+         : `${p.months} Bulan x Rp ${pricePerMonth.toLocaleString('id-ID')} = Rp ${finalPrice.toLocaleString('id-ID')}`;
+ 
+       const defaultDiscountLabels: Record<string, string> = {
+         '3m': 'HEMAT 7%',
+         '6m': 'HEMAT 12%',
+         '12m': 'HEMAT 15%'
+       };
+       const finalDiscountLabel = discountLabel || defaultDiscountLabels[p.id] || '';
+ 
+       return {
+         id: p.id,
+         title: p.title,
+         price: finalPrice,
+         basePrice,
+         discountLabel: finalDiscountLabel,
+         desc
+       };
     });
   }, [brandingData]);
 
@@ -466,6 +473,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         const banks = data.subscriptionBanks || [];
         const ewallets = data.subscriptionEwallets || [];
         setBrandingData({
+          ...data,
           appName: data.appName || 'IKASIR PRO',
           receiptWatermark: data.receiptWatermark || 'Powered by YadiApp',
           showWatermark: data.showWatermark ?? true,
@@ -2744,8 +2752,9 @@ export default function SettingsScreen({ navigation, route }: any) {
                             >
                               <Sparkles size={8} color="#ffffff" />
                               <Text className="text-[7px] font-black text-white uppercase tracking-widest">
-                                {pkg.discountLabel ? `${pkg.discountLabel} / TERLARIS` : 'HEMAT 15% / TERLARIS'}
+                                {pkg.discountLabel ? `${pkg.discountLabel} / TERLARIS` : 'TERLARIS'}
                               </Text>
+
                             </Animated.View>
                           )}
                           <View className="flex-1 pr-4">
