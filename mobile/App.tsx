@@ -193,7 +193,7 @@ function TabNavigator() {
     return {
       tabBarIcon: ({ color }: any) => {
         const Icon = iconComponent;
-        return <Icon color={color} size={24} strokeWidth={2.5} />;
+        return <Icon color={color} size={24} strokeWidth={2} />;
       },
       title,
       tabBarButton: (props: any) => (
@@ -314,7 +314,7 @@ function TabNavigator() {
         name="Lainnya" 
         component={SettingsScreen} 
         options={{
-          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={24} strokeWidth={2.5} />,
+          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={24} strokeWidth={2} />,
           title: 'MENU LAINNYA',
           tabBarBadge: showExpiredOrWarningBadge ? '!' : undefined,
           tabBarBadgeStyle: showExpiredOrWarningBadge ? {

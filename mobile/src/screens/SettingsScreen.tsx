@@ -1194,7 +1194,7 @@ export default function SettingsScreen({ navigation, route }: any) {
           {label === 'Periksa Pembaruan' && isCheckingUpdates ? (
             <ActivityIndicator size="small" color={color} />
           ) : (
-            <IconComponent size={20} color={isDisabled ? colors.textMuted : color} />
+            <IconComponent size={20} color={isDisabled ? colors.textMuted : color} strokeWidth={2} />
           )}
           {badgeCount > 0 && (
             <View className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full items-center justify-center border border-white">
