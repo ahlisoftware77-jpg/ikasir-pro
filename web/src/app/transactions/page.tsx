@@ -1,15 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, doc, getDoc, where, deleteDoc, updateDoc, writeBatch, increment } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
+import { collection, query, onSnapshot, orderBy, doc, getDoc, getDocs, where, deleteDoc, updateDoc, writeBatch, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { ShoppingCart, Calendar, Search, Loader2, Eye, X, ReceiptText, Printer, MessageCircle, Truck, Trash2, PenTool, Share2, PenLine, Plus, Minus, Save, ShieldCheck, ArrowUpDown } from 'lucide-react';
+import { 
+  ShoppingCart, Calendar, Search, Loader2, Eye, X, ReceiptText, Printer, 
+  MessageCircle, Truck, Trash2, PenTool, Share2, PenLine, Plus, Minus, 
+  Save, ShieldCheck, ArrowUpDown, LayoutGrid, AlertTriangle, FileText, 
+  ShoppingBag, Clock, CalendarDays, Activity, TrendingUp, Coins, Download, 
+  History, CheckCircle2 
+} from 'lucide-react';
 import { Transaction } from '@/types';
 import { printReceipt } from '@/lib/printReceipt';
 import toast from 'react-hot-toast';
 import { useBranding } from '@/context/BrandingContext';
-import { CheckCircle2 } from 'lucide-react';
 
 export default function TransactionsPage() {
   const { storeId, isSubscriptionExpired } = useAuthStore();
@@ -25,13 +30,19 @@ export default function TransactionsPage() {
   const [editTrxData, setEditTrxData] = useState<Transaction | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [filterTab, setFilterTab] = useState<'all' | 'completed' | 'debt' | 'estimation' | 'online'>('all');
+  const [timeFilter, setTimeFilter] = useState<'today' | 'weekly' | 'monthly' | 'yearly' | 'all'>('all');
 
   useEffect(() => {
     if (!storeId) return;
+    setIsLoading(true);
+
+    const isEstimation = filterTab === 'estimation';
+    const collectionName = isEstimation ? 'estimations' : 'transactions';
 
     // Requires a composite index for ordering by timestamp if deployed, but fine for local
     const q = query(
-      collection(db, 'transactions'), 
+      collection(db, collectionName), 
       where('storeId', '==', storeId),
       orderBy('timestamp', 'desc')
     );
@@ -41,6 +52,9 @@ export default function TransactionsPage() {
         trxs.push({ id: doc.id, ...doc.data() } as Transaction);
       });
       setTransactions(trxs);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error subscribing to data:", error);
       setIsLoading(false);
     });
 
@@ -57,7 +71,7 @@ export default function TransactionsPage() {
     fetchSettings();
 
     return () => unsubscribe();
-  }, [storeId]);
+  }, [storeId, filterTab]);
 
   // --- ANDROID BACK BUTTON SUPPORT ---
   useEffect(() => {
@@ -78,20 +92,70 @@ export default function TransactionsPage() {
   }, [!!selectedTrx, !!viewingReceipt]);
   // -----------------------------------
 
-  const filtered = transactions.filter(t => {
-    const matchSearch = t.id?.toLowerCase().includes(search.toLowerCase()) || 
-                        t.cashierName?.toLowerCase().includes(search.toLowerCase());
+  const isWithinTimeRange = (timestamp: any, range: typeof timeFilter) => {
+    if (range === 'all') return true;
+    if (!timestamp) return false;
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
     
-    if (!filterDate) return matchSearch;
-
-    let trxDateStr = '';
-    if (t.timestamp?.toDate) {
-      const dateObj = t.timestamp.toDate();
-      const tzOffset = dateObj.getTimezoneOffset() * 60000;
-      trxDateStr = new Date(dateObj.getTime() - tzOffset).toISOString().split('T')[0];
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (range === 'today') {
+      return date >= startOfToday;
     }
     
-    return matchSearch && trxDateStr === filterDate;
+    if (range === 'weekly') {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return date >= sevenDaysAgo;
+    }
+    
+    if (range === 'monthly') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return date >= startOfMonth;
+    }
+    
+    if (range === 'yearly') {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      return date >= startOfYear;
+    }
+    
+    return true;
+  };
+
+  const filtered = transactions.filter(trx => {
+    let matchStatus = true;
+    if (filterTab === 'completed') {
+      matchStatus = trx.paymentStatus === 'paid';
+    } else if (filterTab === 'debt') {
+      matchStatus = trx.paymentStatus === 'unpaid' || trx.paymentStatus === 'partially_paid' || trx.paymentCategory === 'debt';
+    } else if (filterTab === 'online') {
+      matchStatus = trx.orderType === 'online';
+    }
+
+    const matchTime = isWithinTimeRange(trx.timestamp, timeFilter);
+
+    let matchSearch = true;
+    if (search.trim() !== '') {
+      const queryText = search.toLowerCase().trim();
+      const trxId = (trx.id || '').toLowerCase();
+      const custName = (trx.customerName || 'umum').toLowerCase();
+      const cashier = (trx.cashierName || '').toLowerCase();
+      const paymentM = (trx.paymentMethod || '').toLowerCase();
+      matchSearch = trxId.includes(queryText) || custName.includes(queryText) || cashier.includes(queryText) || paymentM.includes(queryText);
+    }
+
+    let matchDate = true;
+    if (filterDate) {
+      let trxDateStr = '';
+      if (trx.timestamp?.toDate) {
+        const dateObj = trx.timestamp.toDate();
+        const tzOffset = dateObj.getTimezoneOffset() * 60000;
+        trxDateStr = new Date(dateObj.getTime() - tzOffset).toISOString().split('T')[0];
+      }
+      matchDate = trxDateStr === filterDate;
+    }
+
+    return matchStatus && matchTime && matchSearch && matchDate;
   });
 
   const sortedTransactions = [...filtered].sort((a, b) => {
@@ -99,6 +163,46 @@ export default function TransactionsPage() {
     const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
     return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
   });
+
+  const metrics = useMemo(() => {
+    let totalOmzet = 0;
+    let totalProfit = 0;
+    let totalQtyTerjual = 0;
+    
+    let totalPiutangAwal = 0;
+    let totalPiutangTerbayar = 0;
+    let totalSisaPiutang = 0;
+    
+    filtered.forEach(trx => {
+      const omzetVal = trx.total || 0;
+      totalOmzet += omzetVal;
+
+      let trxHpp = 0;
+      trx.items?.forEach((item: any) => {
+        const qty = item.qty || 0;
+        totalQtyTerjual += qty;
+        trxHpp += qty * (item.purchasePrice || 0);
+      });
+
+      totalProfit += (omzetVal - trxHpp);
+      
+      const dp = trx.downPayment || 0;
+      const paid = trx.paidAmount || 0;
+      totalPiutangAwal += Math.max(0, (trx.total || 0) - dp);
+      totalPiutangTerbayar += Math.max(0, paid - dp);
+      totalSisaPiutang += trx.debtAmount !== undefined ? trx.debtAmount : Math.max(0, (trx.total || 0) - paid);
+    });
+
+    return {
+      totalTrx: filtered.length,
+      totalQty: totalQtyTerjual,
+      omzet: totalOmzet,
+      profit: totalProfit,
+      piutangAwal: totalPiutangAwal,
+      piutangTerbayar: totalPiutangTerbayar,
+      sisaPiutang: totalSisaPiutang
+    };
+  }, [filtered]);
 
   const handleSendWA = async (trx: any) => {
     if (!trx.customerId) {
@@ -118,20 +222,20 @@ export default function TransactionsPage() {
              toast.error(`Pelanggan "${customerData.name}" belum mencantumkan nomor telepon / WA pada sistem.`);
              return;
         }
-
+ 
         let phone = customerData.phone.replace(/\D/g, '');
         if (phone.startsWith('0')) {
              phone = '62' + phone.substring(1);
         }
-
+ 
         const paid = trx.paidAmount || 0;
         const total = trx.total || 0;
         const sisa = Math.max(0, total - paid);
         const dDate = trx.dueDate ? new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
         const trxId = trx.id?.substring(0, 8);
-
+ 
         let text = storeSettings?.waTemplate || 'Halo *{customerName}*,\n\nKami dari *{storeName}* ingin menyampaikan rincian tagihan pesanan Anda (Ref: *#{trxId}*)\n\nTotal Tagihan: *{total}*\nTelah Dibayar: {paid}\nSisa Piutang : *{debt}*\nJatuh Tempo  : *{dueDate}*\n\nMohon dapat melakukan pelunasan sisa tagihan sebelum jatuh tempo. Terima kasih!';
-
+ 
         text = text.replace(/{customerName}/g, customerData.name)
                   .replace(/{trxId}/g, trxId)
                   .replace(/{total}/g, `Rp ${total.toLocaleString('id-ID')}`)
@@ -139,7 +243,7 @@ export default function TransactionsPage() {
                   .replace(/{debt}/g, `Rp ${sisa.toLocaleString('id-ID')}`)
                   .replace(/{dueDate}/g, dDate)
                   .replace(/{storeName}/g, storeSettings?.storeName || 'Toko Kami');
-
+ 
         const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
         window.open(waUrl, '_blank');
     } catch (err) {
@@ -147,12 +251,13 @@ export default function TransactionsPage() {
         toast.error("Terjadi kesalahan saat memproses kontak.");
     }
   };
-
+ 
   const handleDeleteTrx = async (trxId: string) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus transaksi ini? Transaksi akan dipindahkan ke Kotak Sampah selama 3 bulan.')) return;
     
     try {
-      const trxRef = doc(db, 'transactions', trxId);
+      const colName = filterTab === 'estimation' ? 'estimations' : 'transactions';
+      const trxRef = doc(db, colName, trxId);
       const trxSnap = await getDoc(trxRef);
       if (!trxSnap.exists()) {
         toast.error('Transaksi tidak ditemukan');
@@ -167,7 +272,7 @@ export default function TransactionsPage() {
       batch.set(recycleRef, {
         ...trxData,
         deletedAt: new Date().toISOString(),
-        originalCollection: 'transactions'
+        originalCollection: colName
       });
       
       // Delete original
@@ -183,6 +288,133 @@ export default function TransactionsPage() {
       toast.error('Gagal menghapus transaksi');
     }
   };
+
+  const exportTransactionsToExcel = () => {
+    if (sortedTransactions.length === 0) {
+      toast.error("Tidak ada data transaksi untuk diekspor.");
+      return;
+    }
+
+    try {
+      let csvContent = '\uFEFF';
+      csvContent += 'ID Transaksi,Tanggal,Jam,Staf/Kasir,Pelanggan,Status,Metode Pembayaran,Item,Omzet (Rp),Profit (Rp)\n';
+
+      sortedTransactions.forEach(trx => {
+        const trxId = trx.id || '';
+        const dateObj = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date(trx.timestamp);
+        const tanggal = dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const jam = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+        const cashier = trx.cashierName || '';
+        const customer = trx.customerName || 'Umum';
+        
+        let status = 'Lunas';
+        if (trx.paymentStatus === 'partially_paid') status = 'Dicicil';
+        else if (trx.paymentStatus === 'unpaid') status = 'Belum Dibayar';
+        
+        const paymentMethod = trx.paymentMethod || trx.paymentCategory || '';
+        const itemNames = trx.items?.map((i: any) => `${i.productName} (${i.qty}x)`).join('; ') || '';
+        const omzet = trx.total || 0;
+        
+        let trxHpp = 0;
+        trx.items?.forEach((i: any) => {
+          trxHpp += (i.purchasePrice || 0) * (i.qty || 0);
+        });
+        const profit = omzet - trxHpp;
+
+        const escapedItems = `"${itemNames.replace(/"/g, '""')}"`;
+        const escapedCustomer = `"${customer.replace(/"/g, '""')}"`;
+        const escapedCashier = `"${cashier.replace(/"/g, '""')}"`;
+
+        csvContent += `${trxId},${tanggal},${jam},${escapedCashier},${escapedCustomer},${status},${paymentMethod},${escapedItems},${omzet},${profit}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Laporan_Transaksi_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Laporan berhasil diunduh.");
+    } catch (error) {
+      console.error("Gagal mengekspor laporan:", error);
+      toast.error("Terjadi kesalahan saat memproses laporan penjualan.");
+    }
+  };
+
+  const handleDeleteAllTrx = async () => {
+    let title = "Hapus Semua Transaksi";
+    let msg = "Apakah Anda yakin ingin menghapus SEMUA riwayat transaksi?";
+    
+    if (filterTab === 'completed') {
+      title = "Hapus Transaksi Selesai";
+      msg = "Apakah Anda yakin ingin menghapus semua transaksi yang sudah LUNAS?";
+    } else if (filterTab === 'debt') {
+      title = "Hapus Utang/Piutang";
+      msg = "Apakah Anda yakin ingin menghapus semua data PIUTANG?";
+    } else if (filterTab === 'estimation') {
+      title = "Hapus Semua Estimasi";
+      msg = "Apakah Anda yakin ingin menghapus semua data ESTIMASI?";
+    } else if (filterTab === 'online') {
+      title = "Hapus Online Order";
+      msg = "Apakah Anda yakin ingin menghapus semua data ONLINE ORDER?";
+    }
+
+    if (!window.confirm(`${title}\n\n${msg} Data akan dipindahkan ke Kotak Sampah selama 3 bulan.`)) return;
+
+    if (!storeId) return;
+    setIsLoading(true);
+    try {
+      const colName = filterTab === 'estimation' ? 'estimations' : 'transactions';
+      const allTrxQuery = query(collection(db, colName), where('storeId', '==', storeId));
+      const snap = await getDocs(allTrxQuery);
+
+      let docsToDelete = snap.docs;
+      if (filterTab === 'completed') {
+        docsToDelete = snap.docs.filter(d => d.data().paymentStatus === 'paid');
+      } else if (filterTab === 'debt') {
+        docsToDelete = snap.docs.filter(d => {
+           const s = d.data().paymentStatus;
+           const c = d.data().paymentCategory;
+           return s === 'unpaid' || s === 'partially_paid' || c === 'debt';
+        });
+      } else if (filterTab === 'online') {
+        docsToDelete = snap.docs.filter(d => d.data().orderType === 'online');
+      }
+
+      if (docsToDelete.length > 0) {
+        const chunkSize = 200;
+        for (let i = 0; i < docsToDelete.length; i += chunkSize) {
+          const chunk = docsToDelete.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          
+          chunk.forEach(docSnap => {
+            const docData = docSnap.data();
+            const docId = docSnap.id;
+            
+            const recycleRef = doc(db, 'recycle_bin', docId);
+            batch.set(recycleRef, {
+              ...docData,
+              deletedAt: new Date().toISOString(),
+              originalCollection: colName
+            });
+            
+            batch.delete(docSnap.ref);
+          });
+          
+          await batch.commit();
+        }
+      }
+      toast.success(`${docsToDelete.length} dokumen berhasil dipindahkan ke Kotak Sampah.`);
+    } catch (error) {
+      console.error("Gagal hapus semua transaksi:", error);
+      toast.error("Gagal memindahkan transaksi ke Kotak Sampah");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleShareSignatureLink = async (type: string, id: string) => {
     try {
       const collectionName = type === 'est' ? 'estimations' : 'transactions';
@@ -306,9 +538,128 @@ export default function TransactionsPage() {
         </div>
       </div>
 
+      {/* Status Tab Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        {[
+          { id: 'all', label: 'Semua', icon: LayoutGrid },
+          { id: 'completed', label: 'Selesai', icon: CheckCircle2 },
+          { id: 'debt', label: 'Piutang', icon: AlertTriangle },
+          { id: 'estimation', label: 'Estimasi', icon: FileText },
+          { id: 'online', label: 'Online Order', icon: ShoppingBag }
+        ].map(tab => {
+          const isActive = filterTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setFilterTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95 ${
+                isActive 
+                  ? 'bg-foreground text-background border-foreground shadow-lg shadow-foreground/10' 
+                  : 'bg-surface text-foreground border-app-border hover:bg-background'
+              }`}
+            >
+              <Icon size={14} className={isActive ? 'text-background' : 'text-app-text-muted'} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Time Tab Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        {[
+          { id: 'all', label: 'Semua Waktu', icon: Calendar },
+          { id: 'today', label: 'Hari Ini', icon: Clock },
+          { id: 'weekly', label: 'Minggu Ini', icon: Activity },
+          { id: 'monthly', label: 'Bulan Ini', icon: CalendarDays },
+          { id: 'yearly', label: 'Tahun Ini', icon: Calendar }
+        ].map(tab => {
+          const isActive = timeFilter === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setTimeFilter(tab.id as any)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all duration-200 active:scale-95 ${
+                isActive 
+                  ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' 
+                  : 'bg-surface text-foreground border-app-border hover:bg-background'
+              }`}
+            >
+              <Icon size={12} className={isActive ? 'text-white' : 'text-app-text-muted'} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Summary Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Jumlah Transaksi */}
+        <div className="p-5 bg-surface border border-app-border rounded-3xl shadow-sm transition-all hover:shadow-md">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[10px] font-black text-app-text-muted uppercase tracking-wider">
+              {filterTab === 'debt' ? 'Transaksi Piutang' : filterTab === 'estimation' ? 'Total Estimasi' : filterTab === 'online' ? 'Pesanan Online' : 'Total Transaksi'}
+            </span>
+            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+              <History size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-foreground">
+            {metrics.totalTrx} {filterTab === 'estimation' ? 'Est' : 'Trx'}
+          </p>
+        </div>
+
+        {/* Card 2: Produk Terjual / Sisa Piutang */}
+        <div className="p-5 bg-surface border border-app-border rounded-3xl shadow-sm transition-all hover:shadow-md">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[10px] font-black text-app-text-muted uppercase tracking-wider">
+              {filterTab === 'debt' ? 'Sisa Piutang' : filterTab === 'estimation' ? 'Produk Estimasi' : filterTab === 'online' ? 'Item Terjual' : 'Terjual'}
+            </span>
+            <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500">
+              <ShoppingBag size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-foreground">
+            {filterTab === 'debt' ? `Rp ${metrics.sisaPiutang.toLocaleString('id-ID')}` : `${metrics.totalQty} Qty`}
+          </p>
+        </div>
+
+        {/* Card 3: Omzet / Piutang Awal */}
+        <div className="p-5 bg-surface border border-app-border rounded-3xl shadow-sm transition-all hover:shadow-md">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[10px] font-black text-app-text-muted uppercase tracking-wider">
+              {filterTab === 'debt' ? 'Piutang Awal' : filterTab === 'estimation' ? 'Nilai Estimasi' : filterTab === 'online' ? 'Omzet Online' : 'Omzet'}
+            </span>
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+              <TrendingUp size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-emerald-500">
+            Rp {(filterTab === 'debt' ? metrics.piutangAwal : metrics.omzet).toLocaleString('id-ID')}
+          </p>
+        </div>
+
+        {/* Card 4: Profit / Piutang Terbayar */}
+        <div className="p-5 bg-surface border border-app-border rounded-3xl shadow-sm transition-all hover:shadow-md">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-[10px] font-black text-app-text-muted uppercase tracking-wider">
+              {filterTab === 'debt' ? 'Piutang Terbayar' : filterTab === 'estimation' ? 'Potensi Profit' : filterTab === 'online' ? 'Profit Online' : 'Profit'}
+            </span>
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+              <Coins size={16} />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-amber-500">
+            Rp {(filterTab === 'debt' ? metrics.piutangTerbayar : metrics.profit).toLocaleString('id-ID')}
+          </p>
+        </div>
+      </div>
+
       <div className="bg-surface border border-app-border rounded-3xl overflow-hidden shadow-xl shadow-black/5 transition-colors duration-300">
-        <div className="p-4 md:p-6 border-b border-app-border flex flex-col sm:flex-row gap-4 items-center justify-between bg-background/30">
-          <div className="relative w-full sm:max-w-md">
+        <div className="p-4 md:p-6 border-b border-app-border flex flex-col xl:flex-row gap-4 items-center justify-between bg-background/30">
+          <div className="relative w-full xl:max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text-muted" size={18} />
             <input 
               type="text" 
@@ -318,7 +669,7 @@ export default function TransactionsPage() {
               className="w-full pl-12 pr-4 py-3 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-accent transition-all text-sm"
             />
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap gap-2 w-full xl:w-auto">
              <div className="relative flex w-full sm:w-auto">
                 <button 
                    onClick={(e) => {
@@ -361,6 +712,24 @@ export default function TransactionsPage() {
                 <ArrowUpDown size={14} className="text-accent shrink-0" />
                 <span>{sortOrder === 'desc' ? 'Baru' : 'Lama'}</span>
              </button>
+             <button 
+                onClick={exportTransactionsToExcel}
+                className="flex items-center justify-center gap-2 bg-surface hover:bg-background text-foreground px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-app-border shadow-sm transition-all shrink-0 cursor-pointer"
+                title="Unduh Laporan Penjualan (Excel/CSV)"
+             >
+                <Download size={14} className="text-accent shrink-0" />
+                <span>Unduh Excel</span>
+             </button>
+             {filtered.length > 0 && filterTab !== 'estimation' && (
+                <button 
+                   onClick={handleDeleteAllTrx}
+                   className="flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 px-4 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-rose-500/30 shadow-sm transition-all shrink-0 cursor-pointer"
+                   title="Hapus Semua Transaksi Terfilter"
+                >
+                   <Trash2 size={14} className="text-rose-500 shrink-0" />
+                   <span>Hapus Semua</span>
+                </button>
+             )}
           </div>
         </div>
 
@@ -374,7 +743,7 @@ export default function TransactionsPage() {
                 <th className="p-6">Pelanggan</th>
                 <th className="p-6">Kasir</th>
                 <th className="p-6">Item</th>
-                <th className="p-6">Metode</th>
+                <th className="p-6">{filterTab === 'estimation' ? 'Status' : 'Metode'}</th>
                 <th className="p-6 text-right">Total</th>
                 <th className="p-6 text-center">Aksi</th>
               </tr>
@@ -382,14 +751,14 @@ export default function TransactionsPage() {
             <tbody className="divide-y divide-app-border/30">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="p-20 text-center text-app-text-muted">
+                  <td colSpan={8} className="p-20 text-center text-app-text-muted">
                     <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-accent" />
                     <p className="font-bold animate-pulse">Sinkronisasi data...</p>
                   </td>
                 </tr>
               ) : sortedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-20 text-center text-app-text-muted">
+                  <td colSpan={8} className="p-20 text-center text-app-text-muted">
                     <ShoppingCart className="w-16 h-16 opacity-10 mx-auto mb-4" />
                     <p className="font-bold italic">Data transaksi tidak ditemukan</p>
                   </td>
@@ -410,16 +779,24 @@ export default function TransactionsPage() {
                          {trx.customerName || 'Umum'}
                       </td>
                       <td className="p-6">
-                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent shrink-0">
-                               {(trx.cashierName || 'Online (Sistem)').substring(0,2).toUpperCase()}
-                            </div>
-                            <span className="text-foreground font-bold text-sm truncate">{(trx.cashierName || 'Online (Sistem)').split('@')[0]}</span>
-                         </div>
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent shrink-0">
+                              {(trx.cashierName || 'Online (Sistem)').substring(0,2).toUpperCase()}
+                           </div>
+                           <span className="text-foreground font-bold text-sm truncate">{(trx.cashierName || 'Online (Sistem)').split('@')[0]}</span>
+                        </div>
                       </td>
                       <td className="p-6 text-app-text-muted text-sm font-medium">{trx.items?.length || 0} Barang</td>
                       <td className="p-6">
-                        <span className="px-3 py-1 bg-background border border-app-border text-foreground rounded-md text-[10px] font-black uppercase tracking-tighter shadow-sm">{trx.paymentMethod || trx.paymentCategory}</span>
+                        {filterTab === 'estimation' ? (
+                          <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-md text-[10px] font-black uppercase tracking-tighter shadow-sm">
+                            {trx.status === 'converted' ? 'Dikonversi' : 'Aktif'}
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-background border border-app-border text-foreground rounded-md text-[10px] font-black uppercase tracking-tighter shadow-sm">
+                            {trx.paymentMethod || trx.paymentCategory}
+                          </span>
+                        )}
                       </td>
                       <td className="p-6 text-emerald-400 font-black text-right text-base">Rp {trx.total?.toLocaleString('id-ID')}</td>
                       <td className="p-6 text-center">
@@ -431,17 +808,19 @@ export default function TransactionsPage() {
                           >
                             <Printer size={18} />
                           </button>
-                          <button 
-                            onClick={() => {
-                               setSelectedTrx(trx);
-                               setIsEditing(true);
-                               setEditTrxData(JSON.parse(JSON.stringify(trx))); // Deep copy
-                            }}
-                            className="p-3 bg-surface border border-app-border hover:border-blue-500 hover:text-blue-500 text-app-text-muted rounded-xl transition-all inline-flex shadow-sm active:scale-90"
-                            title="Edit Transaksi"
-                          >
-                            <PenLine size={18} />
-                          </button>
+                          {filterTab !== 'estimation' && (
+                            <button 
+                              onClick={() => {
+                                 setSelectedTrx(trx);
+                                 setIsEditing(true);
+                                 setEditTrxData(JSON.parse(JSON.stringify(trx))); // Deep copy
+                              }}
+                              className="p-3 bg-surface border border-app-border hover:border-blue-500 hover:text-blue-500 text-app-text-muted rounded-xl transition-all inline-flex shadow-sm active:scale-90"
+                              title="Edit Transaksi"
+                            >
+                              <PenLine size={18} />
+                            </button>
+                          )}
                           <button 
                             onClick={() => handleDeleteTrx(trx.id!)}
                             className="p-3 bg-surface border border-app-border hover:border-rose-500 hover:text-rose-500 text-app-text-muted rounded-xl transition-all inline-flex shadow-sm active:scale-90"
@@ -481,7 +860,15 @@ export default function TransactionsPage() {
                          <div className="flex-1 min-w-0 pr-4">
                             <div className="flex items-center gap-2 mb-1">
                                <span className="text-xs font-mono text-accent">#{trx.id?.substring(0,8)}</span>
-                               <span className="px-2 py-0.5 bg-background border border-app-border rounded-md text-[8px] font-black uppercase text-app-text-muted">{trx.paymentMethod || trx.paymentCategory}</span>
+                               {filterTab === 'estimation' ? (
+                                 <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-md text-[8px] font-black uppercase text-amber-500">
+                                   {trx.status === 'converted' ? 'Dikonversi' : 'Aktif'}
+                                 </span>
+                               ) : (
+                                 <span className="px-2 py-0.5 bg-background border border-app-border rounded-md text-[8px] font-black uppercase text-app-text-muted">
+                                   {trx.paymentMethod || trx.paymentCategory}
+                                 </span>
+                               )}
                             </div>
                             <h4 className="font-bold text-foreground text-sm truncate">{trx.customerName || 'Umum'} <span className="text-[10px] text-app-text-muted font-medium">• Kasir: {(trx.cashierName || 'Online (Sistem)').split('@')[0]}</span></h4>
                             <p className="text-[10px] text-app-text-muted mt-1">
@@ -510,12 +897,12 @@ export default function TransactionsPage() {
                   <div className="p-2 bg-accent/20 rounded-xl">
                     <ReceiptText className="text-accent" size={24} />
                   </div>
-                  Rincian Transaksi
+                  {filterTab === 'estimation' ? 'Rincian Estimasi' : 'Rincian Transaksi'}
                 </h2>
                 <p className="text-app-text-muted text-[10px] mt-2 font-black uppercase tracking-[0.2em]">{selectedTrx.id}</p>
               </div>
               <div className="flex items-center gap-2">
-                {!isEditing && (
+                {!isEditing && filterTab !== 'estimation' && (
                   <button 
                     onClick={() => {
                       setIsEditing(true);
@@ -692,11 +1079,19 @@ export default function TransactionsPage() {
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest">Metode / Status</p>
                       <div className="flex flex-wrap gap-2">
-                        <span className="bg-accent/10 text-accent px-3 py-1 rounded-md text-[10px] font-black uppercase border border-accent/20 inline-block shadow-sm">{selectedTrx.paymentMethod || selectedTrx.paymentCategory}</span>
-                        {(selectedTrx.orderType as string) === 'online' && <span className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-emerald-500/20 inline-block shadow-sm">Online Order</span>}
-                        {selectedTrx.paymentStatus === 'unpaid' && <span className="bg-rose-500/10 text-rose-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-rose-500/20 inline-block shadow-sm">Belum Dibayar</span>}
-                        {selectedTrx.paymentStatus === 'partially_paid' && <span className="bg-amber-500/10 text-amber-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-amber-500/20 inline-block shadow-sm">Dicicil</span>}
-                        {selectedTrx.paymentStatus === 'paid' && <span className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-emerald-500/20 inline-block shadow-sm">Lunas</span>}
+                        {filterTab === 'estimation' ? (
+                          <span className="bg-amber-500/10 text-amber-500 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter border border-amber-500/20 inline-block shadow-sm">
+                            Estimasi {selectedTrx.status === 'converted' ? 'Dikonversi' : 'Aktif'}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="bg-accent/10 text-accent px-3 py-1 rounded-md text-[10px] font-black uppercase border border-accent/20 inline-block shadow-sm">{selectedTrx.paymentMethod || selectedTrx.paymentCategory}</span>
+                            {(selectedTrx.orderType as string) === 'online' && <span className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-emerald-500/20 inline-block shadow-sm">Online Order</span>}
+                            {selectedTrx.paymentStatus === 'unpaid' && <span className="bg-rose-500/10 text-rose-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-rose-500/20 inline-block shadow-sm">Belum Dibayar</span>}
+                            {selectedTrx.paymentStatus === 'partially_paid' && <span className="bg-amber-500/10 text-amber-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-amber-500/20 inline-block shadow-sm">Dicicil</span>}
+                            {selectedTrx.paymentStatus === 'paid' && <span className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-md text-[10px] font-black uppercase border border-emerald-500/20 inline-block shadow-sm">Lunas</span>}
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -838,7 +1233,7 @@ export default function TransactionsPage() {
                   </div>
                 </div>
               )}
-               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-4 border-t border-app-border/30 max-w-2xl mx-auto">
+               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-4 border-t border-app-border/30 max-w-2xl mx-auto w-full">
                   {isEditing ? (
                     <>
                       <button 
@@ -862,55 +1257,76 @@ export default function TransactionsPage() {
                     </>
                   ) : (
                     <>
-                      <button 
-                        onClick={() => window.open('/invoice?id=' + selectedTrx.id, '_blank')}
-                        className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-emerald-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
-                      >
-                        <Printer size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" /> 
-                        INVOICE
-                      </button>
-
-                      <button 
-                        onClick={() => window.open('/delivery?id=' + selectedTrx.id, '_blank')}
-                        className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-blue-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
-                      >
-                        <Truck size={16} className="text-blue-500 group-hover:scale-110 transition-transform" /> 
-                        SURAT JALAN
-                      </button>
-
-                      <button 
-                        onClick={() => selectedTrx.id && handleShareSignatureLink('trx', selectedTrx.id)}
-                        className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-amber-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
-                      >
-                        <Share2 size={16} className="text-amber-500 group-hover:scale-110 transition-transform" /> 
-                        BAGIKAN TTD
-                      </button>
-
-                      {selectedTrx.paymentStatus !== 'paid' ? (
+                      {filterTab === 'estimation' ? (
+                        <div className="col-span-2 md:col-span-3 grid grid-cols-2 gap-3 w-full">
+                          <button 
+                            onClick={() => window.open('/invoice?type=estimation&id=' + selectedTrx.id, '_blank')}
+                            className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-emerald-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
+                          >
+                            <Printer size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" /> 
+                            CETAK ESTIMASI
+                          </button>
+                          <button 
+                            onClick={() => selectedTrx.id && handleShareSignatureLink('est', selectedTrx.id)}
+                            className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-amber-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
+                          >
+                            <Share2 size={16} className="text-amber-500 group-hover:scale-110 transition-transform" /> 
+                            BAGIKAN TTD
+                          </button>
+                        </div>
+                      ) : (
                         <>
                           <button 
-                            onClick={() => handleSendWA(selectedTrx)}
-                            className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-2 rounded-xl font-black shadow-lg shadow-emerald-500/20 transition-all active:scale-95 text-[10px] uppercase group/wa"
+                            onClick={() => window.open('/invoice?id=' + selectedTrx.id, '_blank')}
+                            className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-emerald-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
                           >
-                            <MessageCircle size={16} className="group/wa:rotate-12 transition-transform" />
-                            INGATKAN WA
+                            <Printer size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" /> 
+                            INVOICE
                           </button>
+
                           <button 
-                            onClick={() => setViewingReceipt(selectedTrx)}
-                            className="flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-foreground py-3 px-2 rounded-xl font-black shadow-lg shadow-accent/20 transition-all active:scale-95 text-[10px] uppercase"
+                            onClick={() => window.open('/delivery?id=' + selectedTrx.id, '_blank')}
+                            className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-blue-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
                           >
-                            <Printer size={16} /> 
-                            CETAK STRUK
+                            <Truck size={16} className="text-blue-500 group-hover:scale-110 transition-transform" /> 
+                            SURAT JALAN
                           </button>
+
+                          <button 
+                            onClick={() => selectedTrx.id && handleShareSignatureLink('trx', selectedTrx.id)}
+                            className="flex items-center justify-center gap-2 bg-background border border-app-border hover:border-amber-500 text-foreground py-3 px-2 rounded-xl font-black shadow-sm transition-all active:scale-95 text-[10px] uppercase group"
+                          >
+                            <Share2 size={16} className="text-amber-500 group-hover:scale-110 transition-transform" /> 
+                            BAGIKAN TTD
+                          </button>
+
+                          {selectedTrx.paymentStatus !== 'paid' ? (
+                            <>
+                              <button 
+                                onClick={() => handleSendWA(selectedTrx)}
+                                className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-2 rounded-xl font-black shadow-lg shadow-emerald-500/20 transition-all active:scale-95 text-[10px] uppercase group/wa"
+                              >
+                                <MessageCircle size={16} className="group/wa:rotate-12 transition-transform" />
+                                INGATKAN WA
+                              </button>
+                              <button 
+                                onClick={() => setViewingReceipt(selectedTrx)}
+                                className="flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-foreground py-3 px-2 rounded-xl font-black shadow-lg shadow-accent/20 transition-all active:scale-95 text-[10px] uppercase"
+                              >
+                                <Printer size={16} /> 
+                                CETAK STRUK
+                              </button>
+                            </>
+                          ) : (
+                            <button 
+                              onClick={() => setViewingReceipt(selectedTrx)}
+                              className="col-span-2 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-foreground py-4 px-4 rounded-xl font-black shadow-lg shadow-accent/20 transition-all active:scale-95 text-xs uppercase"
+                            >
+                              <Printer size={20} /> 
+                              CETAK STRUK THERMAL
+                            </button>
+                          )}
                         </>
-                      ) : (
-                        <button 
-                          onClick={() => setViewingReceipt(selectedTrx)}
-                          className="col-span-2 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-foreground py-4 px-4 rounded-xl font-black shadow-lg shadow-accent/20 transition-all active:scale-95 text-xs uppercase"
-                        >
-                          <Printer size={20} /> 
-                          CETAK STRUK THERMAL
-                        </button>
                       )}
                     </>
                   )}

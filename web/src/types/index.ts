@@ -109,6 +109,8 @@ export interface Transaction {
   timestamp: any;
   orderStatus?: 'new' | 'processing' | 'ready' | 'completed' | 'cancelled';
   storeId?: string;
+  downPayment?: number;
+  status?: 'active' | 'converted';
 }
 
 export interface Customer {
