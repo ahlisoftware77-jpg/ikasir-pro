@@ -477,7 +477,8 @@ export default function MobileBottomNav() {
                               if (item.path === '#feedback') {
                                 const isSuperAdmin = role === 'super-admin' || role === 'superadmin';
                                 if (isSuperAdmin) {
-                                  closeMore();
+                                  setIsMoreOpen(false);
+                                  setExpandedMenu(null);
                                   router.push('/super-admin?tab=feedback');
                                 } else {
                                   setIsMoreOpen(false);
@@ -498,7 +499,8 @@ export default function MobileBottomNav() {
                                 return;
                               }
 
-                              closeMore();
+                              setIsMoreOpen(false);
+                              setExpandedMenu(null);
                               router.push(item.path);
                             }}
                             className={`aspect-square flex flex-col items-center justify-center p-2 rounded-2xl border transition-all ${
