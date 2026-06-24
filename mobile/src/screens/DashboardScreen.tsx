@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput } from 'react-native';
-import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput, Image, Linking } from 'react-native';
+import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle } from 'lucide-react-native';
+import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, Megaphone, ChevronLeft, Sparkles, CheckCircle2, CreditCard } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
@@ -93,6 +93,11 @@ export default function DashboardScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // State for Announcements
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -138,6 +143,49 @@ export default function DashboardScreen({ navigation }: any) {
       unsubCust();
     };
   }, [storeId]);
+
+  // Load announcements (broadcasts)
+  useEffect(() => {
+    const q = query(
+      collection(db, 'broadcasts'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const list: any[] = [];
+      snap.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setBroadcasts(list);
+      setIsLoadingBroadcasts(false);
+    }, (error) => {
+      console.error("Error loading broadcasts on mobile:", error);
+      setIsLoadingBroadcasts(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const activeBroadcasts = useMemo(() => {
+    if (broadcasts.length > 0) return broadcasts;
+    return [
+      {
+        id: 'default-welcome',
+        title: 'Selamat Datang di iKasir Pro!',
+        message: 'Kelola transaksi, produk, stok, laporan keuangan, dan lainnya secara real-time dengan mudah di satu tempat.',
+        createdAt: new Date().toISOString(),
+        data: { link: 'https://yadiapp.com' }
+      }
+    ];
+  }, [broadcasts]);
+
+  // Auto-slide announcements
+  useEffect(() => {
+    if (activeBroadcasts.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [activeBroadcasts.length]);
 
   const { totalRevenue, totalProductsSold, topProducts } = useMemo(() => {
     let revenue = 0;
@@ -286,6 +334,169 @@ export default function DashboardScreen({ navigation }: any) {
             <ChevronRight color={colors.textMuted} size={16} />
           </TouchableOpacity>
         )}
+
+        {/* SECTION: ANNOUNCEMENTS CAROUSEL */}
+        {!isLoadingBroadcasts && activeBroadcasts.length > 0 && (
+          <View 
+            className="p-6 rounded-[28px] border mb-6 relative overflow-hidden"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+          >
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center gap-2">
+                <Megaphone size={16} color={colors.accent} />
+                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                  Pengumuman & Info Terbaru
+                </Text>
+              </View>
+              {activeBroadcasts.length > 1 && (
+                <View className="flex-row gap-1.5">
+                  <TouchableOpacity
+                    onPress={() => setCurrentSlide((prev) => (prev === 0 ? activeBroadcasts.length - 1 : prev - 1))}
+                    className="w-7 h-7 rounded-lg items-center justify-center border"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                  >
+                    <ChevronLeft size={14} color={colors.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length)}
+                    className="w-7 h-7 rounded-lg items-center justify-center border"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                  >
+                    <ChevronRight size={14} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            <View className="flex-col gap-4">
+              <View className="space-y-2 flex-1">
+                <View className="px-2.5 py-0.5 rounded-lg border w-fit" style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '30' }}>
+                  <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>
+                    {new Date(activeBroadcasts[currentSlide].createdAt || Date.now()).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                </View>
+                <Text className="text-sm font-black tracking-tight" style={{ color: colors.text }}>
+                  {activeBroadcasts[currentSlide].title}
+                </Text>
+                <Text className="text-[10px] font-bold mt-1 leading-relaxed" style={{ color: colors.textMuted }}>
+                  {activeBroadcasts[currentSlide].message}
+                </Text>
+                {activeBroadcasts[currentSlide].data?.link && (
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL(activeBroadcasts[currentSlide].data.link)}
+                    className="mt-2"
+                  >
+                    <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>
+                      Lihat Selengkapnya →
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {activeBroadcasts[currentSlide].data?.imageUrl && (
+                <View 
+                  className="w-full aspect-[2/1] rounded-2xl overflow-hidden border bg-black/10"
+                  style={{ borderColor: colors.border }}
+                >
+                  <Image
+                    source={{ uri: activeBroadcasts[currentSlide].data.imageUrl }}
+                    className="w-full h-full"
+                    style={{ resizeMode: 'cover' }}
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Dots Indicator */}
+            {activeBroadcasts.length > 1 && (
+              <View className="flex-row justify-center gap-1.5 mt-4">
+                {activeBroadcasts.map((_, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => setCurrentSlide(idx)}
+                    className="h-1.5 rounded-full"
+                    style={{
+                      width: currentSlide === idx ? 16 : 6,
+                      backgroundColor: currentSlide === idx ? colors.accent : colors.border
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* SECTION: PRICING CARD - GREEN BACKGROUND */}
+        <View 
+          className="p-6 rounded-[32px] border mb-6 relative overflow-hidden"
+          style={{ backgroundColor: '#047857', borderColor: '#059669' }}
+        >
+          <View className="flex-row items-center gap-1.5 bg-white/10 border border-white/20 px-3 py-1 rounded-full w-fit mb-4">
+            <Sparkles size={12} color="#fef08a" />
+            <Text className="text-[8px] font-black uppercase tracking-wider text-yellow-300">
+              Promo Spesial Langganan
+            </Text>
+          </View>
+
+          <Text className="text-lg font-black text-white leading-tight">
+            Mulai Berlangganan iKasir Pro
+          </Text>
+          <Text className="text-white/80 text-[10px] font-medium mt-1 leading-relaxed">
+            Buka fitur premium: Cetak Struk A4 & Kasir, multi-rekening bank toko, multi-kasir, kelola stok gudang, dan laporan keuangan lengkap.
+          </Text>
+
+          {/* Pricing Grid */}
+          <View className="flex-row flex-wrap gap-2.5 my-5 justify-between">
+            <View className="bg-white/5 border border-white/10 rounded-xl p-3 w-[48%]">
+              <Text className="text-[8px] font-black uppercase text-white/60 tracking-wider">1 Bulan</Text>
+              <Text className="text-sm font-black text-white mt-0.5">Rp 30.000</Text>
+              <Text className="text-[7px] text-white/50 font-bold">Rp 30.000 / bln</Text>
+            </View>
+            <View className="bg-white/5 border border-white/10 rounded-xl p-3 w-[48%] relative overflow-hidden">
+              <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
+                <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">Hemat 7%</Text>
+              </View>
+              <Text className="text-[8px] font-black uppercase text-white/60 tracking-wider font-mono">3 Bulan</Text>
+              <Text className="text-sm font-black text-white mt-0.5 font-sans">Rp 84.000</Text>
+              <Text className="text-[7px] text-emerald-200 font-bold">Rp 28.000 / bln</Text>
+            </View>
+            <View className="bg-white/5 border border-white/10 rounded-xl p-3 w-[48%] relative overflow-hidden">
+              <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
+                <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">Hemat 12%</Text>
+              </View>
+              <Text className="text-[8px] font-black uppercase text-white/60 tracking-wider font-mono">6 Bulan</Text>
+              <Text className="text-sm font-black text-white mt-0.5 font-sans">Rp 159.000</Text>
+              <Text className="text-[7px] text-emerald-200 font-bold">Rp 26.500 / bln</Text>
+            </View>
+            <View className="bg-emerald-500/20 border border-emerald-400/30 rounded-xl p-3 w-[48%] relative overflow-hidden">
+              <View className="absolute right-0 top-0 bg-yellow-400 px-1 py-0.5 rounded-bl">
+                <Text className="text-[5px] font-black uppercase tracking-wider text-teal-950">Best</Text>
+              </View>
+              <Text className="text-[8px] font-black uppercase text-emerald-200 tracking-wider font-mono">12 Bulan</Text>
+              <Text className="text-sm font-black text-emerald-200 mt-0.5 font-sans">Rp 306.000</Text>
+              <Text className="text-[7px] text-white/80 font-bold">Rp 25.500 / bln</Text>
+            </View>
+          </View>
+
+          {/* Action Button */}
+          <TouchableOpacity
+            onPress={() => {
+              Vibration.vibrate(10);
+              navigation.navigate('Lainnya', { openSubscription: true });
+            }}
+            activeOpacity={0.9}
+            className="w-full py-3.5 bg-white rounded-2xl items-center justify-center flex-row gap-2"
+          >
+            <CreditCard size={14} color="#047857" strokeWidth={2.5} />
+            <Text className="text-[#047857] text-xs font-black uppercase tracking-wider">
+              Aktifkan Langganan Sekarang
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* HERO CARD - OMZET TOKO */}
         <View 
