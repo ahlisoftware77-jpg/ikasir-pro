@@ -2672,7 +2672,7 @@ export default function SettingsScreen({ navigation, route }: any) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingTop: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
               {isSubscriptionSuccess ? (
                 <View className="space-y-6 pb-10 pt-4 items-center px-4">
                   <View className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-2">
@@ -2708,6 +2708,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                         style={{
                           opacity: entranceAnims[idx] || 1,
                           transform: [{ translateY: slideAnims[idx] || 0 }],
+                          overflow: 'visible',
                         }}
                       >
                         <TouchableOpacity
@@ -2717,9 +2718,11 @@ export default function SettingsScreen({ navigation, route }: any) {
                           style={{ 
                             backgroundColor: isBestSeller ? 'rgba(16,185,129,0.06)' : colors.surface, 
                             borderColor: isBestSeller ? 'rgba(16,185,129,0.35)' : colors.border,
-                            borderWidth: isBestSeller ? 1.5 : 1
+                            borderWidth: isBestSeller ? 1.5 : 1,
+                            overflow: 'visible',
                           }}
                         >
+
                           {isBestSeller && (
                             <Animated.View 
                               style={{ 
