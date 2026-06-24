@@ -99,6 +99,10 @@ export default function SuperAdminPage() {
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [broadcastImageFile, setBroadcastImageFile] = useState<File | null>(null);
   const [broadcastImagePreview, setBroadcastImagePreview] = useState<string | null>(null);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [broadcastRightTab, setBroadcastRightTab] = useState<'preview' | 'history'>('history');
+
+
 
   const [isMaintenanceActive, setIsMaintenanceActive] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
@@ -371,16 +375,41 @@ export default function SuperAdminPage() {
       setRegistrations(regs);
     });
 
+    const qBroadcastsList = query(collection(primaryDb, 'broadcasts'));
+    const unsubscribeBroadcastsList = onSnapshot(qBroadcastsList, (snapshot) => {
+      const bcasts: any[] = [];
+      snapshot.forEach((d) => bcasts.push({ id: d.id, ...d.data() }));
+      bcasts.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+      setBroadcasts(bcasts);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeStores();
       unsubscribeSubscriptions();
       unsubscribeFeedback();
       unsubscribeRegistrations();
+      unsubscribeBroadcastsList();
     };
   }, []);
 
+  const handleDeleteBroadcast = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus broadcast ini? Pengumuman ini akan langsung hilang dari halaman dasbor semua pelanggan.')) return;
+    try {
+      await deleteDoc(doc(primaryDb, 'broadcasts', id));
+      alert('Broadcast berhasil dihapus!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menghapus broadcast: ' + err.message);
+    }
+  };
+
   const handleDeleteFeedback = async (id: string) => {
+
     if (!confirm('Apakah Anda yakin ingin menghapus kritik & saran ini?')) return;
     try {
       await deleteDoc(doc(primaryDb, 'feedback', id));
@@ -2925,60 +2954,124 @@ export default function SuperAdminPage() {
                      {isSendingBroadcast ? <Loader2 size={16} className="animate-spin" /> : <Bell size={20} />}
                      KIRIM BROADCAST NOTIFIKASI
                   </button>
+
                </form>
             </div>
 
-            {/* Preview Push Notifikasi */}
-            <div className="bg-surface/30 border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 flex flex-col justify-center items-center">
-               <h4 className="text-sm font-black text-foreground mb-6 uppercase tracking-widest">Preview Push Notifikasi</h4>
-               
-               {/* Smartphone mockup preview container */}
-               <div className="w-[300px] h-[550px] bg-slate-950 border-[8px] border-slate-800 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col justify-between p-4">
-                  {/* Speaker and Camera notch */}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-5 bg-slate-800 rounded-full flex items-center justify-center">
-                     <div className="w-12 h-1 bg-slate-700 rounded-full mr-2" />
-                     <div className="w-2.5 h-2.5 bg-slate-900 rounded-full" />
-                  </div>
-                  
-                  {/* Status Bar */}
-                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 mt-4 px-2 select-none">
-                     <span>15:21</span>
-                     <div className="flex items-center gap-1">
-                        <span>📶</span>
-                        <span>🔋</span>
-                     </div>
-                  </div>
-                  
-                  {/* Push notification banner */}
-                  <div className="flex-1 flex items-start justify-center pt-8">
-                     {(broadcastTitle.trim() || broadcastMessage.trim()) ? (
-                        <div className="w-full bg-slate-900/95 border border-slate-800/80 p-4 rounded-2xl shadow-xl backdrop-blur-md animate-bounce">
-                           <div className="flex items-center gap-2 mb-1">
-                              <div className="w-5 h-5 rounded bg-accent flex items-center justify-center text-[8px] font-black text-white">i</div>
-                              <span className="text-[10px] font-black text-foreground uppercase tracking-wider">{brandingData.appName}</span>
-                              <span className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</span>
-                           </div>
-                           <h5 className="text-xs font-black text-foreground">{broadcastTitle || 'Judul Notifikasi'}</h5>
-                           <p className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed break-words mb-2">{broadcastMessage || 'Isi pesan notifikasi...'}</p>
-                           {(broadcastImagePreview || broadcastImageUrl.trim()) && (
-                              <div className="w-full h-24 rounded-lg overflow-hidden border border-slate-800 mt-2 bg-slate-950">
-                                <img src={broadcastImagePreview || broadcastImageUrl.trim() || undefined} className="w-full h-full object-cover" alt="Preview" />
-                              </div>
-                           )}
-                           {broadcastLink.trim() && (
-                             <div className="flex items-center gap-1.5 mt-2 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1.5 rounded-lg text-blue-400 select-none">
-                               <span className="text-[9px] font-bold truncate">Link: {broadcastLink}</span>
-                             </div>
-                           )}
+            {/* Panel Kanan - Riwayat & Preview */}
+            <div className="bg-surface/30 border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 flex flex-col justify-start items-center">
+               {/* Tab Selector */}
+               <div className="flex border-b border-app-border w-full mb-6 gap-6">
+                  <button
+                     type="button"
+                     onClick={() => setBroadcastRightTab('history')}
+                     className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${broadcastRightTab === 'history' ? 'border-accent text-foreground' : 'border-transparent text-app-text-muted hover:text-foreground'}`}
+                  >
+                     Riwayat Broadcast ({broadcasts.length})
+                  </button>
+                  <button
+                     type="button"
+                     onClick={() => setBroadcastRightTab('preview')}
+                     className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${broadcastRightTab === 'preview' ? 'border-accent text-foreground' : 'border-transparent text-app-text-muted hover:text-foreground'}`}
+                  >
+                     Preview Notifikasi
+                  </button>
+               </div>
+
+               {broadcastRightTab === 'history' ? (
+                  <div className="w-full flex-1 overflow-y-auto max-h-[550px] space-y-4 pr-2 w-full">
+                     {broadcasts.length === 0 ? (
+                        <div className="text-center py-20 opacity-40">
+                           <Bell className="w-12 h-12 mx-auto mb-4 text-app-text-muted animate-pulse" />
+                           <p className="text-xs font-bold text-app-text-muted uppercase tracking-wider">Belum ada riwayat broadcast</p>
                         </div>
                      ) : (
-                        <p className="text-[10px] text-slate-600 text-center italic mt-12 font-bold uppercase tracking-wider">Silakan isi form di sebelah kiri untuk melihat preview</p>
+                        broadcasts.map((bc) => (
+                           <div key={bc.id} className="p-4 bg-background/50 border border-app-border rounded-2xl flex flex-col justify-between gap-3 hover:border-accent/40 transition-colors w-full">
+                              <div className="flex justify-between items-start gap-2">
+                                 <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                       <span className="text-[9px] font-black text-accent uppercase tracking-wider bg-accent/10 px-2 py-0.5 rounded-md">
+                                          {bc.createdAt ? (bc.createdAt.toDate ? bc.createdAt.toDate().toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) : new Date(bc.createdAt).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})) : '-'}
+                                       </span>
+                                       {bc.data?.link && (
+                                          <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded">
+                                             Link
+                                        </span>
+                                       )}
+                                    </div>
+                                    <h4 className="text-sm font-black text-foreground">{bc.title}</h4>
+                                    <p className="text-xs text-app-text-muted mt-1 leading-relaxed break-words">{bc.message}</p>
+                                 </div>
+                                 
+                                 <button
+                                    type="button"
+                                    onClick={() => handleDeleteBroadcast(bc.id)}
+                                    className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 transition-all active:scale-95 shrink-0"
+                                    title="Hapus Broadcast"
+                                 >
+                                    <Trash2 size={14} />
+                                 </button>
+                              </div>
+
+                              {bc.data?.imageUrl && (
+                                 <div className="w-full h-24 rounded-xl overflow-hidden border border-app-border bg-black/10 shrink-0">
+                                    <img src={bc.data.imageUrl} className="w-full h-full object-cover" alt={bc.title} />
+                                 </div>
+                              )}
+                           </div>
+                        ))
                      )}
                   </div>
-                  
-                  {/* Home indicator */}
-                  <div className="w-28 h-1 bg-slate-700 rounded-full mx-auto mb-1" />
-               </div>
+               ) : (
+                  /* Smartphone mockup preview container */
+                  <div className="w-[300px] h-[550px] bg-slate-950 border-[8px] border-slate-800 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col justify-between p-4 animate-in fade-in zoom-in-95 duration-300">
+                     {/* Speaker and Camera notch */}
+                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-5 bg-slate-800 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-1 bg-slate-700 rounded-full mr-2" />
+                        <div className="w-2.5 h-2.5 bg-slate-900 rounded-full" />
+                     </div>
+                     
+                     {/* Status Bar */}
+                     <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 mt-4 px-2 select-none">
+                        <span>15:21</span>
+                        <div className="flex items-center gap-1">
+                           <span>📶</span>
+                           <span>🔋</span>
+                        </div>
+                     </div>
+                     
+                     {/* Push notification banner */}
+                     <div className="flex-1 flex items-start justify-center pt-8">
+                        {(broadcastTitle.trim() || broadcastMessage.trim()) ? (
+                           <div className="w-full bg-slate-900/95 border border-slate-800/80 p-4 rounded-2xl shadow-xl backdrop-blur-md animate-bounce">
+                              <div className="flex items-center gap-2 mb-1">
+                                 <div className="w-5 h-5 rounded bg-accent flex items-center justify-center text-[8px] font-black text-white">i</div>
+                                 <span className="text-[10px] font-black text-foreground uppercase tracking-wider">{brandingData.appName}</span>
+                                 <span className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</span>
+                              </div>
+                              <h5 className="text-xs font-black text-foreground">{broadcastTitle || 'Judul Notifikasi'}</h5>
+                              <p className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed break-words mb-2">{broadcastMessage || 'Isi pesan notifikasi...'}</p>
+                              {(broadcastImagePreview || broadcastImageUrl.trim()) && (
+                                 <div className="w-full h-24 rounded-lg overflow-hidden border border-slate-800 mt-2 bg-slate-950">
+                                   <img src={broadcastImagePreview || broadcastImageUrl.trim() || undefined} className="w-full h-full object-cover" alt="Preview" />
+                                 </div>
+                              )}
+                              {broadcastLink.trim() && (
+                                <div className="flex items-center gap-1.5 mt-2 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1.5 rounded-lg text-blue-400 select-none">
+                                  <span className="text-[9px] font-bold truncate">Link: {broadcastLink}</span>
+                                </div>
+                              )}
+                           </div>
+                        ) : (
+                           <p className="text-[10px] text-slate-600 text-center italic mt-12 font-bold uppercase tracking-wider">Silakan isi form di sebelah kiri untuk melihat preview</p>
+                        )}
+                     </div>
+                     
+                     {/* Home indicator */}
+                     <div className="w-28 h-1 bg-slate-700 rounded-full mx-auto mb-1" />
+                  </div>
+               )}
             </div>
          </div>
       ) : null}
