@@ -1193,6 +1193,8 @@ export default function SettingsScreen({ navigation, route }: any) {
         >
           {label === 'Periksa Pembaruan' && isCheckingUpdates ? (
             <ActivityIndicator size="small" color={color} />
+          ) : typeof IconComponent === 'string' ? (
+            <Text style={{ fontSize: 22, opacity: isDisabled ? 0.4 : 1 }}>{IconComponent}</Text>
           ) : (
             <IconComponent size={20} color={isDisabled ? colors.textMuted : color} strokeWidth={2} />
           )}
@@ -1295,23 +1297,23 @@ export default function SettingsScreen({ navigation, route }: any) {
             💸 Keuangan & Transaksi
           </Text>
           <View className="flex-row flex-wrap">
-            {renderMenuItem('Estimasi Biaya', FileText, '#10b981', () => {
+            {renderMenuItem('Estimasi Biaya', '📋', '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'estimasi', title: 'Estimasi Biaya' });
             }, false, isSubscriptionExpired, 0, '/estimations')}
-            {renderMenuItem('Hutang Piutang', BookOpen, '#f43f5e', () => {
+            {renderMenuItem('Hutang Piutang', '💸', '#f43f5e', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'piutang', title: 'Hutang Piutang' });
             }, false, isSubscriptionExpired, 0, '/debts')}
-            {renderMenuItem('Riwayat Transaksi', History, colors.accent, () => {
+            {renderMenuItem('Riwayat Transaksi', '⏳', colors.accent, () => {
               Vibration.vibrate(10);
               navigation.navigate('Transactions');
             }, false, false, 0, '/transactions')}
-            {renderMenuItem('Notifikasi', Bell, '#fbbf24', () => {
+            {renderMenuItem('Notifikasi', '🔔', '#fbbf24', () => {
               Vibration.vibrate(10);
               navigation.navigate('Notifications');
             })}
-            {renderMenuItem('Kotak Sampah', Trash2, '#ef4444', () => {
+            {renderMenuItem('Kotak Sampah', '🗑️', '#ef4444', () => {
               Vibration.vibrate(10);
               navigation.navigate('RecycleBin');
             }, true, false, 0)}
@@ -1324,31 +1326,31 @@ export default function SettingsScreen({ navigation, route }: any) {
             📦 Manajemen Produk
           </Text>
           <View className="flex-row flex-wrap">
-            {renderMenuItem('Daftar Produk', Package, '#8b5cf6', () => {
+            {renderMenuItem('Daftar Produk', '📦', '#8b5cf6', () => {
               Vibration.vibrate(10);
               navigation.navigate('Products');
             }, false, false, 0, '/products')}
-            {renderMenuItem('Gudang', Warehouse, '#3b82f6', () => {
+            {renderMenuItem('Gudang', '🏢', '#3b82f6', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'gudang', title: 'Manajemen Gudang' });
             }, false, false, 0, '/products')}
-            {renderMenuItem('Ekstra', Layers, '#f59e0b', () => {
+            {renderMenuItem('Ekstra', '➕', '#f59e0b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'ekstra', title: 'Kelola Ekstra' });
             }, false, false, 0, '/products')}
-            {renderMenuItem('Diskon', Tag, '#ec4899', () => {
+            {renderMenuItem('Diskon', '🏷️', '#ec4899', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'diskon', title: 'Kelola Diskon' });
             }, false, false, 0, '/products')}
-            {renderMenuItem('Terjual', ShoppingBag, '#10b981', () => {
+            {renderMenuItem('Terjual', '🛍️', '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'terjual', title: 'Analitik Terjual' });
             }, false, false, 0, '/products')}
-            {renderMenuItem('Stok', History, '#06b6d4', () => {
+            {renderMenuItem('Stok', '🔄', '#06b6d4', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'stok', title: 'Mutasi Stok' });
             }, false, false, 0, '/products')}
-            {renderMenuItem('Expired', CalendarRange, '#ef4444', () => {
+            {renderMenuItem('Expired', '📅', '#ef4444', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'expired', title: 'Stok Expired' });
             }, false, false, 0, '/products')}
@@ -1361,27 +1363,27 @@ export default function SettingsScreen({ navigation, route }: any) {
             📊 Laporan Analitik
           </Text>
           <View className="flex-row flex-wrap">
-            {renderMenuItem('Laporan Penjualan', BarChart3, '#3b82f6', () => {
+            {renderMenuItem('Laporan Penjualan', '📊', '#3b82f6', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'lap_penjualan', title: 'Laporan Penjualan' });
             }, false, false, 0, '/reports')}
-            {renderMenuItem('Laporan Omzet', TrendingUp, '#10b981', () => {
+            {renderMenuItem('Laporan Omzet', '📈', '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'lap_omzet', title: 'Laporan Omzet' });
             }, false, false, 0, '/reports')}
-            {renderMenuItem('Laporan Terlaris', Star, '#f97316', () => {
+            {renderMenuItem('Laporan Terlaris', '🔥', '#f97316', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'lap_terlaris', title: 'Laporan Terlaris' });
             }, false, false, 0, '/reports')}
-            {renderMenuItem('Arus Kas', ArrowRightLeft, '#fbbf24', () => {
+            {renderMenuItem('Arus Kas', '💰', '#fbbf24', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'arus_kas', title: 'Arus Kas (Cashflow)' });
             }, false, false, 0, '/reports')}
-            {renderMenuItem('Pelanggan', Users, '#6366f1', () => {
+            {renderMenuItem('Pelanggan', '👥', '#6366f1', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'pelanggan', title: 'Daftar Pelanggan' });
             }, false, false, 0, '/reports')}
-            {renderMenuItem('Riwayat Tutup', Archive, '#64748b', () => {
+            {renderMenuItem('Riwayat Tutup', '📥', '#64748b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'tutup_buku', title: 'Riwayat Tutup Buku' });
             }, false, false, 0, '/reports')}
@@ -1394,15 +1396,15 @@ export default function SettingsScreen({ navigation, route }: any) {
             👥 Operasional & Staff
           </Text>
           <View className="flex-row flex-wrap">
-            {renderMenuItem('Shift Karyawan', Clock, '#06b6d4', () => {
+            {renderMenuItem('Shift Karyawan', '⏰', '#06b6d4', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'shift', title: 'Shift Karyawan' });
             }, false, false, 0, '/shifts')}
-            {renderMenuItem('Staff & User', UserCheck, '#6366f1', () => {
+            {renderMenuItem('Staff & User', '👤', '#6366f1', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'staff', title: 'Staff & User' });
             }, false, isSubscriptionExpired, 0, '/users')}
-            {renderMenuItem('Log Aktifitas', ClipboardList, '#64748b', () => {
+            {renderMenuItem('Log Aktifitas', '📝', '#64748b', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'activity_log', title: 'Log Aktifitas' });
             }, false, false, 0, '/logs')}
@@ -1416,35 +1418,35 @@ export default function SettingsScreen({ navigation, route }: any) {
               🔑 Panel Superadmin
             </Text>
             <View className="flex-row flex-wrap">
-              {renderMenuItem('Data User', Users, '#f59e0b', () => {
+              {renderMenuItem('Data User', '👥', '#f59e0b', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminUsers', title: 'Data Pengguna' });
               })}
-              {renderMenuItem('Kelola Toko', Store, '#3b82f6', () => {
+              {renderMenuItem('Kelola Toko', '🏪', '#3b82f6', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminStores', title: 'Kelola Toko' });
               })}
-              {renderMenuItem('Branding', Sparkles, '#ec4899', () => {
+              {renderMenuItem('Branding', '🎨', '#ec4899', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminBranding', title: 'Branding Global' });
               })}
-              {renderMenuItem('Infrastruktur', Database, '#10b981', () => {
+              {renderMenuItem('Infrastruktur', '🗄️', '#10b981', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminInfra', title: 'Infrastruktur & Proyek' });
               })}
-              {renderMenuItem('Langganan', Receipt, '#8b5cf6', () => {
+              {renderMenuItem('Langganan', '📄', '#8b5cf6', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminSubscriptions', title: 'Pengajuan Langganan' });
               }, false, false, pendingRequestsCount)}
-              {renderMenuItem('Broadcast', Bell, '#f43f5e', () => {
+              {renderMenuItem('Broadcast', '📢', '#f43f5e', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminBroadcast', title: 'Broadcast Notifikasi' });
               })}
-              {renderMenuItem('Kritik & Saran', MessageSquare, '#a855f7', () => {
+              {renderMenuItem('Kritik & Saran', '📩', '#a855f7', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminFeedback', title: 'Kritik & Saran' });
               })}
-              {renderMenuItem('Registrasi', UserPlus, '#06b6d4', () => {
+              {renderMenuItem('Registrasi', '🆕', '#06b6d4', () => {
                 Vibration.vibrate(10);
                 navigation.navigate('SuperAdminScreen', { featureId: 'superAdminRegistrations', title: 'Pendaftaran Baru' });
               })}
@@ -1458,32 +1460,32 @@ export default function SettingsScreen({ navigation, route }: any) {
             ⚙️ Akun & Aplikasi
           </Text>
           <View className="flex-row flex-wrap">
-            {renderMenuItem('Profil', User, '#14b8a6', () => {
+            {renderMenuItem('Profil', '👤', '#14b8a6', () => {
               Vibration.vibrate(10);
               navigation.navigate('ProfileScreen');
             })}
-            {renderMenuItem('Tema Aplikasi', Palette, '#64748b', () => {
+            {renderMenuItem('Tema Aplikasi', '🎨', '#64748b', () => {
               Vibration.vibrate(10);
               navigation.navigate('ThemeScreen');
             })}
-            {renderMenuItem('Pengaturan Toko', Settings, colors.accent, () => {
+            {renderMenuItem('Pengaturan Toko', '⚙️', colors.accent, () => {
               Vibration.vibrate(10);
               navigation.navigate('StoreSettingsScreen');
             }, true)}
-            {renderMenuItem('Notifikasi BG', ShieldAlert, '#f59e0b', handleOpenBatterySettings)}
-            {renderMenuItem('Paket Langganan', Sparkles, '#8b5cf6', () => {
+            {renderMenuItem('Notifikasi BG', '🔋', '#f59e0b', handleOpenBatterySettings)}
+            {renderMenuItem('Paket Langganan', '💎', '#8b5cf6', () => {
               Vibration.vibrate(10);
               setActiveModal('subscriptionMenu');
             })}
-            {renderMenuItem('Pusat Bantuan', HelpCircle, '#10b981', () => {
+            {renderMenuItem('Pusat Bantuan', '💬', '#10b981', () => {
               Vibration.vibrate(10);
               Linking.openURL('https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.');
             })}
-            {renderMenuItem('Kritik & Saran', MessageSquare, '#3b82f6', () => {
+            {renderMenuItem('Kritik & Saran', '✉️', '#3b82f6', () => {
               Vibration.vibrate(10);
               setShowFeedbackModalMobile(true);
             })}
-            {renderMenuItem('Periksa Pembaruan', RefreshCw, colors.accent, handleCheckUpdatesManual)}
+            {renderMenuItem('Periksa Pembaruan', '🔄', colors.accent, handleCheckUpdatesManual)}
           </View>
           <Text className="text-[9px] text-center mt-6 font-bold" style={{ color: colors.textMuted }}>
             iKasir Pro v1.0.1 • OTA Patch: 20-Juni-2026 (OTA Test OK)

@@ -191,7 +191,10 @@ function TabNavigator() {
     const isMenuDisabled = isSuperAdminBlocked || isExpiredBlocked;
 
     return {
-      tabBarIcon: ({ color }: any) => {
+      tabBarIcon: ({ color, focused }: any) => {
+        if (typeof iconComponent === 'string') {
+          return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{iconComponent}</Text>;
+        }
         const Icon = iconComponent;
         return <Icon color={color} size={24} strokeWidth={2} />;
       },
@@ -274,21 +277,21 @@ function TabNavigator() {
         <Tab.Screen 
           name="Beranda" 
           component={DashboardScreen} 
-          options={getTabOptions('DASBOR UTAMA', '/reports', LayoutDashboard)}
+          options={getTabOptions('DASBOR UTAMA', '/reports', '📊')}
         />
       )}
       {isKasirVisible && (
         <Tab.Screen 
           name="Kasir" 
           component={POSScreen} 
-          options={getTabOptions('IKASIR PRO', '/pos', Calculator)}
+          options={getTabOptions('IKASIR PRO', '/pos', '🛒')}
         />
       )}
       {isPesananVisible && (
         <Tab.Screen 
           name="Pesanan" 
           component={OrdersScreen} 
-          options={getTabOptions('PESANAN ONLINE', '/orders', ShoppingBag, {
+          options={getTabOptions('PESANAN ONLINE', '/orders', '📦', {
             tabBarBadge: newOrdersCount > 0 ? newOrdersCount : undefined,
             tabBarBadgeStyle: {
               backgroundColor: '#ef4444',
@@ -307,14 +310,14 @@ function TabNavigator() {
         <Tab.Screen 
           name="Transaksi" 
           component={TransactionsScreen} 
-          options={getTabOptions('RIWAYAT TRANSAKSI', '/transactions', History)}
+          options={getTabOptions('RIWAYAT TRANSAKSI', '/transactions', '💰')}
         />
       )}
       <Tab.Screen 
         name="Lainnya" 
         component={SettingsScreen} 
         options={{
-          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={24} strokeWidth={2} />,
+          tabBarIcon: ({ focused }: any) => <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>⚙️</Text>,
           title: 'MENU LAINNYA',
           tabBarBadge: showExpiredOrWarningBadge ? '!' : undefined,
           tabBarBadgeStyle: showExpiredOrWarningBadge ? {
