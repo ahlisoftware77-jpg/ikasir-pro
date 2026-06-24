@@ -175,6 +175,53 @@ const requestBluetoothPermissions = async (): Promise<boolean> => {
   }
 };
 
+const getCategoryColors = (categoryName: string, isDarkTheme: boolean) => {
+  const cat = (categoryName || 'Umum').toLowerCase().trim();
+  
+  const palette: Record<string, { bg: string; border: string; text: string; catText: string }> = {
+    'service': { bg: '#eff6ff', border: '#bfdbfe', text: '#1e3a8a', catText: '#2563eb' }, // Blue
+    'jasa': { bg: '#eff6ff', border: '#bfdbfe', text: '#1e3a8a', catText: '#2563eb' }, 
+    'oli': { bg: '#fef3c7', border: '#fde68a', text: '#78350f', catText: '#d97706' }, // Amber
+    'oil': { bg: '#fef3c7', border: '#fde68a', text: '#78350f', catText: '#d97706' },
+    'ban': { bg: '#f3e8ff', border: '#e9d5ff', text: '#581c87', catText: '#9333ea' }, // Purple
+    'tire': { bg: '#f3e8ff', border: '#e9d5ff', text: '#581c87', catText: '#9333ea' },
+    'sparepart': { bg: '#ecfdf5', border: '#a7f3d0', text: '#064e3b', catText: '#059669' }, // Emerald
+    'part': { bg: '#ecfdf5', border: '#a7f3d0', text: '#064e3b', catText: '#059669' },
+    'lainnya': { bg: '#f1f5f9', border: '#e2e8f0', text: '#0f172a', catText: '#64748b' }, // Slate
+    'umum': { bg: '#fdf2f8', border: '#fbcfe8', text: '#831843', catText: '#db2777' }, // Pink
+  };
+  
+  const getFallbackColors = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % 6;
+    const fallbacks = [
+      { bg: '#eff6ff', border: '#bfdbfe', text: '#1e3a8a', catText: '#2563eb' }, // Blue
+      { bg: '#ecfdf5', border: '#a7f3d0', text: '#064e3b', catText: '#059669' }, // Emerald
+      { bg: '#fef3c7', border: '#fde68a', text: '#78350f', catText: '#d97706' }, // Amber
+      { bg: '#f3e8ff', border: '#e9d5ff', text: '#581c87', catText: '#9333ea' }, // Purple
+      { bg: '#fdf2f8', border: '#fbcfe8', text: '#831843', catText: '#db2777' }, // Pink
+      { bg: '#e0f2fe', border: '#bae6fd', text: '#0c4a6e', catText: '#0284c7' }, // Sky
+    ];
+    return fallbacks[index];
+  };
+
+  const chosen = palette[cat] || getFallbackColors(cat);
+  
+  if (isDarkTheme) {
+    return {
+      bg: cat === 'lainnya' ? 'rgba(255,255,255,0.04)' : `${chosen.catText}15`,
+      border: `${chosen.catText}40`,
+      text: '#ffffff',
+      catText: chosen.catText
+    };
+  }
+  
+  return chosen;
+};
+
 export default function POSScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { user, storeId, isSubscriptionExpired, expiredDisabledMenus } = useAuthStore();
@@ -1831,6 +1878,9 @@ export default function POSScreen({ route, navigation }: any) {
             const isOutOfStock = item.manageStock !== false && item.stock <= 0;
             const { price: displayPrice, discountInfo } = getEffectivePrice(item);
             const hasPromo = !!discountInfo;
+            const isLightTheme = colors.bg.toLowerCase() === '#f8fafc' || colors.bg.toLowerCase() === '#f4fbf7' || colors.bg.toLowerCase() === '#fffaf5' || colors.bg.toLowerCase() === '#faf5f5';
+            const isDark = !isLightTheme;
+            const catColors = getCategoryColors(item.category, isDark);
 
             if (viewMode === 'tiles') {
               return (
@@ -1840,8 +1890,8 @@ export default function POSScreen({ route, navigation }: any) {
                   disabled={isOutOfStock}
                   className="flex-1 m-2 p-3 rounded-[24px] border"
                   style={{ 
-                    backgroundColor: '#F1B903',
-                    borderColor: '#ca8a04',
+                    backgroundColor: catColors.bg,
+                    borderColor: catColors.border,
                     opacity: isOutOfStock ? 0.6 : 1
                   }}
                 >
@@ -1852,7 +1902,7 @@ export default function POSScreen({ route, navigation }: any) {
                     {item.imageUrl || (item.imageUrls && item.imageUrls.length > 0 && item.imageUrls[0]) ? (
                       <Image source={{ uri: item.imageUrl || item.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     ) : (
-                      <Package color="#0f172a" opacity={0.2} size={40} />
+                      <Package color={catColors.text} opacity={0.2} size={40} />
                     )}
                     
                     {isOutOfStock && (
@@ -1876,13 +1926,13 @@ export default function POSScreen({ route, navigation }: any) {
                     )}
                   </View>
                   
-                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
-                  <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: '#0f172a' }} numberOfLines={2}>{item.name}</Text>
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: catColors.catText }}>{item.category || 'Umum'}</Text>
+                  <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: catColors.text }} numberOfLines={2}>{item.name}</Text>
                   
-                  <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: 'rgba(15,23,42,0.15)' }}>
+                  <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.15)' }}>
                     <View>
                       {hasPromo && (
-                        <Text className="text-[9px] line-through text-slate-700">
+                        <Text className="text-[9px] line-through text-slate-500">
                           Rp {item.price.toLocaleString('id-ID')}
                         </Text>
                       )}
@@ -1893,9 +1943,9 @@ export default function POSScreen({ route, navigation }: any) {
                     
                     <View 
                       className="w-7 h-7 rounded-xl items-center justify-center border"
-                      style={{ backgroundColor: 'rgba(15,23,42,0.1)', borderColor: 'rgba(15,23,42,0.2)' }}
+                      style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.1)', borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.2)' }}
                     >
-                      <Plus size={14} color="#0f172a" />
+                      <Plus size={14} color={catColors.text} />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -1910,21 +1960,21 @@ export default function POSScreen({ route, navigation }: any) {
                   disabled={isOutOfStock}
                   className="mx-2 my-1.5 p-3 rounded-2xl border flex-row items-center justify-between"
                   style={{ 
-                    backgroundColor: '#F1B903',
-                    borderColor: '#ca8a04',
+                    backgroundColor: catColors.bg,
+                    borderColor: catColors.border,
                     opacity: isOutOfStock ? 0.6 : 1
                   }}
                 >
                   <View className="flex-1 pr-4">
-                    <Text className="text-xs font-bold" style={{ color: '#0f172a' }} numberOfLines={1}>{item.name}</Text>
-                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
+                    <Text className="text-xs font-bold" style={{ color: catColors.text }} numberOfLines={1}>{item.name}</Text>
+                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: catColors.catText }}>{item.category || 'Umum'}</Text>
                   </View>
                   <View className="items-end shrink-0">
                     <Text className="font-black text-xs" style={{ color: '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.manageStock !== false && (
-                      <Text className="text-[9px] font-bold mt-0.5" style={{ color: '#475569' }}>
+                      <Text className="text-[9px] font-bold mt-0.5" style={{ color: isDark ? '#94a3b8' : '#475569' }}>
                         Stok: {item.stock}
                       </Text>
                     )}
@@ -1941,8 +1991,8 @@ export default function POSScreen({ route, navigation }: any) {
                 disabled={isOutOfStock}
                 className="mx-2 my-1.5 p-3 rounded-[24px] border flex-row items-center gap-3.5"
                 style={{ 
-                  backgroundColor: '#F1B903',
-                  borderColor: '#ca8a04',
+                  backgroundColor: catColors.bg,
+                  borderColor: catColors.border,
                   opacity: isOutOfStock ? 0.6 : 1
                 }}
               >
@@ -1953,7 +2003,7 @@ export default function POSScreen({ route, navigation }: any) {
                   {item.imageUrl || (item.imageUrls && item.imageUrls.length > 0 && item.imageUrls[0]) ? (
                     <Image source={{ uri: item.imageUrl || item.imageUrls?.[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                   ) : (
-                    <Package color="#0f172a" opacity={0.2} size={24} />
+                    <Package color={catColors.text} opacity={0.2} size={24} />
                   )}
                   
                   {isOutOfStock && (
@@ -1964,14 +2014,14 @@ export default function POSScreen({ route, navigation }: any) {
                 </View>
 
                 <View className="flex-1 min-w-0">
-                  <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#dc2626' }}>{item.category || 'Umum'}</Text>
-                  <Text className="text-sm font-black mb-1 truncate" style={{ color: '#0f172a' }}>{item.name}</Text>
+                  <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: catColors.catText }}>{item.category || 'Umum'}</Text>
+                  <Text className="text-sm font-black mb-1 truncate" style={{ color: catColors.text }}>{item.name}</Text>
                   <View className="flex-row items-center gap-2">
                     <Text className="font-black text-xs" style={{ color: '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.sku && (
-                      <Text className="text-[9px] font-mono" style={{ color: '#475569' }}>
+                      <Text className="text-[9px] font-mono" style={{ color: isDark ? '#94a3b8' : '#475569' }}>
                         SKU: {item.sku}
                       </Text>
                     )}
