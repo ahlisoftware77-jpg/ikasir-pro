@@ -143,7 +143,7 @@ function InvoiceA4Content() {
       const hasCustomer = rawCustomer && rawCustomer !== 'Pelanggan Umum' && rawCustomer !== 'Tanpa Nama';
       const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
       
-      document.title = `${docType} - #${docId}${customerPart} - ${cleanStoreName}`;
+      document.title = `${docType} - ${docId}${customerPart} - ${cleanStoreName}`;
 
       const timer = setTimeout(() => {
         window.print();

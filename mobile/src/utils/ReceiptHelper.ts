@@ -323,7 +323,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>${docType} - #${docId}${customerPart} - ${cleanStoreName.trim()}</title>
+      <title>${docType} - ${docId}${customerPart} - ${cleanStoreName.trim()}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
@@ -980,7 +980,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
               const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
               
               // Format filename safely by removing illegal file name characters
-              const fileName = `${docType} - #${docId}${customerPart} - ${cleanStoreName}`.replace(/[\/\\?%*:|"<>]/g, '') + '.pdf';
+              const fileName = `${docType} - ${docId}${customerPart} - ${cleanStoreName}`.replace(/[\/\\?%*:|"<>#&]/g, '') + '.pdf';
               const newPath = `${FileSystem.cacheDirectory}${fileName}`;
               
               const { uri } = await Print.printToFileAsync({ html });
@@ -1074,7 +1074,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
     <html lang="id">
     <head>
       <meta charset="UTF-8">
-      <title>SURAT JALAN - #${docId}${customerPart} - ${cleanStoreName.trim()}</title>
+      <title>SURAT JALAN - ${docId}${customerPart} - ${cleanStoreName.trim()}</title>
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
@@ -1248,7 +1248,7 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
               const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
               
               // Format filename safely
-              const fileName = `SURAT JALAN - #${docId}${customerPart} - ${cleanStoreName}`.replace(/[\/\\?%*:|"<>]/g, '') + '.pdf';
+              const fileName = `SURAT JALAN - ${docId}${customerPart} - ${cleanStoreName}`.replace(/[\/\\?%*:|"<>#&]/g, '') + '.pdf';
               const newPath = `${FileSystem.cacheDirectory}${fileName}`;
               
               const { uri } = await Print.printToFileAsync({ html });
