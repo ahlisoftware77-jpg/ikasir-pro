@@ -246,11 +246,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   useEffect(() => {
     const handleOpenSub = () => setShowSubscriptionModal(true);
     const handleOpenFeedback = () => setShowFeedbackModal(true);
+    const handleOpenNotifications = () => setShowNotifications(true);
     window.addEventListener('open-subscription-modal', handleOpenSub);
     window.addEventListener('open-feedback-modal', handleOpenFeedback);
+    window.addEventListener('open-notifications-modal', handleOpenNotifications);
     return () => {
       window.removeEventListener('open-subscription-modal', handleOpenSub);
       window.removeEventListener('open-feedback-modal', handleOpenFeedback);
+      window.removeEventListener('open-notifications-modal', handleOpenNotifications);
     };
   }, []);
 
