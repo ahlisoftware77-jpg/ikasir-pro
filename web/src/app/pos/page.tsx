@@ -49,13 +49,18 @@ import {
   FileText,
   LayoutGrid,
   List,
-  LayoutList
+  LayoutList,
+  Camera,
+  UploadCloud,
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 import { printReceipt } from '@/lib/printReceipt';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { useBranding } from '@/context/BrandingContext';
 import toast from 'react-hot-toast';
 import { logActivity } from '@/lib/activity';
+import { getInfraConfig } from '@/lib/infraConfig';
 
 interface SelectedExtra {
   groupName: string;
@@ -150,7 +155,13 @@ export default function POSPage() {
   const [manualItemName, setManualItemName] = useState('');
   const [manualItemPrice, setManualItemPrice] = useState('');
   const [saveToCatalog, setSaveToCatalog] = useState(false);
-  const [manualItemCategory, setManualItemCategory] = useState('Lainnya');
+  const [manualItemCategory, setManualItemCategory] = useState('Jasa');
+  const [manualItemBarcode, setManualItemBarcode] = useState('');
+  const [manualItemDescription, setManualItemDescription] = useState('');
+  const [manualItemExpiryDate, setManualItemExpiryDate] = useState('');
+  const [manualItemWarrantyDuration, setManualItemWarrantyDuration] = useState('');
+  const [manualItemWarrantyUnit, setManualItemWarrantyUnit] = useState<'days' | 'months' | 'years'>('months');
+  const [manualItemImages, setManualItemImages] = useState<{ id: string; url: string; file?: File }[]>([]);
   const [estimationValidityDays, setEstimationValidityDays] = useState(7);
   const [editingEstimationId, setEditingEstimationId] = useState<string | null>(null);
   const [originalEstimationData, setOriginalEstimationData] = useState<any>(null);
@@ -1107,9 +1118,41 @@ export default function POSPage() {
     const uniqueId = `manual-${Math.random().toString(36).substring(2, 9)}`;
     let finalId: string | undefined = undefined;
 
-    if (saveToCatalog) {
-      setIsProcessing(true);
-      try {
+    setIsProcessing(true);
+    try {
+      const uploadedImageUrls: string[] = [];
+
+      // Upload to Cloudinary if manualItemImages are selected
+      if (manualItemImages && manualItemImages.length > 0) {
+        const config = await getInfraConfig();
+        const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+        const uploadPreset = config.cloudinary_upload_preset || 'kasirpos';
+
+        for (const img of manualItemImages) {
+          if (img.file) {
+            const uploadData = new FormData();
+            uploadData.append('file', img.file);
+            uploadData.append('upload_preset', uploadPreset);
+
+            const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+              method: 'POST',
+              body: uploadData
+            });
+
+            const uploadResult = await uploadRes.json();
+            if (uploadRes.ok && uploadResult.secure_url) {
+              uploadedImageUrls.push(uploadResult.secure_url);
+            } else {
+              console.error('Cloudinary error:', uploadResult);
+              throw new Error('Gagal mengunggah salah satu foto produk manual');
+            }
+          }
+        }
+      }
+
+      const finalImageUrl = uploadedImageUrls[0] || '';
+
+      if (saveToCatalog) {
         const prodData = {
           storeId,
           name: manualItemName,
@@ -1118,41 +1161,62 @@ export default function POSPage() {
           stock: 999,
           manageStock: false,
           category: manualItemCategory,
+          barcode: manualItemBarcode.trim() || '',
+          description: manualItemDescription.trim() || '',
+          expiryDate: manualItemExpiryDate.trim() || '',
+          warrantyDuration: Number(manualItemWarrantyDuration) || 0,
+          warrantyUnit: manualItemWarrantyUnit,
+          imageUrl: finalImageUrl,
+          imageUrls: uploadedImageUrls,
           createdAt: serverTimestamp()
         };
         const docRef = await addDoc(collection(db, 'products'), prodData);
         finalId = docRef.id;
         toast.success(`Produk "${manualItemName}" disimpan ke katalog`);
-      } catch (err) {
-        console.error("Save to catalog error:", err);
-        toast.error("Gagal simpan ke katalog, tapi item tetap masuk keranjang.");
-      } finally {
-        setIsProcessing(false);
       }
-    }
-    
-    const manualItem: CartItem = {
-      uniqueId,
-      id: finalId,
-      name: saveToCatalog ? manualItemName : `[JASA/ITEM] ${manualItemName}`,
-      price,
-      displayPrice: price,
-      originalPrice: price,
-      cartQty: 1,
-      stock: 999999,
-      manageStock: false,
-      category: saveToCatalog ? manualItemCategory : 'Manual',
-      selectedExtras: [],
-      discountName: null,
-      note: ''
-    };
 
-    setCart(prev => [...prev, manualItem]);
-    setIsManualItemModalOpen(false);
-    setManualItemName('');
-    setManualItemPrice('');
-    setSaveToCatalog(false);
-    toast.success('Item ditambahkan ke keranjang');
+      const manualItem: CartItem = {
+        uniqueId,
+        id: finalId,
+        name: saveToCatalog ? manualItemName : `[JASA/ITEM] ${manualItemName}`,
+        price,
+        displayPrice: price,
+        originalPrice: price,
+        cartQty: 1,
+        stock: 999999,
+        manageStock: false,
+        category: saveToCatalog ? manualItemCategory : 'Manual',
+        barcode: manualItemBarcode.trim() || '',
+        description: manualItemDescription.trim() || '',
+        expiryDate: manualItemExpiryDate.trim() || '',
+        warrantyDuration: Number(manualItemWarrantyDuration) || 0,
+        warrantyUnit: manualItemWarrantyUnit,
+        imageUrl: finalImageUrl,
+        imageUrls: uploadedImageUrls,
+        selectedExtras: [],
+        discountName: null,
+        note: ''
+      };
+
+      setCart(prev => [...prev, manualItem]);
+      setIsManualItemModalOpen(false);
+      setManualItemName('');
+      setManualItemPrice('');
+      setSaveToCatalog(false);
+      setManualItemCategory('Jasa');
+      setManualItemBarcode('');
+      setManualItemDescription('');
+      setManualItemExpiryDate('');
+      setManualItemWarrantyDuration('');
+      setManualItemWarrantyUnit('months');
+      setManualItemImages([]);
+      toast.success('Item ditambahkan ke keranjang');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal menambahkan item: ' + (err.message || 'Server error'));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCloseCashier = async () => {
@@ -2969,28 +3033,79 @@ export default function POSPage() {
       {/* MODAL TAMBAH ITEM MANUAL */}
       {isManualItemModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-           <div className="bg-surface border border-app-border rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-              <div className="p-6 border-b border-app-border flex items-center justify-between">
+           <div className="bg-surface border border-app-border rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-app-border flex items-center justify-between shrink-0">
                  <h2 className="text-xl font-black text-foreground flex items-center gap-2">
                     <PlusCircle className="text-accent" />
-                    Item Manual
+                    Tambah Item Manual
                  </h2>
                  <button onClick={() => setIsManualItemModalOpen(false)} className="text-app-text-muted hover:text-rose-500">
                     <X size={24} />
                  </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                 {/* Foto Produk Manual (Multi-Foto) */}
+                 <div className="space-y-2">
+                    <div className="flex justify-between items-center pl-1 pr-1">
+                       <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest">Foto Produk (Opsional)</label>
+                       <span className="text-[8px] font-bold text-slate-400">{manualItemImages.length}/5 Foto</span>
+                    </div>
+                    <div className="p-4 rounded-2xl border border-app-border bg-background/50 flex flex-wrap gap-3 items-center">
+                       {manualItemImages.map((img, index) => (
+                          <div key={img.id} className="relative w-16 h-16 rounded-xl border border-app-border overflow-hidden bg-black/5">
+                             <img src={img.url} alt="preview" className="w-full h-full object-cover" />
+                             <button 
+                                onClick={() => setManualItemImages(prev => prev.filter((_, idx) => idx !== index))}
+                                className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center shadow"
+                             >
+                                <X size={8} />
+                             </button>
+                          </div>
+                       ))}
+                       {manualItemImages.length < 5 && (
+                          <label className="w-16 h-16 rounded-xl border border-dashed border-app-border flex flex-col justify-center items-center cursor-pointer bg-black/5 hover:bg-black/10 transition-all text-app-text-muted hover:text-foreground">
+                             <UploadCloud size={16} />
+                             <span className="text-[8px] font-black uppercase mt-1">Pilih</span>
+                             <input 
+                                type="file" 
+                                multiple 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={e => {
+                                   const files = e.target.files;
+                                   if (files) {
+                                      const newImages = Array.from(files).map(file => ({
+                                         id: Math.random().toString(36).substring(7),
+                                         url: URL.createObjectURL(file),
+                                         file
+                                      }));
+                                      setManualItemImages(prev => [...prev, ...newImages].slice(0, 5));
+                                   }
+                                }}
+                             />
+                          </label>
+                       )}
+                       {manualItemImages.length === 0 && (
+                          <div className="ml-2 flex-1 justify-center">
+                             <p className="text-[9px] font-bold text-slate-400 italic">Pilih hingga 5 foto produk manual.</p>
+                          </div>
+                       )}
+                    </div>
+                 </div>
+
+                 {/* Nama Jasa / Sparepart */}
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Nama Jasa / Sparepart</label>
                     <input 
                       type="text"
-                      autoFocus
-                      placeholder="Contoh: Service Ganti Oli"
+                      placeholder="e.g. Ongkos Kirim / Servis AC"
                       value={manualItemName}
                       onChange={e => setManualItemName(e.target.value)}
-                      className="w-full p-4 bg-background border border-app-border rounded-xl font-bold text-foreground focus:outline-none focus:border-accent"
+                      className="w-full p-3.5 bg-background border border-app-border rounded-xl font-bold text-foreground focus:outline-none focus:border-accent text-sm"
                     />
                  </div>
+
+                 {/* Harga Satuan (Rp) */}
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Harga Satuan (Rp)</label>
                     <input 
@@ -2998,48 +3113,130 @@ export default function POSPage() {
                       placeholder="0"
                       value={manualItemPrice}
                       onChange={e => setManualItemPrice(e.target.value)}
-                      className="w-full p-4 bg-background border border-app-border rounded-xl font-black text-xl text-foreground focus:outline-none focus:border-accent"
+                      className="w-full p-3.5 bg-background border border-app-border rounded-xl font-black text-foreground focus:outline-none focus:border-accent text-sm"
                     />
                  </div>
-                  <div className="space-y-4 pt-2 border-t border-app-border">
-                     <label className="flex items-center gap-3 cursor-pointer group pt-2">
-                        <div className="relative">
-                           <input 
-                             type="checkbox"
-                             className="sr-only peer"
-                             checked={saveToCatalog}
-                             onChange={e => setSaveToCatalog(e.target.checked)}
-                           />
-                           <div className="w-10 h-6 bg-app-border rounded-full peer peer-checked:bg-accent transition-colors"></div>
-                           <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
-                        </div>
-                        <span className="text-xs font-bold text-app-text-muted group-hover:text-foreground transition-colors">Simpan ke Katalog Produk?</span>
-                     </label>
 
-                     {saveToCatalog && (
-                        <div className="space-y-1 animate-in slide-in-from-top-2 duration-200">
-                           <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Kategori Produk</label>
-                           <select 
-                             value={manualItemCategory}
-                             onChange={e => setManualItemCategory(e.target.value)}
-                             className="w-full p-3 bg-background border border-app-border rounded-xl font-bold text-xs text-foreground focus:outline-none focus:border-accent appearance-none capitalize"
-                           >
-                             {['Lainnya', 'Jasa', 'Sparepart', 'Service', 'Oli', 'Ban'].map(cat => (
-                               <option key={cat} value={cat}>{cat}</option>
-                             ))}
-                           </select>
-                        </div>
-                     )}
-                  </div>
-
-                  <div className="pt-2">
-                    <button 
-                      onClick={addManualItem}
-                      className="w-full py-4 bg-accent text-foreground rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all"
+                 {/* Kategori */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Kategori</label>
+                    <select 
+                       value={manualItemCategory}
+                       onChange={e => setManualItemCategory(e.target.value)}
+                       className="w-full p-3.5 bg-background border border-app-border rounded-xl font-bold text-sm text-foreground focus:outline-none focus:border-accent capitalize"
                     >
-                       TAMBAHKAN KE KERANJANG
-                    </button>
+                       {['Jasa', 'Sparepart', 'Service', 'Oli', 'Ban', 'Lainnya'].map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                       ))}
+                    </select>
                  </div>
+
+                 {/* Barcode (Optional) */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Barcode (Opsional)</label>
+                    <div className="flex gap-2">
+                       <input 
+                          type="text"
+                          placeholder="Barcode / scan..."
+                          value={manualItemBarcode}
+                          onChange={e => setManualItemBarcode(e.target.value)}
+                          className="flex-1 p-3.5 bg-background border border-app-border rounded-xl font-bold text-foreground focus:outline-none focus:border-accent text-sm"
+                       />
+                       <button 
+                          onClick={() => {
+                             const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+                             setManualItemBarcode(randomBarcode);
+                          }}
+                          className="px-4 bg-accent text-[#0f172a] rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1 hover:scale-[1.02] transition-transform shadow-md"
+                       >
+                          <Sparkles size={14} />
+                          AUTO
+                       </button>
+                    </div>
+                 </div>
+
+                 {/* Masa Berlaku (Expired) */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Masa Berlaku / Kedaluwarsa (Opsional)</label>
+                    <input 
+                       type="date"
+                       value={manualItemExpiryDate}
+                       onChange={e => setManualItemExpiryDate(e.target.value)}
+                       className="w-full p-3.5 bg-background border border-app-border rounded-xl font-bold text-foreground focus:outline-none focus:border-accent text-sm"
+                    />
+                 </div>
+
+                 {/* Garansi Produk */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Garansi Produk (Opsional)</label>
+                    <div className="flex gap-2">
+                       <input 
+                          type="number"
+                          placeholder="Durasi (e.g. 1)"
+                          value={manualItemWarrantyDuration}
+                          onChange={e => setManualItemWarrantyDuration(e.target.value)}
+                          className="flex-[1.2] p-3.5 bg-background border border-app-border rounded-xl font-bold text-foreground focus:outline-none focus:border-accent text-sm"
+                       />
+                       <div className="flex-1 flex border border-app-border rounded-xl p-1 bg-background">
+                          {(['days', 'months', 'years'] as const).map(unit => {
+                             const label = unit === 'days' ? 'Hari' : unit === 'months' ? 'Bln' : 'Thn';
+                             const isSelected = manualItemWarrantyUnit === unit;
+                             return (
+                                <button
+                                   key={unit}
+                                   onClick={() => setManualItemWarrantyUnit(unit)}
+                                   className={`flex-1 rounded-lg text-[10px] font-black uppercase transition-all ${isSelected ? 'bg-accent text-[#0f172a]' : 'text-app-text-muted'}`}
+                                >
+                                   {label}
+                                </button>
+                             );
+                          })}
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Deskripsi */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Deskripsi (Opsional)</label>
+                    <textarea 
+                       placeholder="Tambahkan deskripsi atau detail..."
+                       value={manualItemDescription}
+                       onChange={e => setManualItemDescription(e.target.value)}
+                       rows={3}
+                       className="w-full p-3.5 bg-background border border-app-border rounded-xl font-medium text-foreground focus:outline-none focus:border-accent text-sm resize-none"
+                    />
+                 </div>
+
+                 {/* Simpan ke katalog checkbox */}
+                 <label className="flex items-center gap-3 cursor-pointer group py-2 border border-app-border p-4 rounded-xl bg-background mt-2">
+                    <div className="relative">
+                       <input 
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={saveToCatalog}
+                          onChange={e => setSaveToCatalog(e.target.checked)}
+                       />
+                       <div className="w-10 h-6 bg-app-border rounded-full peer peer-checked:bg-accent transition-colors"></div>
+                       <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                    </div>
+                    <span className="text-xs font-bold text-app-text-muted group-hover:text-foreground transition-colors">Simpan item ini ke katalog produk permanent?</span>
+                 </label>
+              </div>
+              <div className="p-6 border-t border-app-border bg-background/50 shrink-0">
+                 <button 
+                   onClick={addManualItem}
+                   disabled={isProcessing}
+                   className="w-full py-4 bg-accent text-foreground rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                 >
+                    {isProcessing ? (
+                       <>
+                         <Loader2 className="animate-spin" size={18} />
+                         <span>MEMPROSES...</span>
+                       </>
+                    ) : (
+                       <span>TAMBAHKAN KE KERANJANG</span>
+                    )}
+                 </button>
               </div>
            </div>
         </div>
