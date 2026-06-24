@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2 } from 'lucide-react';
+import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Home() {
@@ -120,7 +120,7 @@ export default function Home() {
       </div>
 
       {/* SHARE STORE LINK CARD */}
-      <div className="bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20 rounded-[2rem] p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-accent/40 transition-all duration-500 shadow-xl shadow-accent/5">
+      <div className="bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/20 rounded-[2rem] p-6 mb-4 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-accent/40 transition-all duration-500 shadow-xl shadow-accent/5">
         <div className="flex items-center gap-5 w-full md:w-auto">
           <div className="w-16 h-16 rounded-2xl bg-accent text-foreground flex items-center justify-center shadow-lg shadow-accent/30 group-hover:scale-110 transition-transform duration-500">
             <ShoppingBag size={32} />
@@ -164,6 +164,30 @@ export default function Home() {
               <Share2 size={14} /> Bagikan
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* DOWNLOAD APK BANNER */}
+      <div className="bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 border border-indigo-500/20 rounded-[2rem] p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-indigo-500/40 transition-all duration-500 shadow-xl shadow-indigo-500/5">
+        <div className="flex items-center gap-5 w-full md:w-auto">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform duration-500">
+            <Download size={32} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-foreground tracking-tight">Aplikasi Android iKasir Pro</h2>
+            <p className="text-xs text-app-text-muted font-medium mt-1">Unduh aplikasi Android (APK) untuk melakukan transaksi penjualan dan kelola toko langsung melalui HP Anda.</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <a 
+            href="https://bit.ly/ikasirpro"
+            target="_blank"
+            rel="noreferrer"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-500 text-white hover:bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+          >
+            <Download size={14} /> Unduh APK Android
+          </a>
         </div>
       </div>
 
