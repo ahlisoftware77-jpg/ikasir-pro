@@ -110,9 +110,6 @@ const getFontFamily = (id: string) => {
 };
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
-  if (file.size > 3 * 1024 * 1024) {
-    throw new Error('Ukuran file maksimal adalah 3MB');
-  }
   const config = await getInfraConfig();
   const uploadData = new FormData();
   uploadData.append('file', file);
@@ -976,10 +973,6 @@ function PublicOrderContent() {
                                        onChange={async (e) => {
                                          if (!e.target.files || !e.target.files[0]) return;
                                          const file = e.target.files[0];
-                                         if (file.size > 3 * 1024 * 1024) {
-                                           toast.error('Ukuran file maksimal adalah 3MB');
-                                           return;
-                                         }
                                          const fileName = file.name.toLowerCase();
                                          const isImageExt = fileName.endsWith('.png') || 
                                                             fileName.endsWith('.jpg') || 
@@ -1020,10 +1013,6 @@ function PublicOrderContent() {
                                    onChange={async (e) => {
                                      if (!e.target.files || !e.target.files[0]) return;
                                      const file = e.target.files[0];
-                                     if (file.size > 3 * 1024 * 1024) {
-                                       toast.error('Ukuran file maksimal adalah 3MB');
-                                       return;
-                                     }
                                      const fileName = file.name.toLowerCase();
                                      const isImageExt = fileName.endsWith('.png') || 
                                                         fileName.endsWith('.jpg') || 
@@ -1757,10 +1746,6 @@ function PublicOrderContent() {
                                         onChange={async (e) => {
                                           if (!e.target.files || !e.target.files[0]) return;
                                           const file = e.target.files[0];
-                                          if (file.size > 3 * 1024 * 1024) {
-                                            toast.error('Ukuran file maksimal adalah 3MB');
-                                            return;
-                                          }
                                           const fileName = file.name.toLowerCase();
                                           const isImageExt = fileName.endsWith('.png') || 
                                                              fileName.endsWith('.jpg') || 

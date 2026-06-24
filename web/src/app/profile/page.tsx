@@ -129,11 +129,6 @@ export default function ProfilePage() {
        toast.error('File harus berupa gambar');
        return;
     }
-
-    if (file.size > 3 * 1024 * 1024) {
-       toast.error('Ukuran file maksimal adalah 3MB');
-       return;
-    }
     
     setIsUploading(true);
     try {

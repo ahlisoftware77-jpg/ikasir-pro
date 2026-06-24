@@ -1130,9 +1130,6 @@ export default function POSPage() {
 
         for (const img of manualItemImages) {
           if (img.file) {
-            if (img.file.size > 3 * 1024 * 1024) {
-              throw new Error('Salah satu foto produk manual melebihi batas 3MB');
-            }
             const uploadData = new FormData();
             uploadData.append('file', img.file);
             uploadData.append('upload_preset', uploadPreset);
@@ -3077,13 +3074,7 @@ export default function POSPage() {
                                 onChange={e => {
                                    const files = e.target.files;
                                    if (files) {
-                                      const fileArray = Array.from(files);
-                                      const largeFiles = fileArray.filter(f => f.size > 3 * 1024 * 1024);
-                                      if (largeFiles.length > 0) {
-                                         toast.error('Beberapa file melebihi batas ukuran maksimal 3MB');
-                                         return;
-                                      }
-                                      const newImages = fileArray.map(file => ({
+                                      const newImages = Array.from(files).map(file => ({
                                          id: Math.random().toString(36).substring(7),
                                          url: URL.createObjectURL(file),
                                          file

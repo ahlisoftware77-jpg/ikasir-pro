@@ -5,7 +5,6 @@ import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { Camera, Image as ImageIcon, Save, ArrowLeft, Trash2, Camera as CameraIcon, Scan, X, Calendar, Layers, Shield, ChevronDown, Check, CheckSquare, Square, Sparkles, AlertCircle, Info, Plus } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -162,18 +161,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      let fileSize = result.assets[0].fileSize;
-      if (!fileSize) {
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        if (fileInfo.exists) fileSize = fileInfo.size;
-      }
-      if (fileSize && fileSize > 3 * 1024 * 1024) {
-        Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-        return;
-      }
-      setImages(prev => [...prev, localUri]);
+    if (!result.canceled) {
+      setImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
@@ -190,18 +179,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      let fileSize = result.assets[0].fileSize;
-      if (!fileSize) {
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        if (fileInfo.exists) fileSize = fileInfo.size;
-      }
-      if (fileSize && fileSize > 3 * 1024 * 1024) {
-        Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-        return;
-      }
-      setImages(prev => [...prev, localUri]);
+    if (!result.canceled) {
+      setImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
@@ -241,18 +220,6 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
     setIsSaving(true);
     try {
-      // Validasi ukuran semua gambar baru terlebih dahulu sebelum upload ke Cloudinary
-      for (const img of images) {
-        if (!img.startsWith('http://') && !img.startsWith('https://')) {
-          const fileInfo = await FileSystem.getInfoAsync(img);
-          if (fileInfo.exists && fileInfo.size > 3 * 1024 * 1024) {
-            Alert.alert('Gagal', 'Beberapa gambar melebihi batas ukuran maksimal 3MB');
-            setIsSaving(false);
-            return;
-          }
-        }
-      }
-
       const finalImageUrls: string[] = [];
 
       for (const img of images) {

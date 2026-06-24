@@ -124,11 +124,6 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
   const handlePickProof = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        toast.error('Ukuran file maksimal adalah 3MB');
-        e.target.value = '';
-        return;
-      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setSubscriptionProofBase64(reader.result as string);

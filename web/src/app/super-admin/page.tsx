@@ -160,9 +160,6 @@ export default function SuperAdminPage() {
       let finalImageUrl = broadcastImageUrl.trim();
 
       if (broadcastImageFile) {
-        if (broadcastImageFile.size > 3 * 1024 * 1024) {
-          throw new Error('Ukuran file maksimal adalah 3MB');
-        }
         const config = await getInfraConfig();
         const uploadData = new FormData();
         uploadData.append('file', broadcastImageFile);
@@ -897,11 +894,6 @@ export default function SuperAdminPage() {
   const handleUploadQris = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 3 * 1024 * 1024) {
-      alert('Ukuran file maksimal adalah 3MB');
-      return;
-    }
 
     const cloudName = infraData.cloudinary_cloud_name || 'dkcjfwbvc';
     const uploadPreset = infraData.cloudinary_upload_preset || 'kasirpos';
@@ -2928,10 +2920,6 @@ export default function SuperAdminPage() {
                           onChange={e => {
                             if (e.target.files && e.target.files[0]) {
                               const file = e.target.files[0];
-                              if (file.size > 3 * 1024 * 1024) {
-                                alert('Ukuran file maksimal adalah 3MB');
-                                return;
-                              }
                               setBroadcastImageFile(file);
                               setBroadcastImagePreview(URL.createObjectURL(file));
                             }

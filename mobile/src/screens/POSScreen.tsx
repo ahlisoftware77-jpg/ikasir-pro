@@ -69,7 +69,6 @@ import {
 } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { Camera, Image as ImageIcon } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { printReceipt } from '../utils/ReceiptHelper';
@@ -1384,18 +1383,8 @@ export default function POSScreen({ route, navigation }: any) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      let fileSize = result.assets[0].fileSize;
-      if (!fileSize) {
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        if (fileInfo.exists) fileSize = fileInfo.size;
-      }
-      if (fileSize && fileSize > 3 * 1024 * 1024) {
-        Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-        return;
-      }
-      setManualItemImages(prev => [...prev, localUri]);
+    if (!result.canceled) {
+      setManualItemImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
@@ -1412,18 +1401,8 @@ export default function POSScreen({ route, navigation }: any) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      let fileSize = result.assets[0].fileSize;
-      if (!fileSize) {
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        if (fileInfo.exists) fileSize = fileInfo.size;
-      }
-      if (fileSize && fileSize > 3 * 1024 * 1024) {
-        Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-        return;
-      }
-      setManualItemImages(prev => [...prev, localUri]);
+    if (!result.canceled) {
+      setManualItemImages(prev => [...prev, result.assets[0].uri]);
     }
   };
 
@@ -1440,18 +1419,6 @@ export default function POSScreen({ route, navigation }: any) {
 
     setIsProcessing(true);
     try {
-      // Validasi ukuran semua gambar manual terlebih dahulu sebelum upload ke Cloudinary
-      if (manualItemImages && manualItemImages.length > 0) {
-        for (const localUri of manualItemImages) {
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (fileInfo.exists && fileInfo.size > 3 * 1024 * 1024) {
-            Alert.alert('Gagal', 'Beberapa gambar manual melebihi batas ukuran maksimal 3MB');
-            setIsProcessing(false);
-            return;
-          }
-        }
-      }
-
       const uploadedImageUrls: string[] = [];
 
       // Upload to Cloudinary if manualItemImages are selected

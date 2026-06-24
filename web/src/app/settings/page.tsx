@@ -306,10 +306,6 @@ export default function SettingsPage() {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 3 * 1024 * 1024) {
-        toast.error('Ukuran file maksimal adalah 3MB');
-        return;
-      }
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
     }
@@ -318,10 +314,6 @@ export default function SettingsPage() {
   const handleThermalLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 3 * 1024 * 1024) {
-        toast.error('Ukuran file maksimal adalah 3MB');
-        return;
-      }
       setThermalLogoFile(file);
       setThermalLogoPreview(URL.createObjectURL(file));
     }
@@ -330,10 +322,6 @@ export default function SettingsPage() {
   const handleQrisChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 3 * 1024 * 1024) {
-        toast.error('Ukuran file maksimal adalah 3MB');
-        return;
-      }
       setQrisFile(file);
       setQrisPreview(URL.createObjectURL(file));
     }

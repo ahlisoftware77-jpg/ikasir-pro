@@ -950,18 +950,9 @@ export default function StoreSettingsScreen({ navigation }: any) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled) {
         setIsUploadingLogo(true);
         const localUri = result.assets[0].uri;
-        let fileSize = result.assets[0].fileSize;
-        if (!fileSize) {
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (fileInfo.exists) fileSize = fileInfo.size;
-        }
-        if (fileSize && fileSize > 3 * 1024 * 1024) {
-          Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-          return;
-        }
         const filename = localUri.split('/').pop();
         const match = /\.(\w+)$/.exec(filename || '');
         const type = match ? `image/${match[1]}` : `image`;
@@ -1006,18 +997,9 @@ export default function StoreSettingsScreen({ navigation }: any) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled) {
         setIsUploadingThermalLogo(true);
         const localUri = result.assets[0].uri;
-        let fileSize = result.assets[0].fileSize;
-        if (!fileSize) {
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (fileInfo.exists) fileSize = fileInfo.size;
-        }
-        if (fileSize && fileSize > 3 * 1024 * 1024) {
-          Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-          return;
-        }
         const filename = localUri.split('/').pop();
         const match = /\.(\w+)$/.exec(filename || '');
         const type = match ? `image/${match[1]}` : `image`;
@@ -1062,18 +1044,9 @@ export default function StoreSettingsScreen({ navigation }: any) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled) {
         setIsUploadingQris(true);
         const localUri = result.assets[0].uri;
-        let fileSize = result.assets[0].fileSize;
-        if (!fileSize) {
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (fileInfo.exists) fileSize = fileInfo.size;
-        }
-        if (fileSize && fileSize > 3 * 1024 * 1024) {
-          Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-          return;
-        }
         const filename = localUri.split('/').pop();
         const match = /\.(\w+)$/.exec(filename || '');
         const type = match ? `image/${match[1]}` : `image`;

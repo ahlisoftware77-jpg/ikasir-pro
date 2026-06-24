@@ -187,18 +187,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      let fileSize = result.assets[0].fileSize;
-      if (!fileSize) {
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        if (fileInfo.exists) fileSize = fileInfo.size;
-      }
-      if (fileSize && fileSize > 3 * 1024 * 1024) {
-        Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-        return;
-      }
-      setBroadcastImage(localUri);
+    if (!result.canceled) {
+      setBroadcastImage(result.assets[0].uri);
       setBroadcastImageUrl('');
     }
   };
@@ -216,18 +206,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       quality: 0.8,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const localUri = result.assets[0].uri;
-      let fileSize = result.assets[0].fileSize;
-      if (!fileSize) {
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        if (fileInfo.exists) fileSize = fileInfo.size;
-      }
-      if (fileSize && fileSize > 3 * 1024 * 1024) {
-        Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-        return;
-      }
-      setBroadcastImage(localUri);
+    if (!result.canceled) {
+      setBroadcastImage(result.assets[0].uri);
       setBroadcastImageUrl('');
     }
   };
@@ -1134,40 +1114,28 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         base64: true,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const localUri = result.assets[0].uri;
-        let fileSize = result.assets[0].fileSize;
-        if (!fileSize) {
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (fileInfo.exists) fileSize = fileInfo.size;
-        }
-        if (fileSize && fileSize > 3 * 1024 * 1024) {
-          Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
-          return;
-        }
-        if (result.assets[0].base64) {
-          setIsSaving(true);
-          const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
-          const cloudinaryUrl = 'https://api.cloudinary.com/v1_1/dtt1zow8f/image/upload';
-          
-          const data = {
-            file: base64Img,
-            upload_preset: 'kasirpos',
-          };
+      if (!result.canceled && result.assets[0].base64) {
+        setIsSaving(true);
+        const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const cloudinaryUrl = 'https://api.cloudinary.com/v1_1/dtt1zow8f/image/upload';
+        
+        const data = {
+          file: base64Img,
+          upload_preset: 'kasirpos',
+        };
 
-          const uploadRes = await fetch(cloudinaryUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          });
+        const uploadRes = await fetch(cloudinaryUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
 
-          const uploadResult = await uploadRes.json();
-          if (uploadResult.secure_url) {
-            setBrandingData((prev: any) => ({ ...prev, subscriptionQrisUrl: uploadResult.secure_url }));
-            Alert.alert('Berhasil', 'Foto QRIS Langganan berhasil disiapkan, tekan Simpan Perubahan!');
-          } else {
-            Alert.alert('Gagal', 'Gagal menyiapkan QRIS ke server.');
-          }
+        const uploadResult = await uploadRes.json();
+        if (uploadResult.secure_url) {
+          setBrandingData((prev: any) => ({ ...prev, subscriptionQrisUrl: uploadResult.secure_url }));
+          Alert.alert('Berhasil', 'Foto QRIS Langganan berhasil disiapkan, tekan Simpan Perubahan!');
+        } else {
+          Alert.alert('Gagal', 'Gagal menyiapkan QRIS ke server.');
         }
       }
     } catch (err) {
