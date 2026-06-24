@@ -243,10 +243,118 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     }
   }, [storeId]);
 
+  const openNotifications = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'notifications-modal') {
+        window.history.pushState({ type: 'notifications-modal' }, '');
+      }
+    }
+    setShowNotifications(true);
+  };
+
+  const closeNotifications = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'notifications-modal') {
+        window.history.back();
+        return;
+      }
+    }
+    setShowNotifications(false);
+  };
+
+  const openProfile = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'profile-modal') {
+        window.history.pushState({ type: 'profile-modal' }, '');
+      }
+    }
+    setShowProfileModal(true);
+  };
+
+  const closeProfile = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'profile-modal') {
+        window.history.back();
+        return;
+      }
+    }
+    setShowProfileModal(false);
+  };
+
+  const openSubscription = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'subscription-modal') {
+        window.history.pushState({ type: 'subscription-modal' }, '');
+      }
+    }
+    setShowSubscriptionModal(true);
+  };
+
+  const closeSubscription = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'subscription-modal') {
+        window.history.back();
+        return;
+      }
+    }
+    setShowSubscriptionModal(false);
+  };
+
+  const openFeedback = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'feedback-modal') {
+        window.history.pushState({ type: 'feedback-modal' }, '');
+      }
+    }
+    setShowFeedbackModal(true);
+  };
+
+  const closeFeedback = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'feedback-modal') {
+        window.history.back();
+        return;
+      }
+    }
+    setShowFeedbackModal(false);
+  };
+
+  const openLayoutLogout = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'layout-logout-modal') {
+        window.history.pushState({ type: 'layout-logout-modal' }, '');
+      }
+    }
+    setShowLogoutModal(true);
+  };
+
+  const closeLayoutLogout = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'layout-logout-modal') {
+        window.history.back();
+        return;
+      }
+    }
+    setShowLogoutModal(false);
+  };
+
   useEffect(() => {
-    const handleOpenSub = () => setShowSubscriptionModal(true);
-    const handleOpenFeedback = () => setShowFeedbackModal(true);
-    const handleOpenNotifications = () => setShowNotifications(true);
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      setShowNotifications(state?.type === 'notifications-modal');
+      setShowProfileModal(state?.type === 'profile-modal');
+      setShowSubscriptionModal(state?.type === 'subscription-modal');
+      setShowFeedbackModal(state?.type === 'feedback-modal');
+      setShowLogoutModal(state?.type === 'layout-logout-modal');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenSub = () => openSubscription();
+    const handleOpenFeedback = () => openFeedback();
+    const handleOpenNotifications = () => openNotifications();
     window.addEventListener('open-subscription-modal', handleOpenSub);
     window.addEventListener('open-feedback-modal', handleOpenFeedback);
     window.addEventListener('open-notifications-modal', handleOpenNotifications);
@@ -297,7 +405,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               <button 
                 onClick={() => {
                   toast.dismiss(t.id);
-                  setShowSubscriptionModal(true);
+                  openSubscription();
                 }}
                 className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black rounded-lg uppercase tracking-wider shadow-sm hover:bg-emerald-600 active:scale-95 transition-all"
               >
@@ -581,8 +689,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   if (!user && !wasAuthenticated) return null;
 
   const handleLogout = () => {
-    setShowProfileModal(false);
-    setShowLogoutModal(true);
+    openLayoutLogout();
   };
 
   const confirmLogout = async (backupFirst: boolean) => {
@@ -603,6 +710,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     await signOut(auth);
     resetAll(); // Clear persistent store
     setShowLogoutModal(false);
+    if (typeof window !== 'undefined' && window.history.state?.type === 'layout-logout-modal') {
+      window.history.back();
+    }
   };
 
   return (
@@ -620,7 +730,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
         <div className="flex items-center gap-2 shrink-0">
           <button 
-            onClick={() => setShowNotifications(true)}
+            onClick={openNotifications}
             className="w-10 h-10 rounded-xl bg-surface border border-app-border flex items-center justify-center text-app-text-muted hover:text-accent relative transition-all active:scale-95"
           >
             <Bell size={20} />
@@ -630,7 +740,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           </button>
 
           <button 
-            onClick={() => setShowProfileModal(true)}
+            onClick={openProfile}
             className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent active:scale-95 transition-all overflow-hidden"
           >
             <img src={logoUrl || '/logo.png'} alt="Store Logo" className="w-full h-full object-contain" />
@@ -638,14 +748,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         </div>
       </header>
 
-      <NotificationCenter isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+      <NotificationCenter isOpen={showNotifications} onClose={closeNotifications} />
 
       {/* Account Profile Modal Mobile */}
       {showProfileModal && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
            <div 
              className="fixed inset-0 pointer-events-auto" 
-             onClick={() => setShowProfileModal(false)}
+             onClick={closeProfile}
            />
            <div className="bg-surface border-t sm:border border-app-border rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 relative z-10">
               <div className="p-8">
@@ -690,13 +800,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                      <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
                      LOG OUT SYSTEM
                    </button>
-                   
                    <button 
-                     onClick={() => setShowProfileModal(false)}
-                     className="w-full py-4 bg-background border border-app-border text-app-text-muted hover:text-foreground rounded-lg font-black transition-all hover:border-foreground/20"
-                   >
-                     TUTUP
-                   </button>
+                      onClick={closeProfile}
+                      className="w-full py-4 bg-background border border-app-border text-app-text-muted hover:text-foreground rounded-lg font-black transition-all hover:border-foreground/20"
+                    >
+                      TUTUP
+                    </button>
                  </div>
               </div>
            </div>
@@ -735,7 +844,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                     </button>
                     
                     <button 
-                      onClick={() => setShowLogoutModal(false)}
+                      onClick={closeLayoutLogout}
                       disabled={isBackuping}
                       className="w-full py-2 text-[10px] font-black tracking-widest text-app-text-muted uppercase hover:text-rose-500 transition-colors"
                     >
@@ -751,7 +860,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         logoUrl={logoUrl} 
-        onOpenNotifications={() => setShowNotifications(true)}
+        onOpenNotifications={openNotifications}
       />
       
       <main className="flex-1 md:ml-64 p-4 md:p-8 overflow-y-auto h-screen relative pb-24 md:pb-8">
@@ -784,7 +893,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               </div>
             </div>
             <button 
-              onClick={() => setShowSubscriptionModal(true)}
+              onClick={openSubscription}
               className="w-full md:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors text-center whitespace-nowrap shrink-0"
             >
               Perpanjang Sekarang
@@ -804,7 +913,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               </div>
             </div>
             <button 
-              onClick={() => setShowSubscriptionModal(true)}
+              onClick={openSubscription}
               className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors text-center whitespace-nowrap shrink-0"
             >
               Buka Menu Langganan
@@ -846,8 +955,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             {children}
           </>
         )}
-        <SubscriptionModal isOpen={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
-        <FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
+        <SubscriptionModal isOpen={showSubscriptionModal} onClose={closeSubscription} />
+        <FeedbackModal isOpen={showFeedbackModal} onClose={closeFeedback} />
       </main>
       <MobileBottomNav />
       <PWAInstallButton />

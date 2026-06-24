@@ -190,9 +190,46 @@ export default function MobileBottomNav() {
     { id: 'light-sunset', name: 'Light Rose', color: '#fff1f2', icon: Sun },
   ];
 
+  const openMore = () => {
+    setIsMoreOpen(true);
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'more-modal') {
+        window.history.pushState({ type: 'more-modal' }, '');
+      }
+    }
+  };
+
+  const closeMore = () => {
+    setIsMoreOpen(false);
+    setExpandedMenu(null);
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'more-modal') {
+        window.history.back();
+      }
+    }
+  };
+
+  const openLogout = () => {
+    setShowLogoutModal(true);
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type !== 'nav-logout-modal') {
+        window.history.pushState({ type: 'nav-logout-modal' }, '');
+      }
+    }
+  };
+
+  const closeLogout = () => {
+    setShowLogoutModal(false);
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.type === 'nav-logout-modal') {
+        window.history.back();
+      }
+    }
+  };
+
   const handleLogoutClick = () => {
     setIsMoreOpen(false);
-    setShowLogoutModal(true);
+    openLogout();
   };
 
   const confirmLogout = async (backupFirst: boolean) => {
@@ -212,7 +249,20 @@ export default function MobileBottomNav() {
     await signOut(auth);
     useAuthStore.getState().resetAll();
     setShowLogoutModal(false);
+    if (typeof window !== 'undefined' && window.history.state?.type === 'nav-logout-modal') {
+      window.history.back();
+    }
   };
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      setShowLogoutModal(state?.type === 'nav-logout-modal');
+      setIsMoreOpen(state?.type === 'more-modal');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   return (
     <>
@@ -268,7 +318,7 @@ export default function MobileBottomNav() {
           })}
           
           <button
-            onClick={() => setIsMoreOpen(true)}
+            onClick={openMore}
             className={`flex flex-col items-center justify-center w-full py-1.5 transition-all ${
               isMoreOpen ? 'text-accent scale-105' : 'text-app-text-muted hover:text-foreground'
             }`}
@@ -288,14 +338,14 @@ export default function MobileBottomNav() {
         <div className="md:hidden fixed inset-0 z-50 flex items-end">
           <div 
             className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-            onClick={() => setIsMoreOpen(false)}
+            onClick={closeMore}
           />
           <div className="w-full bg-surface rounded-t-2xl shadow-2xl relative z-10 animate-in slide-in-from-bottom duration-300 max-h-[85vh] flex flex-col overflow-hidden">
             {/* Top Sheet Header */}
             <div className="flex justify-between items-center p-5 border-b border-app-border bg-surface shrink-0">
                <h2 className="text-sm font-black text-foreground tracking-widest uppercase italic">Menu Lainnya</h2>
                <button 
-                 onClick={() => setIsMoreOpen(false)}
+                 onClick={closeMore}
                  className="w-8 h-8 rounded-md bg-app-border flex items-center justify-center text-app-text-muted hover:text-foreground hover:bg-background border border-transparent hover:border-foreground/10"
                >
                  <X size={16} />
@@ -425,11 +475,12 @@ export default function MobileBottomNav() {
                               }
 
                               if (item.path === '#feedback') {
-                                setIsMoreOpen(false);
                                 const isSuperAdmin = role === 'super-admin' || role === 'superadmin';
                                 if (isSuperAdmin) {
+                                  closeMore();
                                   router.push('/super-admin?tab=feedback');
                                 } else {
+                                  setIsMoreOpen(false);
                                   window.dispatchEvent(new CustomEvent('open-feedback-modal'));
                                 }
                                 return;
@@ -442,12 +493,12 @@ export default function MobileBottomNav() {
                               }
 
                               if (item.path.startsWith('http')) {
-                                setIsMoreOpen(false);
+                                closeMore();
                                 window.open(item.path, '_blank');
                                 return;
                               }
 
-                              setIsMoreOpen(false);
+                              closeMore();
                               router.push(item.path);
                             }}
                             className={`aspect-square flex flex-col items-center justify-center p-2 rounded-2xl border transition-all ${
@@ -486,7 +537,7 @@ export default function MobileBottomNav() {
                        key={t.id}
                        onClick={() => {
                          setTheme(t.id as any);
-                         setTimeout(() => setIsMoreOpen(false), 300);
+                         setTimeout(() => closeMore(), 300);
                        }}
                        className={`aspect-square rounded-md flex items-center justify-center transition-all border ${
                          theme === t.id 
@@ -539,7 +590,7 @@ export default function MobileBottomNav() {
                      KELUAR TANPA BACKUP
                    </button>
                    <button 
-                     onClick={() => setShowLogoutModal(false)}
+                     onClick={closeLogout}
                      disabled={isBackuping}
                      className="w-full py-3 text-app-text-muted font-bold text-xs hover:text-foreground mt-4"
                    >
