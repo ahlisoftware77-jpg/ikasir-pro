@@ -137,7 +137,7 @@ export default function LogsPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">Log Aktifitas</h1>
-          <p className="text-xs md:text-sm text-app-text-muted mt-1 font-medium">Riwayat pergerakan sistem secara real-time</p>
+          <p className="text-xs md:text-sm text-app-text-muted mt-1 font-medium">Riwayat pergerakan sistem secara real-time (otomatis dibersihkan setelah 30 hari)</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">

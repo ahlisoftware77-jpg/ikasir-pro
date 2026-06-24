@@ -4830,6 +4830,18 @@ export default function FeatureScreen({ route, navigation }: any) {
                 <Text className="text-xs font-bold mt-1.5" style={{ color: colors.text }}>{item.desc}</Text>
               </View>
             )}
+            ListHeaderComponent={
+              <View 
+                className="p-4 rounded-2xl mb-3 flex-row items-center border" 
+                style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+              >
+                <ClipboardList size={16} color={colors.accent} style={{ marginRight: 10 }} />
+                <View className="flex-1">
+                  <Text className="text-xs font-black" style={{ color: colors.text }}>Pembersihan Otomatis</Text>
+                  <Text className="text-[10px] font-bold mt-0.5" style={{ color: colors.textMuted }}>Log aktifitas otomatis dibersihkan setelah melewati batas 30 hari.</Text>
+                </View>
+              </View>
+            }
             ListEmptyComponent={
               <View className="items-center py-20 opacity-30">
                 <ClipboardList color={colors.textMuted} size={48} />
