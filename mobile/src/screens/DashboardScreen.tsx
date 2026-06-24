@@ -4,7 +4,7 @@ import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, lim
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, Megaphone, ChevronLeft, Sparkles, CheckCircle2, CreditCard } from 'lucide-react-native';
+import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
@@ -339,39 +339,48 @@ export default function DashboardScreen({ navigation }: any) {
         {!isLoadingBroadcasts && activeBroadcasts.length > 0 && (
           <View 
             className="p-6 rounded-[28px] border mb-6 relative overflow-hidden"
-            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            style={{ backgroundColor: '#1e1b4b', borderColor: '#3730a3' }}
           >
-            <View className="flex-row items-center justify-between mb-4">
+            {/* Subtle glow effect */}
+            <View className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full filter blur-xl pointer-events-none" style={{ position: 'absolute' }} />
+
+            <View className="flex-row items-center justify-between mb-4 z-10">
               <View className="flex-row items-center gap-2">
-                <Megaphone size={16} color={colors.accent} />
-                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                <View className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 items-center justify-center">
+                  <Text className="text-base">📢</Text>
+                </View>
+                <Text className="text-[10px] font-black uppercase tracking-wider text-white">
                   Pengumuman & Info Terbaru
                 </Text>
               </View>
               {activeBroadcasts.length > 1 && (
                 <View className="flex-row gap-1.5">
                   <TouchableOpacity
-                    onPress={() => setCurrentSlide((prev) => (prev === 0 ? activeBroadcasts.length - 1 : prev - 1))}
-                    className="w-7 h-7 rounded-lg items-center justify-center border"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                    onPress={() => {
+                      Vibration.vibrate(5);
+                      setCurrentSlide((prev) => (prev === 0 ? activeBroadcasts.length - 1 : prev - 1));
+                    }}
+                    className="w-7 h-7 rounded-lg items-center justify-center bg-white/10 border border-white/10"
                   >
-                    <ChevronLeft size={14} color={colors.text} />
+                    <ChevronLeft size={14} color="#ffffff" />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length)}
-                    className="w-7 h-7 rounded-lg items-center justify-center border"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                    onPress={() => {
+                      Vibration.vibrate(5);
+                      setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length);
+                    }}
+                    className="w-7 h-7 rounded-lg items-center justify-center bg-white/10 border border-white/10"
                   >
-                    <ChevronRight size={14} color={colors.text} />
+                    <ChevronRight size={14} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
               )}
             </View>
 
-            <View className="flex-col gap-4">
+            <View className="flex-col gap-4 z-10">
               <View className="space-y-2 flex-1">
-                <View className="px-2.5 py-0.5 rounded-lg border w-fit" style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '30' }}>
-                  <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>
+                <View className="px-2.5 py-0.5 rounded-lg border w-fit bg-white/10 border-white/10">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-emerald-300">
                     {new Date(activeBroadcasts[currentSlide].createdAt || Date.now()).toLocaleDateString('id-ID', {
                       day: 'numeric',
                       month: 'long',
@@ -379,10 +388,10 @@ export default function DashboardScreen({ navigation }: any) {
                     })}
                   </Text>
                 </View>
-                <Text className="text-sm font-black tracking-tight" style={{ color: colors.text }}>
+                <Text className="text-sm font-black tracking-tight text-white mt-1">
                   {activeBroadcasts[currentSlide].title}
                 </Text>
-                <Text className="text-[10px] font-bold mt-1 leading-relaxed" style={{ color: colors.textMuted }}>
+                <Text className="text-[10px] font-bold mt-1 leading-relaxed text-slate-300">
                   {activeBroadcasts[currentSlide].message}
                 </Text>
                 {activeBroadcasts[currentSlide].data?.link && (
@@ -390,7 +399,7 @@ export default function DashboardScreen({ navigation }: any) {
                     onPress={() => Linking.openURL(activeBroadcasts[currentSlide].data.link)}
                     className="mt-2"
                   >
-                    <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>
+                    <Text className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
                       Lihat Selengkapnya →
                     </Text>
                   </TouchableOpacity>
@@ -399,8 +408,7 @@ export default function DashboardScreen({ navigation }: any) {
 
               {activeBroadcasts[currentSlide].data?.imageUrl && (
                 <View 
-                  className="w-full aspect-[2/1] rounded-2xl overflow-hidden border bg-black/10"
-                  style={{ borderColor: colors.border }}
+                  className="w-full aspect-[2/1] rounded-2xl overflow-hidden border bg-black/10 border-white/10"
                 >
                   <Image
                     source={{ uri: activeBroadcasts[currentSlide].data.imageUrl }}
@@ -413,15 +421,18 @@ export default function DashboardScreen({ navigation }: any) {
 
             {/* Dots Indicator */}
             {activeBroadcasts.length > 1 && (
-              <View className="flex-row justify-center gap-1.5 mt-4">
+              <View className="flex-row justify-center gap-1.5 mt-4 z-10">
                 {activeBroadcasts.map((_, idx) => (
                   <TouchableOpacity
                     key={idx}
-                    onPress={() => setCurrentSlide(idx)}
+                    onPress={() => {
+                      Vibration.vibrate(5);
+                      setCurrentSlide(idx);
+                    }}
                     className="h-1.5 rounded-full"
                     style={{
                       width: currentSlide === idx ? 16 : 6,
-                      backgroundColor: currentSlide === idx ? colors.accent : colors.border
+                      backgroundColor: currentSlide === idx ? '#34d399' : '#475569'
                     }}
                   />
                 ))}

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit } from 'firebase/firestore';
 import { db, primaryDb } from '@/lib/firebase';
-import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download, Megaphone, ChevronLeft, ChevronRight, Sparkles, CheckCircle, CreditCard } from 'lucide-react';
+import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download, ChevronLeft, ChevronRight, Sparkles, CheckCircle, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SubscriptionModal from '@/components/SubscriptionModal';
 
@@ -169,45 +169,49 @@ export default function Home() {
         </div>
       </div>
 
-      {/* SECTION: ANNOUNCEMENTS CAROUSEL */}
       {!isLoadingBroadcasts && activeBroadcasts.length > 0 && (
-        <div className="relative overflow-hidden bg-card border border-app-border rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-black/5 hover:border-accent/20 transition-all duration-300">
-          <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
-            <div className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-accent animate-bounce" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Pengumuman & Info Terbaru</h2>
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-900 to-purple-950 border border-indigo-500/30 rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-indigo-950/20 hover:border-indigo-400/40 transition-all duration-300">
+          {/* Subtle inside glow glow */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full filter blur-3xl pointer-events-none" />
+          
+          <div className="flex items-center justify-between mb-4 md:mb-6 px-1 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-xl shadow-inner animate-bounce">
+                📢
+              </div>
+              <h2 className="text-xs font-black uppercase tracking-widest text-white">Pengumuman & Info Terbaru</h2>
             </div>
             {activeBroadcasts.length > 1 && (
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setCurrentSlide((prev) => (prev === 0 ? activeBroadcasts.length - 1 : prev - 1))}
-                  className="w-8 h-8 rounded-lg bg-surface border border-app-border flex items-center justify-center text-app-text-muted hover:text-foreground transition-all hover:scale-105 active:scale-95"
+                  className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
                   onClick={() => setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length)}
-                  className="w-8 h-8 rounded-lg bg-surface border border-app-border flex items-center justify-center text-app-text-muted hover:text-foreground transition-all hover:scale-105 active:scale-95"
+                  className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all hover:scale-105 active:scale-95"
                 >
                   <ChevronRight size={16} />
                 </button>
               </div>
             )}
           </div>
-
-          <div className="min-h-[120px] flex flex-col md:flex-row items-center gap-6">
+ 
+          <div className="min-h-[120px] flex flex-col md:flex-row items-center gap-6 relative z-10">
             <div className="flex-1 space-y-3 w-full">
-              <span className="inline-block text-[9px] font-black uppercase tracking-widest bg-accent/15 text-accent px-2.5 py-1 rounded-md">
+              <span className="inline-block text-[9px] font-black uppercase tracking-widest bg-white/10 text-emerald-300 border border-white/10 px-2.5 py-1 rounded-md">
                 {new Date(activeBroadcasts[currentSlide].createdAt || Date.now()).toLocaleDateString('id-ID', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
                 })}
               </span>
-              <h3 className="text-lg md:text-xl font-black text-foreground tracking-tight leading-snug">
+              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-snug">
                 {activeBroadcasts[currentSlide].title}
               </h3>
-              <p className="text-xs md:text-sm text-app-text-muted font-medium leading-relaxed max-w-3xl">
+              <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed max-w-3xl">
                 {activeBroadcasts[currentSlide].message}
               </p>
               {activeBroadcasts[currentSlide].data?.link && (
@@ -215,15 +219,15 @@ export default function Home() {
                   href={activeBroadcasts[currentSlide].data.link}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-accent hover:text-accent-hover mt-2"
+                  className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-cyan-400 hover:text-cyan-300 mt-2"
                 >
                   Lihat Selengkapnya <ExternalLink size={12} />
                 </a>
               )}
             </div>
-
+ 
             {activeBroadcasts[currentSlide].data?.imageUrl && (
-              <div className="w-full md:w-1/3 aspect-[2/1] md:aspect-[3/2] rounded-2xl overflow-hidden border border-app-border bg-background relative shrink-0 shadow-inner">
+              <div className="w-full md:w-1/3 aspect-[2/1] md:aspect-[3/2] rounded-2xl overflow-hidden border border-white/10 bg-slate-950 relative shrink-0 shadow-inner">
                 <img
                   src={activeBroadcasts[currentSlide].data.imageUrl}
                   alt={activeBroadcasts[currentSlide].title}
@@ -232,16 +236,16 @@ export default function Home() {
               </div>
             )}
           </div>
-
+ 
           {/* Dots Indicator */}
           {activeBroadcasts.length > 1 && (
-            <div className="flex justify-center gap-1.5 mt-6">
+            <div className="flex justify-center gap-1.5 mt-6 relative z-10">
               {activeBroadcasts.map((_, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentSlide(idx)}
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    currentSlide === idx ? 'w-6 bg-accent' : 'w-2 bg-app-border'
+                    currentSlide === idx ? 'w-6 bg-cyan-400' : 'w-2 bg-white/20'
                   }`}
                 />
               ))}
