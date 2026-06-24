@@ -1,4 +1,5 @@
 import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { NativeModules, Platform, ToastAndroid, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -915,6 +916,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
   let settings = storeSettings;
   let branding: any = null;
   const isExpired = await checkSubscriptionExpired(trx?.storeId);
+  const isEstimation = !trx.paymentMethod && !trx.paymentCategory && trx.status === 'active';
 
   if (trx?.storeId) {
     try {
@@ -961,11 +963,66 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
 
   try {
     const html = generateA4Html(trx, settings, branding, isExpired);
-    await Print.printAsync({
-      html,
-    });
+    
+    Alert.alert(
+      'Pilih Aksi Dokumen A4',
+      'Apakah Anda ingin mencetak dokumen langsung ke printer atau menyimpan/bagikan sebagai file PDF?',
+      [
+        {
+          text: 'Simpan / Bagikan PDF',
+          onPress: async () => {
+            try {
+              const cleanStoreName = (settings?.storeName || 'IKASIR').split('@')[0].trim();
+              const docType = isEstimation ? 'PENAWARAN' : 'INVOICE';
+              const docId = (trx.id || '').substring(0, 10).toUpperCase();
+              const rawCustomer = trx.customerName || '';
+              const hasCustomer = rawCustomer && rawCustomer !== 'Pelanggan Umum' && rawCustomer !== 'Tanpa Nama';
+              const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
+              
+              // Format filename safely by removing illegal file name characters
+              const fileName = `${docType} - #${docId}${customerPart} - ${cleanStoreName}`.replace(/[\/\\?%*:|"<>]/g, '') + '.pdf';
+              const newPath = `${FileSystem.cacheDirectory}${fileName}`;
+              
+              const { uri } = await Print.printToFileAsync({ html });
+              
+              // If file already exists, delete it first to avoid collision
+              const fileInfo = await FileSystem.getInfoAsync(newPath);
+              if (fileInfo.exists) {
+                await FileSystem.deleteAsync(newPath, { idempotent: true });
+              }
+              
+              await FileSystem.moveAsync({
+                from: uri,
+                to: newPath,
+              });
+              
+              await Sharing.shareAsync(newPath, { UTI: 'com.adobe.pdf', mimeType: 'application/pdf', dialogTitle: 'Simpan / Bagikan PDF' });
+            } catch (err: any) {
+              console.error('Gagal membagikan PDF:', err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat membagikan PDF: ' + (err.message || String(err)));
+            }
+          }
+        },
+        {
+          text: 'Cetak Langsung',
+          onPress: async () => {
+            try {
+              await Print.printAsync({ html });
+            } catch (err: any) {
+              console.error('Gagal mencetak:', err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat mencetak: ' + (err.message || String(err)));
+            }
+          }
+        },
+        {
+          text: 'Batal',
+          style: 'cancel'
+        }
+      ],
+      { cancelable: true }
+    );
   } catch (error) {
-    console.error('Error printing A4 document:', error);
+    console.error('Error processing A4 document:', error);
     throw error;
   }
 };
@@ -1175,11 +1232,65 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
 
   try {
     const html = generateA4DeliveryHtml(trx, settings, branding, isExpired);
-    await Print.printAsync({
-      html,
-    });
+    
+    Alert.alert(
+      'Pilih Aksi Surat Jalan',
+      'Apakah Anda ingin mencetak Surat Jalan langsung ke printer atau menyimpan/bagikan sebagai file PDF?',
+      [
+        {
+          text: 'Simpan / Bagikan PDF',
+          onPress: async () => {
+            try {
+              const cleanStoreName = (settings?.storeName || 'IKASIR').split('@')[0].trim();
+              const docId = (trx.id || '').substring(0, 10).toUpperCase();
+              const rawCustomer = trx.customerName || '';
+              const hasCustomer = rawCustomer && rawCustomer !== 'Pelanggan Umum' && rawCustomer !== 'Tanpa Nama';
+              const customerPart = hasCustomer ? ` - ${rawCustomer.trim()}` : '';
+              
+              // Format filename safely
+              const fileName = `SURAT JALAN - #${docId}${customerPart} - ${cleanStoreName}`.replace(/[\/\\?%*:|"<>]/g, '') + '.pdf';
+              const newPath = `${FileSystem.cacheDirectory}${fileName}`;
+              
+              const { uri } = await Print.printToFileAsync({ html });
+              
+              // If file already exists, delete it first
+              const fileInfo = await FileSystem.getInfoAsync(newPath);
+              if (fileInfo.exists) {
+                await FileSystem.deleteAsync(newPath, { idempotent: true });
+              }
+              
+              await FileSystem.moveAsync({
+                from: uri,
+                to: newPath,
+              });
+              
+              await Sharing.shareAsync(newPath, { UTI: 'com.adobe.pdf', mimeType: 'application/pdf', dialogTitle: 'Simpan / Bagikan PDF' });
+            } catch (err: any) {
+              console.error('Gagal membagikan PDF:', err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat membagikan PDF: ' + (err.message || String(err)));
+            }
+          }
+        },
+        {
+          text: 'Cetak Langsung',
+          onPress: async () => {
+            try {
+              await Print.printAsync({ html });
+            } catch (err: any) {
+              console.error('Gagal mencetak:', err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat mencetak: ' + (err.message || String(err)));
+            }
+          }
+        },
+        {
+          text: 'Batal',
+          style: 'cancel'
+        }
+      ],
+      { cancelable: true }
+    );
   } catch (error) {
-    console.error('Error printing A4 Delivery:', error);
+    console.error('Error processing A4 Delivery:', error);
     throw error;
   }
 };
