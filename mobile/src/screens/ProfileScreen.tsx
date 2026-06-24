@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Image, Alert } from 'react-native';
 import { Save, Camera } from 'lucide-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,8 +29,17 @@ export default function ProfileScreen({ navigation }: any) {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setIsUploadingPhoto(true);
         const localUri = result.assets[0].uri;
+        let fileSize = result.assets[0].fileSize;
+        if (!fileSize) {
+          const fileInfo = await FileSystem.getInfoAsync(localUri);
+          if (fileInfo.exists) fileSize = fileInfo.size;
+        }
+        if (fileSize && fileSize > 3 * 1024 * 1024) {
+          Alert.alert('Gagal', 'Ukuran file maksimal adalah 3MB');
+          return;
+        }
+        setIsUploadingPhoto(true);
         const filename = localUri.split('/').pop() || `profile_${Date.now()}.jpg`;
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1]}` : `image/jpeg`;

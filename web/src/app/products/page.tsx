@@ -336,6 +336,9 @@ export default function ProductsPage() {
       
       for (const img of images) {
         if (img.file) {
+          if (img.file.size > 3 * 1024 * 1024) {
+            throw new Error('Salah satu foto produk melebihi batas 3MB');
+          }
           const uploadData = new FormData();
           uploadData.append('file', img.file);
           uploadData.append('upload_preset', uploadPreset);
@@ -988,6 +991,11 @@ export default function ProductsPage() {
                             accept="image/*" 
                             onChange={(e) => {
                               const files = Array.from(e.target.files || []);
+                              const largeFiles = files.filter(f => f.size > 3 * 1024 * 1024);
+                              if (largeFiles.length > 0) {
+                                alert('Beberapa file melebihi batas ukuran maksimal 3MB');
+                                return;
+                              }
                               const limit = 5 - images.length;
                               const filesToAdd = files.slice(0, limit);
                               const newImages = filesToAdd.map(file => ({
