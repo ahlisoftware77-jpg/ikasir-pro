@@ -86,6 +86,16 @@ export default function MobileBottomNav() {
 
   const isAdmin = role === 'super-admin' || role === 'superadmin' || role === 'admin';
 
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      setShowLogoutModal(state?.type === 'nav-logout-modal');
+      setIsMoreOpen(state?.type === 'more-modal');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -253,16 +263,6 @@ export default function MobileBottomNav() {
       window.history.back();
     }
   };
-
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state;
-      setShowLogoutModal(state?.type === 'nav-logout-modal');
-      setIsMoreOpen(state?.type === 'more-modal');
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
 
   return (
     <>
