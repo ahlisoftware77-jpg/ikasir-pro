@@ -196,7 +196,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
               }
             })()};
           }
-          .info { font-size: 12px; margin-bottom: 2px; }
+          .info { font-size: 12px; margin-bottom: 2px; text-align: center; white-space: pre-wrap; }
           .items { margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
           .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; margin-top: 10px; }
           .footer { text-align: center; margin-top: 30px; font-size: 10px; color: #999; }
@@ -800,6 +800,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     await BluetoothEscposPrinter.setBlob(0);
   }
 
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   if (address) {
     for (const line of wrapText(address)) {
       await BluetoothEscposPrinter.printText(`${line}\n\r`, {});
