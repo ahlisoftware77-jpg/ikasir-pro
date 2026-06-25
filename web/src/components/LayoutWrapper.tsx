@@ -762,7 +762,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             onClick={openProfile}
             className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent active:scale-95 transition-all overflow-hidden"
           >
-            <img src={logoUrl || '/logo.png'} alt="Store Logo" className="w-full h-full object-contain" />
+            <img src={user?.photoURL || logoUrl || '/logo.png'} alt="User Profile" className="w-full h-full object-cover" />
           </button>
         </div>
       </header>
@@ -780,7 +780,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               <div className="p-8">
                  <div className="flex justify-center mb-6">
                     <div className="w-20 h-20 rounded-xl bg-accent text-white flex items-center justify-center text-3xl font-black shadow-sm overflow-hidden border border-accent/20">
-                       <img src={logoUrl || '/logo.png'} alt="Store Profile" className="w-full h-full object-contain bg-white" />
+                       <img src={user?.photoURL || logoUrl || '/logo.png'} alt="User Profile" className="w-full h-full object-cover bg-white" />
                     </div>
                  </div>
                  
