@@ -109,8 +109,43 @@ const FONT_OPTIONS = [
   { id: 'lovelo', name: 'Lovelo (Inline)', family: "'Lovelo', sans-serif" }
 ];
 
-const getFontFamily = (id: string) => {
-  return FONT_OPTIONS.find(f => f.id === id)?.family || FONT_OPTIONS[0].family;
+const getStoreNameStyle = (fontId: string) => {
+  let fontFamily = "'Inter', sans-serif";
+  let extraStyles: React.CSSProperties = {};
+  
+  switch(fontId) {
+    case 'serif':
+      fontFamily = "var(--font-playfair), Georgia, serif";
+      break;
+    case 'mono':
+      fontFamily = "'Courier New', Courier, monospace";
+      break;
+    case 'elegant':
+      fontFamily = "var(--font-outfit), sans-serif";
+      extraStyles = { fontWeight: 300, textTransform: 'uppercase', letterSpacing: '0.05em' };
+      break;
+    case 'bold':
+      fontFamily = "var(--font-oswald), sans-serif";
+      extraStyles = { fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em' };
+      break;
+    case 'railey':
+      fontFamily = "'Railey', cursive";
+      extraStyles = { fontWeight: 'normal', textTransform: 'none' };
+      break;
+    case 'cheque':
+      fontFamily = "'Cheque', sans-serif";
+      extraStyles = { fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' };
+      break;
+    case 'lovelo':
+      fontFamily = "'Lovelo', sans-serif";
+      extraStyles = { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' };
+      break;
+    default:
+      fontFamily = "'Inter', sans-serif";
+      extraStyles = { fontWeight: 900, textTransform: 'uppercase' };
+  }
+  
+  return { fontFamily, ...extraStyles };
 };
 
 const uploadToCloudinary = async (file: File): Promise<string> => {
@@ -1373,19 +1408,24 @@ function PublicOrderContent() {
               <div className="flex-1 overflow-y-auto p-8 font-mono text-[10px] space-y-6">
                  {/* Header Toko */}
                  <div className="text-center space-y-2">
-                    {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt && (
-                      <img src={storeSettings.logoUrl} alt="" className="w-12 h-12 mx-auto object-contain grayscale opacity-50 mb-2" />
-                    )}
-                    <h3 
-                       style={{ fontFamily: getFontFamily(storeSettings?.storeNameFont) }}
-                       className="text-sm font-black uppercase text-slate-900"
-                    >
-                      {storeSettings?.storeName || 'Toko Kami'}
-                    </h3>
-                    <p className="text-slate-500 whitespace-pre-line">{storeSettings?.address}</p>
-                    <p className="text-slate-500">Telp: {storeSettings?.phone}</p>
-                    <div className="border-b border-dashed border-slate-300 pt-2"></div>
-                 </div>
+                     {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt !== false && (
+                       <img 
+                          src={storeSettings.logoUrl} 
+                          alt="" 
+                          className="w-16 h-auto mx-auto object-contain mb-2" 
+                          style={{ filter: 'grayscale(100%) contrast(1.8) brightness(1.1)' }}
+                       />
+                     )}
+                     <h3 
+                        style={getStoreNameStyle(storeSettings?.storeNameFont)}
+                        className="text-slate-900 text-sm"
+                     >
+                       {storeSettings?.storeName || 'Toko Kami'}
+                     </h3>
+                     {storeSettings?.showReceiptAddress !== false && storeSettings?.address && <p className="text-slate-500 whitespace-pre-line">{storeSettings.address}</p>}
+                     {storeSettings?.showReceiptPhone !== false && storeSettings?.phone && <p className="text-slate-500">Telp: {storeSettings.phone}</p>}
+                     <div className="border-b border-dashed border-slate-300 pt-2"></div>
+                  </div>
 
                  {/* Detail Transaksi */}
                  <div className="space-y-1 text-slate-600">

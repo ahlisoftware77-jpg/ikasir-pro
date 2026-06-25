@@ -89,6 +89,55 @@ interface Transaction {
 
 import { ChevronLeft } from 'lucide-react-native';
 
+const getFontStyle = (id: string) => {
+  switch (id) {
+    case 'serif':
+      return {
+        fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
+        fontWeight: 'bold' as const
+      };
+    case 'mono':
+      return {
+        fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+        fontWeight: 'normal' as const
+      };
+    case 'elegant':
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-light' }),
+        fontWeight: '300' as const,
+        letterSpacing: 1.2
+      };
+    case 'bold':
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-condensed' }),
+        fontWeight: '900' as const,
+        letterSpacing: -0.2
+      };
+    case 'railey':
+      return {
+        fontFamily: 'Railey',
+        textTransform: 'none' as const
+      };
+    case 'cheque':
+      return {
+        fontFamily: 'Cheque-Regular',
+        textTransform: 'uppercase' as const,
+        letterSpacing: 1
+      };
+    case 'lovelo':
+      return {
+        fontFamily: 'Lovelo-LineBold',
+        textTransform: 'uppercase' as const,
+        letterSpacing: 1.5
+      };
+    default: // sans
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif' }),
+        fontWeight: 'bold' as const
+      };
+  }
+};
+
 export default function TransactionDetailScreen({ route, navigation }: any) {
   const { trx, storeSettings } = route.params;
   const { colors } = useTheme();
@@ -843,12 +892,15 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                 {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt !== false ? (
                   <Image 
                     source={{ uri: storeSettings.logoUrl }} 
-                    className="w-12 h-12 mb-2 opacity-60" 
+                    style={{ width: 64, height: 64, marginBottom: 8 }} 
                     resizeMode="contain" 
                   />
                 ) : null}
-                <Text className="text-sm font-black uppercase text-slate-900 text-center">
-                  {storeSettings?.storeName || 'Toko Kami'}
+                <Text 
+                  className="text-xs text-slate-900 text-center mb-1"
+                  style={getFontStyle(storeSettings?.storeNameFont)}
+                >
+                  {storeSettings?.storeName || 'TOKO KAMI'}
                 </Text>
                 {storeSettings?.showReceiptAddress !== false && storeSettings?.address ? (
                   <Text className="text-[10px] font-mono text-slate-500 text-center mt-1">
@@ -1001,6 +1053,17 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                   </>
                 )}
               </View>
+
+              {storeSettings?.showSignature && storeSettings?.signatureUrl ? (
+                <View className="items-center py-3 border-t border-dashed border-slate-200 mt-4">
+                  <Image 
+                    source={{ uri: storeSettings.signatureUrl }} 
+                    style={{ width: 64, height: 32 }}
+                    resizeMode="contain"
+                  />
+                  <Text className="text-[6px] text-slate-400 mt-0.5">Tanda Tangan Toko</Text>
+                </View>
+              ) : null}
 
               {/* Footer Pesan */}
               <View className="items-center pt-4">

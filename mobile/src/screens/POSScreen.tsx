@@ -77,6 +77,55 @@ import SignaturePad from '../components/SignaturePad';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 
+const getFontStyle = (id: string) => {
+  switch (id) {
+    case 'serif':
+      return {
+        fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
+        fontWeight: 'bold' as const
+      };
+    case 'mono':
+      return {
+        fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+        fontWeight: 'normal' as const
+      };
+    case 'elegant':
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-light' }),
+        fontWeight: '300' as const,
+        letterSpacing: 1.2
+      };
+    case 'bold':
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-condensed' }),
+        fontWeight: '900' as const,
+        letterSpacing: -0.2
+      };
+    case 'railey':
+      return {
+        fontFamily: 'Railey',
+        textTransform: 'none' as const
+      };
+    case 'cheque':
+      return {
+        fontFamily: 'Cheque-Regular',
+        textTransform: 'uppercase' as const,
+        letterSpacing: 1
+      };
+    case 'lovelo':
+      return {
+        fontFamily: 'Lovelo-LineBold',
+        textTransform: 'uppercase' as const,
+        letterSpacing: 1.5
+      };
+    default: // sans
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif' }),
+        fontWeight: 'bold' as const
+      };
+  }
+};
+
 // Types
 interface Product {
   id?: string;
@@ -461,7 +510,7 @@ export default function POSScreen({ route, navigation }: any) {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [discounts, setDiscounts] = useState<any[]>([]);
-  const [storeSettings, setStoreSettings] = useState({
+  const [storeSettings, setStoreSettings] = useState<any>({
     useTax: false,
     taxRate: 0,
     storeName: '',
@@ -3626,15 +3675,25 @@ export default function POSScreen({ route, navigation }: any) {
             {/* Scrollable Receipt Area */}
             <ScrollView className="flex-1 bg-white rounded-3xl p-6 mb-4" showsVerticalScrollIndicator={false}>
               <View className="items-center mb-4">
-                <Text className="text-sm font-black text-slate-900 uppercase text-center mb-1">
+                {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt !== false ? (
+                  <Image 
+                    source={{ uri: storeSettings.logoUrl }} 
+                    style={{ width: 64, height: 64, marginBottom: 8 }}
+                    resizeMode="contain"
+                  />
+                ) : null}
+                <Text 
+                  className="text-xs text-slate-900 text-center mb-1"
+                  style={getFontStyle(storeSettings?.storeNameFont)}
+                >
                   {storeSettings?.storeName || 'TOKO KAMI'}
                 </Text>
-                {storeSettings?.address ? (
+                {storeSettings?.showReceiptAddress !== false && storeSettings?.address ? (
                   <Text className="text-[10px] text-slate-500 text-center font-mono whitespace-pre-line leading-tight">
                     {storeSettings.address}
                   </Text>
                 ) : null}
-                {storeSettings?.phone ? (
+                {storeSettings?.showReceiptPhone !== false && storeSettings?.phone ? (
                   <Text className="text-[10px] text-slate-500 text-center font-mono leading-none mt-1">
                     Telp: {storeSettings.phone}
                   </Text>
@@ -3662,20 +3721,24 @@ export default function POSScreen({ route, navigation }: any) {
                     ) : 'Baru saja'}
                   </Text>
                 </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-[10px] font-mono text-slate-500">Pelanggan</Text>
-                  <Text className="text-[10px] font-mono font-bold text-slate-900">
-                    {viewingReceipt?.customerName || 'Umum'}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-[10px] font-mono text-slate-500">Kasir</Text>
-                  <Text className="text-[10px] font-mono font-bold text-slate-900">
-                    {viewingReceipt?.cashierName?.includes('@') 
-                      ? viewingReceipt.cashierName.split('@')[0] 
-                      : (viewingReceipt?.cashierName || 'Kasir')}
-                  </Text>
-                </View>
+                {storeSettings?.showReceiptCustomer !== false && (
+                  <View className="flex-row justify-between">
+                    <Text className="text-[10px] font-mono text-slate-500">Pelanggan</Text>
+                    <Text className="text-[10px] font-mono font-bold text-slate-900">
+                      {viewingReceipt?.customerName || 'Umum'}
+                    </Text>
+                  </View>
+                )}
+                {storeSettings?.showReceiptCashier !== false && (
+                  <View className="flex-row justify-between">
+                    <Text className="text-[10px] font-mono text-slate-500">Kasir</Text>
+                    <Text className="text-[10px] font-mono font-bold text-slate-900">
+                      {viewingReceipt?.cashierName?.includes('@') 
+                        ? viewingReceipt.cashierName.split('@')[0] 
+                        : (viewingReceipt?.cashierName || 'Kasir')}
+                    </Text>
+                  </View>
+                )}
                 
                 {/* Dashed Separator */}
                 <View className="w-full border-t border-dashed border-slate-300 mt-3 pt-1" />
@@ -3721,12 +3784,14 @@ export default function POSScreen({ route, navigation }: any) {
 
               {/* Calculations summary */}
               <View className="space-y-1.5">
-                <View className="flex-row justify-between">
-                  <Text className="text-[10px] font-mono text-slate-500">SUBTOTAL</Text>
-                  <Text className="text-[10px] font-mono font-bold text-slate-900">
-                    Rp {viewingReceipt?.subtotal ? viewingReceipt.subtotal.toLocaleString('id-ID') : viewingReceipt?.total.toLocaleString('id-ID')}
-                  </Text>
-                </View>
+                {storeSettings?.showReceiptSubtotal !== false && (
+                  <View className="flex-row justify-between">
+                    <Text className="text-[10px] font-mono text-slate-500">SUBTOTAL</Text>
+                    <Text className="text-[10px] font-mono font-bold text-slate-900">
+                      Rp {viewingReceipt?.subtotal ? viewingReceipt.subtotal.toLocaleString('id-ID') : viewingReceipt?.total.toLocaleString('id-ID')}
+                    </Text>
+                  </View>
+                )}
                 {viewingReceipt?.tax > 0 && (
                   <View className="flex-row justify-between">
                     <Text className="text-[10px] font-mono text-slate-500">PAJAK PPN</Text>
@@ -3783,6 +3848,17 @@ export default function POSScreen({ route, navigation }: any) {
                   </>
                 )}
               </View>
+
+              {storeSettings?.showSignature && storeSettings?.signatureUrl ? (
+                <View className="items-center py-3 border-t border-dashed border-slate-200 mt-4">
+                  <Image 
+                    source={{ uri: storeSettings.signatureUrl }} 
+                    style={{ width: 64, height: 32 }}
+                    resizeMode="contain"
+                  />
+                  <Text className="text-[6px] text-slate-400 mt-0.5">Tanda Tangan Toko</Text>
+                </View>
+              ) : null}
 
               {/* Footer Message */}
               <View className="items-center mt-6 pt-4 border-t border-dashed border-slate-300">

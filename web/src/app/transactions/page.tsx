@@ -16,6 +16,45 @@ import { printReceipt } from '@/lib/printReceipt';
 import toast from 'react-hot-toast';
 import { useBranding } from '@/context/BrandingContext';
 
+const getStoreNameStyle = (fontId: string) => {
+  let fontFamily = "'Inter', sans-serif";
+  let extraStyles: React.CSSProperties = {};
+  
+  switch(fontId) {
+    case 'serif':
+      fontFamily = "var(--font-playfair), Georgia, serif";
+      break;
+    case 'mono':
+      fontFamily = "'Courier New', Courier, monospace";
+      break;
+    case 'elegant':
+      fontFamily = "var(--font-outfit), sans-serif";
+      extraStyles = { fontWeight: 300, textTransform: 'uppercase', letterSpacing: '0.05em' };
+      break;
+    case 'bold':
+      fontFamily = "var(--font-oswald), sans-serif";
+      extraStyles = { fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em' };
+      break;
+    case 'railey':
+      fontFamily = "'Railey', cursive";
+      extraStyles = { fontWeight: 'normal', textTransform: 'none' };
+      break;
+    case 'cheque':
+      fontFamily = "'Cheque', sans-serif";
+      extraStyles = { fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' };
+      break;
+    case 'lovelo':
+      fontFamily = "'Lovelo', sans-serif";
+      extraStyles = { fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' };
+      break;
+    default:
+      fontFamily = "'Inter', sans-serif";
+      extraStyles = { fontWeight: 900, textTransform: 'uppercase' };
+  }
+  
+  return { fontFamily, ...extraStyles };
+};
+
 export default function TransactionsPage() {
   const { storeId, isSubscriptionExpired } = useAuthStore();
   const { branding } = useBranding();
@@ -1352,11 +1391,23 @@ export default function TransactionsPage() {
 
               <div className="flex-1 overflow-y-auto p-8 font-mono text-[10px] space-y-6">
                  <div className="text-center space-y-2">
-                    {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt !== false && <img src={storeSettings.logoUrl} alt="" className="w-12 h-12 mx-auto object-contain grayscale opacity-50 mb-2" />}
-                    <h3 className="text-sm font-black uppercase text-slate-900">{storeSettings?.storeName || 'Toko Kami'}</h3>
-                    {storeSettings?.showReceiptAddress !== false && <p className="text-slate-500 whitespace-pre-line">{storeSettings?.address}</p>}
-                    {storeSettings?.showReceiptPhone !== false && <p className="text-slate-500">Telp: {storeSettings?.phone}</p>}
-                    <div className="border-b border-dashed border-slate-300 pt-2"></div>
+                    {storeSettings?.logoUrl && storeSettings?.showLogoOnReceipt !== false && (
+                        <img 
+                           src={storeSettings.logoUrl} 
+                           alt="" 
+                           className="w-16 h-auto mx-auto object-contain mb-2" 
+                           style={{ filter: 'grayscale(100%) contrast(1.8) brightness(1.1)' }}
+                        />
+                     )}
+                     <h3 
+                       style={getStoreNameStyle(storeSettings?.storeNameFont)}
+                       className="text-slate-900 text-sm"
+                     >
+                       {storeSettings?.storeName || 'Toko Kami'}
+                     </h3>
+                     {storeSettings?.showReceiptAddress !== false && storeSettings?.address && <p className="text-slate-500 whitespace-pre-line">{storeSettings.address}</p>}
+                     {storeSettings?.showReceiptPhone !== false && storeSettings?.phone && <p className="text-slate-500">Telp: {storeSettings.phone}</p>}
+                     <div className="border-b border-dashed border-slate-300 pt-2"></div>
                  </div>
 
                  {/* Detail Transaksi */}
@@ -1436,6 +1487,17 @@ export default function TransactionsPage() {
                       </>
                     )}
                  </div>
+
+                 {storeSettings?.showSignature && storeSettings?.signatureUrl && (
+                     <div className="text-center py-2 border-t border-dashed border-slate-200 mt-2 flex flex-col items-center">
+                        <img 
+                           src={storeSettings.signatureUrl} 
+                           alt="Signature" 
+                           className="w-16 h-8 object-contain mix-blend-multiply opacity-50 mx-auto" 
+                        />
+                        <span className="text-[6px] opacity-40 mt-0.5">Tanda Tangan Toko</span>
+                     </div>
+                  )}
 
                  <div className="text-center pt-6 space-y-1">
                     <p className="font-bold text-slate-900">{storeSettings?.receiptMessage || 'Terima Kasih Atas Kunjungan Anda'}</p>
