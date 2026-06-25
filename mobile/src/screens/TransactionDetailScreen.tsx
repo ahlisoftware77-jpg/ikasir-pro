@@ -139,13 +139,25 @@ const getFontStyle = (id: string) => {
 };
 
 export default function TransactionDetailScreen({ route, navigation }: any) {
-  const { trx, storeSettings } = route.params;
+  const { trx, storeSettings: initialSettings } = route.params;
+  const [storeSettings, setStoreSettings] = useState<any>(initialSettings || {});
   const { colors } = useTheme();
   const { storeId } = useAuthStore();
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [selectedTrx, setSelectedTrx] = useState<Transaction | null>(trx);
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
   const [activePrintJob, setActivePrintJob] = useState<'a4' | 'delivery' | null>(null);
+
+  useEffect(() => {
+    const targetStoreId = storeId || trx?.storeId;
+    if (!targetStoreId) return;
+    const unsubscribe = onSnapshot(doc(db, 'settings', `store_${targetStoreId}`), (snapshot) => {
+      if (snapshot.exists()) {
+        setStoreSettings(snapshot.data());
+      }
+    });
+    return () => unsubscribe();
+  }, [storeId, trx?.storeId]);
 
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
