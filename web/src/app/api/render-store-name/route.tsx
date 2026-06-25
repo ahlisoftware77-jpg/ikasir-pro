@@ -1,9 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,33 +27,38 @@ export async function GET(req: NextRequest) {
         break;
       case 'lovelo':
         fontName = 'Lovelo';
-        fontFileName = 'Lovelo-LineBold.ttf'; // Use the bold inline/outline version
+        fontFileName = 'Lovelo-LineBold.ttf';
         fontWeight = 700;
         break;
       default:
-        // default system sans-serif
         break;
     }
     
-    const fonts: any[] = [];
+    let fontData: ArrayBuffer | null = null;
     
     if (fontFileName) {
       try {
-        const fontPath = path.join(process.cwd(), 'public', 'fonts', fontFileName);
-        const fontData = fs.readFileSync(fontPath);
-        fonts.push({
-          name: fontName,
-          data: fontData,
-          style: 'normal',
-          weight: fontWeight,
-        });
+        const fontUrl = `${req.nextUrl.origin}/fonts/${fontFileName}`;
+        const fontRes = await fetch(fontUrl);
+        if (fontRes.ok) {
+          fontData = await fontRes.arrayBuffer();
+        } else {
+          console.error(`Failed to fetch font: ${fontRes.status} from ${fontUrl}`);
+        }
       } catch (e) {
-        console.error("Failed to load local font file in route:", e);
+        console.error("Failed to fetch font from origin:", e);
       }
     }
 
-    // Wrap long names if necessary by using fit-content
-    // We render inside a white box suitable for thermal print (384px width, 80px height)
+    const fonts = fontData ? [
+      {
+        name: fontName,
+        data: fontData,
+        style: 'normal' as const,
+        weight: fontWeight as any,
+      }
+    ] : undefined;
+
     return new ImageResponse(
       (
         <div
@@ -72,7 +75,7 @@ export async function GET(req: NextRequest) {
         >
           <span
             style={{
-              fontFamily: fontFileName ? fontName : 'sans-serif',
+              fontFamily: fontFileName && fontData ? fontName : 'sans-serif',
               fontSize: fontId === 'railey' ? '46px' : '36px',
               fontWeight: fontId === 'lovelo' ? 700 : 'bold',
               textAlign: 'center',
@@ -88,7 +91,7 @@ export async function GET(req: NextRequest) {
       {
         width: 384,
         height: 80,
-        fonts: fonts.length > 0 ? fonts : undefined,
+        fonts: fonts,
       }
     );
   } catch (err: any) {

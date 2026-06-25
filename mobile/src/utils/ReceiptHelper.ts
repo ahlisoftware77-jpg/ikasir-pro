@@ -764,6 +764,11 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
       const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       
+      // Validasi: Pastikan data yang diunduh adalah gambar PNG valid (base64 PNG dimulai dengan 'iVBORw0KGgo')
+      if (!base64Image || !base64Image.startsWith('iVBORw0KGgo')) {
+        throw new Error("Unduhan bukan gambar PNG valid.");
+      }
+      
       const is80 = storeSettings?.paperSize === '80mm';
       const printerWidth = is80 ? 576 : 384;
       const picWidth = is80 ? 320 : 256; // kelipatan 8
