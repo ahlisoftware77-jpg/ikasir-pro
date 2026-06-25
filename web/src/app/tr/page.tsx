@@ -1708,7 +1708,15 @@ function PublicOrderContent() {
                                              {storeSettings?.qrisUrl && (
                                                <div className="mt-2 flex flex-col items-center bg-white rounded-2xl p-3 border border-slate-100/80">
                                                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-800 mb-2">Scan QRIS Toko Ini untuk Membayar</h4>
-                                                 <img src={storeSettings.qrisUrl} alt="QRIS Pembayaran" className="w-36 h-36 object-contain rounded-lg border border-slate-100" />
+                                                 <img 
+                                                    src={storeSettings.qrisUrl} 
+                                                    alt="QRIS Pembayaran" 
+                                                    className="w-36 h-36 object-contain rounded-lg border border-slate-100 cursor-zoom-in hover:scale-105 active:scale-[0.98] transition-all duration-200" 
+                                                    onClick={() => {
+                                                      setPreviewImages([storeSettings.qrisUrl]);
+                                                      setPreviewImageIndex(0);
+                                                    }}
+                                                  />
                                                </div>
                                              )}
                                              <p className="text-[8px] text-slate-400 font-bold text-center mt-1">Harap simpan bukti transfer/scan dan kirimkan ke staf kami via WhatsApp.</p>
@@ -1719,7 +1727,15 @@ function PublicOrderContent() {
                                    ) : storeSettings?.qrisUrl ? (
                                      <div className="mt-2 flex flex-col items-center bg-white rounded-xl p-3 border border-tr/10 shadow-inner">
                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800 mb-2">Scan QRIS Ini untuk Membayar</h4>
-                                       <img src={storeSettings.qrisUrl} alt="QRIS Pembayaran" className="w-40 h-40 object-contain rounded-lg border border-slate-100" />
+                                       <img 
+                                          src={storeSettings.qrisUrl} 
+                                          alt="QRIS Pembayaran" 
+                                          className="w-40 h-40 object-contain rounded-lg border border-slate-100 cursor-zoom-in hover:scale-105 active:scale-[0.98] transition-all duration-200" 
+                                          onClick={() => {
+                                            setPreviewImages([storeSettings.qrisUrl]);
+                                            setPreviewImageIndex(0);
+                                          }}
+                                        />
                                        <p className="text-[8px] text-slate-400 font-bold mt-2 text-center">Harap simpan bukti transfer/scan dan kirimkan ke staf kami via WhatsApp.</p>
                                      </div>
                                    ) : null

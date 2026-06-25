@@ -166,6 +166,7 @@ export default function POSPage() {
   const [editingEstimationId, setEditingEstimationId] = useState<string | null>(null);
   const [originalEstimationData, setOriginalEstimationData] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'tiles' | 'list' | 'detail'>('tiles');
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('pos_view_mode') as 'tiles' | 'list' | 'detail';
@@ -2066,7 +2067,12 @@ export default function POSPage() {
                  <div className="bg-surface border border-app-border rounded-2xl p-4 flex flex-col items-center justify-center space-y-3">
                    <h3 className="font-black text-foreground text-sm uppercase tracking-widest text-center">Scan QRIS untuk Membayar</h3>
                    {storeSettings.qrisUrl ? (
-                     <img src={storeSettings.qrisUrl} alt="QRIS" className="w-48 h-48 object-contain rounded-xl bg-white p-2 border border-app-border/50" />
+                      <img 
+                        src={storeSettings.qrisUrl} 
+                        alt="QRIS" 
+                        className="w-48 h-48 object-contain rounded-xl bg-white p-2 border border-app-border/50 cursor-zoom-in hover:scale-105 active:scale-[0.98] transition-all duration-200" 
+                        onClick={() => setZoomImageUrl(storeSettings.qrisUrl)}
+                      />
                    ) : (
                      <div className="w-48 h-48 flex items-center justify-center bg-background border-2 border-dashed border-app-border rounded-xl">
                        <p className="text-xs text-app-text-muted text-center px-4 font-bold">Foto QRIS belum diatur di Pengaturan Toko.</p>
@@ -2136,6 +2142,37 @@ export default function POSPage() {
           </div>
         </div>
       )}
+
+      {/* QRIS Image Preview Overlay Modal */}
+      {zoomImageUrl && (
+         <div 
+           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md transition-all duration-300 animate-in fade-in"
+           onClick={() => setZoomImageUrl(null)}
+         >
+           <div className="absolute top-4 right-4 flex items-center gap-2">
+             <button 
+               onClick={() => setZoomImageUrl(null)}
+               className="p-3 bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full transition-all border border-white/10 shadow-lg"
+             >
+               <X size={24} />
+             </button>
+           </div>
+           <div 
+             className="relative max-w-[90vw] max-h-[80vh] p-2 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center animate-in zoom-in-95 duration-200"
+             onClick={(e) => e.stopPropagation()}
+           >
+             <img 
+               src={zoomImageUrl} 
+               alt="QRIS Zoomed" 
+               className="max-w-full max-h-[70vh] object-contain rounded-2xl" 
+             />
+             <div className="mt-3 px-4 pb-2 text-center text-slate-900">
+               <p className="text-xs font-black uppercase tracking-wider">QRIS Pembayaran</p>
+               <p className="text-[10px] text-slate-400 font-medium mt-0.5">Ketuk di luar gambar atau tombol X untuk menutup</p>
+             </div>
+           </div>
+         </div>
+       )}
 
       {/* MODAL SUCCESS TRANSAKSI */}
       {successTrx && (
