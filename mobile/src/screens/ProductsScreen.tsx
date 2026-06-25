@@ -157,6 +157,7 @@ export default function ProductsScreen({ navigation }: any) {
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [labelSize, setLabelSize] = useState<'58x30' | '58x20'>('58x30');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
 
@@ -1008,8 +1009,6 @@ export default function ProductsScreen({ navigation }: any) {
                     } else {
                       setSelectedIds(prev => [...prev, item.id!]);
                     }
-                  } else {
-                    navigation.navigate('EditProduct', { product: item });
                   }
                 }}
                 className="flex-col mb-4 p-4 rounded-[28px] border"
@@ -1030,7 +1029,13 @@ export default function ProductsScreen({ navigation }: any) {
                     </View>
                   )}
 
-                  <View 
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const img = item.imageUrl || (item.imageUrls && item.imageUrls.length > 0 && item.imageUrls[0]);
+                      if (img) {
+                        setPreviewImage(img);
+                      }
+                    }}
                     className="w-16 h-16 rounded-2xl bg-black/5 overflow-hidden items-center justify-center border"
                     style={{ borderColor: colors.border }}
                   >
@@ -1039,7 +1044,7 @@ export default function ProductsScreen({ navigation }: any) {
                     ) : (
                       <Package color={colors.textMuted} opacity={0.2} size={24} />
                     )}
-                  </View>
+                  </TouchableOpacity>
                   
                   <View className="flex-1 ml-4 justify-center">
                     <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={2}>
@@ -1101,6 +1106,15 @@ export default function ProductsScreen({ navigation }: any) {
                       style={{ borderColor: colors.accent }}
                     >
                       <Text className="text-xs font-black" style={{ color: colors.accent }}>Ubah</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      onPress={() => handleShareProduct(item)}
+                      className="flex-1 py-2.5 items-center justify-center rounded-xl border bg-transparent flex-row gap-1.5"
+                      style={{ borderColor: colors.accent }}
+                    >
+                      <Share2 size={12} color={colors.accent} />
+                      <Text className="text-xs font-black" style={{ color: colors.accent }}>Bagikan</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
@@ -1179,6 +1193,35 @@ export default function ProductsScreen({ navigation }: any) {
             <X color="white" size={28} />
           </TouchableOpacity>
         </View>
+      </Modal>
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={!!previewImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+      >
+        <Pressable 
+          className="flex-1 bg-black/90 items-center justify-center p-4"
+          onPress={() => setPreviewImage(null)}
+        >
+          {previewImage && (
+            <View className="w-full h-full items-center justify-center relative">
+              <Image 
+                source={{ uri: previewImage }} 
+                style={{ width: '100%', height: '80%' }} 
+                resizeMode="contain" 
+              />
+              <TouchableOpacity
+                onPress={() => setPreviewImage(null)}
+                className="absolute top-12 right-4 w-12 h-12 rounded-full bg-black/50 items-center justify-center border border-white/10"
+              >
+                <X color="white" size={24} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </Pressable>
       </Modal>
 
       {/* Barcode Print Modal */}
