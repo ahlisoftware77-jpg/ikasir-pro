@@ -1429,6 +1429,43 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   };
 
+  const handleExtendValidity = (item: any) => {
+    Vibration.vibrate(10);
+    Alert.alert(
+      'Perpanjang Masa Berlaku',
+      `Pilih durasi perpanjangan masa berlaku untuk estimasi ${item.id}:`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: '7 Hari',
+          onPress: () => extendEstimationDays(item.id, 7)
+        },
+        {
+          text: '30 Hari',
+          onPress: () => extendEstimationDays(item.id, 30)
+        },
+        {
+          text: '90 Hari',
+          onPress: () => extendEstimationDays(item.id, 90)
+        }
+      ]
+    );
+  };
+
+  const extendEstimationDays = async (id: string, days: number) => {
+    try {
+      const newDate = new Date();
+      newDate.setDate(newDate.getDate() + days);
+      await updateDoc(doc(db, 'estimations', id), {
+        validUntil: newDate.toISOString()
+      });
+      Vibration.vibrate([0, 15, 30, 15]);
+      Alert.alert('Sukses', `Masa berlaku estimasi berhasil diperpanjang ${days} hari.`);
+    } catch (err: any) {
+      Alert.alert('Gagal', 'Gagal memperpanjang masa berlaku: ' + err.message);
+    }
+  };
+
   const openPermissionModal = (staffMember: any) => {
     setSelectedStaff(staffMember);
     setEditPermissions({
@@ -2704,6 +2741,13 @@ export default function FeatureScreen({ route, navigation }: any) {
                           >
                             <Edit2 size={12} color="#d97706" />
                             <Text className="text-[9px] font-black uppercase text-amber-600 tracking-wider">Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleExtendValidity(item)}
+                            className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-row items-center justify-center gap-1.5"
+                          >
+                            <Calendar size={12} color="#8b5cf6" />
+                            <Text className="text-[9px] font-black uppercase text-purple-600 tracking-wider">Perpanjang</Text>
                           </TouchableOpacity>
                         </>
                       )}

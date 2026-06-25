@@ -803,6 +803,7 @@ export default function POSScreen({ route, navigation }: any) {
   const [dueDate, setDueDate] = useState('');
   const [editingEstimationId, setEditingEstimationId] = useState<string | null>(null);
   const [originalEstimationData, setOriginalEstimationData] = useState<any>(null);
+  const [estimationValidityDays, setEstimationValidityDays] = useState('30');
   // Item notes expand
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
 
@@ -859,6 +860,18 @@ export default function POSScreen({ route, navigation }: any) {
           setEditingEstimationId(est.id);
           setOriginalEstimationData(est);
           setPaymentCategory('estimasi');
+
+          // Prepopulate estimation validity days based on difference or default
+          if (est.validUntil) {
+            const vDate = new Date(est.validUntil);
+            const baseDate = est.timestamp ? (est.timestamp.toDate ? est.timestamp.toDate() : new Date(est.timestamp)) : new Date();
+            const diffTime = vDate.getTime() - baseDate.getTime();
+            const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+            setEstimationValidityDays(String(diffDays));
+          } else {
+            setEstimationValidityDays('30');
+          }
+
           Alert.alert('Edit Estimasi', `Mengedit estimasi ${est.id}. Silakan edit item lalu selesaikan di checkout.`);
         } else {
           setEditingEstimationId(null);
@@ -1527,13 +1540,11 @@ export default function POSScreen({ route, navigation }: any) {
         
         let finalEstId = editingEstimationId || '';
         let finalNumber = originalEstimationData?.number || 0;
-        let finalValidUntil = originalEstimationData?.validUntil || '';
-
-        if (!finalValidUntil) {
-          const validUntilDate = new Date();
-          validUntilDate.setDate(localNow.getDate() + 30); // 30 days default
-          finalValidUntil = validUntilDate.toISOString();
-        }
+        
+        const validityDays = parseInt(estimationValidityDays) || 30;
+        const validUntilDate = new Date();
+        validUntilDate.setDate(localNow.getDate() + validityDays);
+        const finalValidUntil = validUntilDate.toISOString();
 
         const estimationData: any = {
           storeId: storeId || 'default-store',
@@ -2293,13 +2304,21 @@ export default function POSScreen({ route, navigation }: any) {
           </View>
           <TouchableOpacity 
             onPress={() => {
-              setCustomerQuery('');
-              setSelectedCustomer(null);
-              setPaymentCategory('direct');
+              // Only reset customer query/selected customer if not loaded from params
+              if (!customerQuery) {
+                setCustomerQuery('');
+                setSelectedCustomer(null);
+              }
+              if (editingEstimationId) {
+                setPaymentCategory('estimasi');
+              } else {
+                setPaymentCategory('direct');
+              }
               setPaymentMethod('cash');
               setCashReceived('');
               setDebtDownPayment('');
               setDueDate(getFutureDateString(14));
+              setEstimationValidityDays('30');
               setShowCheckout(true);
             }}
             className="bg-white/20 px-4 py-2 rounded-xl"
@@ -3264,6 +3283,27 @@ export default function POSScreen({ route, navigation }: any) {
                     <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">Sisa Hutang</Text>
                     <Text className="text-sm font-black text-rose-500">
                       Rp {Math.max(0, total - Number(debtDownPayment || 0)).toLocaleString('id-ID')}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {paymentCategory === 'estimasi' && (
+                <View className="space-y-3 bg-black/5 p-4 rounded-2xl">
+                  {/* Validity Period Input */}
+                  <View className="space-y-1.5">
+                    <Text className="text-[10px] font-black text-slate-400 uppercase ml-1">Masa Berlaku Estimasi (Hari)</Text>
+                    <TextInput
+                      placeholder="30"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      value={estimationValidityDays}
+                      onChangeText={setEstimationValidityDays}
+                      className="bg-white/50 border border-black/5 rounded-xl py-3.5 px-4 text-xs font-black"
+                      style={{ color: colors.text }}
+                    />
+                    <Text className="text-[9px] font-bold text-slate-400 ml-1">
+                      Masa aktif penawaran harga ini dalam hitungan hari.
                     </Text>
                   </View>
                 </View>
