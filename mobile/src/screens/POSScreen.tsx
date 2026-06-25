@@ -905,9 +905,9 @@ export default function POSScreen({ route, navigation }: any) {
     });
 
     // Settings fetch
-    const fetchSettings = async () => {
-      try {
-        const docSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+    const unsubscribeSettings = onSnapshot(
+      doc(db, 'settings', `store_${storeId}`),
+      (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setStoreSettings({
@@ -924,11 +924,11 @@ export default function POSScreen({ route, navigation }: any) {
             ...data
           });
         }
-      } catch (err) {
+      },
+      (err) => {
         console.error("Error fetching settings:", err);
       }
-    };
-    fetchSettings();
+    );
 
     // Active discounts fetch
     const qDisc = query(
@@ -953,6 +953,7 @@ export default function POSScreen({ route, navigation }: any) {
     return () => {
       unsubscribeProd();
       unsubscribeDisc();
+      unsubscribeSettings();
     };
   }, [storeId]);
 
