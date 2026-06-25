@@ -11,43 +11,44 @@ export async function GET(req: NextRequest) {
     const color = searchParams.get('color') || '000000';
     
     let fontName = 'Inter';
-    let fontFileName = '';
     let fontWeight: number = 400;
-    
-    switch(fontId) {
-      case 'railey':
-        fontName = 'Railey';
-        fontFileName = 'Railey-PersonalUse.ttf';
-        fontWeight = 400;
-        break;
-      case 'cheque':
-        fontName = 'Cheque';
-        fontFileName = 'Cheque-Regular.ttf';
-        fontWeight = 400;
-        break;
-      case 'lovelo':
-        fontName = 'Lovelo';
-        fontFileName = 'Lovelo-LineBold.ttf';
-        fontWeight = 700;
-        break;
-      default:
-        break;
-    }
-    
     let fontData: ArrayBuffer | null = null;
+    let hasCustomFont = false;
     
-    if (fontFileName) {
-      try {
-        const fontUrl = `${req.nextUrl.origin}/fonts/${fontFileName}`;
-        const fontRes = await fetch(fontUrl);
-        if (fontRes.ok) {
-          fontData = await fontRes.arrayBuffer();
-        } else {
-          console.error(`Failed to fetch font: ${fontRes.status} from ${fontUrl}`);
-        }
-      } catch (e) {
-        console.error("Failed to fetch font from origin:", e);
+    try {
+      if (fontId === 'railey') {
+        fontName = 'Railey';
+        fontWeight = 400;
+        hasCustomFont = true;
+        fontData = await fetch(
+          new URL('../../../../public/fonts/Railey-PersonalUse.ttf', import.meta.url)
+        ).then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.arrayBuffer();
+        });
+      } else if (fontId === 'cheque') {
+        fontName = 'Cheque';
+        fontWeight = 400;
+        hasCustomFont = true;
+        fontData = await fetch(
+          new URL('../../../../public/fonts/Cheque-Regular.ttf', import.meta.url)
+        ).then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.arrayBuffer();
+        });
+      } else if (fontId === 'lovelo') {
+        fontName = 'Lovelo';
+        fontWeight = 700;
+        hasCustomFont = true;
+        fontData = await fetch(
+          new URL('../../../../public/fonts/Lovelo-LineBold.ttf', import.meta.url)
+        ).then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.arrayBuffer();
+        });
       }
+    } catch (e) {
+      console.error("Failed to load local font from import.meta.url:", e);
     }
 
     const fonts = fontData ? [
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
         >
           <span
             style={{
-              fontFamily: fontFileName && fontData ? fontName : 'sans-serif',
+              fontFamily: hasCustomFont && fontData ? fontName : 'sans-serif',
               fontSize: fontId === 'railey' ? '46px' : '36px',
               fontWeight: fontId === 'lovelo' ? 700 : 'bold',
               textAlign: 'center',
