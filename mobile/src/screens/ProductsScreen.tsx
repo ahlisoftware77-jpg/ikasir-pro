@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -157,7 +157,9 @@ export default function ProductsScreen({ navigation }: any) {
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [labelSize, setLabelSize] = useState<'58x30' | '58x20'>('58x30');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewImageIndex, setPreviewImageIndex] = useState<number>(0);
+  const flatListRef = React.useRef<FlatList>(null);
 
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
 
@@ -1031,9 +1033,12 @@ export default function ProductsScreen({ navigation }: any) {
 
                   <TouchableOpacity 
                     onPress={() => {
-                      const img = item.imageUrl || (item.imageUrls && item.imageUrls.length > 0 && item.imageUrls[0]);
-                      if (img) {
-                        setPreviewImage(img);
+                      const imgs = item.imageUrls && item.imageUrls.length > 0 
+                        ? item.imageUrls 
+                        : (item.imageUrl ? [item.imageUrl] : []);
+                      if (imgs.length > 0) {
+                        setPreviewImages(imgs);
+                        setPreviewImageIndex(0);
                       }
                     }}
                     className="w-16 h-16 rounded-2xl bg-black/5 overflow-hidden items-center justify-center border"
@@ -1197,31 +1202,98 @@ export default function ProductsScreen({ navigation }: any) {
 
       {/* Image Preview Modal */}
       <Modal
-        visible={!!previewImage}
+        visible={previewImages.length > 0}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setPreviewImage(null)}
+        onRequestClose={() => setPreviewImages([])}
       >
-        <Pressable 
-          className="flex-1 bg-black/90 items-center justify-center p-4"
-          onPress={() => setPreviewImage(null)}
-        >
-          {previewImage && (
-            <View className="w-full h-full items-center justify-center relative">
-              <Image 
-                source={{ uri: previewImage }} 
-                style={{ width: '100%', height: '80%' }} 
-                resizeMode="contain" 
-              />
-              <TouchableOpacity
-                onPress={() => setPreviewImage(null)}
-                className="absolute top-12 right-4 w-12 h-12 rounded-full bg-black/50 items-center justify-center border border-white/10"
-              >
-                <X color="white" size={24} />
-              </TouchableOpacity>
+        <View className="flex-1 bg-black/95 justify-center items-center">
+          {/* Header Area */}
+          <View className="absolute top-12 left-0 right-0 px-6 flex-row justify-between items-center z-10">
+            <Text className="text-white font-black text-xs bg-black/40 px-3 py-1.5 rounded-full">
+              {previewImages.length > 1 ? `${previewImageIndex + 1} / ${previewImages.length}` : 'Pratinjau'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setPreviewImages([])}
+              className="w-10 h-10 rounded-full bg-black/40 items-center justify-center border border-white/10"
+            >
+              <X color="white" size={20} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Left Arrow Navigation */}
+          {previewImages.length > 1 && previewImageIndex > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                const nextIndex = previewImageIndex - 1;
+                flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+                setPreviewImageIndex(nextIndex);
+              }}
+              className="absolute left-4 top-1/2 -mt-6 w-12 h-12 rounded-full bg-black/40 items-center justify-center z-10 border border-white/10"
+            >
+              <ChevronLeft color="white" size={24} />
+            </TouchableOpacity>
+          )}
+
+          {/* Right Arrow Navigation */}
+          {previewImages.length > 1 && previewImageIndex < previewImages.length - 1 && (
+            <TouchableOpacity
+              onPress={() => {
+                const nextIndex = previewImageIndex + 1;
+                flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+                setPreviewImageIndex(nextIndex);
+              }}
+              className="absolute right-4 top-1/2 -mt-6 w-12 h-12 rounded-full bg-black/40 items-center justify-center z-10 border border-white/10"
+            >
+              <ChevronRight color="white" size={24} />
+            </TouchableOpacity>
+          )}
+
+          {/* FlatList for Swiping */}
+          <FlatList
+            ref={flatListRef}
+            data={previewImages}
+            keyExtractor={(_, index) => index.toString()}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+              setPreviewImageIndex(idx);
+            }}
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index,
+            })}
+            renderItem={({ item }) => (
+              <View style={{ width: screenWidth, height: screenHeight }} className="items-center justify-center p-4">
+                <Image
+                  source={{ uri: item }}
+                  style={{ width: '100%', height: '70%' }}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+          />
+
+          {/* Indicators / Pagination Dots */}
+          {previewImages.length > 1 && (
+            <View className="absolute bottom-16 flex-row justify-center items-center gap-2">
+              {previewImages.map((_, idx) => (
+                <View
+                  key={idx}
+                  className="rounded-full"
+                  style={{
+                    width: previewImageIndex === idx ? 16 : 8,
+                    height: 8,
+                    backgroundColor: previewImageIndex === idx ? colors.accent : 'rgba(255, 255, 255, 0.3)',
+                  }}
+                />
+              ))}
             </View>
           )}
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Barcode Print Modal */}
