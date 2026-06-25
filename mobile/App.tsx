@@ -80,6 +80,7 @@ const runBackgroundCleanup = async (storeId: string) => {
   }
 };
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration, Pressable } from 'react-native';
+import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
 
@@ -890,6 +891,24 @@ export default function App() {
   useEffect(() => {
     activateKeepAwakeAsync().catch(console.warn);
   }, []);
+
+  const [fontsLoaded] = useFonts({
+    'Railey': require('./assets/Railey-PersonalUse.ttf'),
+    'Lovelo-LineLight': require('./assets/Lovelo-LineLight.ttf'),
+    'Lovelo-LineBold': require('./assets/Lovelo-LineBold.ttf'),
+    'Lovelo-Black': require('./assets/Lovelo-Black.ttf'),
+    'Cheque-Regular': require('./assets/Cheque-Regular.ttf'),
+    'Cheque-Black': require('./assets/Cheque-Black.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' }}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>

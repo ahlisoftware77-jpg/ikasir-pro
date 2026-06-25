@@ -63,16 +63,37 @@ export default function SettingsPage() {
     { id: 'mono', name: 'Retro (Mono)', family: "'Courier New', monospace" },
     { id: 'elegant', name: 'Elegant (Outfit)', family: "var(--font-outfit), sans-serif" },
     { id: 'bold', name: 'Impact (Oswald)', family: "var(--font-oswald), sans-serif" },
-    { id: 'railey', name: 'Railey (Script)', family: "var(--font-caveat), cursive" },
-    { id: 'chunkfive', name: 'Chunk Five', family: "var(--font-alfa-slab-one), serif" },
-    { id: 'cheque', name: 'Cheque (Display)', family: "var(--font-limelight), display" },
-    { id: 'calgary', name: 'Calgary', family: "var(--font-prata), serif" },
-    { id: 'lovelo', name: 'Lovelo (Inline)', family: "var(--font-montserrat), sans-serif" },
-    { id: 'abovethebeyond', name: 'Above The Beyond', family: "var(--font-great-vibes), cursive" }
+    { id: 'railey', name: 'Railey (Script)', family: "'Railey', cursive" },
+    { id: 'cheque', name: 'Cheque (Display)', family: "'Cheque', sans-serif" },
+    { id: 'lovelo', name: 'Lovelo (Inline)', family: "'Lovelo', sans-serif" }
   ];
 
   const getFontFamily = (id: string) => {
     return FONT_OPTIONS.find(f => f.id === id)?.family || FONT_OPTIONS[0].family;
+  };
+
+  const getFontStyles = (id: string) => {
+    const base = { fontFamily: getFontFamily(id), lineHeight: '1.2' };
+    switch(id) {
+      case 'railey':
+        return { ...base, fontSize: '16px', fontWeight: 'normal', textTransform: 'none' as const };
+      case 'cheque':
+        return { ...base, fontSize: '15px', fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
+      case 'lovelo':
+        return { 
+          ...base, 
+          fontSize: '15px', 
+          fontWeight: 700, // Lovelo-LineBold is registered as weight 700
+          textTransform: 'uppercase' as const, 
+          letterSpacing: '0.1em'
+        };
+      case 'elegant':
+        return { ...base, fontSize: '14px', fontWeight: 300, textTransform: 'uppercase' as const, letterSpacing: '0.05em' };
+      case 'bold':
+        return { ...base, fontSize: '14px', fontWeight: 900, textTransform: 'uppercase' as const, letterSpacing: '-0.02em' };
+      default:
+        return { ...base, fontSize: '14px', fontWeight: 900, textTransform: 'uppercase' as const };
+    }
   };
 
   const [isBackuping, setIsBackuping] = useState(false);
@@ -1144,7 +1165,7 @@ export default function SettingsPage() {
                        }`}
                      >
                         <p className="text-[10px] font-black text-app-text-muted uppercase mb-1">{font.name}</p>
-                        <p style={{ fontFamily: font.family }} className="text-sm font-bold truncate">
+                        <p style={getFontStyles(font.id)} className="truncate">
                           {settings.storeName || 'Nama Toko Anda'}
                         </p>
                      </button>
@@ -1168,15 +1189,7 @@ export default function SettingsPage() {
                           {(settings.thermalLogoUrl || settings.logoUrl) && settings.showLogoOnReceipt && (
                             <img src={settings.thermalLogoUrl || settings.logoUrl} alt="logo" className="w-8 h-8 mx-auto object-contain grayscale mb-2 opacity-50" />
                           )}
-                          <p 
-                            style={{ 
-                              fontFamily: getFontFamily(settings.storeNameFont),
-                              fontSize: '14px',
-                              fontWeight: 900,
-                              lineHeight: '1.2',
-                              textTransform: 'uppercase'
-                            }}
-                          >
+                          <p style={getFontStyles(settings.storeNameFont)}>
                             {(settings.storeName || 'IKASIR PRO').includes('@') ? (settings.storeName || 'IKASIR PRO').split('@')[0] : (settings.storeName || 'IKASIR PRO')}
                           </p>
                           {settings.showReceiptAddress && <p className="text-[8px] opacity-70" style={{ whiteSpace: 'pre-wrap' }}>{settings.address || 'Alamat Toko...'}</p>}

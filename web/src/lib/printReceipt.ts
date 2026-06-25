@@ -425,8 +425,39 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
     <head>
       <meta charset="UTF-8">
       <title>Cetak Struk #${trx.id}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&family=Caveat:wght@700&family=Alfa+Slab+One&family=Limelight&family=Prata&family=Montserrat:wght@900&family=Great+Vibes&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
       <style>
+        @font-face {
+          font-family: 'Railey';
+          src: url('/fonts/Railey-PersonalUse.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Lovelo';
+          src: url('/fonts/Lovelo-LineBold.ttf') format('truetype');
+          font-weight: 700;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Lovelo';
+          src: url('/fonts/Lovelo-Black.ttf') format('truetype');
+          font-weight: 900;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Cheque';
+          src: url('/fonts/Cheque-Regular.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
+        @font-face {
+          font-family: 'Cheque';
+          src: url('/fonts/Cheque-Black.ttf') format('truetype');
+          font-weight: 900;
+          font-style: normal;
+        }
+
         @media print {
           @page { margin: 0; }
           body { margin: 0; }
@@ -450,28 +481,39 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
         .mb-1 { margin-bottom: 4px; }
         .mt-2 { margin-top: 8px; }
         .store-name { 
-          font-family: ${(() => {
-            switch(storeSettings.storeNameFont) {
-              case 'serif': return "'Playfair Display', serif";
-              case 'mono': return "'Courier New', monospace";
-              case 'elegant': return "'Outfit', sans-serif";
-              case 'bold': return "'Oswald', sans-serif";
-              case 'railey': return "'Caveat', cursive";
-              case 'chunkfive': return "'Alfa Slab One', serif";
-              case 'cheque': return "'Limelight', display";
-              case 'calgary': return "'Prata', serif";
-              case 'lovelo': return "'Montserrat', sans-serif";
-              case 'abovethebeyond': return "'Great Vibes', cursive";
-              default: return "'Inter', sans-serif";
-            }
-          })()};
           font-size: calc(${fontSize} + 6px); 
-          font-weight: 900; 
           margin-bottom: 4px; 
           text-align: center; 
           width: 100%;
-          letter-spacing: -0.02em;
-          text-transform: uppercase;
+          line-height: 1.2;
+          font-family: ${(() => {
+            switch(storeSettings.storeNameFont) {
+              case 'serif': return "'Playfair Display', Georgia, serif";
+              case 'mono': return "'Courier New', Courier, monospace";
+              case 'elegant': return "'Outfit', sans-serif";
+              case 'bold': return "'Oswald', sans-serif";
+              case 'railey': return "'Railey', cursive";
+              case 'cheque': return "'Cheque', sans-serif";
+              case 'lovelo': return "'Lovelo', sans-serif";
+              default: return "'Inter', sans-serif";
+            }
+          })()};
+          ${(() => {
+            switch(storeSettings.storeNameFont) {
+              case 'railey':
+                return "font-weight: normal; text-transform: none; font-size: calc(" + fontSize + " + 8px);";
+              case 'elegant':
+                return "font-weight: 300; text-transform: uppercase; letter-spacing: 0.05em;";
+              case 'bold':
+                return "font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em;";
+              case 'lovelo':
+                return "font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;";
+              case 'cheque':
+                return "font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;";
+              default:
+                return "font-weight: 900; text-transform: uppercase;";
+            }
+          })()};
         }
         .store-info { font-size: ${fontSize}; text-align: center; width: 100%; margin-bottom: 2px; white-space: pre-wrap; }
         .item-note { font-size: calc(${fontSize} - 2px); color: #555; text-align: center; font-style: italic; padding: 2px 0; white-space: pre-wrap; }

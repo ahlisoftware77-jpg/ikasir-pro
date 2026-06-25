@@ -347,5 +347,55 @@ input:focus, select:focus, textarea:focus {
   opacity: 0;
 }
 
+/* Custom fonts matching Canva assets */
+@font-face {
+  font-family: 'Railey';
+  src: url('/fonts/Railey-PersonalUse.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lovelo';
+  src: url('/fonts/Lovelo-LineLight.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lovelo';
+  src: url('/fonts/Lovelo-LineBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lovelo';
+  src: url('/fonts/Lovelo-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cheque';
+  src: url('/fonts/Cheque-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cheque';
+  src: url('/fonts/Cheque-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+
 
 

@@ -104,12 +104,9 @@ const FONT_OPTIONS = [
   { id: 'mono', name: 'Retro (Mono)', family: "'Courier New', monospace" },
   { id: 'elegant', name: 'Elegant (Outfit)', family: "var(--font-outfit), sans-serif" },
   { id: 'bold', name: 'Impact (Oswald)', family: "var(--font-oswald), sans-serif" },
-  { id: 'railey', name: 'Railey (Script)', family: "var(--font-caveat), cursive" },
-  { id: 'chunkfive', name: 'Chunk Five', family: "var(--font-alfa-slab-one), serif" },
-  { id: 'cheque', name: 'Cheque (Display)', family: "var(--font-limelight), display" },
-  { id: 'calgary', name: 'Calgary', family: "var(--font-prata), serif" },
-  { id: 'lovelo', name: 'Lovelo (Inline)', family: "var(--font-montserrat), sans-serif" },
-  { id: 'abovethebeyond', name: 'Above The Beyond', family: "var(--font-great-vibes), cursive" }
+  { id: 'railey', name: 'Railey (Script)', family: "'Railey', cursive" },
+  { id: 'cheque', name: 'Cheque (Display)', family: "'Cheque', sans-serif" },
+  { id: 'lovelo', name: 'Lovelo (Inline)', family: "'Lovelo', sans-serif" }
 ];
 
 const getFontFamily = (id: string) => {
