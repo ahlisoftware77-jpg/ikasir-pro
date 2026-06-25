@@ -4,17 +4,31 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, where, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
-import { Plus, Edit2, Trash2, Search, Package, Loader2, X, Image as ImageIcon, UploadCloud, Camera, CheckSquare, Square, ListPlus, RotateCcw, Check, DownloadCloud, FileStack, Scan, Printer, Sparkles, Calendar, PenTool } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Package, Loader2, X, Image as ImageIcon, UploadCloud, Camera, CheckSquare, Square, ListPlus, RotateCcw, Check, DownloadCloud, FileStack, Scan, Printer, Sparkles, Calendar, PenTool, Share2 } from 'lucide-react';
 import { logActivity } from '@/lib/activity';
 import { Product, ProductExtra } from '@/types';
 import Barcode from 'react-barcode';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import BarcodePrintModal from '@/components/BarcodePrintModal';
 import { getInfraConfig } from '@/lib/infraConfig';
+import toast from 'react-hot-toast';
 
 export default function ProductsPage() {
   const { storeId, user, role, permissions } = useAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
+
+  const copyProductLink = (productId: string) => {
+    if (!storeId || !productId) return;
+    const url = `${window.location.origin}/tr?s=${storeId}&p=${productId}`;
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        toast.success('Link produk berhasil disalin!');
+      })
+      .catch((err) => {
+        console.error('Gagal menyalin link:', err);
+        toast.error('Gagal menyalin link');
+      });
+  };
 
   const CATEGORIES = ['Umum', 'Makanan', 'Minuman', 'Snack', 'Bahan Baku', 'Aksesoris', 'Jasa'];
   const dynamicCategories = Array.from(new Set(products.map(p => p.category?.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -805,6 +819,13 @@ export default function ProductsPage() {
                     </td>
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => copyProductLink(product.id!)} 
+                          className="p-2.5 bg-background border border-app-border text-accent hover:bg-accent/10 rounded-xl transition-all"
+                          title="Bagikan Link Produk"
+                        >
+                          <Share2 size={18} />
+                        </button>
                         {permissions?.canEditProducts && (
                           <button onClick={() => openModal(product)} className="p-2.5 bg-background border border-app-border text-blue-400 hover:bg-blue-600/10 rounded-xl transition-all"><Edit2 size={18} /></button>
                         )}
@@ -864,6 +885,13 @@ export default function ProductsPage() {
                           )}
                        </div>
                        <div className="flex gap-1 shrink-0">
+                          <button 
+                            onClick={() => copyProductLink(product.id!)} 
+                            className="p-2 text-accent bg-accent/10 rounded-lg hover:bg-accent/20 transition-all"
+                            title="Bagikan Link Produk"
+                          >
+                            <Share2 size={12} />
+                          </button>
                           {permissions?.canEditProducts && (
                             <button onClick={() => openModal(product)} className="p-2 text-accent bg-accent/10 rounded-lg hover:bg-accent/20 transition-all"><Edit2 size={12} /></button>
                           )}

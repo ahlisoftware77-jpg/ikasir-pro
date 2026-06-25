@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, Modal, RefreshControl, Vibration, Pressable, Platform, PermissionsAndroid, Dimensions, NativeModules, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, Modal, RefreshControl, Vibration, Pressable, Platform, PermissionsAndroid, Dimensions, NativeModules, ScrollView, Share } from 'react-native';
 import { collection, query, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
@@ -696,6 +696,20 @@ export default function ProductsScreen({ navigation }: any) {
     return () => unsubscribe();
   }, [storeId]);
 
+  const handleShareProduct = async (product: Product) => {
+    if (!storeId || !product.id) return;
+    try {
+      const url = `https://ikasir.my.id/tr?s=${storeId}&p=${product.id}`;
+      await Share.share({
+        message: `Silakan pesan ${product.name} secara langsung lewat link berikut: ${url}`,
+        url: url,
+        title: `Bagikan ${product.name}`
+      });
+    } catch (err: any) {
+      Alert.alert('Gagal Membagikan', err.message || String(err));
+    }
+  };
+
   const handleDelete = (id: string) => {
     Alert.alert(
       'Hapus Produk',
@@ -1097,6 +1111,10 @@ export default function ProductsScreen({ navigation }: any) {
                           `Pilih tindakan untuk ${item.name}:`,
                           [
                             { text: 'Batal', style: 'cancel' },
+                            {
+                              text: 'Bagikan Link Produk',
+                              onPress: () => handleShareProduct(item)
+                            },
                             { 
                               text: 'Hapus Produk', 
                               style: 'destructive', 

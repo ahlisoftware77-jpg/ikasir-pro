@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History, Plus, Wallet, Landmark } from 'lucide-react';
 import { getInfraConfig } from '@/lib/infraConfig';
-import { doc, getDoc, setDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, writeBatch, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, auth, primaryDb } from '@/lib/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { handleExportJSON } from '@/lib/backupUtils';
@@ -29,6 +29,21 @@ export default function SettingsPage() {
   const [signaturePadData, setSignaturePadData] = useState<string>('');
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [hasPendingSubscription, setHasPendingSubscription] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    const q = query(collection(db, 'products'), where('storeId', '==', storeId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const uniqueCats = new Set<string>();
+      snapshot.forEach((doc) => {
+        const cat = doc.data().category?.trim();
+        if (cat) uniqueCats.add(cat);
+      });
+      setCategories(Array.from(uniqueCats).sort((a, b) => a.localeCompare(b)));
+    });
+    return () => unsubscribe();
+  }, [storeId]);
 
   useEffect(() => {
     if (storeId) {
@@ -1673,7 +1688,7 @@ export default function SettingsPage() {
           </h2>
           
           <div className="flex flex-col md:flex-row gap-8 items-start">
-             <div className="flex-1 space-y-3">
+             <div className="flex-1 space-y-3 w-full">
                 <h4 className="text-sm font-black text-foreground uppercase tracking-widest">Akses Publik Pelanggan</h4>
                 <p className="text-[11px] font-medium text-app-text-muted leading-relaxed">
                    Bagikan link di bawah ini kepada pelanggan Anda melalui WhatsApp atau Sosial Media. Pelanggan dapat melihat menu favorit, memesan secara online, dan memantau status pesanan mereka secara langsung.
@@ -1684,6 +1699,7 @@ export default function SettingsPage() {
                    </code>
                    <div className="flex gap-2 w-full sm:w-auto justify-end">
                       <button 
+                        type="button"
                         onClick={() => {
                           const url = onlineOrderUrl || (window.location.origin + "/tr?s=" + storeId);
                           navigator.clipboard.writeText(url);
@@ -1695,6 +1711,7 @@ export default function SettingsPage() {
                          <Save size={14} />
                       </button>
                       <button 
+                        type="button"
                         onClick={() => window.open(onlineOrderUrl || ("/tr?s=" + storeId), '_blank')}
                         className="bg-accent/10 hover:bg-accent text-accent hover:text-foreground p-2 rounded-lg transition-all"
                         title="Buka Link"
@@ -1704,7 +1721,35 @@ export default function SettingsPage() {
                    </div>
                 </div>
 
-
+                {/* Bagikan Kategori Khusus */}
+                <div className="pt-4 border-t border-app-border/50 space-y-3">
+                   <h4 className="text-xs font-black text-foreground uppercase tracking-widest">Bagikan Kategori Khusus</h4>
+                   <p className="text-[10px] font-medium text-app-text-muted leading-relaxed">
+                      Klik salah satu kategori di bawah untuk menyalin link yang langsung menyaring tampilan menu toko online Anda sesuai kategori tersebut.
+                   </p>
+                   {categories.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                         {categories.map((category) => {
+                            const catUrl = `${onlineOrderUrl || (window.location.origin + "/tr?s=" + storeId)}&c=${encodeURIComponent(category)}`;
+                            return (
+                               <button
+                                 key={category}
+                                 type="button"
+                                 onClick={() => {
+                                    navigator.clipboard.writeText(catUrl);
+                                    toast.success(`Link kategori "${category}" berhasil disalin!`);
+                                 }}
+                                 className="px-3 py-1.5 bg-accent/10 hover:bg-accent hover:text-slate-950 border border-accent/20 hover:border-transparent text-accent text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5"
+                               >
+                                  <span>{category}</span>
+                               </button>
+                            );
+                         })}
+                      </div>
+                   ) : (
+                      <p className="text-[10px] font-bold text-app-text-muted italic">Tidak ada kategori produk yang ditemukan. Daftarkan produk dengan kategori terlebih dahulu.</p>
+                   )}
+                </div>
              </div>
           </div>
         </div>

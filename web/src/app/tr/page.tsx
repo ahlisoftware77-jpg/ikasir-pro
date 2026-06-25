@@ -136,14 +136,49 @@ function PublicOrderContent() {
   const router = useRouter();
   const { branding } = useBranding();
   const storeId = searchParams.get('s') || '';
+  const catParam = searchParams.get('c') || searchParams.get('cat') || '';
+  const prodParam = searchParams.get('p') || '';
   
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'account'>('menu');
   const [products, setProducts] = useState<Product[]>([]);
   const [storeSettings, setStoreSettings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [selectedCategory, setSelectedCategory] = useState(catParam || 'Semua');
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
+  const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
+
+  // Sync category if URL parameter changes
+  useEffect(() => {
+    if (catParam) {
+      setSelectedCategory(catParam);
+    }
+  }, [catParam]);
+
+  // Handle direct product sharing link routing (Auto category switch, scroll & glow spotlight)
+  useEffect(() => {
+    if (prodParam && products.length > 0) {
+      const found = products.find(p => p.id === prodParam);
+      if (found) {
+        const cat = found.category || 'Umum';
+        setSelectedCategory(cat);
+        setHighlightedProductId(prodParam);
+        
+        // Wait for category filter DOM adjustment
+        setTimeout(() => {
+          const el = document.getElementById(`prod-${prodParam}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 300);
+
+        const timer = setTimeout(() => {
+          setHighlightedProductId(null);
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [prodParam, products]);
 
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -869,66 +904,77 @@ function PublicOrderContent() {
             </div>
 
             <div className="grid grid-cols-1 gap-5">
-               {filteredProducts.map(p => (
-                 <div key={p.id} className="bg-white border border-slate-100 rounded-3xl p-5 flex gap-5 hover:border-tr/30 transition-all group shadow-sm">
-                    <div 
-                       className={`w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 transition-all ${
-                         (p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0])) 
-                           ? 'cursor-zoom-in active:scale-95 hover:border-tr/50' 
-                           : ''
-                       }`}
-                       onClick={() => {
-                          const imgs = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
-                          if (imgs.length > 0) {
-                            setPreviewImages(imgs);
-                            setPreviewImageIndex(0);
-                          }
-                       }}
-                    >
-                       {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
-                          <img src={p.imageUrl || p.imageUrls?.[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                       ) : (
-                          <div className="w-full h-full flex items-center justify-center opacity-10">
-                             <ShoppingBag size={32} />
-                          </div>
-                       )}
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
-                       <div className="min-w-0">
-                          <h3 className="font-black text-slate-900 text-base leading-tight truncate">{p.name}</h3>
-                          <p className="text-[10px] font-black text-tr uppercase tracking-widest mt-1.5 opacity-60">{p.category || 'Umum'}</p>
-                          {p.description && (
-                             <div className="mt-2 text-xs text-slate-500 leading-relaxed font-medium">
-                                <p className={expandedProducts[p.id!] ? "" : "line-clamp-2"}>
-                                   {p.description}
-                                </p>
-                                {p.description.length > 80 && (
-                                   <button 
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setExpandedProducts(prev => ({ ...prev, [p.id!]: !prev[p.id!] }));
-                                     }}
-                                     className="text-tr font-black uppercase text-[9px] tracking-wider mt-1 hover:underline block"
-                                   >
-                                      {expandedProducts[p.id!] ? "Tutup" : "Selengkapnya"}
-                                   </button>
-                                )}
-                             </div>
-                          )}
-                       </div>
-                       <div className="flex items-center justify-between mt-4">
-                          <p className="font-black text-base text-slate-900 tracking-tighter">Rp {(p.price || 0).toLocaleString('id-ID')}</p>
-                          <button 
-                            onClick={() => addToCart(p)}
-                            className="px-4 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest"
-                          >
-                             <Plus size={14} className="stroke-[3]" />
-                             <span>Tambah</span>
-                          </button>
-                       </div>
-                    </div>
-                 </div>
-               ))}
+               {filteredProducts.map(p => {
+                 const isHighlighted = p.id === highlightedProductId;
+                 return (
+                   <div 
+                     key={p.id} 
+                     id={`prod-${p.id}`}
+                     className={`bg-white border rounded-3xl p-5 flex gap-5 transition-all group shadow-sm ${
+                       isHighlighted 
+                         ? 'ring-4 ring-tr/50 border-tr scale-[1.02] shadow-xl shadow-tr/20' 
+                         : 'border-slate-100 hover:border-tr/30'
+                     }`}
+                   >
+                     <div 
+                        className={`w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 transition-all ${
+                          (p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0])) 
+                            ? 'cursor-zoom-in active:scale-95 hover:border-tr/50' 
+                            : ''
+                        }`}
+                        onClick={() => {
+                           const imgs = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+                           if (imgs.length > 0) {
+                             setPreviewImages(imgs);
+                             setPreviewImageIndex(0);
+                           }
+                        }}
+                     >
+                        {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
+                           <img src={p.imageUrl || p.imageUrls?.[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        ) : (
+                           <div className="w-full h-full flex items-center justify-center opacity-10">
+                              <ShoppingBag size={32} />
+                           </div>
+                        )}
+                     </div>
+                     <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
+                        <div className="min-w-0">
+                           <h3 className="font-black text-slate-900 text-base leading-tight truncate">{p.name}</h3>
+                           <p className="text-[10px] font-black text-tr uppercase tracking-widest mt-1.5 opacity-60">{p.category || 'Umum'}</p>
+                           {p.description && (
+                              <div className="mt-2 text-xs text-slate-500 leading-relaxed font-medium">
+                                 <p className={expandedProducts[p.id!] ? "" : "line-clamp-2"}>
+                                    {p.description}
+                                 </p>
+                                 {p.description.length > 80 && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedProducts(prev => ({ ...prev, [p.id!]: !prev[p.id!] }));
+                                      }}
+                                      className="text-tr font-black uppercase text-[9px] tracking-wider mt-1 hover:underline block"
+                                    >
+                                       {expandedProducts[p.id!] ? "Tutup" : "Selengkapnya"}
+                                    </button>
+                                 )}
+                              </div>
+                           )}
+                        </div>
+                        <div className="flex items-center justify-between mt-4">
+                           <p className="font-black text-base text-slate-900 tracking-tighter">Rp {(p.price || 0).toLocaleString('id-ID')}</p>
+                           <button 
+                             onClick={() => addToCart(p)}
+                             className="px-4 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest"
+                           >
+                              <Plus size={14} className="stroke-[3]" />
+                              <span>Tambah</span>
+                           </button>
+                        </div>
+                     </div>
+                   </div>
+                 );
+               })}
             </div>
           </div>
         )}
