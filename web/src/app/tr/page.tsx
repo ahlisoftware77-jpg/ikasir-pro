@@ -177,6 +177,7 @@ function PublicOrderContent() {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [pwdOld, setPwdOld] = useState('');
   const [pwdNew, setPwdNew] = useState('');
   const [pwdConfirm, setPwdConfirm] = useState('');
@@ -187,7 +188,7 @@ function PublicOrderContent() {
 
   // Navigation Guard for Modals (Mobile Back Button support)
   useEffect(() => {
-    const isAnyModalOpen = isCheckoutOpen || !!activeExtrasProduct;
+    const isAnyModalOpen = isCheckoutOpen || !!activeExtrasProduct || !!previewImageUrl;
     
     if (!isAnyModalOpen) return;
 
@@ -199,6 +200,7 @@ function PublicOrderContent() {
       setIsCheckoutOpen(false);
       setActiveExtrasProduct(null);
       setIsConfirmingCheckout(false);
+      setPreviewImageUrl(null);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -206,7 +208,7 @@ function PublicOrderContent() {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [isCheckoutOpen, activeExtrasProduct]);
+  }, [isCheckoutOpen, activeExtrasProduct, previewImageUrl]);
 
   // Helper to close modal manually while syncing history
   const handleManualClose = () => {
@@ -217,6 +219,15 @@ function PublicOrderContent() {
       setActiveExtrasProduct(null);
       setIsConfirmingCheckout(false);
       setViewingReceipt(null);
+      setPreviewImageUrl(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (typeof window !== 'undefined' && window.history.state?.modalOpen) {
+      window.history.back();
+    } else {
+      setPreviewImageUrl(null);
     }
   };
 
@@ -855,7 +866,17 @@ function PublicOrderContent() {
             <div className="grid grid-cols-1 gap-5">
                {filteredProducts.map(p => (
                  <div key={p.id} className="bg-white border border-slate-100 rounded-3xl p-5 flex gap-5 hover:border-tr/30 transition-all group shadow-sm">
-                    <div className="w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100">
+                    <div 
+                       className={`w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 transition-all ${
+                         (p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0])) 
+                           ? 'cursor-zoom-in active:scale-95 hover:border-tr/50' 
+                           : ''
+                       }`}
+                       onClick={() => {
+                         const img = p.imageUrl || p.imageUrls?.[0];
+                         if (img) setPreviewImageUrl(img);
+                       }}
+                    >
                        {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
                           <img src={p.imageUrl || p.imageUrls?.[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                        ) : (
@@ -1912,6 +1933,29 @@ function PublicOrderContent() {
               <div className="p-6 border-t border-slate-100">
                  <button onClick={confirmExtrasToCart} className="w-full py-4 bg-tr text-slate-900 rounded-2xl font-black shadow-xl active:scale-95 transition-all shadow-tr/20 uppercase tracking-widest text-xs">LANJUTKAN</button>
               </div>
+           </div>
+        </div>
+      )}
+
+      {/* Product Image Preview Modal */}
+      {previewImageUrl && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200">
+           <div 
+             className="absolute inset-0 cursor-zoom-out"
+             onClick={closePreview}
+           />
+           <button 
+             onClick={closePreview}
+             className="absolute top-4 right-4 text-white hover:text-slate-300 p-2 bg-white/10 rounded-full transition-colors z-10"
+           >
+             <X size={24} />
+           </button>
+           <div className="relative max-w-full max-h-full flex items-center justify-center z-0">
+             <img 
+               src={previewImageUrl} 
+               alt="Product Preview" 
+               className="max-w-[95vw] max-h-[95vh] object-contain rounded-lg shadow-2xl" 
+             />
            </div>
         </div>
       )}
