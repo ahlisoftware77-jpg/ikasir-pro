@@ -806,6 +806,7 @@ export default function POSScreen({ route, navigation }: any) {
   const [estimationValidityDays, setEstimationValidityDays] = useState('30');
   // Item notes expand
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   // Helper date pre-population
   const getFutureDateString = (days: number) => {
@@ -3184,9 +3185,12 @@ export default function POSScreen({ route, navigation }: any) {
                     <View className="space-y-3 bg-black/5 p-4 rounded-2xl items-center w-full">
                       <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Scan QRIS untuk Membayar</Text>
                       {storeSettings.qrisUrl ? (
-                        <View className="p-2 bg-white rounded-2xl border border-black/5 shadow-sm">
+                        <TouchableOpacity 
+                          onPress={() => setZoomImageUrl(storeSettings.qrisUrl)}
+                          className="p-2 bg-white rounded-2xl border border-black/5 shadow-sm active:scale-[0.98]"
+                        >
                           <Image source={{ uri: storeSettings.qrisUrl }} style={{ width: 200, height: 200, resizeMode: 'contain' }} />
-                        </View>
+                        </TouchableOpacity>
                       ) : (
                         <View className="p-4 bg-rose-500/10 rounded-xl border border-rose-500/20 w-full items-center">
                           <Text className="text-xs font-bold text-rose-500 text-center">Foto QRIS belum diunggah.</Text>
@@ -4002,6 +4006,45 @@ export default function POSScreen({ route, navigation }: any) {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* QRIS Image Preview Modal */}
+      <Modal
+        visible={!!zoomImageUrl}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setZoomImageUrl(null)}
+      >
+        <Pressable 
+          className="flex-1 bg-black/90 justify-center items-center p-6"
+          onPress={() => setZoomImageUrl(null)}
+        >
+          {/* Close Button */}
+          <TouchableOpacity 
+            className="absolute top-12 right-6 p-3 bg-white/10 rounded-full border border-white/10"
+            onPress={() => setZoomImageUrl(null)}
+          >
+            <X color="white" size={24} />
+          </TouchableOpacity>
+
+          {/* Image Container */}
+          <Pressable 
+            className="bg-white rounded-[2.5rem] p-4 items-center justify-center max-w-sm w-full"
+            onPress={(e) => e.stopPropagation()}
+          >
+            {zoomImageUrl && (
+              <Image 
+                source={{ uri: zoomImageUrl }} 
+                style={{ width: '100%', height: 320, resizeMode: 'contain' }} 
+                className="rounded-3xl"
+              />
+            )}
+            <View className="mt-4 pb-2 items-center">
+              <Text className="text-sm font-black text-slate-800 uppercase tracking-widest">QRIS Pembayaran</Text>
+              <Text className="text-[10px] text-slate-400 font-bold mt-1">Ketuk di luar gambar atau tombol X untuk menutup</Text>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
     </SafeAreaView>
