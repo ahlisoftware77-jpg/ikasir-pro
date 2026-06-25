@@ -210,6 +210,12 @@ export default function ProductFormScreen({ route, navigation }: any) {
     Vibration.vibrate(10);
   };
 
+  const generateAutomaticBarcode = () => {
+    const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+    setFormData(prev => ({ ...prev, barcode: randomBarcode }));
+    Vibration.vibrate(10);
+  };
+
   const handleSave = async () => {
     if (!formData.name || !formData.price) {
       Alert.alert('Error', 'Nama dan harga jual wajib diisi.');
@@ -589,6 +595,13 @@ export default function ProductFormScreen({ route, navigation }: any) {
                     className="flex-1 p-3.5 rounded-xl border font-bold text-xs"
                     style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
                   />
+                  <TouchableOpacity
+                    onPress={generateAutomaticBarcode}
+                    className="p-3.5 bg-accent rounded-xl flex-row items-center gap-1 shadow-md shadow-accent/20"
+                  >
+                    <Sparkles size={14} color="#ffffff" />
+                    <Text className="text-[9px] font-black text-white uppercase tracking-wider">AUTO</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => startScanning('barcode')}
                     className="p-3.5 rounded-xl border justify-center items-center"
