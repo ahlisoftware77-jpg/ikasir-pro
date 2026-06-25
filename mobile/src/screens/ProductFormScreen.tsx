@@ -555,8 +555,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
               )}
             </View>
 
-            <View className="flex-row gap-4">
-              <View className="flex-1">
+            <View className="flex-col gap-5">
+              <View>
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>SKU (Stok)</Text>
                 <View className="flex-row gap-2">
                   <TextInput
@@ -584,7 +584,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 </View>
               </View>
 
-              <View className="flex-1">
+              <View>
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Barcode</Text>
                 <View className="flex-row gap-2">
                   <TextInput
