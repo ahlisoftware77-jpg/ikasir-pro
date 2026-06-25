@@ -752,11 +752,45 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 
   // ─── HEADER (Centered) ──────────────────────────────────────────
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-  await BluetoothEscposPrinter.setBlob(1);
-  for (const line of wrapText(cleanStoreName.toUpperCase())) {
-    await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+  
+  const fontId = storeSettings?.storeNameFont || 'sans';
+  const isCustomFont = ['railey', 'cheque', 'lovelo'].includes(fontId);
+  
+  if (isCustomFont) {
+    try {
+      const uniqueId = Math.random().toString(36).substring(7);
+      const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
+      const renderUrl = `https://kasirkuyk.web.app/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+      const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      const is80 = storeSettings?.paperSize === '80mm';
+      const printerWidth = is80 ? 576 : 384;
+      const picWidth = is80 ? 320 : 256; // kelipatan 8
+      const leftPad = Math.floor((printerWidth - picWidth) / 2);
+
+      await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+      
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (delErr) {}
+    } catch (err: any) {
+      console.warn("Gagal mencetak header kustom sebagai gambar:", err);
+      // Fallback ke teks biasa jika gagal
+      await BluetoothEscposPrinter.setBlob(1);
+      for (const line of wrapText(cleanStoreName.toUpperCase())) {
+        await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+      }
+      await BluetoothEscposPrinter.setBlob(0);
+    }
+  } else {
+    // Default text printing for standard fonts
+    await BluetoothEscposPrinter.setBlob(1);
+    for (const line of wrapText(cleanStoreName.toUpperCase())) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+    }
+    await BluetoothEscposPrinter.setBlob(0);
   }
-  await BluetoothEscposPrinter.setBlob(0);
 
   if (address) {
     for (const line of wrapText(address)) {

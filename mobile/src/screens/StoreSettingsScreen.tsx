@@ -18,8 +18,10 @@ import {
   LogOut, Check, X, Calculator, CreditCard, History, Package, Home, PlusCircle, 
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
-  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save, Landmark, Wallet
+  Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save, Landmark, Wallet,
+  Printer
 } from 'lucide-react-native';
+import { printReceipt } from '../utils/ReceiptHelper';
 import { db, auth, storage } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
@@ -108,6 +110,49 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const [editProfilePhoto, setEditProfilePhoto] = useState<string | null>(user?.photoURL || null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isTestPrinting, setIsTestPrinting] = useState(false);
+
+  const handleTestPrint = async () => {
+    if (isTestPrinting) return;
+    setIsTestPrinting(true);
+    try {
+      const dummyTrx = {
+        id: 'TEST-' + Math.random().toString(36).substring(3, 9).toUpperCase(),
+        cashierName: 'Kasir Uji Coba',
+        customerName: 'Pelanggan Uji Coba',
+        paymentMethod: 'cash',
+        paymentCategory: 'cash',
+        status: 'completed',
+        orderStatus: 'completed',
+        paymentStatus: 'paid',
+        createdAt: new Date().toISOString(),
+        items: [
+          {
+            id: 'dummy-1',
+            productName: 'Produk Contoh Font',
+            price: 25000,
+            cartQty: 1,
+            selectedExtras: [],
+            note: 'Uji Coba Font Kustom',
+            sku: 'SKU-TEST',
+            barcode: '123456',
+            category: 'test'
+          }
+        ],
+        subtotal: 25000,
+        tax: 0,
+        total: 25000,
+        paidAmount: 50000,
+        change: 25000,
+      } as any;
+      
+      await printReceipt(dummyTrx, storeSettings as any);
+    } catch (err: any) {
+      Alert.alert('Gagal Mencetak', err.message || String(err));
+    } finally {
+      setIsTestPrinting(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user || !user.uid) return;
@@ -1840,6 +1885,25 @@ export default function StoreSettingsScreen({ navigation }: any) {
                       <Text className="mt-3 text-center text-[8px] text-slate-500 font-bold italic">
                         *Tampilan di atas adalah simulasi struk belanja.
                       </Text>
+
+                      <TouchableOpacity
+                        onPress={handleTestPrint}
+                        disabled={isTestPrinting}
+                        activeOpacity={0.8}
+                        className="mt-4 py-3.5 rounded-2xl items-center justify-center flex-row gap-2 border"
+                        style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent }}
+                      >
+                        {isTestPrinting ? (
+                          <ActivityIndicator size="small" color={colors.accent} />
+                        ) : (
+                          <>
+                            <Printer size={16} color={colors.accent} />
+                            <Text className="text-xs font-black uppercase tracking-[1px]" style={{ color: colors.accent }}>
+                              UJI COBA CETAK FONT TERPILIH
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
                     </View>
 
                     {/* Toggles Grid */}
