@@ -127,7 +127,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&family=Caveat:wght@700&family=Alfa+Slab+One&family=Limelight&family=Prata&family=Montserrat:wght@900&family=Great+Vibes&display=swap" rel="stylesheet">
         <style>
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; }
           .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
@@ -143,6 +143,12 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
                 case 'mono': return "'Courier New', Courier, monospace";
                 case 'elegant': return "'Outfit', sans-serif";
                 case 'bold': return "'Oswald', sans-serif";
+                case 'railey': return "'Caveat', cursive";
+                case 'chunkfive': return "'Alfa Slab One', serif";
+                case 'cheque': return "'Limelight', display";
+                case 'calgary': return "'Prata', serif";
+                case 'lovelo': return "'Montserrat', sans-serif";
+                case 'abovethebeyond': return "'Great Vibes', cursive";
                 default: return "'Inter', sans-serif";
               }
             })()};
@@ -340,7 +346,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     <head>
       <meta charset="UTF-8">
       <title>${docType} - ${docId}${customerPart} - ${cleanStoreName.trim()}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&family=Caveat:wght@700&family=Alfa+Slab+One&family=Limelight&family=Prata&family=Montserrat:wght@900&family=Great+Vibes&display=swap" rel="stylesheet">
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
@@ -356,6 +362,12 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
               case 'mono': return "'Courier New', Courier, monospace";
               case 'elegant': return "'Outfit', sans-serif";
               case 'bold': return "'Oswald', sans-serif";
+              case 'railey': return "'Caveat', cursive";
+              case 'chunkfive': return "'Alfa Slab One', serif";
+              case 'cheque': return "'Limelight', display";
+              case 'calgary': return "'Prata', serif";
+              case 'lovelo': return "'Montserrat', sans-serif";
+              case 'abovethebeyond': return "'Great Vibes', cursive";
               default: return "'Inter', sans-serif";
             }
           })()};

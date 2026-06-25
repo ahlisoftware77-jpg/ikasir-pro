@@ -36,7 +36,13 @@ const FONT_OPTIONS = [
   { id: 'serif', name: 'Classic (Serif)', family: 'Georgia' },
   { id: 'mono', name: 'Retro (Mono)', family: 'Courier' },
   { id: 'elegant', name: 'Elegant (Outfit)', family: 'System' },
-  { id: 'bold', name: 'Impact (Oswald)', family: 'System' }
+  { id: 'bold', name: 'Impact (Oswald)', family: 'System' },
+  { id: 'railey', name: 'Railey (Script)', family: 'System' },
+  { id: 'chunkfive', name: 'Chunk Five', family: 'System' },
+  { id: 'cheque', name: 'Cheque (Display)', family: 'System' },
+  { id: 'calgary', name: 'Calgary', family: 'System' },
+  { id: 'lovelo', name: 'Lovelo (Inline)', family: 'System' },
+  { id: 'abovethebeyond', name: 'Above The Beyond', family: 'System' }
 ];
 
 const getFontFamily = (id: string) => {
@@ -66,6 +72,45 @@ const getFontStyle = (id: string) => {
         fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-condensed' }),
         fontWeight: '900' as const,
         letterSpacing: -0.2
+      };
+    case 'railey':
+      return {
+        fontFamily: Platform.select({ ios: 'Snell Roundhand', android: 'sans-serif-light' }),
+        fontStyle: 'italic' as const,
+        fontWeight: '300' as const,
+        letterSpacing: 0.5
+      };
+    case 'chunkfive':
+      return {
+        fontFamily: Platform.select({ ios: 'Georgia-Bold', android: 'serif' }),
+        fontWeight: '900' as const,
+        letterSpacing: -0.5
+      };
+    case 'cheque':
+      return {
+        fontFamily: Platform.select({ ios: 'HelveticaNeue-CondensedBold', android: 'sans-serif-condensed' }),
+        fontWeight: 'bold' as const,
+        textTransform: 'uppercase' as const,
+        letterSpacing: 2
+      };
+    case 'calgary':
+      return {
+        fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
+        fontStyle: 'italic' as const,
+        fontWeight: '600' as const
+      };
+    case 'lovelo':
+      return {
+        fontFamily: Platform.select({ ios: 'Arial-BoldMT', android: 'sans-serif-medium' }),
+        fontWeight: '900' as const,
+        textTransform: 'uppercase' as const,
+        letterSpacing: 1.5
+      };
+    case 'abovethebeyond':
+      return {
+        fontFamily: Platform.select({ ios: 'Zapfino', android: 'sans-serif-light' }),
+        fontStyle: 'italic' as const,
+        fontWeight: 'normal' as const
       };
     default: // sans
       return {

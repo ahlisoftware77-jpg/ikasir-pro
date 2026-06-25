@@ -425,7 +425,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
     <head>
       <meta charset="UTF-8">
       <title>Cetak Struk #${trx.id}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&family=Caveat:wght@700&family=Alfa+Slab+One&family=Limelight&family=Prata&family=Montserrat:wght@900&family=Great+Vibes&display=swap" rel="stylesheet">
       <style>
         @media print {
           @page { margin: 0; }
@@ -456,6 +456,12 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
               case 'mono': return "'Courier New', monospace";
               case 'elegant': return "'Outfit', sans-serif";
               case 'bold': return "'Oswald', sans-serif";
+              case 'railey': return "'Caveat', cursive";
+              case 'chunkfive': return "'Alfa Slab One', serif";
+              case 'cheque': return "'Limelight', display";
+              case 'calgary': return "'Prata', serif";
+              case 'lovelo': return "'Montserrat', sans-serif";
+              case 'abovethebeyond': return "'Great Vibes', cursive";
               default: return "'Inter', sans-serif";
             }
           })()};
