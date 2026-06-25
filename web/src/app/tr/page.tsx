@@ -29,6 +29,7 @@ import {
   MapPin, 
   MessageCircle, 
   ChevronRight, 
+  ChevronLeft,
   ClipboardList, 
   ArrowLeft, 
   History, 
@@ -177,7 +178,8 @@ function PublicOrderContent() {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewImageIndex, setPreviewImageIndex] = useState<number>(0);
   const [pwdOld, setPwdOld] = useState('');
   const [pwdNew, setPwdNew] = useState('');
   const [pwdConfirm, setPwdConfirm] = useState('');
@@ -188,7 +190,7 @@ function PublicOrderContent() {
 
   // Navigation Guard for Modals (Mobile Back Button support)
   useEffect(() => {
-    const isAnyModalOpen = isCheckoutOpen || !!activeExtrasProduct || !!previewImageUrl;
+    const isAnyModalOpen = isCheckoutOpen || !!activeExtrasProduct || previewImages.length > 0;
     
     if (!isAnyModalOpen) return;
 
@@ -200,7 +202,8 @@ function PublicOrderContent() {
       setIsCheckoutOpen(false);
       setActiveExtrasProduct(null);
       setIsConfirmingCheckout(false);
-      setPreviewImageUrl(null);
+      setPreviewImages([]);
+      setPreviewImageIndex(0);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -208,7 +211,7 @@ function PublicOrderContent() {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [isCheckoutOpen, activeExtrasProduct, previewImageUrl]);
+  }, [isCheckoutOpen, activeExtrasProduct, previewImages]);
 
   // Helper to close modal manually while syncing history
   const handleManualClose = () => {
@@ -219,7 +222,8 @@ function PublicOrderContent() {
       setActiveExtrasProduct(null);
       setIsConfirmingCheckout(false);
       setViewingReceipt(null);
-      setPreviewImageUrl(null);
+      setPreviewImages([]);
+      setPreviewImageIndex(0);
     }
   };
 
@@ -227,7 +231,8 @@ function PublicOrderContent() {
     if (typeof window !== 'undefined' && window.history.state?.modalOpen) {
       window.history.back();
     } else {
-      setPreviewImageUrl(null);
+      setPreviewImages([]);
+      setPreviewImageIndex(0);
     }
   };
 
@@ -873,8 +878,11 @@ function PublicOrderContent() {
                            : ''
                        }`}
                        onClick={() => {
-                         const img = p.imageUrl || p.imageUrls?.[0];
-                         if (img) setPreviewImageUrl(img);
+                          const imgs = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+                          if (imgs.length > 0) {
+                            setPreviewImages(imgs);
+                            setPreviewImageIndex(0);
+                          }
                        }}
                     >
                        {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
@@ -1938,25 +1946,76 @@ function PublicOrderContent() {
       )}
 
       {/* Product Image Preview Modal */}
-      {previewImageUrl && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200">
+      {previewImages.length > 0 && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in duration-200">
            <div 
              className="absolute inset-0 cursor-zoom-out"
              onClick={closePreview}
            />
-           <button 
-             onClick={closePreview}
-             className="absolute top-4 right-4 text-white hover:text-slate-300 p-2 bg-white/10 rounded-full transition-colors z-10"
-           >
-             <X size={24} />
-           </button>
-           <div className="relative max-w-full max-h-full flex items-center justify-center z-0">
-             <img 
-               src={previewImageUrl} 
-               alt="Product Preview" 
-               className="max-w-[95vw] max-h-[95vh] object-contain rounded-lg shadow-2xl" 
-             />
+           
+           {/* Top Info Bar */}
+           <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white z-10 pointer-events-none">
+             <span className="text-xs font-black uppercase tracking-widest bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md">
+               {previewImageIndex + 1} / {previewImages.length}
+             </span>
+             <button 
+               onClick={closePreview}
+               className="pointer-events-auto text-white hover:text-slate-300 p-2.5 bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-md transition-colors"
+             >
+               <X size={20} />
+             </button>
            </div>
+
+           {/* Carousel Container */}
+           <div className="relative w-full max-w-lg h-[75vh] flex items-center justify-center z-0 select-none">
+             
+             {/* Left Arrow */}
+             {previewImages.length > 1 && (
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   setPreviewImageIndex(prev => (prev === 0 ? previewImages.length - 1 : prev - 1));
+                 }}
+                 className="absolute left-2 md:-left-16 p-3 bg-black/40 hover:bg-black/60 text-white hover:text-tr rounded-full backdrop-blur-md transition-all active:scale-90 z-20 border border-white/5"
+               >
+                 <ChevronLeft size={24} className="stroke-[3]" />
+               </button>
+             )}
+
+             {/* Main Image */}
+             <div className="relative w-full h-full flex items-center justify-center">
+               <img 
+                 src={previewImages[previewImageIndex]} 
+                 alt="Product Preview" 
+                 className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-all duration-300" 
+               />
+             </div>
+
+             {/* Right Arrow */}
+             {previewImages.length > 1 && (
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   setPreviewImageIndex(prev => (prev === previewImages.length - 1 ? 0 : prev + 1));
+                 }}
+                 className="absolute right-2 md:-right-16 p-3 bg-black/40 hover:bg-black/60 text-white hover:text-tr rounded-full backdrop-blur-md transition-all active:scale-90 z-20 border border-white/5"
+               >
+                 <ChevronRight size={24} className="stroke-[3]" />
+               </button>
+             )}
+           </div>
+
+           {/* Bottom Indicators */}
+           {previewImages.length > 1 && (
+             <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
+               {previewImages.map((_, idx) => (
+                 <div 
+                   key={idx}
+                   className={`h-1.5 rounded-full transition-all duration-300 ${idx === previewImageIndex ? 'w-6 bg-tr' : 'w-1.5 bg-white/40'}`}
+                 />
+               ))}
+             </div>
+           )}
         </div>
       )}
     </div>
