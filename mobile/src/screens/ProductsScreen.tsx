@@ -947,10 +947,10 @@ export default function ProductsScreen({ navigation }: any) {
                     setSelectedIds(filteredProducts.map(p => p.id!));
                   }
                 }}
-                className="px-2.5 py-1.5 rounded-lg border bg-background"
-                style={{ borderColor: colors.border }}
+                className="px-2.5 py-1.5 rounded-lg border"
+                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
               >
-                <Text className="text-[10px] font-black text-foreground uppercase">
+                <Text className="text-[10px] font-black uppercase" style={{ color: colors.text }}>
                   {selectedIds.length === filteredProducts.length ? 'Batal Semua' : 'Pilih Semua'}
                 </Text>
               </TouchableOpacity>
