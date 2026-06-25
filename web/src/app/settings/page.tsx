@@ -373,7 +373,10 @@ export default function SettingsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      let finalSettings = { ...settings };
+      let finalSettings = { 
+        ...settings,
+        webBaseUrl: typeof window !== 'undefined' ? window.location.origin : ''
+      };
       
       // Upload Logo to Cloudinary if changed
       if (logoFile) {
@@ -1222,6 +1225,25 @@ export default function SettingsPage() {
                      <p className="mt-4 text-center text-[9px] text-slate-500 font-bold italic">
                         *Tampilan di atas adalah simulasi hasil cetak sesungguhnya.
                      </p>
+
+                     <div className="mt-4 pt-4 border-t border-slate-800 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTestPrint(false)}
+                          className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-[10px] uppercase rounded-xl tracking-wider transition-all flex items-center justify-center gap-1.5 border border-slate-700/50"
+                        >
+                          <Printer size={12} />
+                          Cetak Tanpa Logo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleTestPrint(true)}
+                          className="flex-1 py-3 bg-accent hover:bg-accent/90 text-white font-black text-[10px] uppercase rounded-xl tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-accent/20"
+                        >
+                          <Printer size={12} />
+                          Cetak Dengan Logo
+                        </button>
+                      </div>
                   </div>
                </div>
 

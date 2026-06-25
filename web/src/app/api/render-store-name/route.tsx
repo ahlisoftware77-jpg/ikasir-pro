@@ -15,40 +15,50 @@ export async function GET(req: NextRequest) {
     let fontData: ArrayBuffer | null = null;
     let hasCustomFont = false;
     
+    const origin = req.nextUrl.origin || 'https://kasirkuyk.web.app';
+
+    const loadFont = async (fontFilename: string, relativePath: string) => {
+      const urls = [
+        `${origin}/fonts/${fontFilename}`,
+        `https://ikasir.my.id/fonts/${fontFilename}`,
+        `https://ikasir-8d3amiifh-ahlisoftware77-s-projects.vercel.app/fonts/${fontFilename}`,
+        `https://kasirkuyk.web.app/fonts/${fontFilename}`,
+        new URL(relativePath, import.meta.url).toString()
+      ];
+      
+      let lastErr = null;
+      for (const url of urls) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            return await res.arrayBuffer();
+          }
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error(`Failed to load font ${fontFilename} from all sources`);
+    };
+    
     try {
       if (fontId === 'railey') {
         fontName = 'Railey';
         fontWeight = 400;
         hasCustomFont = true;
-        fontData = await fetch(
-          new URL('../../../../public/fonts/Railey-PersonalUse.ttf', import.meta.url)
-        ).then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.arrayBuffer();
-        });
+        fontData = await loadFont('Railey-PersonalUse.ttf', '../../../../public/fonts/Railey-PersonalUse.ttf');
       } else if (fontId === 'cheque') {
         fontName = 'Cheque';
         fontWeight = 400;
         hasCustomFont = true;
-        fontData = await fetch(
-          new URL('../../../../public/fonts/Cheque-Regular.ttf', import.meta.url)
-        ).then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.arrayBuffer();
-        });
+        fontData = await loadFont('Cheque-Regular.ttf', '../../../../public/fonts/Cheque-Regular.ttf');
       } else if (fontId === 'lovelo') {
         fontName = 'Lovelo';
         fontWeight = 700;
         hasCustomFont = true;
-        fontData = await fetch(
-          new URL('../../../../public/fonts/Lovelo-LineBold.ttf', import.meta.url)
-        ).then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.arrayBuffer();
-        });
+        fontData = await loadFont('Lovelo-LineBold.ttf', '../../../../public/fonts/Lovelo-LineBold.ttf');
       }
     } catch (e) {
-      console.error("Failed to load local font from import.meta.url:", e);
+      console.error("Failed to load custom font:", e);
     }
 
     const fonts = fontData ? [

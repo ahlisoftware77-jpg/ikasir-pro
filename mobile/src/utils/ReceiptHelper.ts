@@ -87,6 +87,7 @@ const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean
 };
 
 export const generateReceiptHtml = (transaction: any, storeSettings?: any, branding?: any, isExpired = true) => {
+  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
   let date: Date;
   if (transaction.timestamp?.seconds) {
     date = new Date(transaction.timestamp.seconds * 1000);
@@ -131,31 +132,31 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
         <style>
           @font-face {
             font-family: 'Railey';
-            src: url('https://kasirkuyk.web.app/fonts/Railey-PersonalUse.ttf') format('truetype');
+            src: url('${baseUrl}/fonts/Railey-PersonalUse.ttf') format('truetype');
             font-weight: normal;
             font-style: normal;
           }
           @font-face {
             font-family: 'Lovelo';
-            src: url('https://kasirkuyk.web.app/fonts/Lovelo-LineBold.ttf') format('truetype');
+            src: url('${baseUrl}/fonts/Lovelo-LineBold.ttf') format('truetype');
             font-weight: 700;
             font-style: normal;
           }
           @font-face {
             font-family: 'Lovelo';
-            src: url('https://kasirkuyk.web.app/fonts/Lovelo-Black.ttf') format('truetype');
+            src: url('${baseUrl}/fonts/Lovelo-Black.ttf') format('truetype');
             font-weight: 900;
             font-style: normal;
           }
           @font-face {
             font-family: 'Cheque';
-            src: url('https://kasirkuyk.web.app/fonts/Cheque-Regular.ttf') format('truetype');
+            src: url('${baseUrl}/fonts/Cheque-Regular.ttf') format('truetype');
             font-weight: normal;
             font-style: normal;
           }
           @font-face {
             font-family: 'Cheque';
-            src: url('https://kasirkuyk.web.app/fonts/Cheque-Black.ttf') format('truetype');
+            src: url('${baseUrl}/fonts/Cheque-Black.ttf') format('truetype');
             font-weight: 900;
             font-style: normal;
           }
@@ -239,6 +240,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
 };
 
 export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
+  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
   const terbilang = (nilai: number): string => {
     const bilangan = [
       '', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 
@@ -392,31 +394,31 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
       <style>
         @font-face {
           font-family: 'Railey';
-          src: url('https://kasirkuyk.web.app/fonts/Railey-PersonalUse.ttf') format('truetype');
+          src: url('${baseUrl}/fonts/Railey-PersonalUse.ttf') format('truetype');
           font-weight: normal;
           font-style: normal;
         }
         @font-face {
           font-family: 'Lovelo';
-          src: url('https://kasirkuyk.web.app/fonts/Lovelo-LineBold.ttf') format('truetype');
+          src: url('${baseUrl}/fonts/Lovelo-LineBold.ttf') format('truetype');
           font-weight: 700;
           font-style: normal;
         }
         @font-face {
           font-family: 'Lovelo';
-          src: url('https://kasirkuyk.web.app/fonts/Lovelo-Black.ttf') format('truetype');
+          src: url('${baseUrl}/fonts/Lovelo-Black.ttf') format('truetype');
           font-weight: 900;
           font-style: normal;
         }
         @font-face {
           font-family: 'Cheque';
-          src: url('https://kasirkuyk.web.app/fonts/Cheque-Regular.ttf') format('truetype');
+          src: url('${baseUrl}/fonts/Cheque-Regular.ttf') format('truetype');
           font-weight: normal;
           font-style: normal;
         }
         @font-face {
           font-family: 'Cheque';
-          src: url('https://kasirkuyk.web.app/fonts/Cheque-Black.ttf') format('truetype');
+          src: url('${baseUrl}/fonts/Cheque-Black.ttf') format('truetype');
           font-weight: 900;
           font-style: normal;
         }
@@ -760,7 +762,8 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     try {
       const uniqueId = Math.random().toString(36).substring(7);
       const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
-      const renderUrl = `https://kasirkuyk.web.app/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+      const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+      const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
       const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
       const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       
