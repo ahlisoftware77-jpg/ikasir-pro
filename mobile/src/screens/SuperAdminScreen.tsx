@@ -183,7 +183,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [16, 9],
       quality: 0.8,
     });
 
@@ -202,7 +201,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [16, 9],
       quality: 0.8,
     });
 
@@ -1109,7 +1107,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
         quality: 0.5,
         base64: true,
       });

@@ -1378,7 +1378,7 @@ export default function POSScreen({ route, navigation }: any) {
   const pickManualItemImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: false,
+      allowsEditing: true,
       quality: 0.8,
     });
 
@@ -1395,7 +1395,7 @@ export default function POSScreen({ route, navigation }: any) {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
+      allowsEditing: true,
       quality: 0.8,
     });
 

@@ -156,7 +156,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsEditing: false,
+      allowsEditing: true,
       quality: 0.8,
     });
 
@@ -173,7 +173,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
+      allowsEditing: true,
       quality: 0.8,
     });
 

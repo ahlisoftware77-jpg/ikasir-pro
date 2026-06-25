@@ -81,7 +81,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
         quality: 0.5,
       });
 
@@ -946,7 +945,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
         quality: 0.8,
       });
 
@@ -993,7 +991,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
         quality: 0.8,
       });
 
@@ -1040,7 +1037,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        aspect: [1, 1],
         quality: 0.8,
       });
 
