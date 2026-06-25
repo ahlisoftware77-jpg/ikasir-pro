@@ -4,7 +4,7 @@ import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, lim
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard } from 'lucide-react-native';
+import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard, Globe, Printer } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
@@ -528,12 +528,15 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* SECTION: PRICING CARD - GREEN BACKGROUND */}
+        {/* SECTION: PRICING CARD - PREMIUM DESIGN */}
         <View 
           className="p-6 rounded-[32px] border mb-6 relative overflow-hidden"
-          style={{ backgroundColor: '#047857', borderColor: '#059669' }}
+          style={{ backgroundColor: '#0f172a', borderColor: '#10b981' }}
         >
-          <View className="flex-row items-center gap-1.5 bg-white/10 border border-white/20 px-3 py-1 rounded-full w-fit mb-4">
+          {/* Subtle inside glow */}
+          <View className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full filter blur-xl pointer-events-none" style={{ position: 'absolute' }} />
+
+          <View className="flex-row items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1 rounded-full w-fit mb-4">
             <Sparkles size={12} color="#fef08a" />
             <Text className="text-[8px] font-black uppercase tracking-wider text-yellow-300">
               Promo Spesial Langganan
@@ -543,12 +546,43 @@ export default function DashboardScreen({ navigation }: any) {
           <Text className="text-lg font-black text-white leading-tight">
             Mulai Berlangganan iKasir Pro
           </Text>
-          <Text className="text-white/80 text-[10px] font-medium mt-1 leading-relaxed">
-            Buka fitur premium: Cetak Struk A4 & Kasir, multi-rekening bank toko, multi-kasir, kelola stok gudang, dan laporan keuangan lengkap.
+          <Text className="text-white/70 text-[10px] font-medium mt-1 leading-relaxed">
+            Buka fitur premium untuk mengoptimalkan operasional bisnis Anda.
           </Text>
 
+          {/* Premium Feature Items with Icons */}
+          <View className="my-4 gap-3">
+            <View className="flex-row items-center gap-2.5">
+              <View className="w-7 h-7 rounded-lg bg-emerald-500/20 items-center justify-center border border-emerald-500/30">
+                <TrendingUp size={12} color="#10b981" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[10px] font-black uppercase tracking-wide text-white">Analisis Bisnis Lengkap</Text>
+                <Text className="text-[8px] text-white/50">Laporan Omzet, Terlaris, & Arus Kas Realtime</Text>
+              </View>
+            </View>
+            <View className="flex-row items-center gap-2.5">
+              <View className="w-7 h-7 rounded-lg bg-emerald-500/20 items-center justify-center border border-emerald-500/30">
+                <Globe size={12} color="#10b981" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[10px] font-black uppercase tracking-wide text-white">Toko Online Mandiri</Text>
+                <Text className="text-[8px] text-white/50">Link pemesanan mandiri & menu online pelanggan</Text>
+              </View>
+            </View>
+            <View className="flex-row items-center gap-2.5">
+              <View className="w-7 h-7 rounded-lg bg-emerald-500/20 items-center justify-center border border-emerald-500/30">
+                <Printer size={12} color="#10b981" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[10px] font-black uppercase tracking-wide text-white">Cetak Struk Kustom & Multi-user</Text>
+                <Text className="text-[8px] text-white/50">Dukungan printer Bluetooth, PDF A4 & TTD digital</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Pricing Grid */}
-          <View className="flex-row flex-wrap gap-2.5 my-5 justify-between">
+          <View className="flex-row flex-wrap gap-2.5 my-3 justify-between">
             {SUBSCRIPTION_PACKAGES.map((pkg) => {
               const is12m = pkg.id === '12m';
               const hasDiscount = pkg.id !== '1m';
@@ -593,11 +627,11 @@ export default function DashboardScreen({ navigation }: any) {
               navigation.navigate('Lainnya', { openSubscription: true });
             }}
             activeOpacity={0.9}
-            className="w-full py-3.5 bg-white rounded-2xl items-center justify-center flex-row gap-2"
+            className="w-full py-3.5 bg-emerald-500 rounded-2xl items-center justify-center flex-row gap-2 border border-emerald-400/25"
           >
-            <CreditCard size={14} color="#047857" strokeWidth={2.5} />
-            <Text className="text-[#047857] text-xs font-black uppercase tracking-wider">
-              Aktifkan Langganan Sekarang
+            <CreditCard size={14} color="#ffffff" strokeWidth={2.5} />
+            <Text className="text-white text-xs font-black uppercase tracking-wider">
+              Pilih Paket Premium
             </Text>
           </TouchableOpacity>
         </View>
