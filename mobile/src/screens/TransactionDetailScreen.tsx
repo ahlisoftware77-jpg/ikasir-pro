@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck } from 'lucide-react-native';
+import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck, FileText, PenTool, ShoppingBag, CreditCard, Clock, CheckCircle2 } from 'lucide-react-native';
 import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -581,37 +581,39 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
     let text = trx.paymentMethod || trx.paymentCategory || '';
     let bgColor = 'bg-slate-500/10';
     let textColor = 'text-slate-500';
+    let dotColor = 'bg-slate-500';
 
     if (trx.paymentStatus === 'paid') {
       text = 'Lunas';
       bgColor = 'bg-emerald-500/10';
       textColor = 'text-emerald-500';
+      dotColor = 'bg-emerald-500';
     } else if (trx.paymentStatus === 'partially_paid') {
       text = 'Dicicil';
       bgColor = 'bg-amber-500/10';
       textColor = 'text-amber-500';
+      dotColor = 'bg-amber-500';
     } else if (trx.paymentStatus === 'unpaid') {
       text = 'Belum Dibayar';
       bgColor = 'bg-rose-500/10';
       textColor = 'text-rose-500';
+      dotColor = 'bg-rose-500';
     }
 
-    if (trx.orderType === 'online') {
-      return (
-        <View className="flex-row items-center gap-1">
-          <View className={`px-2.5 py-0.5 rounded-full border border-emerald-500/20 bg-emerald-500/10`}>
-            <Text className="text-[8px] font-black uppercase text-emerald-500">Online Order</Text>
-          </View>
-          <View className={`px-2.5 py-0.5 rounded-full border border-slate-500/20 ${bgColor}`}>
-            <Text className={`text-[8px] font-black uppercase ${textColor}`}>{text}</Text>
-          </View>
-        </View>
-      );
-    }
+    const isOnline = trx.orderType === 'online';
 
     return (
-      <View className={`px-2.5 py-0.5 rounded-full border border-slate-500/20 ${bgColor}`}>
-        <Text className={`text-[8px] font-black uppercase ${textColor}`}>{text}</Text>
+      <View className="flex-row items-center gap-1.5">
+        {isOnline && (
+          <View className="flex-row items-center px-2.5 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/10">
+            <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
+            <Text className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Online Order</Text>
+          </View>
+        )}
+        <View className={`flex-row items-center px-2.5 py-1 rounded-full border border-slate-500/20 ${bgColor}`}>
+          <View className={`w-1.5 h-1.5 rounded-full ${dotColor} mr-1.5`} />
+          <Text className={`text-[9px] font-black uppercase tracking-wider ${textColor}`}>{text}</Text>
+        </View>
       </View>
     );
   };
@@ -627,7 +629,10 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                   <ChevronLeft color={colors.text} size={20} />
                 </TouchableOpacity>
                 <View>
-                  <Text className="text-xl font-black" style={{ color: colors.text }}>Trx #{selectedTrx?.id?.substring(0, 8)}</Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-lg font-black" style={{ color: colors.text }}>Trx #{selectedTrx?.id?.substring(0, 8)}</Text>
+                    {renderStatusBadge(selectedTrx)}
+                  </View>
                   <Text className="text-[10px] font-bold mt-1" style={{ color: colors.textMuted }}>{formatDate(selectedTrx?.timestamp)}</Text>
                 </View>
               </View>
@@ -646,13 +651,23 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                   
                   {/* Compact Info Grid */}
                   <View className="flex-row gap-3 mb-5">
-                    <View className="flex-1 p-4 rounded-[28px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.text, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.03, shadowRadius: 12, elevation: 2 }}>
-                      <Text className="text-[8px] font-black text-app-text-muted uppercase tracking-widest mb-1">Pelanggan</Text>
-                      <Text className="font-black text-[12px]" style={{ color: colors.text }} numberOfLines={1}>{selectedTrx.customerName || 'Umum'}</Text>
+                    <View className="flex-1 p-4 rounded-[24px] border flex-row items-center gap-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <View className="p-2.5 rounded-full bg-blue-500/10">
+                        <User size={15} color="#3b82f6" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pelanggan</Text>
+                        <Text className="font-black text-[12px] mt-0.5" style={{ color: colors.text }} numberOfLines={1}>{selectedTrx.customerName || 'Umum'}</Text>
+                      </View>
                     </View>
-                    <View className="flex-1 p-4 rounded-[28px] border" style={{ backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.text, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.03, shadowRadius: 12, elevation: 2 }}>
-                      <Text className="text-[8px] font-black text-app-text-muted uppercase tracking-widest mb-1">Kasir</Text>
-                      <Text className="font-black text-[12px]" style={{ color: colors.text }} numberOfLines={1}>{(selectedTrx.cashierName || 'Sistem').split('@')[0]}</Text>
+                    <View className="flex-1 p-4 rounded-[24px] border flex-row items-center gap-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <View className="p-2.5 rounded-full bg-purple-500/10">
+                        <UserCircle size={15} color="#a855f7" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Kasir</Text>
+                        <Text className="font-black text-[12px] mt-0.5" style={{ color: colors.text }} numberOfLines={1}>{(selectedTrx.cashierName || 'Sistem').split('@')[0]}</Text>
+                      </View>
                     </View>
                   </View>
 
@@ -668,27 +683,65 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     </View>
                   ) : null}
 
-                  {/* Items List - Minimalist */}
-                  <View className="p-5 rounded-[28px] border mb-5" style={{ backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.text, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.03, shadowRadius: 12, elevation: 2 }}>
-                    <Text className="text-[9px] font-black uppercase tracking-[2px] mb-3" style={{ color: colors.textMuted }}>Items ({selectedTrx.items?.length || 0})</Text>
+                  {/* Items List - Premium Receipt Style */}
+                  <View 
+                    className="p-5 rounded-[28px] border mb-5" 
+                    style={{ 
+                      backgroundColor: colors.surface, 
+                      borderColor: colors.border, 
+                      shadowColor: colors.text, 
+                      shadowOffset: { width: 0, height: 6 }, 
+                      shadowOpacity: 0.04, 
+                      shadowRadius: 16, 
+                      elevation: 3 
+                    }}
+                  >
+                    <View className="flex-row items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: colors.border + '40' }}>
+                      <View className="flex-row items-center gap-2">
+                        <ShoppingBag size={14} color={colors.text} />
+                        <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: colors.text }}>Daftar Produk</Text>
+                      </View>
+                      <View className="px-2.5 py-0.5 rounded-full bg-slate-500/15">
+                        <Text className="text-[9px] font-black" style={{ color: colors.textMuted }}>{selectedTrx.items?.length || 0} Item</Text>
+                      </View>
+                    </View>
+
                     {selectedTrx.items?.map((item, idx) => (
-                      <View key={idx} className={`py-2 ${idx !== selectedTrx.items.length - 1 ? 'border-b' : ''}`} style={{ borderColor: colors.border + '50' }}>
+                      <View key={idx} className={`py-3.5 ${idx !== selectedTrx.items.length - 1 ? 'border-b' : ''}`} style={{ borderColor: colors.border + '30' }}>
                         <View className="flex-row justify-between items-start">
-                          <View className="flex-1 pr-3">
-                            <Text className="font-bold text-[11px]" style={{ color: colors.text }}>{item.qty}x {item.productName}</Text>
-                            {item.note && <Text className="text-[9px] italic mt-0.5" style={{ color: '#f59e0b' }}>Catatan: {item.note}</Text>}
-                            {item.selectedExtras?.map((ext: any, eIdx: number) => (
-                              <Text key={eIdx} className="text-[8px] text-slate-400 mt-0.5">+ {ext.optionName}</Text>
-                            ))}
+                          <View className="flex-1 pr-3 flex-row items-start">
+                            <View className="bg-slate-500/10 px-2 py-0.5 rounded-lg mr-2 mt-0.5 border border-slate-500/10">
+                              <Text className="text-[10px] font-black" style={{ color: colors.text }}>{item.qty}x</Text>
+                            </View>
+                            <View className="flex-1">
+                              <Text className="font-extrabold text-[12px] leading-4" style={{ color: colors.text }}>{item.productName}</Text>
+                              {item.note && (
+                                <View className="flex-row items-center gap-1 mt-1 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 self-start">
+                                  <Text className="text-[9px] font-medium text-amber-500 italic">Catatan: {item.note}</Text>
+                                </View>
+                              )}
+                              {item.selectedExtras?.map((ext: any, eIdx: number) => (
+                                <Text key={eIdx} className="text-[9px] text-slate-400 mt-1 pl-1">+ {ext.optionName} (Rp {ext.price?.toLocaleString('id-ID')})</Text>
+                              ))}
+                            </View>
                           </View>
-                          <View className="items-end">
-                            <Text className="font-black text-[11px]" style={{ color: colors.text }}>
+                          <View className="items-end justify-between">
+                            <Text className="font-black text-[12px]" style={{ color: colors.text }}>
                               Rp {(item.subtotal || (item.price * item.qty)).toLocaleString('id-ID')}
                             </Text>
                             {item.warrantyExpiry && (
-                              <TouchableOpacity onPress={() => handleClaimWarranty(item)} className="mt-1 flex-row items-center gap-1 bg-slate-800/10 px-1.5 py-0.5 rounded">
-                                <ShieldCheck size={10} color={new Date(item.warrantyExpiry) > new Date() ? "#10b981" : "#f43f5e"} />
-                                <Text className={`text-[8px] font-black uppercase ${new Date(item.warrantyExpiry) > new Date() ? "text-emerald-500" : "text-rose-500"}`}>Garansi</Text>
+                              <TouchableOpacity 
+                                onPress={() => handleClaimWarranty(item)} 
+                                className="mt-2 flex-row items-center gap-1.5 px-2 py-1 rounded-full border"
+                                style={{
+                                  backgroundColor: new Date(item.warrantyExpiry) > new Date() ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
+                                  borderColor: new Date(item.warrantyExpiry) > new Date() ? 'rgba(16,185,129,0.2)' : 'rgba(244,63,94,0.2)'
+                                }}
+                              >
+                                <ShieldCheck size={11} color={new Date(item.warrantyExpiry) > new Date() ? "#10b981" : "#f43f5e"} />
+                                <Text className={`text-[9px] font-black uppercase tracking-wider ${new Date(item.warrantyExpiry) > new Date() ? "text-emerald-500" : "text-rose-500"}`}>
+                                  {new Date(item.warrantyExpiry) > new Date() ? "Garansi Aktif" : "Garansi Habis"}
+                                </Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -697,29 +750,53 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     ))}
                   </View>
 
-                  {/* Histori Pembayaran Compact */}
+                  {/* Histori Pembayaran Premium */}
                   {selectedTrx.paymentHistory && selectedTrx.paymentHistory.length > 0 ? (
-                    <View className="p-5 rounded-[28px] border mb-5" style={{ backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.text, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.03, shadowRadius: 12, elevation: 2 }}>
-                      <Text className="text-[9px] font-black uppercase tracking-[2px] mb-3" style={{ color: colors.textMuted }}>Histori Pembayaran</Text>
-                      {selectedTrx.paymentHistory.map((hist, idx) => (
-                        <View key={idx} className="flex-row justify-between py-1.5 border-b" style={{ borderColor: colors.border + '40' }}>
-                          <View>
-                            <Text className="text-[10px] font-bold" style={{ color: colors.text }}>{hist.note}</Text>
-                            <Text className="text-[8px]" style={{ color: colors.textMuted }}>{new Date(hist.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'short'})}</Text>
-                          </View>
-                          <Text className="text-[10px] font-black text-emerald-500">+Rp {hist.amount.toLocaleString('id-ID')}</Text>
-                        </View>
-                      ))}
-                      <View className="pt-2 flex-row justify-between mt-1">
-                        <Text className="text-[9px] font-bold text-slate-400 uppercase">Telah Dibayar</Text>
-                        <Text className="text-[10px] font-black text-emerald-500">Rp {(selectedTrx.paidAmount || 0).toLocaleString('id-ID')}</Text>
+                    <View 
+                      className="p-5 rounded-[28px] border mb-5" 
+                      style={{ 
+                        backgroundColor: colors.surface, 
+                        borderColor: colors.border, 
+                        shadowColor: colors.text, 
+                        shadowOffset: { width: 0, height: 6 }, 
+                        shadowOpacity: 0.04, 
+                        shadowRadius: 16, 
+                        elevation: 3 
+                      }}
+                    >
+                      <View className="flex-row items-center gap-2 mb-4 pb-3 border-b" style={{ borderColor: colors.border + '40' }}>
+                        <History size={14} color={colors.text} />
+                        <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: colors.text }}>Histori Pembayaran</Text>
                       </View>
-                      {selectedTrx.paymentStatus !== 'paid' && (
-                        <View className="flex-row justify-between mt-1">
-                          <Text className="text-[9px] font-bold text-slate-400 uppercase">Sisa Piutang</Text>
-                          <Text className="text-[10px] font-black text-rose-500">Rp {Math.max(0, selectedTrx.total - (selectedTrx.paidAmount || 0)).toLocaleString('id-ID')}</Text>
+                      
+                      <View className="pl-2 border-l border-slate-500/20 ml-2 space-y-4 my-2" style={{ borderLeftWidth: 2 }}>
+                        {selectedTrx.paymentHistory.map((hist, idx) => (
+                          <View key={idx} className="relative pl-5">
+                            {/* Marker Dot */}
+                            <View className="absolute -left-[14px] top-1.5 w-3 h-3 rounded-full bg-emerald-500 border-2" style={{ borderColor: colors.surface }} />
+                            <View className="flex-row justify-between items-start">
+                              <View>
+                                <Text className="text-[11px] font-extrabold" style={{ color: colors.text }}>{hist.note || 'Pembayaran Tanpa Catatan'}</Text>
+                                <Text className="text-[9px] mt-0.5" style={{ color: colors.textMuted }}>{new Date(hist.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+                              </View>
+                              <Text className="text-[11px] font-black text-emerald-500">+Rp {hist.amount.toLocaleString('id-ID')}</Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                      
+                      <View className="mt-4 pt-4 border-t border-dashed" style={{ borderColor: colors.border }}>
+                        <View className="flex-row justify-between items-center mb-1.5">
+                          <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Telah Dibayar</Text>
+                          <Text className="text-[11px] font-black text-emerald-500">Rp {(selectedTrx.paidAmount || 0).toLocaleString('id-ID')}</Text>
                         </View>
-                      )}
+                        {selectedTrx.paymentStatus !== 'paid' && (
+                          <View className="flex-row justify-between items-center">
+                            <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Sisa Piutang</Text>
+                            <Text className="text-[11px] font-black text-rose-500">Rp {Math.max(0, selectedTrx.total - (selectedTrx.paidAmount || 0)).toLocaleString('id-ID')}</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   ) : null}
 
@@ -741,27 +818,64 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     </View>
                   ) : null}
 
-                  {/* Total Calculation */}
-                  <View className="p-5 rounded-[28px] border mb-6" style={{ backgroundColor: colors.text, borderColor: colors.border, shadowColor: colors.text, shadowOffset: {width: 0, height: 8}, shadowOpacity: 0.1, shadowRadius: 24, elevation: 5 }}>
-                    <View className="flex-row justify-between text-[10px] font-bold mb-1.5">
-                      <Text className="uppercase tracking-widest" style={{ color: colors.bg, opacity: 0.6 }}>Subtotal</Text>
-                      <Text style={{ color: colors.bg, opacity: 0.9 }}>Rp {((selectedTrx.total || 0) - (selectedTrx.tax || 0)).toLocaleString('id-ID')}</Text>
+                  {/* Total Calculation Card */}
+                  <View 
+                    className="p-6 rounded-[30px] border mb-6 overflow-hidden" 
+                    style={{ 
+                      backgroundColor: colors.text, 
+                      borderColor: colors.border, 
+                      shadowColor: colors.text, 
+                      shadowOffset: { width: 0, height: 10 }, 
+                      shadowOpacity: 0.12, 
+                      shadowRadius: 28, 
+                      elevation: 6 
+                    }}
+                  >
+                    {/* Decorative Corner Glow */}
+                    <View className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-400/10 -mr-6 -mt-6" />
+
+                    <View className="flex-row justify-between items-center mb-2.5">
+                      <Text className="text-[9px] font-black uppercase tracking-widest" style={{ color: colors.bg, opacity: 0.6 }}>Subtotal</Text>
+                      <Text className="text-[11px] font-extrabold" style={{ color: colors.bg }}>Rp {((selectedTrx.total || 0) - (selectedTrx.tax || 0)).toLocaleString('id-ID')}</Text>
                     </View>
+
                     {selectedTrx.tax ? (
-                      <View className="flex-row justify-between text-[10px] font-bold mb-2">
-                        <Text className="uppercase tracking-widest" style={{ color: colors.bg, opacity: 0.6 }}>Pajak (PPN)</Text>
-                        <Text style={{ color: colors.bg, opacity: 0.9 }}>Rp {selectedTrx.tax.toLocaleString('id-ID')}</Text>
+                      <View className="flex-row justify-between items-center mb-3">
+                        <Text className="text-[9px] font-black uppercase tracking-widest" style={{ color: colors.bg, opacity: 0.6 }}>Pajak (PPN)</Text>
+                        <Text className="text-[11px] font-extrabold" style={{ color: colors.bg }}>Rp {selectedTrx.tax.toLocaleString('id-ID')}</Text>
                       </View>
                     ) : null}
-                    <View className="flex-row justify-between items-center border-t pt-4 mt-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                      <Text className="text-xs font-black uppercase tracking-[2px]" style={{ color: colors.bg }}>Total Akhir</Text>
+
+                    {/* Dashed Separator */}
+                    <View className="border-t border-dashed my-3" style={{ borderColor: colors.bg + '25' }} />
+
+                    <View className="flex-row justify-between items-center py-1">
+                      <View>
+                        <Text className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: colors.bg }}>Total Akhir</Text>
+                        <View className="flex-row items-center gap-1.5 mt-1.5 bg-white/10 px-2 py-0.5 rounded-full self-start">
+                          <CreditCard size={10} color={colors.bg} />
+                          <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.bg }}>
+                            {selectedTrx.paymentMethod || 'Metode Unik'}
+                          </Text>
+                        </View>
+                      </View>
                       <Text className="text-2xl font-black text-emerald-400">Rp {selectedTrx.total?.toLocaleString('id-ID')}</Text>
                     </View>
+
                     {selectedTrx.paymentMethod?.toLowerCase() === 'cash' && selectedTrx.cashReceived !== undefined && (
-                      <View className="flex-row justify-between items-center mt-3 pt-3 border-t text-[10px] font-bold" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                        <Text style={{ color: colors.bg, opacity: 0.7 }}>Tunai: Rp {selectedTrx.cashReceived.toLocaleString('id-ID')}</Text>
-                        <Text className="text-emerald-400">Kembali: Rp {selectedTrx.change?.toLocaleString('id-ID')}</Text>
-                      </View>
+                      <>
+                        <View className="border-t border-dashed my-3" style={{ borderColor: colors.bg + '25' }} />
+                        <View className="flex-row justify-between items-center">
+                          <View className="flex-row items-center gap-1">
+                            <Text className="text-[9px] font-bold uppercase tracking-wider" style={{ color: colors.bg, opacity: 0.7 }}>Tunai Diterima:</Text>
+                            <Text className="text-[10px] font-black" style={{ color: colors.bg }}>Rp {selectedTrx.cashReceived.toLocaleString('id-ID')}</Text>
+                          </View>
+                          <View className="flex-row items-center gap-1 bg-emerald-500/20 px-2.5 py-1 rounded-xl">
+                            <Text className="text-[9px] font-black text-emerald-400 uppercase tracking-wider">Kembali:</Text>
+                            <Text className="text-[10px] font-black text-emerald-400">Rp {selectedTrx.change?.toLocaleString('id-ID')}</Text>
+                          </View>
+                        </View>
+                      </>
                     )}
                   </View>
 
@@ -769,7 +883,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
 
                 {/* Quick Actions Footer - Sticky at bottom */}
                 <View className="p-5 border-t" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                  <View className="flex-row gap-2 mb-3">
+                  <View className="flex-row gap-3 mb-4">
                     <TouchableOpacity 
                       onPress={async () => {
                         if (activePrintJob) return;
@@ -790,16 +904,20 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                         }
                       }}
                       disabled={activePrintJob !== null}
-                      activeOpacity={0.7}
-                      className="flex-1 items-center justify-center py-2.5 rounded-xl border"
-                      style={{ backgroundColor: colors.bg, borderColor: colors.border, opacity: activePrintJob !== null ? 0.5 : 1 }}
+                      activeOpacity={0.8}
+                      className="flex-1 items-center justify-center py-3.5 rounded-2xl border"
+                      style={{ 
+                        backgroundColor: 'rgba(16,185,129,0.05)', 
+                        borderColor: 'rgba(16,185,129,0.2)', 
+                        opacity: activePrintJob !== null ? 0.6 : 1 
+                      }}
                     >
                       {activePrintJob === 'a4' ? (
                         <ActivityIndicator size="small" color="#10b981" style={{ height: 16 }} />
                       ) : (
-                        <Printer size={16} color="#10b981" />
+                        <FileText size={18} color="#10b981" />
                       )}
-                      <Text className="text-[8px] font-black uppercase mt-1.5" style={{ color: colors.text }}>INVOICE</Text>
+                      <Text className="text-[9px] font-black uppercase mt-1.5 text-emerald-600">Cetak A4</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
@@ -822,36 +940,47 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                         }
                       }}
                       disabled={activePrintJob !== null}
-                      activeOpacity={0.7}
-                      className="flex-1 items-center justify-center py-2.5 rounded-xl border"
-                      style={{ backgroundColor: colors.bg, borderColor: colors.border, opacity: activePrintJob !== null ? 0.5 : 1 }}
+                      activeOpacity={0.8}
+                      className="flex-1 items-center justify-center py-3.5 rounded-2xl border"
+                      style={{ 
+                        backgroundColor: 'rgba(59,130,246,0.05)', 
+                        borderColor: 'rgba(59,130,246,0.2)', 
+                        opacity: activePrintJob !== null ? 0.6 : 1 
+                      }}
                     >
                       {activePrintJob === 'delivery' ? (
                         <ActivityIndicator size="small" color="#3b82f6" style={{ height: 16 }} />
                       ) : (
-                        <Truck size={16} color="#3b82f6" />
+                        <Truck size={18} color="#3b82f6" />
                       )}
-                      <Text className="text-[8px] font-black uppercase mt-1.5" style={{ color: colors.text }}>SURAT JLN</Text>
+                      <Text className="text-[9px] font-black uppercase mt-1.5 text-blue-600">Surat Jalan</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
                       onPress={() => handleShareSignatureLink('trx', selectedTrx.id!)}
-                      activeOpacity={0.7}
-                      className="flex-1 items-center justify-center py-2.5 rounded-xl border"
-                      style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                      activeOpacity={0.8}
+                      className="flex-1 items-center justify-center py-3.5 rounded-2xl border"
+                      style={{ 
+                        backgroundColor: 'rgba(245,158,11,0.05)', 
+                        borderColor: 'rgba(245,158,11,0.2)' 
+                      }}
                     >
-                      <Share2 size={16} color="#f59e0b" />
-                      <Text className="text-[8px] font-black uppercase mt-1.5" style={{ color: colors.text }}>TTD</Text>
+                      <PenTool size={18} color="#f59e0b" />
+                      <Text className="text-[9px] font-black uppercase mt-1.5 text-amber-600">TTD Link</Text>
                     </TouchableOpacity>
                     
                     {selectedTrx.paymentStatus !== 'paid' && (
                       <TouchableOpacity 
                         onPress={() => handleSendWA(selectedTrx)}
-                        activeOpacity={0.7}
-                        className="flex-1 items-center justify-center py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10"
+                        activeOpacity={0.8}
+                        className="flex-1 items-center justify-center py-3.5 rounded-2xl border"
+                        style={{ 
+                          backgroundColor: 'rgba(16,185,129,0.05)', 
+                          borderColor: 'rgba(16,185,129,0.2)' 
+                        }}
                       >
-                        <MessageCircle size={16} color="#10b981" />
-                        <Text className="text-[8px] font-black text-emerald-500 uppercase mt-1.5">TAGIH</Text>
+                        <MessageCircle size={18} color="#10b981" />
+                        <Text className="text-[9px] font-black uppercase mt-1.5 text-emerald-600">Tagih WA</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -859,11 +988,20 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                   <TouchableOpacity 
                     onPress={() => setViewingReceipt(selectedTrx)}
                     activeOpacity={0.9}
-                    className="w-full py-4 rounded-2xl items-center justify-center flex-row gap-2"
-                    style={{ backgroundColor: colors.accent }}
+                    className="w-full py-4.5 rounded-[24px] items-center justify-center flex-row gap-2.5"
+                    style={{ 
+                      backgroundColor: colors.accent,
+                      shadowColor: colors.accent,
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 16,
+                      elevation: 5
+                    }}
                   >
-                    <Printer size={16} color="#0f172a" />
-                    <Text className="text-[11px] font-black uppercase tracking-widest text-slate-900">
+                    <View className="p-1 rounded-lg bg-white/20">
+                      <Printer size={16} color="#ffffff" />
+                    </View>
+                    <Text className="text-[13px] font-black uppercase tracking-[1.5px] text-white">
                       Cetak Struk Thermal
                     </Text>
                   </TouchableOpacity>
