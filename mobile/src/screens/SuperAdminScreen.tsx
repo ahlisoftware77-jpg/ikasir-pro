@@ -992,6 +992,85 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const handleStartEditStore = async (store: any) => {
+    setIsSaving(true);
+    try {
+      const settingsRef = doc(db, 'settings', "store_" + store.id);
+      const settingsSnap = await getDoc(settingsRef);
+      let qrisUrl = '';
+      if (settingsSnap.exists()) {
+        qrisUrl = settingsSnap.data().qrisUrl || '';
+      }
+      setEditingStore({
+        ...store,
+        qrisUrl
+      });
+    } catch (err: any) {
+      console.error('Gagal mengambil pengaturan toko:', err);
+      setEditingStore({
+        ...store,
+        qrisUrl: ''
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePickStoreQris = async () => {
+    if (!editingStore) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setIsSaving(true);
+        const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const cloudName = infraData?.cloudinary_cloud_name || 'dtt1zow8f';
+        const uploadPreset = infraData?.cloudinary_upload_preset || 'kasirpos';
+        const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+        
+        const data = {
+          file: base64Img,
+          upload_preset: uploadPreset,
+        };
+
+        const uploadRes = await fetch(cloudinaryUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const uploadResult = await uploadRes.json();
+        if (uploadResult.secure_url) {
+          setEditingStore((prev: any) => ({ ...prev, qrisUrl: uploadResult.secure_url }));
+          Alert.alert('Berhasil', 'Foto QRIS Toko berhasil disiapkan, tekan Simpan Perubahan!');
+        } else {
+          Alert.alert('Gagal', 'Gagal menyiapkan QRIS ke server.');
+        }
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Gagal memilih QRIS.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveStoreQris = () => {
+    if (!editingStore) return;
+    Alert.alert(
+      'Konfirmasi',
+      'Apakah Anda yakin ingin menghapus foto QRIS toko ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Hapus', style: 'destructive', onPress: () => setEditingStore({ ...editingStore, qrisUrl: '' }) }
+      ]
+    );
+  };
+
   const handleUpdateStoreDetails = async () => {
     if (!editingStore) return;
     setIsSaving(true);
@@ -1003,9 +1082,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         disabledMenus: editingStore.disabledMenus || []
       });
       
-      await updateDoc(doc(db, 'settings', "store_" + editingStore.id), {
-        storeName: editingStore.name
-      }).catch(() => {});
+      await setDoc(doc(db, 'settings', "store_" + editingStore.id), {
+        storeName: editingStore.name,
+        qrisUrl: editingStore.qrisUrl || ''
+      }, { merge: true });
 
       Alert.alert('Sukses', 'Detail toko berhasil diperbarui!');
       setEditingStore(null);
@@ -1898,6 +1978,39 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               />
             </View>
 
+            {/* Foto QRIS Toko */}
+            <View className="space-y-2">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Foto QRIS Toko</Text>
+              <View className="flex-row gap-3 h-24">
+                <View className="flex-1 bg-white border border-dashed rounded-2xl items-center justify-center overflow-hidden" style={{ borderColor: colors.border }}>
+                  {editingStore.qrisUrl ? (
+                    <Image source={{ uri: editingStore.qrisUrl }} className="w-full h-full" style={{ resizeMode: 'contain' }} />
+                  ) : (
+                    <Text className="text-[8px] font-bold text-slate-400 px-4 text-center">Belum ada foto QRIS</Text>
+                  )}
+                </View>
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={handlePickStoreQris}
+                    disabled={isSaving}
+                    className="h-full px-4 rounded-2xl items-center justify-center border"
+                    style={{ backgroundColor: colors.accent + '20', borderColor: colors.accent + '40' }}
+                  >
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.accent }}>Pilih Foto</Text>
+                  </TouchableOpacity>
+                  {editingStore.qrisUrl ? (
+                    <TouchableOpacity
+                      onPress={handleRemoveStoreQris}
+                      className="h-full px-4 rounded-2xl items-center justify-center border bg-rose-500/10"
+                      style={{ borderColor: '#f43f5e30' }}
+                    >
+                      <Text className="text-[10px] font-black uppercase text-rose-500">Hapus</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+
             {/* Disabled Menus */}
             <View className="space-y-1">
               <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Menu yang Dinonaktifkan</Text>
@@ -2168,7 +2281,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                           </View>
                           <View className="flex-row gap-2">
                             <TouchableOpacity 
-                              onPress={() => setEditingStore(s)}
+                              onPress={() => handleStartEditStore(s)}
                               className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl"
                             >
                               <Pencil size={14} color="#3b82f6" />

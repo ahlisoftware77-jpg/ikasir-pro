@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, updateDoc, deleteDoc, where, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 import { initializeApp, getApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db, primaryDb, activeFirebaseConfig, isDynamicConfig } from '@/lib/firebase';
@@ -643,6 +643,75 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleStartEditStore = async (store: any) => {
+    setIsSaving(true);
+    try {
+      const settingsRef = doc(db, 'settings', "store_" + store.id);
+      const settingsSnap = await getDoc(settingsRef);
+      let qrisUrl = '';
+      if (settingsSnap.exists()) {
+        qrisUrl = settingsSnap.data().qrisUrl || '';
+      }
+      setEditingStore({
+        ...store,
+        qrisUrl
+      });
+    } catch (err: any) {
+      console.error('Gagal mengambil pengaturan toko:', err);
+      setEditingStore({
+        ...store,
+        qrisUrl: ''
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUploadStoreQris = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingStore) return;
+
+    const cloudName = infraData.cloudinary_cloud_name || 'dkcjfwbvc';
+    const uploadPreset = infraData.cloudinary_upload_preset || 'kasirpos';
+
+    setIsSaving(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        const formData = new FormData();
+        formData.append('file', base64);
+        formData.append('upload_preset', uploadPreset);
+
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        if (data.secure_url) {
+          setEditingStore({ ...editingStore, qrisUrl: data.secure_url });
+          alert('Gambar QRIS toko berhasil diunggah! Jangan lupa klik Simpan Perubahan Toko.');
+        } else {
+          alert('Gagal mengunggah gambar: ' + (data.error?.message || 'Unknown error'));
+        }
+        setIsSaving(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal mengunggah QRIS toko: ' + err.message);
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveStoreQris = () => {
+    if (!editingStore) return;
+    if (confirm('Apakah Anda yakin ingin menghapus foto QRIS toko ini?')) {
+      setEditingStore({ ...editingStore, qrisUrl: '' });
+    }
+  };
+
   const handleUpdateStoreDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingStore) return;
@@ -656,9 +725,10 @@ export default function SuperAdminPage() {
       });
       
       // SYNC to Settings for Receipt/Invoice
-      await updateDoc(doc(db, 'settings', "store_" + editingStore.id), {
-        storeName: editingStore.name
-      }).catch(() => {}); // Ignore if settings doc doesn't exist yet
+      await setDoc(doc(db, 'settings', "store_" + editingStore.id), {
+        storeName: editingStore.name,
+        qrisUrl: editingStore.qrisUrl || ''
+      }, { merge: true });
 
       alert('Detail toko berhasil diperbarui!');
       setEditingStore(null);
@@ -1901,7 +1971,7 @@ export default function SuperAdminPage() {
                            <td className="px-8 py-6 text-center">
                              <div className="flex items-center justify-center gap-2">
                                <button 
-                                 onClick={() => setEditingStore(s)}
+                                 onClick={() => handleStartEditStore(s)}
                                  className="p-3 bg-surface hover:bg-blue-500 hover:text-white text-blue-500 rounded-2xl border border-app-border transition-all shadow-sm active:scale-90"
                                  title="Edit Detail Toko"
                                >
@@ -1977,7 +2047,7 @@ export default function SuperAdminPage() {
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                          <button 
-                            onClick={() => setEditingStore(s)}
+                            onClick={() => handleStartEditStore(s)}
                             className="p-2 bg-background border border-app-border text-blue-500 rounded-xl active:scale-90"
                          >
                             <Pencil size={16} />
@@ -3483,6 +3553,41 @@ export default function SuperAdminPage() {
                           className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none pl-12"
                         />
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text-muted" size={18} />
+                     </div>
+                  </div>
+
+                  {/* QRIS Toko */}
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Foto QRIS Toko</label>
+                     <div className="flex items-center gap-4">
+                        <div className="relative w-32 h-32 bg-background border border-app-border rounded-2xl overflow-hidden flex items-center justify-center group shrink-0">
+                           {editingStore.qrisUrl ? (
+                             <img src={editingStore.qrisUrl} alt="QRIS Toko" className="w-full h-full object-contain p-2" />
+                           ) : (
+                             <div className="flex flex-col items-center gap-1">
+                                <Upload className="text-app-text-muted" size={20} />
+                                <span className="text-[9px] font-black text-app-text-muted uppercase tracking-wider">Pilih Foto</span>
+                             </div>
+                           )}
+                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="text-white text-[10px] font-black uppercase tracking-wider">Ubah Foto</span>
+                           </div>
+                           <input type="file" accept="image/*" onChange={handleUploadStoreQris} className="absolute inset-0 opacity-0 cursor-pointer" disabled={isSaving} />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                           <p className="text-[10px] font-bold text-app-text-muted leading-relaxed max-w-[240px] italic">
+                              Unggah kode QRIS pembayaran toko. QRIS ini akan tampil saat pelanggan memilih metode pembayaran QRIS.
+                           </p>
+                           {editingStore.qrisUrl && (
+                              <button
+                                type="button"
+                                onClick={handleRemoveStoreQris}
+                                className="text-xs font-black text-rose-500 hover:text-rose-600 transition-colors w-fit uppercase tracking-wider"
+                              >
+                                 Hapus Foto QRIS
+                              </button>
+                           )}
+                        </div>
                      </div>
                   </div>
 
