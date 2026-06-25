@@ -47,6 +47,38 @@ const getFontFamily = (id: string) => {
   return FONT_OPTIONS.find(f => f.id === id)?.family || 'System';
 };
 
+const getFontStyle = (id: string) => {
+  switch (id) {
+    case 'serif':
+      return {
+        fontFamily: Platform.select({ ios: 'Georgia', android: 'serif' }),
+        fontWeight: 'bold' as const
+      };
+    case 'mono':
+      return {
+        fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+        fontWeight: 'normal' as const
+      };
+    case 'elegant':
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-light' }),
+        fontWeight: '300' as const,
+        letterSpacing: 1.2
+      };
+    case 'bold':
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-condensed' }),
+        fontWeight: '900' as const,
+        letterSpacing: -0.2
+      };
+    default: // sans
+      return {
+        fontFamily: Platform.select({ ios: 'System', android: 'sans-serif' }),
+        fontWeight: 'bold' as const
+      };
+  }
+};
+
 export default function SettingsScreen({ navigation, route }: any) {
   const { colors, theme, setTheme } = useTheme();
   const { user, role, storeId, logout, isSubscriptionExpired, subscriptionUntil, disabledMenus, expiredDisabledMenus, permissions } = useAuthStore();
@@ -2078,8 +2110,8 @@ export default function SettingsScreen({ navigation, route }: any) {
                             >
                               <Text className="text-[8px] font-bold text-slate-400 uppercase">{font.name}</Text>
                               <Text 
-                                className="text-xs font-bold mt-1" 
-                                style={{ color: colors.text, fontFamily: font.family }}
+                                className="text-xs mt-1" 
+                                style={[{ color: colors.text }, getFontStyle(font.id)]}
                               >
                                 {storeSettings.storeName || 'Nama Toko'}
                               </Text>
@@ -2117,8 +2149,8 @@ export default function SettingsScreen({ navigation, route }: any) {
                             <Image source={{ uri: storeSettings.logoUrl }} className="w-8 h-8 object-contain mb-1" />
                           ) : null}
                           <Text 
-                            className="text-xs font-black text-slate-900 uppercase text-center"
-                            style={{ fontFamily: getFontFamily(storeSettings.storeNameFont) }}
+                            className="text-xs text-slate-900 uppercase text-center"
+                            style={getFontStyle(storeSettings.storeNameFont)}
                           >
                             {storeSettings.storeName || 'KASIR PRO'}
                           </Text>

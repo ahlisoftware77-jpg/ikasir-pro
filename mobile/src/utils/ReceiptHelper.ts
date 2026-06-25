@@ -127,10 +127,26 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
         <style>
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; }
           .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
-          .store-name { font-size: 22px; font-weight: 900; letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase; }
+          .store-name { 
+            font-size: 22px; 
+            font-weight: 900; 
+            letter-spacing: 2px; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+            font-family: ${(() => {
+              switch(storeSettings?.storeNameFont) {
+                case 'serif': return "'Playfair Display', Georgia, serif";
+                case 'mono': return "'Courier New', Courier, monospace";
+                case 'elegant': return "'Outfit', sans-serif";
+                case 'bold': return "'Oswald', sans-serif";
+                default: return "'Inter', sans-serif";
+              }
+            })()};
+          }
           .info { font-size: 12px; margin-bottom: 2px; }
           .items { margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
           .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; margin-top: 10px; }
@@ -324,10 +340,26 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     <head>
       <meta charset="UTF-8">
       <title>${docType} - ${docId}${customerPart} - ${cleanStoreName.trim()}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700;900&family=Oswald:wght@700&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
       <style>
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
-        .store-title { font-size: 24px; font-weight: 900; color: #0f172a; text-transform: uppercase; margin: 0 0 5px 0; }
+        .store-title { 
+          font-size: 24px; 
+          font-weight: 900; 
+          color: #0f172a; 
+          text-transform: uppercase; 
+          margin: 0 0 5px 0; 
+          font-family: ${(() => {
+            switch(storeSettings?.storeNameFont) {
+              case 'serif': return "'Playfair Display', Georgia, serif";
+              case 'mono': return "'Courier New', Courier, monospace";
+              case 'elegant': return "'Outfit', sans-serif";
+              case 'bold': return "'Oswald', sans-serif";
+              default: return "'Inter', sans-serif";
+            }
+          })()};
+        }
         .store-info { font-size: 11px; color: #64748b; margin: 0; line-height: 1.4; }
         .doc-title { font-size: 28px; font-weight: 900; color: #cbd5e1; text-align: right; text-transform: uppercase; margin: 0 0 10px 0; letter-spacing: 2px; }
         .doc-meta { font-size: 11px; text-align: right; font-weight: bold; text-transform: uppercase; margin: 0; }
