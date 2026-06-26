@@ -779,7 +779,9 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
         const picWidth = is80 ? 480 : 320;
         const leftPad = Math.floor((printerWidth - picWidth) / 2);
 
+        await BluetoothEscposPrinter.printerLineSpace(0);
         await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+        await BluetoothEscposPrinter.printerLineSpace(32);
         try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (delErr) {}
       } catch (err: any) {
         console.warn("Gagal render gambar font di test print:", err);
@@ -884,7 +886,9 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       const picWidth = is80 ? 480 : 320; // kelipatan 8
       const leftPad = Math.floor((printerWidth - picWidth) / 2);
 
+      await BluetoothEscposPrinter.printerLineSpace(0);
       await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+      await BluetoothEscposPrinter.printerLineSpace(32);
       
       try {
         await FileSystem.deleteAsync(uri, { idempotent: true });
