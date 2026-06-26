@@ -810,8 +810,8 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       // implicit line feed yang ditambahkan printer setelah cetak gambar
       await BluetoothEscposPrinter.printerLineSpace(0);
       await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
-      // Kembalikan line spacing normal setelah cetak gambar
-      await BluetoothEscposPrinter.printerLineSpace(24);
+      // Kembalikan line spacing normal (default) setelah cetak gambar
+      await BluetoothEscposPrinter.printerLineSpace(0);
 
       if (downloadedUri) {
         try { await FileSystem.deleteAsync(downloadedUri, { idempotent: true }); } catch {}
