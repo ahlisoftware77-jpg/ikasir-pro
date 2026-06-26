@@ -723,6 +723,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   const isEstimation = !trx.paymentMethod && !trx.paymentCategory && trx.status === 'active';
 
   await BluetoothEscposPrinter.printerInit();
+  await BluetoothEscposPrinter.setWidth(is80mm ? 576 : 384);
 
   // ─── LOGO (Tengah) ──────────────────────────────────────────────
   const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
