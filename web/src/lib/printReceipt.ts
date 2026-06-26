@@ -175,120 +175,138 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
 
   const isEstimation = (trx as any).isEstimation;
 
-  // Use Bold for thermal title
-  text += `${BOLD_ON}${wrapCenter(isEstimation ? 'ESTIMASI BIAYA' : cleanStoreName.toUpperCase(), width)}${BOLD_OFF}\n`;
-  if (isEstimation) {
-    text += `${wrapCenter(cleanStoreName, width)}\n`;
-  }
-  if (storeSettings.showReceiptAddress !== false && storeSettings.address) text += `${wrapCenter(storeSettings.address, width)}\n`;
-  if (storeSettings.showReceiptPhone !== false && storeSettings.phone) text += `${wrapCenter(storeSettings.phone, width)}\n`;
-  text += `${hr}`;
-  
-  text += `Wkt: ${dateStr}\n`;
-  text += `ID : ${trx.id?.substring(0, 12)}\n`;
-  if (isEstimation && (trx as any).validUntil) {
-    const vDate = new Date((trx as any).validUntil).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
-    text += `Berlaku s/d: ${vDate}\n`;
-  }
-  
-  if (storeSettings.showReceiptCashier !== false) {
-    const rawCashier = trx.cashierName || 'Online';
-    const cleanCashier = rawCashier.includes('@') ? rawCashier.split('@')[0] : rawCashier;
-    text += `Ksr: ${cleanCashier}\n`;
-  }
-  
-  if (storeSettings.showReceiptCustomer !== false && trx.customerName && trx.customerName !== 'Tanpa Nama') {
-    text += `Pmsn: ${trx.customerName}\n`;
-  }
-  if (trx.queueNumber) {
-    text += `Antr: #${trx.queueNumber}\n`;
-  }
-
-  text += `${hr}`;
-  
-  trx.items.forEach(item => {
-    text += `${item.productName}\n`;
-    if (item.selectedExtras?.length) {
-      item.selectedExtras.forEach(ext => {
-         text += ` + ${ext.optionName} ${ext.price > 0 ? `(Rp${ext.price})` : ''}\n`;
-      });
+  if (trx.isTest) {
+    text += `${BOLD_ON}${wrapCenter(cleanStoreName.toUpperCase(), width)}${BOLD_OFF}\n`;
+    text += `${wrapCenter('*** UJI COBA CETAK PENDEK ***', width)}\n`;
+    text += `${hr}`;
+    text += `Wkt: ${dateStr}\n`;
+    text += `ID : ${trx.id}\n`;
+    text += `${hr}`;
+    trx.items.forEach(item => {
+      text += `${item.productName}\n`;
+      const left = `${item.qty}x${item.price.toLocaleString('id-ID')}`;
+      const right = item.subtotal.toLocaleString('id-ID');
+      text += left + ' '.repeat(width - left.length - right.length) + right + '\n';
+    });
+    text += `${hr}`;
+    const totL = 'TOTAL:';
+    const totR = `Rp ${trx.total.toLocaleString('id-ID')}`;
+    text += totL + ' '.repeat(width - totL.length - totR.length) + totR + '\n';
+    text += `${hr}`;
+    text += `${wrapCenter('UJI COBA SUKSES', width)}\n`;
+  } else {
+    // Use Bold for thermal title
+    text += `${BOLD_ON}${wrapCenter(isEstimation ? 'ESTIMASI BIAYA' : cleanStoreName.toUpperCase(), width)}${BOLD_OFF}\n`;
+    if (isEstimation) {
+      text += `${wrapCenter(cleanStoreName, width)}\n`;
     }
-    if (item.warrantyExpiry) {
-      const wDate = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
-      text += ` [Garansi s/d: ${wDate}]\n`;
-    }
-    if (item.note) text += `${wrapCenter(`( ${item.note} )`, width)}\n`;
+    if (storeSettings.showReceiptAddress !== false && storeSettings.address) text += `${wrapCenter(storeSettings.address, width)}\n`;
+    if (storeSettings.showReceiptPhone !== false && storeSettings.phone) text += `${wrapCenter(storeSettings.phone, width)}\n`;
+    text += `${hr}`;
     
-    const left = `${item.qty}x${item.price.toLocaleString('id-ID')}`;
-    const right = item.subtotal.toLocaleString('id-ID');
+    text += `Wkt: ${dateStr}\n`;
+    text += `ID : ${trx.id?.substring(0, 12)}\n`;
+    if (isEstimation && (trx as any).validUntil) {
+      const vDate = new Date((trx as any).validUntil).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
+      text += `Berlaku s/d: ${vDate}\n`;
+    }
     
-    if (item.discountName) {
-      text += ` (PROMO: ${item.discountName.toUpperCase()})\n`;
-      const origL = ` Harga Normal: Rp${(item.originalPrice || item.price).toLocaleString('id-ID')}`;
-      text += `${origL}\n`;
+    if (storeSettings.showReceiptCashier !== false) {
+      const rawCashier = trx.cashierName || 'Online';
+      const cleanCashier = rawCashier.includes('@') ? rawCashier.split('@')[0] : rawCashier;
+      text += `Ksr: ${cleanCashier}\n`;
+    }
+    
+    if (storeSettings.showReceiptCustomer !== false && trx.customerName && trx.customerName !== 'Tanpa Nama') {
+      text += `Pmsn: ${trx.customerName}\n`;
+    }
+    if (trx.queueNumber) {
+      text += `Antr: #${trx.queueNumber}\n`;
     }
 
-    const spaces = width - left.length - right.length;
-    text += left + (spaces > 0 ? ' '.repeat(spaces) : ' ') + right + '\n';
-  });
-  
-  text += `${hr}`;
-  
-  if (storeSettings.showReceiptSubtotal !== false) {
-    const subL = 'Subtotal:';
-    const subR = (trx.total - (trx.tax || 0)).toLocaleString('id-ID');
-    text += subL + ' '.repeat(width - subL.length - subR.length) + subR + '\n';
-  }
-  
-  if (trx.tax) {
-     const taxL = 'PPN:';
-     const taxR = trx.tax.toLocaleString('id-ID');
-     text += taxL + ' '.repeat(width - taxL.length - taxR.length) + taxR + '\n';
-  }
-  text += `${hr}`;
-  const totL = 'TOTAL:';
-  const totR = `Rp ${trx.total.toLocaleString('id-ID')}`;
-  text += totL + ' '.repeat(width - totL.length - totR.length) + totR + '\n';
-  
-  const cashVal = (trx as any).cashReceived || ((trx as any).change !== undefined ? (trx as any).change + trx.total : 0);
-  const changeVal = (trx as any).change !== undefined ? (trx as any).change : (cashVal > trx.total ? cashVal - trx.total : 0);
-
-  if (!isEstimation) {
-    if (trx.paymentCategory === 'debt' || trx.paymentStatus === 'partially_paid' || (trx.paymentHistory && trx.paymentHistory.length > 0)) {
-      text += wrapCenter("RIWAYAT PEMBAYARAN", width) + "\n";
-      trx.paymentHistory?.forEach((hist: any) => {
-         const dateStr = new Date(hist.date).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit'});
-         const left = `${dateStr} ${hist.note || 'Bayar'}`;
-         const right = hist.amount.toLocaleString('id-ID');
-         const spaces = width - left.length - right.length;
-         text += left + (spaces > 0 ? ' '.repeat(spaces) : ' ') + right + '\n';
-      });
-      
-      text += `${hr}`;
-      const paidL = 'TOTAL BAYAR:';
-      const paidR = (trx.paidAmount ?? trx.cashReceived ?? 0).toLocaleString('id-ID');
-      text += paidL + ' '.repeat(Math.max(1, width - paidL.length - paidR.length)) + paidR + '\n';
-      
-      const remaining = trx.total - (trx.paidAmount ?? trx.cashReceived ?? 0);
-      if (remaining > 0) {
-        const sisaL = 'SISA PIUTANG:';
-        const sisaR = remaining.toLocaleString('id-ID');
-        text += sisaL + ' '.repeat(Math.max(1, width - sisaL.length - sisaR.length)) + sisaR + '\n';
+    text += `${hr}`;
+    
+    trx.items.forEach(item => {
+      text += `${item.productName}\n`;
+      if (item.selectedExtras?.length) {
+        item.selectedExtras.forEach(ext => {
+           text += ` + ${ext.optionName} ${ext.price > 0 ? `(Rp${ext.price})` : ''}\n`;
+        });
       }
-    } else if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashVal > 0) {
-      const cashL = 'Tunai:';
-      const cashR = cashVal.toLocaleString('id-ID');
-      text += cashL + ' '.repeat(width - cashL.length - cashR.length) + cashR + '\n';
+      if (item.warrantyExpiry) {
+        const wDate = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
+        text += ` [Garansi s/d: ${wDate}]\n`;
+      }
+      if (item.note) text += `${wrapCenter(`( ${item.note} )`, width)}\n`;
       
-      const changeL = 'Kembali:';
-      const changeR = changeVal.toLocaleString('id-ID').replace('-', '');
-      text += changeL + ' '.repeat(width - changeL.length - changeR.length) + changeR + '\n';
+      // Qty x Price ... Subtotal (space-padded)
+      const left = `${item.qty}x${item.price.toLocaleString('id-ID')}`;
+      const right = item.subtotal.toLocaleString('id-ID');
+      text += left + ' '.repeat(width - left.length - right.length) + right + '\n';
+    });
+    
+    text += `${hr}`;
+    
+    const totalVal = trx.total;
+    const taxVal = trx.tax || 0;
+    const subtotal = totalVal - taxVal;
+    
+    const subL = 'Subtotal:';
+    const subR = subtotal.toLocaleString('id-ID');
+    text += subL + ' '.repeat(width - subL.length - subR.length) + subR + '\n';
+    
+    if (taxVal > 0) {
+      const taxL = 'PPN:';
+      const taxR = taxVal.toLocaleString('id-ID');
+      text += taxL + ' '.repeat(width - taxL.length - taxR.length) + taxR + '\n';
     }
+    
+    text += `${hr}`;
+    
+    const totL = 'TOTAL:';
+    const totR = `Rp ${trx.total.toLocaleString('id-ID')}`;
+    text += totL + ' '.repeat(width - totL.length - totR.length) + totR + '\n';
+    
+    const cashVal = (trx as any).cashReceived || ((trx as any).change !== undefined ? (trx as any).change + trx.total : 0);
+    const changeVal = (trx as any).change !== undefined ? (trx as any).change : (cashVal > trx.total ? cashVal - trx.total : 0);
+
+    if (!isEstimation) {
+      if (trx.paymentCategory === 'debt' || trx.paymentStatus === 'partially_paid' || (trx.paymentHistory && trx.paymentHistory.length > 0)) {
+        text += wrapCenter("RIWAYAT PEMBAYARAN", width) + "\n";
+        trx.paymentHistory?.forEach((hist: any) => {
+           const dateStr = new Date(hist.date).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit'});
+           const left = `${dateStr} ${hist.note || 'Bayar'}`;
+           const right = hist.amount.toLocaleString('id-ID');
+           const spaces = width - left.length - right.length;
+           text += left + (spaces > 0 ? ' '.repeat(spaces) : ' ') + right + '\n';
+        });
+        
+        text += `${hr}`;
+        const paidL = 'TOTAL BAYAR:';
+        const paidR = (trx.paidAmount ?? trx.cashReceived ?? 0).toLocaleString('id-ID');
+        text += paidL + ' '.repeat(Math.max(1, width - paidL.length - paidR.length)) + paidR + '\n';
+        
+        const remaining = trx.total - (trx.paidAmount ?? trx.cashReceived ?? 0);
+        if (remaining > 0) {
+          const sisaL = 'SISA PIUTANG:';
+          const sisaR = remaining.toLocaleString('id-ID');
+          text += sisaL + ' '.repeat(Math.max(1, width - sisaL.length - sisaR.length)) + sisaR + '\n';
+        }
+      } else if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashVal > 0) {
+        const cashL = 'Tunai:';
+        const cashR = cashVal.toLocaleString('id-ID');
+        text += cashL + ' '.repeat(width - cashL.length - cashR.length) + cashR + '\n';
+        
+        const changeL = 'Kembali:';
+        const changeR = changeVal.toLocaleString('id-ID').replace('-', '');
+        text += changeL + ' '.repeat(width - changeL.length - changeR.length) + changeR + '\n';
+      }
+    }
+    
+    text += `\n${wrapCenter(isEstimation ? '[ DOKUMEN PENAWARAN ]' : `[ ${trx.paymentStatus === 'paid' ? 'LUNAS' : 'BELUM LUNAS'} - ${trx.paymentMethod || '-'} ]`, width)}\n`;
+    text += `${hr}`;
+    text += `${wrapCenter(storeSettings.receiptMessage || 'Terima Kasih', width)}\n`;
   }
-  
-  text += `\n${wrapCenter(isEstimation ? '[ DOKUMEN PENAWARAN ]' : `[ ${trx.paymentStatus === 'paid' ? 'LUNAS' : 'BELUM LUNAS'} - ${trx.paymentMethod || '-'} ]`, width)}\n`;
-  text += `${hr}`;
-  text += `${wrapCenter(storeSettings.receiptMessage || 'Terima Kasih', width)}\n`;
   if (isExpired && branding?.receiptWatermark) {
     text += `\n${wrapCenter(branding.receiptWatermark, width)}\n`;
   }
@@ -520,130 +538,179 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
       </style>
     </head>
     <body>
-      <div class="text-center" style="margin-bottom: 8px; width: 100%; text-align: center;">
-        ${storeSettings.showLogoOnReceipt !== false ? `
-          <div style="margin-bottom: 10px; width: 100%; text-align: center;">
-            <img src="${logoData || '/logo.png'}" style="width: 100px; height: auto; display: inline-block; filter: grayscale(100%) contrast(1.8) brightness(1.1);" />
-          </div>
-        ` : ''}
-        ${renderCenteredLines(cleanStoreName.toUpperCase(), 'store-name')}
-        ${storeSettings.showReceiptAddress !== false ? renderCenteredLines(storeSettings.address || '', 'store-info') : ''}
-        ${storeSettings.showReceiptPhone !== false ? renderCenteredLines(storeSettings.phone || '', 'store-info') : ''}
-      </div>
-      
-      <div class="divider"></div>
-      
-      <div>
-        <div class="flex"><span>Waktu:</span><span>${dateStr}</span></div>
-        <div class="flex"><span>ID:</span><span>${trx.id?.substring(0, 12)}</span></div>
-        ${isEstimation && (trx as any).validUntil ? `
-          <div class="flex"><span>Berlaku s/d:</span><span>${new Date((trx as any).validUntil).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}</span></div>
-        ` : ''}
-        ${storeSettings.showReceiptCashier !== false ? `
-          <div class="flex"><span>Kasir:</span><span>${(trx.cashierName || 'Online (Sistem)').split('@')[0]}</span></div>
-        ` : ''}
-        ${storeSettings.showReceiptCustomer !== false && trx.customerName && trx.customerName !== 'Tanpa Nama' ? `
-          <div class="flex"><span>Pemesan:</span><span>${trx.customerName}</span></div>
-        ` : ''}
-        ${trx.queueNumber ? `
-          <div class="flex font-bold" style="margin-top: 2px; font-size: calc(${fontSize} + 2px);">
-            <span>ANTRIAN:</span><span>#${trx.queueNumber}</span>
-          </div>
-        ` : ''}
-      </div>
-      
-      <div class="divider"></div>
-      
-      <table>
-        ${trx.items.map(item => `
-          <tr>
-            <td colspan="2" class="font-bold">${item.productName}</td>
-          </tr>
-          ${item.selectedExtras?.map(ext => `
-            <tr>
-              <td colspan="2" style="font-size: calc(${fontSize} - 2px); color: #444; padding-left: 10px;">
-                + ${ext.optionName} ${ext.price > 0 ? `(Rp ${ext.price.toLocaleString('id-ID')})` : ''}
-              </td>
-            </tr>
-          `).join('') || ''}
-          ${item.warrantyExpiry ? `
-            <tr>
-              <td colspan="2" style="font-size: calc(${fontSize} - 3px); color: #000; padding-left: 10px; font-style: italic;">
-                🛡 Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})}
-              </td>
-            </tr>
+      ${trx.isTest ? `
+        <div class="text-center" style="margin-bottom: 8px; width: 100%; text-align: center;">
+          ${storeSettings.showLogoOnReceipt !== false && logoData ? `
+            <div style="margin-bottom: 6px; width: 100%; text-align: center;">
+              <img src="${logoData}" style="width: 60px; height: auto; display: inline-block; filter: grayscale(100%) contrast(1.8) brightness(1.1);" />
+            </div>
           ` : ''}
-          ${item.note ? `
+          ${renderCenteredLines(cleanStoreName.toUpperCase(), 'store-name')}
+          <div style="font-size: ${fontSize}; margin-top: 4px; font-weight: bold;">*** UJI COBA CETAK PENDEK ***</div>
+        </div>
+        <div class="divider"></div>
+        <div>
+          <div class="flex"><span>Waktu:</span><span>${dateStr}</span></div>
+          <div class="flex"><span>ID:</span><span>${trx.id}</span></div>
+        </div>
+        <div class="divider"></div>
+        <table>
+          ${trx.items.map(item => `
             <tr>
-              <td colspan="2" class="item-note">
-                ✏ ${item.note}
-              </td>
+              <td class="font-bold">${item.productName}</td>
+              <td class="text-right font-bold">${item.qty}x${item.price.toLocaleString('id-ID')}</td>
             </tr>
+            <tr>
+              <td colspan="2" class="text-right">${item.subtotal.toLocaleString('id-ID')}</td>
+            </tr>
+          `).join('')}
+        </table>
+        <div class="divider"></div>
+        <div class="flex font-bold" style="font-size: calc(${fontSize} + 2px);">
+          <span>TOTAL:</span>
+          <span>Rp ${trx.total.toLocaleString('id-ID')}</span>
+        </div>
+        <div class="divider"></div>
+        <div class="text-center font-bold" style="margin-top: 10px;">UJI COBA SUKSES</div>
+      ` : `
+        <div class="text-center" style="margin-bottom: 8px; width: 100%; text-align: center;">
+          ${storeSettings.showLogoOnReceipt !== false && logoData ? `
+            <div style="margin-bottom: 10px; width: 100%; text-align: center;">
+              <img src="${logoData || '/logo.png'}" style="width: 100px; height: auto; display: inline-block; filter: grayscale(100%) contrast(1.8) brightness(1.1);" />
+            </div>
           ` : ''}
-          <tr>
-            <td>
-              ${item.discountName ? `
-                <div style="font-size: calc(${fontSize} - 4px); text-decoration: line-through; opacity: 0.6;">
-                  Rp ${((item.originalPrice || item.price) * item.qty).toLocaleString('id-ID')}
-                </div>
-                <div style="font-size: calc(${fontSize} - 4px); color: #008000; font-weight: bold;">
-                  PROMO: ${item.discountName}
-                </div>
-              ` : ''}
-              ${item.qty} x ${item.price.toLocaleString('id-ID')}
-            </td>
-            <td class="text-right">${item.subtotal.toLocaleString('id-ID')}</td>
-          </tr>
-        `).join('')}
-      </table>
-      
-      <div class="divider"></div>
-      
-      ${storeSettings.showReceiptSubtotal !== false ? `
-        <div class="flex"><span>Subtotal:</span><span>${(trx.total - (trx.tax || 0)).toLocaleString('id-ID')}</span></div>
-      ` : ''}
-      ${trx.tax ? `<div class="flex"><span>PPN:</span><span>${trx.tax.toLocaleString('id-ID')}</span></div>` : ''}
-      <div class="divider"></div>
-      <div class="flex font-bold" style="font-size: calc(${fontSize} + 2px);">
-        <span>TOTAL:</span><span>Rp ${trx.total.toLocaleString('id-ID')}</span>
-      </div>
-
-      ${!isEstimation ? (() => {
-        const cashValue = (trx as any).cashReceived || ((trx as any).change !== undefined ? (trx as any).change + trx.total : 0);
-        const changeValue = (trx as any).change !== undefined ? (trx as any).change : (cashValue > trx.total ? cashValue - trx.total : 0);
+          ${renderCenteredLines(cleanStoreName.toUpperCase(), 'store-name')}
+          ${storeSettings.showReceiptAddress !== false ? renderCenteredLines(storeSettings.address || '', 'store-info') : ''}
+          ${storeSettings.showReceiptPhone !== false ? renderCenteredLines(storeSettings.phone || '', 'store-info') : ''}
+        </div>
         
-        if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashValue > 0) {
-          return `
-            <div class="flex" style="margin-top: 4px;"><span>Tunai:</span><span>${cashValue.toLocaleString('id-ID')}</span></div>
-            <div class="flex"><span>Kembali:</span><span>${changeValue.toLocaleString('id-ID').replace('-', '')}</span></div>
-          `;
-        }
-        return '';
-      })() : ''}
-      
-      <div class="mt-2 text-center" style="margin-top: 15px;">
-        <div style="font-weight:bold; text-transform:uppercase;">
-          ${isEstimation ? '[ DOKUMEN PENAWARAN ]' : `[ ${trx.paymentStatus === 'paid' ? 'LUNAS' : 'BELUM LUNAS'} - ${trx.paymentMethod} ]`}
+        <div class="divider"></div>
+        
+        <div>
+          <div class="flex"><span>Waktu:</span><span>${dateStr}</span></div>
+          <div class="flex"><span>ID:</span><span>${trx.id?.substring(0, 12)}</span></div>
+          ${isEstimation && (trx as any).validUntil ? `
+            <div class="flex"><span>Berlaku s/d:</span><span>${new Date((trx as any).validUntil).toLocaleDateString('id-ID', {day: '2-digit', month: 'long', year: 'numeric'})}</span></div>
+          ` : ''}
+          ${storeSettings.showReceiptCashier !== false ? `
+            <div class="flex"><span>Kasir:</span><span>${(trx.cashierName || 'Online (Sistem)').split('@')[0]}</span></div>
+          ` : ''}
+          ${storeSettings.showReceiptCustomer !== false && trx.customerName && trx.customerName !== 'Tanpa Nama' ? `
+            <div class="flex"><span>Pemesan:</span><span>${trx.customerName}</span></div>
+          ` : ''}
+          ${trx.queueNumber ? `
+            <div class="flex font-bold" style="margin-top: 2px; font-size: calc(${fontSize} + 2px);">
+              <span>ANTRIAN:</span><span>#${trx.queueNumber}</span>
+            </div>
+          ` : ''}
         </div>
-      </div>
-
-      <div class="divider" style="margin-top: 15px;"></div>
-
-      ${storeSettings.showSignature && signatureData ? `
-        <div class="text-center" style="margin-top: 10px; margin-bottom: 20px;">
-           <img src="${signatureData}" style="max-height: 50px; max-width: 100px; object-fit: contain; mix-blend-multiply;" />
+        
+        <div class="divider"></div>
+        
+        <table>
+          ${trx.items.map(item => `
+            <tr>
+              <td colspan="2" class="font-bold">${item.productName}</td>
+            </tr>
+            ${item.selectedExtras?.map(ext => `
+              <tr>
+                <td colspan="2" style="font-size: calc(${fontSize} - 2px); color: #444; padding-left: 10px;">
+                  + ${ext.optionName} ${ext.price > 0 ? `(Rp ${ext.price.toLocaleString('id-ID')})` : ''}
+                </td>
+              </tr>
+            `).join('') || ''}
+            ${item.warrantyExpiry ? `
+              <tr>
+                <td colspan="2" style="font-size: calc(${fontSize} - 2px); color: #444; padding-left: 10px;">
+                  [Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'})}]
+                </td>
+              </tr>
+            ` : ''}
+            ${item.note ? `
+              <tr>
+                <td colspan="2" class="item-note">( ${item.note} )</td>
+              </tr>
+            ` : ''}
+            <tr>
+              <td style="padding-left: 10px;">${item.qty} x ${item.price.toLocaleString('id-ID')}</td>
+              <td class="text-right">${item.subtotal.toLocaleString('id-ID')}</td>
+            </tr>
+          `).join('')}
+        </table>
+        
+        <div class="divider"></div>
+        
+        <div>
+          <div class="flex"><span>Subtotal:</span><span>${(trx.total - (trx.tax || 0)).toLocaleString('id-ID')}</span></div>
+          ${(trx.tax || 0) > 0 ? `<div class="flex"><span>PPN:</span><span>${(trx.tax || 0).toLocaleString('id-ID')}</span></div>` : ''}
         </div>
-      ` : ''}
-
-      <div class="text-center" style="margin-top: 10px;">
-        ${renderCenteredLines(storeSettings.receiptMessage || 'Terima Kasih')}
-      </div>
-      
-      ${isExpired && branding?.receiptWatermark ? `
-        <div class="text-center" style="margin-top: 20px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px solid #eee; padding-top: 5px;">
-           ${renderCenteredLines(branding.receiptWatermark)}
+        
+        <div class="divider"></div>
+        
+        <div class="flex font-bold" style="font-size: calc(${fontSize} + 2px);">
+          <span>TOTAL:</span>
+          <span>Rp ${trx.total.toLocaleString('id-ID')}</span>
         </div>
-      ` : ''}
+        
+        ${(() => {
+          if (isEstimation) return '';
+          const cashVal = (trx as any).cashReceived || ((trx as any).change !== undefined ? (trx as any).change + trx.total : 0);
+          const changeVal = (trx as any).change !== undefined ? (trx as any).change : (cashVal > trx.total ? cashVal - trx.total : 0);
+          const isDebt = trx.paymentCategory === 'debt' || trx.paymentStatus === 'partially_paid' || (trx.paymentHistory && trx.paymentHistory.length > 0);
+          if (isDebt) {
+            let histHtml = `
+              <div class="divider"></div>
+              <div class="text-center font-bold" style="margin-bottom: 4px;">RIWAYAT PEMBAYARAN</div>
+            `;
+            trx.paymentHistory?.forEach((hist: any) => {
+              const histDate = new Date(hist.date).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit'});
+              histHtml += `
+                <div class="flex" style="font-size: calc(${fontSize} - 1px);">
+                  <span>${histDate} ${hist.note || 'Bayar'}</span>
+                  <span>${hist.amount.toLocaleString('id-ID')}</span>
+                </div>
+              `;
+            });
+            histHtml += `
+              <div class="divider"></div>
+              <div class="flex"><span>Total Bayar:</span><span>${(trx.paidAmount ?? trx.cashReceived ?? 0).toLocaleString('id-ID')}</span></div>
+            `;
+            const remaining = trx.total - (trx.paidAmount ?? trx.cashReceived ?? 0);
+            if (remaining > 0) {
+              histHtml += `<div class="flex font-bold"><span>Sisa Piutang:</span><span>${remaining.toLocaleString('id-ID')}</span></div>`;
+            }
+            return histHtml;
+          } else if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashVal > 0) {
+            return `
+              <div class="flex"><span>Tunai:</span><span>${cashVal.toLocaleString('id-ID')}</span></div>
+              <div class="flex"><span>Kembali:</span><span>${changeVal.toLocaleString('id-ID').replace('-', '')}</span></div>
+            `;
+          }
+          return '';
+        })()}
+        
+        <div class="text-center font-bold" style="margin-top: 15px; margin-bottom: 5px;">
+          ${isEstimation ? '[ DOKUMEN PENAWARAN ]' : `[ ${trx.paymentStatus === 'paid' ? 'LUNAS' : 'BELUM LUNAS'} - ${trx.paymentMethod || '-'} ]`}
+        </div>
+        
+        <div class="divider" style="margin-top: 15px;"></div>
+
+        ${storeSettings.showSignature && signatureData ? `
+          <div class="text-center" style="margin-top: 10px; margin-bottom: 20px;">
+             <img src="${signatureData}" style="max-height: 50px; max-width: 100px; object-fit: contain; mix-blend-multiply;" />
+          </div>
+        ` : ''}
+
+        <div class="text-center" style="margin-top: 10px;">
+          ${renderCenteredLines(storeSettings.receiptMessage || 'Terima Kasih')}
+        </div>
+        
+        ${isExpired && branding?.receiptWatermark ? `
+          <div class="text-center" style="margin-top: 20px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px solid #eee; padding-top: 5px;">
+             ${renderCenteredLines(branding.receiptWatermark)}
+          </div>
+        ` : ''}
+      `}
       
       <script>
         window.onload = function() { window.print(); window.close(); }

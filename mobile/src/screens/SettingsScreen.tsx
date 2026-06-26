@@ -246,33 +246,24 @@ export default function SettingsScreen({ navigation, route }: any) {
     setIsTestPrinting(true);
     try {
       const dummyTrx = {
-        id: 'TEST-' + Math.random().toString(36).substring(3, 9).toUpperCase(),
-        cashierName: 'Kasir Uji Coba',
-        customerName: 'Pelanggan Uji Coba',
-        paymentMethod: 'cash',
-        paymentCategory: 'cash',
-        status: 'completed',
-        orderStatus: 'completed',
-        paymentStatus: 'paid',
+        id: 'TEST',
         createdAt: new Date().toISOString(),
         items: [
           {
             id: 'dummy-1',
-            productName: 'Produk Contoh Font',
-            price: 25000,
+            productName: 'Tes Cetak Pendek',
+            price: 1000,
             cartQty: 1,
             selectedExtras: [],
-            note: 'Uji Coba Font Kustom',
-            sku: 'SKU-TEST',
-            barcode: '123456',
             category: 'test'
           }
         ],
-        subtotal: 25000,
+        subtotal: 1000,
         tax: 0,
-        total: 25000,
-        paidAmount: 50000,
-        change: 25000,
+        total: 1000,
+        paidAmount: 1000,
+        change: 0,
+        isTest: true,
       } as any;
       
       await printReceipt(dummyTrx, storeSettings as any);

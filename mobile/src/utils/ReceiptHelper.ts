@@ -724,6 +724,65 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 
   await BluetoothEscposPrinter.printerInit();
 
+  if (trx.isTest) {
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    
+    // Logo (if set)
+    const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
+    if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {
+      try {
+        const uniqueId = Math.random().toString(36).substring(7);
+        const tempFile = `${FileSystem.cacheDirectory}temp_bt_logo_${uniqueId}.jpg`;
+        const { uri } = await FileSystem.downloadAsync(activeLogoUrl, tempFile);
+        const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        const printerWidth = is80mm ? 576 : 384;
+        const picWidth = 160;
+        const leftPad = Math.floor((printerWidth - picWidth) / 2);
+        await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+        try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (delErr) {}
+      } catch (err) {}
+    }
+
+    // Store Name
+    await BluetoothEscposPrinter.setBlob(1);
+    for (const line of wrapText(cleanStoreName.toUpperCase())) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+    }
+    await BluetoothEscposPrinter.setBlob(0);
+    
+    await BluetoothEscposPrinter.printText(`*** UJI COBA CETAK PENDEK ***\n\r`, {});
+    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+    
+    // Meta
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+    await BluetoothEscposPrinter.printText(`Wkt: ${dateStr}\n\r`, {});
+    await BluetoothEscposPrinter.printText(`ID : ${trx.id}\n\r`, {});
+    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+    
+    // Items
+    for (const item of (trx.items || [])) {
+      await BluetoothEscposPrinter.setBlob(1);
+      await BluetoothEscposPrinter.printText(`${item.productName || item.name}\n\r`, {});
+      await BluetoothEscposPrinter.setBlob(0);
+      const left = `1x${(item.price || 0).toLocaleString('id-ID')}`;
+      const right = (item.subtotal || (item.price || 0)).toLocaleString('id-ID');
+      await BluetoothEscposPrinter.printText(`${lr(left, right)}\n\r`, {});
+    }
+    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+    
+    // Total
+    await BluetoothEscposPrinter.setBlob(1);
+    await BluetoothEscposPrinter.printText(`${lr('TOTAL:', `Rp ${(trx.total || 0).toLocaleString('id-ID')}`)}\n\r`, {});
+    await BluetoothEscposPrinter.setBlob(0);
+    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+    
+    // Footer
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    await BluetoothEscposPrinter.printText(`UJI COBA SUKSES\n\r`, {});
+    await BluetoothEscposPrinter.printText(`\n\r`, {}); // Feed 1 line
+    return;
+  }
+
   // ─── LOGO (Tengah) ──────────────────────────────────────────────
   const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
   if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {

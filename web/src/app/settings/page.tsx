@@ -274,21 +274,21 @@ export default function SettingsPage() {
 
   const handleTestPrint = async (withLogo: boolean) => {
     const mockTrx: any = {
-      id: 'TEST-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+      id: 'TEST',
       timestamp: { toDate: () => new Date() },
-      customerName: 'Pelanggan Simulasi',
-      cashierName: user?.displayName || 'Admin Toko',
+      customerName: 'Pelanggan Uji Coba',
+      cashierName: 'Ksr',
       items: [
-        { productName: 'Item Contoh A (Pcs)', qty: 2, price: 25000, subtotal: 50000 },
-        { productName: 'Item Contoh B (Kg)', qty: 1, price: 15000, subtotal: 15000, note: "Pesan khusus" }
+        { productName: 'Tes Cetak Pendek', qty: 1, price: 1000, subtotal: 1000 }
       ],
-      total: 65000,
+      total: 1000,
       tax: 0,
       paymentMethod: 'TUNAI',
       paymentCategory: 'cash',
       paymentStatus: 'paid',
-      cashReceived: 70000,
-      change: 5000
+      cashReceived: 1000,
+      change: 0,
+      isTest: true
     };
 
     // Temproarily modify settings for the test if forced logo requested
