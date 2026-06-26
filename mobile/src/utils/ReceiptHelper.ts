@@ -736,11 +736,8 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
       
       // Cetak gambar (sesuaikan width, max biasanya 384 untuk 58mm)
-      // Hitung posisi tengah (left padding)
-      const is80 = storeSettings?.paperSize === '80mm';
-      const printerWidth = is80 ? 576 : 384;
       const picWidth = 200; // kelipatan 8
-      const leftPad = Math.floor((printerWidth - picWidth) / 2);
+      const leftPad = 0; // Set padding ke 0 agar membiarkan ALIGN.CENTER bawaan printer menengahkan gambar
 
       await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
       
