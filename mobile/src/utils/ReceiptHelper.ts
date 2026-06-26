@@ -770,10 +770,10 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 
       const endpoint = `/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}&_t=${Date.now()}`;
       const urlsToTry = [
-        baseUrl ? `${baseUrl}${endpoint}` : null,
-        `https://ikasir-n3j64w7pn-ahlisoftware77-s-projects.vercel.app${endpoint}`,
+        // ikasir.my.id adalah URL utama yang terbukti mengembalikan PNG valid
         `https://ikasir.my.id${endpoint}`,
-        `https://ikasir-8d3amiifh-ahlisoftware77-s-projects.vercel.app${endpoint}`,
+        // Fallback ke webBaseUrl dari pengaturan toko (jika berbeda)
+        baseUrl && baseUrl !== 'https://ikasir.my.id' ? `${baseUrl}${endpoint}` : null,
       ].filter(Boolean) as string[];
 
       let base64Image: string | null = null;
