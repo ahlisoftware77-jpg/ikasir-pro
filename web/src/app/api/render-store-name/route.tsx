@@ -71,11 +71,9 @@ export async function GET(req: NextRequest) {
       }
     ] : undefined;
 
-    // Font size lebih kecil agar tinggi gambar minimal — semakin kecil gambar,
-    // semakin sedikit blank dots yang tercetak sebagai jarak ke baris berikutnya.
     const fontSize = fontId === 'railey' ? 28 : 22;
-    // Tambahkan buffer yang cukup agar font tidak terpotong di bagian bawah
-    const imgHeight = fontSize + 10;
+    // Tambahkan buffer yang cukup agar font tidak terpotong di bagian bawah/atas
+    const imgHeight = fontSize + 20;
 
     return new ImageResponse(
       (
