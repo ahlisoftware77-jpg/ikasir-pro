@@ -201,6 +201,56 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [omzetPeriodType, setOmzetPeriodType] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [omzetYearFilter, setOmzetYearFilter] = useState<string>('Semua');
 
+  // --- AUTO OPEN CASHFLOW ADD MODAL FROM DASHBOARD SHORTCUTS ---
+  useEffect(() => {
+    if (route.params?.autoOpenAddModal && featureId === 'arus_kas') {
+      const defaultType = route.params.defaultType || 'in';
+      
+      setEditId(null);
+      setFormName('');
+      setFormBaseCost('');
+      setFormPrice('');
+      setFormCustomer('');
+      setFormAmount('');
+      setFormStatus('');
+      setFormCapacity('50%');
+      setFormItemsCount('');
+      setFormCategory(defaultType === 'in' ? 'modal' : 'operasional');
+      setFormCode('');
+      setFormVal('');
+      setFormPhone('');
+      setFormPoints('');
+      setFormOrders('');
+      setFormRole('');
+      setFormTime('');
+      setFormType(defaultType);
+      setFormActual('');
+      setFormExpected('');
+      setFormQty('');
+      setFormDate('');
+      setFormUser('');
+      
+      setFormOptions([{ name: '', price: '0' }]);
+      setFormIsMandatory(false);
+      setFormAllowMultiple(false);
+      setFormHasMaxLimit(false);
+      setFormMaxLimit('1');
+      setFormIsActive(true);
+
+      setDiscountType('percent');
+      setDiscountValue('0');
+      setDiscountStartDate(new Date().toISOString().split('T')[0]);
+      setDiscountEndDate('');
+      setDiscountIsActive(true);
+      setTempSelectedProductIds([]);
+
+      setIsAddModalVisible(true);
+
+      // Clear navigation params so that they do not trigger again when returning to this page
+      navigation.setParams({ autoOpenAddModal: undefined, defaultType: undefined });
+    }
+  }, [route.params, featureId, navigation]);
+
   // --- FIRESTORE SUBSCRIPTIONS ---
   useEffect(() => {
     if (!storeId) return;

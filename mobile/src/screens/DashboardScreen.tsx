@@ -4,7 +4,7 @@ import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, lim
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard, Globe, Printer } from 'lucide-react-native';
+import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard, Globe, Printer, ArrowUpCircle, ArrowDownCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
@@ -719,6 +719,58 @@ export default function DashboardScreen({ navigation }: any) {
             <Text className="text-sm font-black mt-1" style={{ color: colors.text }}>{customersCount}</Text>
           </View>
 
+        </View>
+
+        {/* PINTASAN ARUS KAS (QUICK CASHFLOW SHORTCUTS) */}
+        <View 
+          className="p-6 rounded-[28px] border mb-6 shadow-xl"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+        >
+          <View className="flex-row items-center gap-4 mb-4">
+            <View className="w-12 h-12 rounded-2xl items-center justify-center bg-emerald-500/10 border border-emerald-500/20">
+              <Text className="text-xl">💸</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-black" style={{ color: colors.text }}>Pintasan Arus Kas</Text>
+              <Text className="text-[9px] font-bold mt-0.5" style={{ color: colors.textMuted }}>Catat pemasukan atau pengeluaran manual secara instan</Text>
+            </View>
+          </View>
+
+          <View className="flex-row gap-3">
+            <TouchableOpacity 
+              onPress={() => {
+                Vibration.vibrate(10);
+                navigation.navigate('FeatureDetails', { 
+                  featureId: 'arus_kas', 
+                  title: 'Arus Kas (Cashflow)',
+                  autoOpenAddModal: true,
+                  defaultType: 'in'
+                });
+              }}
+              activeOpacity={0.85}
+              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl border border-emerald-500/20 bg-emerald-500/5"
+            >
+              <ArrowUpCircle size={16} color="#10b981" strokeWidth={2.5} />
+              <Text className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Catat Uang Masuk</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => {
+                Vibration.vibrate(10);
+                navigation.navigate('FeatureDetails', { 
+                  featureId: 'arus_kas', 
+                  title: 'Arus Kas (Cashflow)',
+                  autoOpenAddModal: true,
+                  defaultType: 'out'
+                });
+              }}
+              activeOpacity={0.85}
+              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl border border-rose-500/20 bg-rose-500/5"
+            >
+              <ArrowDownCircle size={16} color="#f43f5e" strokeWidth={2.5} />
+              <Text className="text-[10px] font-black uppercase tracking-wider text-rose-400">Catat Uang Keluar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ONLINE STORE EMBED SHARE CARD */}
