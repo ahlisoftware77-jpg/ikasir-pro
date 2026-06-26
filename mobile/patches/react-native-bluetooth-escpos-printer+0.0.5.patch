@@ -164,3 +164,21 @@ index dd5d33e..bcdf209 100644
  import android.util.Log;
  import android.widget.Toast;
  import com.facebook.react.bridge.*;
+diff --git a/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/escpos/RNBluetoothEscposPrinterModule.java b/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/escpos/RNBluetoothEscposPrinterModule.java
+index aabbccd..eeff001 100644
+--- a/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/escpos/RNBluetoothEscposPrinterModule.java
++++ b/node_modules/react-native-bluetooth-escpos-printer/android/src/main/java/cn/jystudio/bluetooth/escpos/RNBluetoothEscposPrinterModule.java
+@@ -341,13 +341,8 @@
+              * Returns: byte[]
+              */
+             byte[] data = PrintPicture.POS_PrintBMP(mBitmap, width, nMode, leftPadding);
+-            //	SendDataByte(buffer);
+-            sendDataByte(Command.ESC_Init);
+-            sendDataByte(Command.LF);
+             sendDataByte(data);
+-            sendDataByte(PrinterCommand.POS_Set_PrtAndFeedPaper(30));
+-            sendDataByte(PrinterCommand.POS_Set_Cut(1));
+-            sendDataByte(PrinterCommand.POS_Set_PrtInit());
+         }
+     }
+ 
