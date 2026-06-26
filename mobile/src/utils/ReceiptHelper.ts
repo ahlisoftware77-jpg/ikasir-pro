@@ -755,14 +755,57 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   // ─── HEADER (Centered) ──────────────────────────────────────────
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   
-  // Nama toko selalu dicetak sebagai teks tebal agar tidak ada jarak ekstra.
-  // Gambar font kustom (printPic) tidak dipakai di thermal karena PNG memiliki
-  // banyak whitespace di atas/bawah teks yang tercetak sebagai ruang kosong.
-  await BluetoothEscposPrinter.setBlob(1);
-  for (const line of wrapText(cleanStoreName.toUpperCase())) {
-    await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+  const fontId = storeSettings?.storeNameFont || 'sans';
+  const isCustomFont = ['railey', 'cheque', 'lovelo'].includes(fontId);
+  
+  if (isCustomFont) {
+    try {
+      const uniqueId = Math.random().toString(36).substring(7);
+      const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
+      // Gunakan URL production, jangan localhost
+      let baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+      if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1') || baseUrl.includes('192.168.')) {
+        baseUrl = 'https://ikasir.my.id';
+      }
+      if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+      const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+      const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      // Validasi: Pastikan data yang diunduh adalah gambar PNG valid (base64 PNG dimulai dengan 'iVBORw0KGgo')
+      if (!base64Image || !base64Image.startsWith('iVBORw0KGgo')) {
+        throw new Error("Unduhan bukan gambar PNG valid.");
+      }
+      
+      const is80 = storeSettings?.paperSize === '80mm';
+      const printerWidth = is80 ? 576 : 384;
+      // Gunakan lebar penuh printer agar gambar tercetak proporsional lebih kecil (tinggi berkurang)
+      // dan jarak ke baris berikutnya minimal
+      const picWidth = printerWidth; // kelipatan 8, lebar penuh
+      const leftPad = 0;
+
+      await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+      
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (delErr) {}
+    } catch (err: any) {
+      console.warn("Gagal mencetak header kustom sebagai gambar:", err);
+      // Fallback ke teks biasa jika gagal
+      await BluetoothEscposPrinter.setBlob(1);
+      for (const line of wrapText(cleanStoreName.toUpperCase())) {
+        await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+      }
+      await BluetoothEscposPrinter.setBlob(0);
+    }
+  } else {
+    // Default text printing for standard fonts
+    await BluetoothEscposPrinter.setBlob(1);
+    for (const line of wrapText(cleanStoreName.toUpperCase())) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+    }
+    await BluetoothEscposPrinter.setBlob(0);
   }
-  await BluetoothEscposPrinter.setBlob(0);
 
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   if (address) {

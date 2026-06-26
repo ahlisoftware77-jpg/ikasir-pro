@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       const urls = [
         `${origin}/fonts/${fontFilename}`,
         `https://ikasir.my.id/fonts/${fontFilename}`,
+        `https://ikasir-n3j64w7pn-ahlisoftware77-s-projects.vercel.app/fonts/${fontFilename}`,
         `https://ikasir-8d3amiifh-ahlisoftware77-s-projects.vercel.app/fonts/${fontFilename}`,
         `https://kasirkuyk.web.app/fonts/${fontFilename}`,
         new URL(relativePath, import.meta.url).toString()
@@ -70,29 +71,38 @@ export async function GET(req: NextRequest) {
       }
     ] : undefined;
 
+    // Font size: railey lebih tinggi karena huruf besar/kecil
+    const fontSize = fontId === 'railey' ? 40 : 32;
+    // Tinggi gambar = font size + sedikit buffer agar tidak terpotong
+    // Sengaja kecil agar tidak ada blank rows bawah yang jadi gap di printer
+    const imgHeight = fontSize + 6;
+
     return new ImageResponse(
       (
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
+            // alignItems: flex-end → teks di bawah, blank di atas
+            // Sehingga saat dicetak thermal (atas→bawah), blank ada di atas
+            // dan teks langsung diikuti baris berikutnya tanpa gap
+            alignItems: 'flex-end',
             justifyContent: 'center',
             width: '100%',
             height: '100%',
             backgroundColor: '#ffffff',
             color: `#${color}`,
-            padding: '5px 10px',
+            padding: '0px 4px',
           }}
         >
           <span
             style={{
               fontFamily: hasCustomFont && fontData ? fontName : 'sans-serif',
-              fontSize: fontId === 'railey' ? '46px' : '36px',
+              fontSize: `${fontSize}px`,
               fontWeight: fontId === 'lovelo' ? 700 : 'bold',
               textAlign: 'center',
               letterSpacing: fontId === 'lovelo' ? '0.12em' : fontId === 'cheque' ? '0.05em' : 'normal',
               textTransform: fontId === 'railey' ? 'none' : 'uppercase',
-              lineHeight: '1.2',
+              lineHeight: '1.0',
             }}
           >
             {text}
@@ -101,7 +111,7 @@ export async function GET(req: NextRequest) {
       ),
       {
         width: 384,
-        height: 80,
+        height: imgHeight,
         fonts: fonts,
       }
     );
