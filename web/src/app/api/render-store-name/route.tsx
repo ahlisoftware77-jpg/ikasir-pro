@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       const urls = [
         `${origin}/fonts/${fontFilename}`,
         `https://ikasir.my.id/fonts/${fontFilename}`,
+        `https://ikasir-n3j64w7pn-ahlisoftware77-s-projects.vercel.app/fonts/${fontFilename}`,
         `https://ikasir-8d3amiifh-ahlisoftware77-s-projects.vercel.app/fonts/${fontFilename}`,
         `https://kasirkuyk.web.app/fonts/${fontFilename}`,
         new URL(relativePath, import.meta.url).toString()
@@ -124,13 +125,13 @@ export async function GET(req: NextRequest) {
             height: '100%',
             backgroundColor: '#ffffff',
             color: `#${color}`,
-            padding: '0px 2px',
+            padding: '0px 10px',
           }}
         >
           <span
             style={{
               fontFamily: hasCustomFont && fontData ? fontName : 'sans-serif',
-              fontSize: fontId === 'railey' ? '28px' : '22px',
+              fontSize: fontId === 'railey' ? '40px' : '30px',
               fontWeight: fontId === 'lovelo' ? 700 : 'bold',
               textAlign: 'center',
               letterSpacing: fontId === 'lovelo' ? '0.12em' : fontId === 'cheque' ? '0.05em' : 'normal',
@@ -144,7 +145,7 @@ export async function GET(req: NextRequest) {
       ),
       {
         width: 384,
-        height: 32,
+        height: 50,
         fonts: fonts,
       }
     );
