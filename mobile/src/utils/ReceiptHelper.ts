@@ -656,7 +656,7 @@ const BluetoothManager = hasBluetoothNativeModule
   ? require('react-native-bluetooth-escpos-printer')?.BluetoothManager
   : null;
 
-export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
+export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, branding?: any, isExpired = true, isShort = false) => {
   if (!BluetoothEscposPrinter) {
     throw new Error('Bluetooth printer module is not available');
   }
@@ -842,6 +842,16 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     await BluetoothEscposPrinter.printText(`${phone}\n\r`, {});
   }
   await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+  
+  if (isShort) {
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    await BluetoothEscposPrinter.printText(`*** CETAK UJI COBA PENDEK ***\n\r`, {});
+    await BluetoothEscposPrinter.printText(`Font: ${fontId.toUpperCase()}\n\r`, {});
+    await BluetoothEscposPrinter.printText(`Status Spacing: Normal (30)\n\r`, {});
+    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+    await BluetoothEscposPrinter.printText(`\n\r\n\r\n\r`, {});
+    return;
+  }
 
   // ─── META INFO (Left aligned, matching web labels) ──────────────
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
@@ -1000,7 +1010,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   await BluetoothEscposPrinter.printText(`\n\r\n\r\n\r`, {});
 };
 
-export const printReceipt = async (transaction: any, storeSettings?: any) => {
+export const printReceipt = async (transaction: any, storeSettings?: any, isShort = false) => {
   let settings = storeSettings;
   
   let branding: any = null;
@@ -1050,7 +1060,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
           console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
         }
         
-        await printReceiptViaBluetooth(transaction, settings, branding, isExpired);
+        await printReceiptViaBluetooth(transaction, settings, branding, isExpired, isShort);
         
         if (Platform.OS === 'android') {
           ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
@@ -1063,7 +1073,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
           ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
         }
         // Fallback for older installations that only saved printer name
-        await printReceiptViaBluetooth(transaction, settings, branding, isExpired);
+        await printReceiptViaBluetooth(transaction, settings, branding, isExpired, isShort);
         
         if (Platform.OS === 'android') {
           ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
