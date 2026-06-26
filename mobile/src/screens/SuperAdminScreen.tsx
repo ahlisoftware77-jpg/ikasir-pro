@@ -3176,7 +3176,21 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                       <Text className="text-[8px] text-slate-500 font-bold ml-auto">sekarang</Text>
                     </View>
                     <Text className="text-xs font-black text-white">{broadcastTitle || 'Judul Notifikasi'}</Text>
-                    <Text className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed mb-2">{broadcastMessage || 'Isi pesan...'}</Text>
+                    <Text className="text-[10px] text-slate-300 font-bold mt-0.5 leading-relaxed mb-2">
+                      {broadcastMessage || 'Isi pesan...'}
+                      {broadcastLink.trim() ? (
+                        <Text 
+                          style={{ textDecorationLine: 'underline' }} 
+                          className="text-blue-400 font-black"
+                          onPress={() => {
+                            Vibration.vibrate(5);
+                            Linking.openURL(broadcastLink.trim());
+                          }}
+                        >
+                          {' '}disini
+                        </Text>
+                      ) : null}
+                    </Text>
                     
                     {(broadcastImage || broadcastImageUrl.trim()) ? (
                       <View className="w-full h-24 rounded-lg overflow-hidden border border-slate-700 mt-2 bg-slate-800">

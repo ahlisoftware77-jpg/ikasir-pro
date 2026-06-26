@@ -480,17 +480,19 @@ export default function DashboardScreen({ navigation }: any) {
                 </Text>
                 <Text className="text-[10px] font-bold mt-1 leading-relaxed text-slate-300">
                   {activeBroadcasts[currentSlide].message}
-                </Text>
-                {activeBroadcasts[currentSlide].data?.link && (
-                  <TouchableOpacity
-                    onPress={() => Linking.openURL(activeBroadcasts[currentSlide].data.link)}
-                    className="mt-2"
-                  >
-                    <Text className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
-                      Lihat Selengkapnya →
+                  {activeBroadcasts[currentSlide].data?.link && (
+                    <Text 
+                      style={{ textDecorationLine: 'underline' }} 
+                      className="text-emerald-400 font-black"
+                      onPress={() => {
+                        Vibration.vibrate(5);
+                        Linking.openURL(activeBroadcasts[currentSlide].data.link);
+                      }}
+                    >
+                      {' '}disini
                     </Text>
-                  </TouchableOpacity>
-                )}
+                  )}
+                </Text>
               </View>
 
               {activeBroadcasts[currentSlide].data?.imageUrl && (
