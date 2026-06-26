@@ -760,44 +760,67 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   
   if (isCustomFont) {
     try {
-      const uniqueId = Math.random().toString(36).substring(7);
-      const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
-      // Gunakan URL production, jangan localhost
-      let baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
-      if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1') || baseUrl.includes('192.168.')) {
-        baseUrl = 'https://ikasir.my.id';
+      // Buat daftar URL untuk dicoba secara berurutan
+      // Ini memastikan font kustom tetap bisa diunduh meski satu URL gagal
+      let baseUrl = storeSettings?.webBaseUrl || '';
+      if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1') || baseUrl.includes('192.168.')) {
+        baseUrl = '';
       }
       if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-      const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
-      const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
-      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      
-      // Validasi: Pastikan data yang diunduh adalah gambar PNG valid (base64 PNG dimulai dengan 'iVBORw0KGgo')
-      if (!base64Image || !base64Image.startsWith('iVBORw0KGgo')) {
-        throw new Error("Unduhan bukan gambar PNG valid.");
+
+      const endpoint = `/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+      const urlsToTry = [
+        baseUrl ? `${baseUrl}${endpoint}` : null,
+        `https://ikasir-n3j64w7pn-ahlisoftware77-s-projects.vercel.app${endpoint}`,
+        `https://ikasir.my.id${endpoint}`,
+        `https://ikasir-8d3amiifh-ahlisoftware77-s-projects.vercel.app${endpoint}`,
+      ].filter(Boolean) as string[];
+
+      let base64Image: string | null = null;
+      let downloadedUri: string | null = null;
+
+      for (const renderUrl of urlsToTry) {
+        try {
+          const uniqueId = Math.random().toString(36).substring(7);
+          const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
+          const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
+          const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          if (b64 && b64.startsWith('iVBORw0KGgo')) {
+            base64Image = b64;
+            downloadedUri = uri;
+            break; // Berhasil, hentikan loop
+          }
+          // Bukan PNG valid, hapus dan coba URL berikutnya
+          try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
+        } catch {
+          // URL ini gagal, coba berikutnya
+        }
       }
-      
+
+      if (!base64Image) {
+        throw new Error('Semua URL gagal menghasilkan gambar PNG font yang valid.');
+      }
+
       const is80 = storeSettings?.paperSize === '80mm';
       const printerWidth = is80 ? 576 : 384;
-      // Gunakan lebar penuh printer agar gambar tercetak proporsional lebih kecil (tinggi berkurang)
-      // dan jarak ke baris berikutnya minimal
-      const picWidth = printerWidth; // kelipatan 8, lebar penuh
+      const picWidth = printerWidth; // lebar penuh printer
       const leftPad = 0;
 
       await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
-      
-      try {
-        await FileSystem.deleteAsync(uri, { idempotent: true });
-      } catch (delErr) {}
+
+      if (downloadedUri) {
+        try { await FileSystem.deleteAsync(downloadedUri, { idempotent: true }); } catch {}
+      }
     } catch (err: any) {
-      console.warn("Gagal mencetak header kustom sebagai gambar:", err);
-      // Fallback ke teks biasa jika gagal
+      console.warn('Gagal mencetak header kustom sebagai gambar:', err);
+      // Fallback ke teks biasa jika semua URL gagal
       await BluetoothEscposPrinter.setBlob(1);
       for (const line of wrapText(cleanStoreName.toUpperCase())) {
         await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
       }
       await BluetoothEscposPrinter.setBlob(0);
     }
+
   } else {
     // Default text printing for standard fonts
     await BluetoothEscposPrinter.setBlob(1);
