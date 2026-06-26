@@ -75,9 +75,6 @@
       "requestHeaders": {
         "expo-channel-name": "production"
       }
-    },
-    "plugins": [
-      "expo-font"
-    ]
+    }
   }
 }

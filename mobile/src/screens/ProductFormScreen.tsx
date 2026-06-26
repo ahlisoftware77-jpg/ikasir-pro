@@ -157,6 +157,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.8,
     });
 
@@ -174,6 +175,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.8,
     });
 
@@ -207,12 +209,6 @@ export default function ProductFormScreen({ route, navigation }: any) {
       : `${catPart}-${namePart}-${randomNum}`;
 
     setFormData(prev => ({ ...prev, sku: prefix }));
-    Vibration.vibrate(10);
-  };
-
-  const generateAutomaticBarcode = () => {
-    const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
-    setFormData(prev => ({ ...prev, barcode: randomBarcode }));
     Vibration.vibrate(10);
   };
 
@@ -555,8 +551,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
               )}
             </View>
 
-            <View className="flex-col gap-5">
-              <View>
+            <View className="flex-row gap-4">
+              <View className="flex-1">
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>SKU (Stok)</Text>
                 <View className="flex-row gap-2">
                   <TextInput
@@ -584,7 +580,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 </View>
               </View>
 
-              <View>
+              <View className="flex-1">
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Barcode</Text>
                 <View className="flex-row gap-2">
                   <TextInput
@@ -595,13 +591,6 @@ export default function ProductFormScreen({ route, navigation }: any) {
                     className="flex-1 p-3.5 rounded-xl border font-bold text-xs"
                     style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
                   />
-                  <TouchableOpacity
-                    onPress={generateAutomaticBarcode}
-                    className="p-3.5 bg-accent rounded-xl flex-row items-center gap-1 shadow-md shadow-accent/20"
-                  >
-                    <Sparkles size={14} color="#ffffff" />
-                    <Text className="text-[9px] font-black text-white uppercase tracking-wider">AUTO</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => startScanning('barcode')}
                     className="p-3.5 rounded-xl border justify-center items-center"

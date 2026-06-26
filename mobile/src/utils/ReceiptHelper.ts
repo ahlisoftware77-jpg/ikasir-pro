@@ -50,17 +50,6 @@ const convertUrlToBase64 = async (url: string, prefixName: string): Promise<stri
   }
 };
 
-const getBaseUrl = (storeSettings: any): string => {
-  let baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
-  if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1') || baseUrl.includes('192.168.')) {
-    baseUrl = 'https://ikasir.my.id';
-  }
-  if (baseUrl.endsWith('/')) {
-    baseUrl = baseUrl.slice(0, -1);
-  }
-  return baseUrl;
-};
-
 const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean> => {
   if (!storeId) return true;
   try {
@@ -98,7 +87,7 @@ const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean
 };
 
 export const generateReceiptHtml = (transaction: any, storeSettings?: any, branding?: any, isExpired = true) => {
-  const baseUrl = getBaseUrl(storeSettings);
+  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
   let date: Date;
   if (transaction.timestamp?.seconds) {
     date = new Date(transaction.timestamp.seconds * 1000);
@@ -251,7 +240,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
 };
 
 export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
-  const baseUrl = getBaseUrl(storeSettings);
+  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
   const terbilang = (nilai: number): string => {
     const bilangan = [
       '', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 
@@ -735,70 +724,6 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 
   await BluetoothEscposPrinter.printerInit();
 
-  // Feed a few lines at the very beginning to prevent the header/logo from being cut off or printed too high
-  await BluetoothEscposPrinter.printText("\n\r\n\r\n\r\n\r", {});
-
-  if (trx.isTest) {
-    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-    
-    // Logo (if set)
-    const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
-    if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {
-      try {
-        const uniqueId = Math.random().toString(36).substring(7);
-        const tempFile = `${FileSystem.cacheDirectory}temp_bt_logo_${uniqueId}.jpg`;
-        const { uri } = await FileSystem.downloadAsync(activeLogoUrl, tempFile);
-        const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-        const printerWidth = is80mm ? 576 : 384;
-        const picWidth = 160;
-        const leftPad = Math.floor((printerWidth - picWidth) / 2);
-        await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
-        try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (delErr) {}
-      } catch (err) {}
-    }
-
-    // Nama toko selalu dicetak sebagai teks tebal (bold double-height).
-    // Font kustom tidak digunakan di thermal karena gambar PNG memiliki
-    // whitespace yang menyebabkan jarak besar antara nama toko dan alamat.
-    await BluetoothEscposPrinter.setBlob(1);
-    for (const line of wrapText(cleanStoreName.toUpperCase())) {
-      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
-    }
-    await BluetoothEscposPrinter.setBlob(0);
-    
-    await BluetoothEscposPrinter.printText(`*** UJI COBA CETAK PENDEK ***\n\r`, {});
-    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
-    
-    // Meta
-    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
-    await BluetoothEscposPrinter.printText(`Wkt: ${dateStr}\n\r`, {});
-    await BluetoothEscposPrinter.printText(`ID : ${trx.id}\n\r`, {});
-    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
-    
-    // Items
-    for (const item of (trx.items || [])) {
-      await BluetoothEscposPrinter.setBlob(1);
-      await BluetoothEscposPrinter.printText(`${item.productName || item.name}\n\r`, {});
-      await BluetoothEscposPrinter.setBlob(0);
-      const left = `1x${(item.price || 0).toLocaleString('id-ID')}`;
-      const right = (item.subtotal || (item.price || 0)).toLocaleString('id-ID');
-      await BluetoothEscposPrinter.printText(`${lr(left, right)}\n\r`, {});
-    }
-    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
-    
-    // Total
-    await BluetoothEscposPrinter.setBlob(1);
-    await BluetoothEscposPrinter.printText(`${lr('TOTAL:', `Rp ${(trx.total || 0).toLocaleString('id-ID')}`)}\n\r`, {});
-    await BluetoothEscposPrinter.setBlob(0);
-    await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
-    
-    // Footer
-    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-    await BluetoothEscposPrinter.printText(`UJI COBA SUKSES\n\r`, {});
-    await BluetoothEscposPrinter.printText(`\n\r`, {}); // Feed 1 line
-    return;
-  }
-
   // ─── LOGO (Tengah) ──────────────────────────────────────────────
   const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
   if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {
@@ -830,14 +755,50 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   // ─── HEADER (Centered) ──────────────────────────────────────────
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   
-  // Nama toko selalu dicetak sebagai teks tebal (bold double-height).
-  // Font kustom tidak digunakan di thermal karena gambar PNG memiliki
-  // whitespace yang menyebabkan jarak besar antara nama toko dan alamat.
-  await BluetoothEscposPrinter.setBlob(1);
-  for (const line of wrapText(cleanStoreName.toUpperCase())) {
-    await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+  const fontId = storeSettings?.storeNameFont || 'sans';
+  const isCustomFont = ['railey', 'cheque', 'lovelo'].includes(fontId);
+  
+  if (isCustomFont) {
+    try {
+      const uniqueId = Math.random().toString(36).substring(7);
+      const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
+      const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+      const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+      const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      // Validasi: Pastikan data yang diunduh adalah gambar PNG valid (base64 PNG dimulai dengan 'iVBORw0KGgo')
+      if (!base64Image || !base64Image.startsWith('iVBORw0KGgo')) {
+        throw new Error("Unduhan bukan gambar PNG valid.");
+      }
+      
+      const is80 = storeSettings?.paperSize === '80mm';
+      const printerWidth = is80 ? 576 : 384;
+      const picWidth = is80 ? 320 : 256; // kelipatan 8
+      const leftPad = Math.floor((printerWidth - picWidth) / 2);
+
+      await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+      
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (delErr) {}
+    } catch (err: any) {
+      console.warn("Gagal mencetak header kustom sebagai gambar:", err);
+      // Fallback ke teks biasa jika gagal
+      await BluetoothEscposPrinter.setBlob(1);
+      for (const line of wrapText(cleanStoreName.toUpperCase())) {
+        await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+      }
+      await BluetoothEscposPrinter.setBlob(0);
+    }
+  } else {
+    // Default text printing for standard fonts
+    await BluetoothEscposPrinter.setBlob(1);
+    for (const line of wrapText(cleanStoreName.toUpperCase())) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+    }
+    await BluetoothEscposPrinter.setBlob(0);
   }
-  await BluetoothEscposPrinter.setBlob(0);
 
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   if (address) {
@@ -1080,8 +1041,12 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
         return;
       }
     } catch (error) {
-      console.error('Direct Bluetooth print failed:', error);
-      throw error;
+      console.error('Direct Bluetooth print failed, falling back to PDF preview:', error);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share/invoice...', ToastAndroid.LONG);
+      } else {
+        Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share/invoice...');
+      }
     }
   }
 

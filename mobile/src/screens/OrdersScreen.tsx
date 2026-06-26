@@ -28,9 +28,7 @@ import {
   Ban, 
   Banknote, 
   Check, 
-  ExternalLink,
-  Calendar,
-  Clock
+  ExternalLink 
 } from 'lucide-react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -79,17 +77,6 @@ const requestBluetoothPermissions = async (): Promise<boolean> => {
   } catch (err) {
     console.error("Error requesting Bluetooth permissions:", err);
     return false;
-  }
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'new': return '#3b82f6'; // Blue
-    case 'processing': return '#f59e0b'; // Amber
-    case 'ready': return '#10b981'; // Emerald
-    case 'completed': return '#94a3b8'; // Slate
-    case 'cancelled': return '#f43f5e'; // Rose
-    default: return '#94a3b8';
   }
 };
 
@@ -307,19 +294,7 @@ export default function OrdersScreen() {
                 try {
                   await printReceipt(order, storeSettings);
                 } catch (err) {
-                  Alert.alert(
-                    "Koneksi Gagal",
-                    "Gagal terhubung ke printer Bluetooth. Silakan pilih kembali printer dari daftar.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: () => {
-                          setIsBluetoothModalVisible(true);
-                          startBluetoothScan();
-                        }
-                      }
-                    ]
-                  );
+                  Alert.alert("Gagal Mencetak", "Terjadi kesalahan saat berkomunikasi dengan printer.");
                 }
               }
             }
@@ -814,15 +789,9 @@ export default function OrdersScreen() {
                   setActiveTab(tab.id as any);
                 }}
                 activeOpacity={0.8}
-                className="flex-row items-center gap-2 px-4 py-2.5 rounded-full"
+                className="flex-row items-center gap-1.5 px-4 py-2 rounded-2xl border"
                 style={{
                   backgroundColor: isActive ? colors.accent : colors.surface,
-                  shadowColor: isActive ? colors.accent : 'transparent',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isActive ? 0.25 : 0,
-                  shadowRadius: 8,
-                  elevation: isActive ? 3 : 0,
-                  borderWidth: 1,
                   borderColor: isActive ? colors.accent : colors.border,
                   flexShrink: 0
                 }}
@@ -877,78 +846,65 @@ export default function OrdersScreen() {
             {filteredOrders.map((order) => {
               const isExpanded = expandedOrderId === order.id;
               const { day, monthYear, time } = getLeftCardDateTime(order.timestamp);
+              const formattedTime = order.timestamp?.seconds 
+                ? new Date(order.timestamp.seconds * 1000).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':')
+                : new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':');
 
               return (
                 <View 
                   key={order.id} 
-                  className="rounded-3xl border overflow-hidden mb-4 shadow-sm flex-row"
+                  className="rounded-3xl border overflow-hidden mb-4 shadow-sm"
                   style={{ 
                     backgroundColor: colors.surface, 
                     borderColor: isExpanded ? colors.accent : colors.border 
                   }}
                 >
-                  {/* Strip Aksen Status Samping */}
-                  <View style={{ width: 5, backgroundColor: getStatusColor(order.orderStatus || 'new') }} />
-                  
-                  <View className="flex-1">
+                  <View className="flex-row items-stretch" style={{ minHeight: 90 }}>
+                    {/* Blok Kiri: Ungu Tanggal / Waktu */}
+                    <View 
+                      className="w-[84px] items-center justify-center p-2.5"
+                      style={{ backgroundColor: '#7c3aed' }}
+                    >
+                      <Text className="text-2xl font-black text-white leading-none">{day}</Text>
+                      <Text className="text-[9px] font-black text-white mt-1 uppercase tracking-wider text-center">{monthYear}</Text>
+                      <Text className="text-[10px] font-bold text-white mt-1.5 tracking-tighter">{time}</Text>
+                    </View>
+
                     {/* Card Header Tap Area */}
                     <TouchableOpacity
                       onPress={() => setExpandedOrderId(isExpanded ? null : order.id)}
                       activeOpacity={0.9}
-                      className="p-4"
+                      className="flex-1 p-3.5 justify-between"
                     >
                       {/* Baris 1: ID/No Antrean & Badge Status */}
-                      <View className="flex-row justify-between items-center mb-2">
-                        <View className="flex-row items-center gap-2">
-                          <View className="px-2 py-0.5 rounded-lg bg-slate-500/10">
-                            <Text className="text-[11px] font-black text-slate-400 uppercase">
-                              #{order.queueNumber || '0'}
-                            </Text>
-                          </View>
-                          <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            ID: #{order.id?.substring(0, 8).toUpperCase()}
-                          </Text>
-                        </View>
+                      <View className="flex-row justify-between items-center">
+                        <Text className="text-[11px] font-bold text-slate-400 tracking-wider uppercase flex-1 mr-2" numberOfLines={1}>
+                          #{order.queueNumber || '0'} • {order.id?.substring(0, 8).toUpperCase() || 'ORDER'}
+                        </Text>
                         {getStatusBadge(order)}
                       </View>
 
-                      {/* Baris 2: Waktu & Tanggal Metadata */}
-                      <View className="flex-row items-center gap-3 mb-2">
-                        <View className="flex-row items-center gap-1">
-                          <Calendar size={11} color={colors.textMuted} />
-                          <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>
-                            {day} {monthYear}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-1">
-                          <Clock size={11} color={colors.textMuted} />
-                          <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>
-                            {time}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Baris 3: Nama Pelanggan & Badge Detail */}
-                      <View className="flex-row justify-between items-center mb-3">
-                        <Text className="text-[13px] font-extrabold flex-1 mr-2" style={{ color: colors.text }} numberOfLines={1}>
-                          {order.customerName || 'Pelanggan Umum'}
+                      {/* Baris 2: Nama Pelanggan & Badge Detail */}
+                      <View className="flex-row justify-between items-center my-1.5">
+                        <Text className="text-xs font-black flex-1 mr-2" style={{ color: colors.text }} numberOfLines={1}>
+                          {order.customerName || 'Pelanggan'}
                         </Text>
                         <View className="flex-row items-center gap-1.5">
-                          <View className="bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/10">
-                            <Text className="text-[8px] font-black text-indigo-500 uppercase tracking-wider">
+                          <View className="bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                            <Text className="text-[8px] font-black text-indigo-500 uppercase">
                               {order.orderType === 'dine-in' ? 'Dine In' : order.orderType === 'online' ? 'Online' : 'Takeaway'}
                             </Text>
                           </View>
                           <View 
-                            className="px-2 py-0.5 rounded-full border"
+                            className="px-1.5 py-0.5 rounded border"
                             style={{ 
-                              backgroundColor: order.paymentStatus === 'paid' ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)',
-                              borderColor: order.paymentStatus === 'paid' ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)'
+                              backgroundColor: order.paymentStatus === 'paid' ? '#10b98110' : '#ef444410',
+                              borderColor: order.paymentStatus === 'paid' ? '#10b98120' : '#ef444420'
                             }}
                           >
                             <Text 
-                              className="text-[8px] font-black uppercase tracking-wider" 
-                              style={{ color: order.paymentStatus === 'paid' ? '#10b981' : '#f43f5e' }}
+                              className="text-[8px] font-black uppercase" 
+                              style={{ color: order.paymentStatus === 'paid' ? '#10b981' : '#ef4444' }}
                             >
                               {order.paymentStatus === 'paid' ? 'Lunas' : 'Belum Lunas'}
                             </Text>
@@ -956,253 +912,212 @@ export default function OrdersScreen() {
                         </View>
                       </View>
 
-                      {/* Baris 4: Nominal Rp & Kasir */}
-                      <View className="flex-row justify-between items-end pt-2 border-t" style={{ borderColor: colors.border + '30' }}>
-                        <Text className="text-base font-black text-emerald-500">
-                          Rp {order.total?.toLocaleString('id-ID')}
+                      {/* Baris 3: Nominal Rp & Kasir */}
+                      <View className="flex-row justify-between items-end">
+                        <Text className="text-base font-black text-emerald-500 leading-none">
+                          Rp{order.total?.toLocaleString('id-ID')}
                         </Text>
-                        <View className="flex-row items-center gap-1 bg-slate-500/10 px-2 py-0.5 rounded-lg">
-                          <User size={10} color={colors.textMuted} />
-                          <Text className="text-[9px] font-bold text-slate-500" numberOfLines={1}>
-                            {(order.cashierName || 'Sistem').split('@')[0]}
-                          </Text>
-                        </View>
+                        <Text className="text-[11px] font-black text-rose-500 leading-none text-right" numberOfLines={1}>
+                          {order.cashierName || 'Admin'}
+                        </Text>
                       </View>
                     </TouchableOpacity>
+                  </View>
 
-                    {/* Expanded Accordion Area */}
-                    {isExpanded && (
-                      <View className="px-4 pb-4 border-t pt-4" style={{ borderColor: colors.border, backgroundColor: colors.bg + '08' }}>
-                        
-                        {/* Products List */}
-                        <Text className="text-[9px] font-black uppercase tracking-wider mb-2.5" style={{ color: colors.textMuted }}>
-                          Daftar Pembelian:
-                        </Text>
-                        <View className="flex gap-2 mb-4">
-                          {order.items?.map((item: any, idx: number) => (
-                            <View 
-                              key={idx} 
-                              className="p-3 rounded-2xl border flex-row justify-between items-center"
-                              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                            >
-                              <View className="flex-1 pr-4 flex-row items-start">
-                                <View className="bg-slate-500/10 px-1.5 py-0.5 rounded mr-2 border border-slate-500/10 mt-0.5">
-                                  <Text className="text-[9px] font-black" style={{ color: colors.text }}>{item.qty}x</Text>
-                                </View>
-                                <View className="flex-1">
-                                  <Text className="text-xs font-extrabold" style={{ color: colors.text }}>
-                                    {item.productName || item.name}
-                                  </Text>
-                                  <Text className="text-[9px] font-bold mt-0.5" style={{ color: colors.textMuted }}>
-                                    @ Rp {item.price?.toLocaleString('id-ID')}
-                                  </Text>
-                                  {item.selectedExtras?.length > 0 && (
-                                    <Text className="text-[8px] font-bold text-accent mt-1">
-                                      + {item.selectedExtras.map((e: any) => e.optionName).join(', ')}
-                                    </Text>
-                                  )}
-                                  {item.note ? (
-                                    <View className="flex-row items-center gap-1 mt-1 bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10 self-start">
-                                      <Text className="text-[8px] font-bold text-amber-500 italic">Catatan: {item.note}</Text>
-                                    </View>
-                                  ) : null}
-                                </View>
-                              </View>
+                  {/* Expanded Accordion Area */}
+                  {isExpanded && (
+                    <View className="px-5 pb-5 border-t pt-4" style={{ borderColor: colors.border, backgroundColor: colors.bg + '10' }}>
+                      
+                      {/* Products List */}
+                      <Text className="text-[10px] font-black uppercase tracking-wider mb-2.5" style={{ color: colors.textMuted }}>
+                        Daftar Pembelian:
+                      </Text>
+                      <View className="flex gap-2 mb-4">
+                        {order.items?.map((item: any, idx: number) => (
+                          <View 
+                            key={idx} 
+                            className="p-3 rounded-2xl border flex-row justify-between items-center"
+                            style={{ backgroundColor: colors.bg + '50', borderColor: colors.border }}
+                          >
+                            <View className="flex-1 pr-4">
                               <Text className="text-xs font-black" style={{ color: colors.text }}>
-                                Rp {item.subtotal?.toLocaleString('id-ID')}
+                                {item.productName || item.name}
                               </Text>
+                              <Text className="text-[10px] font-bold mt-0.5" style={{ color: colors.textMuted }}>
+                                {item.qty}x @ Rp {item.price?.toLocaleString('id-ID')}
+                              </Text>
+                              {item.selectedExtras?.length > 0 && (
+                                <Text className="text-[8px] font-bold text-accent mt-1">
+                                  + {item.selectedExtras.map((e: any) => e.optionName).join(', ')}
+                                </Text>
+                              )}
+                              {item.note ? (
+                                <Text className="text-[9px] font-bold italic text-amber-500 mt-1">
+                                  📝 {item.note}
+                                </Text>
+                              ) : null}
                             </View>
-                          ))}
-                        </View>
-
-                        {/* Delivery Address */}
-                        {order.deliveryType === 'delivery' && order.deliveryAddress && (
-                          <View className="mb-4 p-4 rounded-2xl border bg-amber-500/5 border-amber-500/20">
-                            <View className="flex-row items-center gap-1 mb-1.5">
-                              <MapPin size={12} color="#f59e0b" />
-                              <Text className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Alamat Pengiriman</Text>
-                            </View>
-                            <Text className="text-xs font-bold leading-normal mb-3" style={{ color: colors.text }}>
-                              {order.deliveryAddress}
+                            <Text className="text-xs font-black text-slate-300">
+                              Rp {item.subtotal?.toLocaleString('id-ID')}
                             </Text>
-                            <TouchableOpacity 
-                              onPress={() => openMaps(order.deliveryAddress)}
-                              className="bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 rounded-xl flex-row items-center gap-1.5 self-start"
-                            >
-                              <ExternalLink size={12} color="#f59e0b" />
-                              <Text className="text-[9px] font-black text-amber-600 uppercase tracking-wider">BUKA GOOGLE MAPS</Text>
-                            </TouchableOpacity>
                           </View>
-                        )}
+                        ))}
+                      </View>
 
-                        {/* Payments list history */}
-                        {order.paymentHistory && order.paymentHistory.length > 0 && (
-                          <View className="mb-4">
-                            <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Riwayat Cicilan Piutang:</Text>
-                            <View className="flex gap-2">
-                              {order.paymentHistory.map((hist: any, idx: number) => (
-                                <View 
-                                  key={idx} 
-                                  className="p-3 rounded-2xl border flex-row justify-between items-center"
-                                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                                >
-                                  <View>
-                                    <Text className="text-xs font-bold" style={{ color: colors.text }}>{hist.note}</Text>
-                                    <Text className="text-[8px] font-bold mt-0.5" style={{ color: colors.textMuted }}>
-                                      {new Date(hist.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                    </Text>
-                                  </View>
-                                  <Text className="text-xs font-black text-emerald-500">Rp {hist.amount?.toLocaleString('id-ID')}</Text>
-                                </View>
-                              ))}
-                            </View>
-                          </View>
-                        )}
-                        
-                        {/* Payment Proof Image Preview */}
-                        {order.paymentProofUrl ? (
-                          <View className="mb-4">
-                            <Text className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: colors.textMuted }}>Bukti Pembayaran (Transfer/E-Wallet):</Text>
-                            <TouchableOpacity 
-                              onPress={() => Linking.openURL(order.paymentProofUrl).catch(() => Alert.alert('Error', 'Gagal membuka link bukti pembayaran.'))}
-                              activeOpacity={0.8}
-                              className="rounded-2xl overflow-hidden border bg-black/10"
-                              style={{ borderColor: colors.border, width: 120, height: 160 }}
-                            >
-                              <Image source={{ uri: order.paymentProofUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                              <View className="absolute bottom-0 left-0 right-0 bg-black/60 py-1.5">
-                                <Text className="text-[8px] font-black text-white text-center uppercase tracking-widest">Buka Gambar</Text>
-                              </View>
-                            </TouchableOpacity>
-                          </View>
-                        ) : null}
+                      {/* Delivery Address */}
+                      {order.deliveryType === 'delivery' && order.deliveryAddress && (
+                        <View className="mb-4 p-4 rounded-2xl border bg-amber-500/5 border-amber-500/20">
+                          <Text className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1.5 flex-row items-center">
+                            <MapPin size={10} color="#f59e0b" /> Alamat Pengiriman:
+                          </Text>
+                          <Text className="text-xs font-bold leading-normal mb-3" style={{ color: colors.text }}>
+                            {order.deliveryAddress}
+                          </Text>
+                          <TouchableOpacity 
+                            onPress={() => openMaps(order.deliveryAddress)}
+                            className="bg-amber-500 px-4 py-2 rounded-xl flex-row items-center gap-1.5 w-fit"
+                          >
+                            <ExternalLink size={12} color="white" />
+                            <Text className="text-[9px] font-black text-white uppercase tracking-wider">BUKA GOOGLE MAPS</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
 
-                        {/* Fulfillment Actions */}
-                        {order.orderStatus !== 'completed' && order.orderStatus !== 'cancelled' && (
-                          <View className="border-t pt-4 flex gap-2" style={{ borderColor: colors.border + '30' }}>
-                            
-                            {/* Comm buttons */}
-                            {order.customerPhone && (
-                              <TouchableOpacity 
-                                onPress={() => openWhatsApp(order.customerPhone, order.customerName)}
-                                className="h-11 rounded-xl items-center justify-center flex-row gap-2 border"
-                                style={{ 
-                                  backgroundColor: 'rgba(16,185,129,0.05)', 
-                                  borderColor: 'rgba(16,185,129,0.2)'
-                                }}
+                      {/* Payments list history */}
+                      {order.paymentHistory && order.paymentHistory.length > 0 && (
+                        <View className="mb-4">
+                          <Text className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Riwayat Cicilan Piutang:</Text>
+                          <View className="flex gap-2">
+                            {order.paymentHistory.map((hist: any, idx: number) => (
+                              <View 
+                                key={idx} 
+                                className="p-3 rounded-2xl border flex-row justify-between items-center bg-black/10"
+                                style={{ borderColor: colors.border }}
                               >
-                                <MessageCircle size={16} color="#10b981" />
-                                <Text className="text-xs font-black text-emerald-500">CHAT WHATSAPP</Text>
+                                <View>
+                                  <Text className="text-xs font-bold" style={{ color: colors.text }}>{hist.note}</Text>
+                                  <Text className="text-[8px] font-bold mt-0.5" style={{ color: colors.textMuted }}>
+                                    {new Date(hist.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  </Text>
+                                </View>
+                                <Text className="text-xs font-black text-emerald-500">Rp {hist.amount?.toLocaleString('id-ID')}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                      {/* Payment Proof Image Preview */}
+                      {order.paymentProofUrl ? (
+                        <View className="mb-4">
+                          <Text className="text-[10px] font-black uppercase tracking-wider mb-2" style={{ color: colors.textMuted }}>Bukti Pembayaran (Transfer/E-Wallet):</Text>
+                          <TouchableOpacity 
+                            onPress={() => Linking.openURL(order.paymentProofUrl).catch(() => Alert.alert('Error', 'Gagal membuka link bukti pembayaran.'))}
+                            activeOpacity={0.8}
+                            className="rounded-2xl overflow-hidden border bg-black/10"
+                            style={{ borderColor: colors.border, width: 120, height: 160 }}
+                          >
+                            <Image source={{ uri: order.paymentProofUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <View className="absolute bottom-0 left-0 right-0 bg-black/60 py-1.5">
+                              <Text className="text-[8px] font-black text-white text-center uppercase tracking-widest">Buka Gambar</Text>
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+
+                      {/* Fulfillment Actions */}
+                      {order.orderStatus !== 'completed' && order.orderStatus !== 'cancelled' && (
+                        <View className="border-t pt-4 flex gap-2" style={{ borderColor: colors.border }}>
+                          
+                          {/* Comm buttons */}
+                          {order.customerPhone && (
+                            <TouchableOpacity 
+                              onPress={() => openWhatsApp(order.customerPhone, order.customerName)}
+                              className="bg-emerald-500 h-12 rounded-xl items-center justify-center flex-row gap-2"
+                            >
+                              <MessageCircle size={16} color="white" />
+                              <Text className="text-xs font-black text-white">CHAT WHATSAPP</Text>
+                            </TouchableOpacity>
+                          )}
+
+                          <View className="flex-row gap-2">
+                            {(!order.orderStatus || order.orderStatus === 'new') && (
+                              <TouchableOpacity 
+                                onPress={() => handleUpdateStatus(order, 'processing')}
+                                className="flex-1 bg-amber-500 h-12 rounded-xl items-center justify-center flex-row gap-1.5"
+                              >
+                                <ChefHat size={16} color="white" />
+                                <Text className="text-xs font-black text-white">TERIMA & PROSES</Text>
                               </TouchableOpacity>
                             )}
 
-                            <View className="flex-row gap-2">
-                              {(!order.orderStatus || order.orderStatus === 'new') && (
-                                <TouchableOpacity 
-                                  onPress={() => handleUpdateStatus(order, 'processing')}
-                                  className="flex-1 h-11 rounded-xl items-center justify-center flex-row gap-1.5 border"
-                                  style={{
-                                    backgroundColor: 'rgba(245,158,11,0.05)',
-                                    borderColor: 'rgba(245,158,11,0.2)'
-                                  }}
-                                >
-                                  <ChefHat size={16} color="#f59e0b" />
-                                  <Text className="text-xs font-black text-amber-600">TERIMA & PROSES</Text>
-                                </TouchableOpacity>
-                              )}
+                            {order.orderStatus === 'processing' && (
+                              <TouchableOpacity 
+                                onPress={() => handleUpdateStatus(order, 'ready')}
+                                className="flex-1 bg-emerald-500 h-12 rounded-xl items-center justify-center flex-row gap-1.5"
+                              >
+                                {order.deliveryType === 'delivery' ? <Truck size={16} color="white" /> : <ShoppingBag size={16} color="white" />}
+                                <Text className="text-xs font-black text-white">PESANAN SIAP</Text>
+                              </TouchableOpacity>
+                            )}
 
-                              {order.orderStatus === 'processing' && (
-                                <TouchableOpacity 
-                                  onPress={() => handleUpdateStatus(order, 'ready')}
-                                  className="flex-1 h-11 rounded-xl items-center justify-center flex-row gap-1.5 border"
-                                  style={{
-                                    backgroundColor: 'rgba(16,185,129,0.05)',
-                                    borderColor: 'rgba(16,185,129,0.2)'
-                                  }}
-                                >
-                                  {order.deliveryType === 'delivery' ? <Truck size={16} color="#10b981" /> : <ShoppingBag size={16} color="#10b981" />}
-                                  <Text className="text-xs font-black text-emerald-500">PESANAN SIAP</Text>
-                                </TouchableOpacity>
-                              )}
-
-                              {order.orderStatus === 'ready' && (
-                                <TouchableOpacity 
-                                  onPress={() => handleFinishOrder(order)}
-                                  className="flex-1 h-11 rounded-xl items-center justify-center flex-row gap-1.5 border"
-                                  style={{
-                                    backgroundColor: 'rgba(59,130,246,0.05)',
-                                    borderColor: 'rgba(59,130,246,0.2)'
-                                  }}
-                                >
-                                  <CheckCircle2 size={16} color="#3b82f6" />
-                                  <Text className="text-xs font-black text-blue-500">SELESAIKAN ORDER</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
+                            {order.orderStatus === 'ready' && (
+                              <TouchableOpacity 
+                                onPress={() => handleFinishOrder(order)}
+                                className="flex-1 bg-blue-500 h-12 rounded-xl items-center justify-center flex-row gap-1.5"
+                              >
+                                <CheckCircle2 size={16} color="white" />
+                                <Text className="text-xs font-black text-white">SELESAIKAN ORDER</Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
+                        </View>
+                      )}
+
+                      {/* Cashier Payments Actions */}
+                      <View className="border-t pt-4 mt-2 flex-row gap-2" style={{ borderColor: colors.border }}>
+                        
+                        {order.paymentStatus !== 'paid' && (
+                          <>
+                            <TouchableOpacity
+                              onPress={() => handleOpenSettle(order)}
+                              className="flex-1 bg-emerald-600 h-12 rounded-xl items-center justify-center flex-row gap-1 px-1"
+                            >
+                              <Banknote size={14} color="white" />
+                              <Text className="text-[9px] font-black text-white text-center" adjustsFontSizeToFit numberOfLines={1}>BAYAR</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              onPress={() => handleOpenPiutang(order)}
+                              className="flex-1 bg-blue-600 h-12 rounded-xl items-center justify-center flex-row gap-1 px-1"
+                            >
+                              <CreditCard size={14} color="white" />
+                              <Text className="text-[9px] font-black text-white text-center" adjustsFontSizeToFit numberOfLines={1}>PIUTANG</Text>
+                            </TouchableOpacity>
+                          </>
                         )}
 
-                        {/* Cashier Payments Actions */}
-                        <View className="border-t pt-4 mt-2 flex-row gap-2" style={{ borderColor: colors.border + '30' }}>
-                          
-                          {order.paymentStatus !== 'paid' && (
-                            <>
-                              <TouchableOpacity
-                                onPress={() => handleOpenSettle(order)}
-                                className="flex-1 h-11 rounded-xl items-center justify-center flex-row gap-1 px-1 border"
-                                style={{
-                                  backgroundColor: 'rgba(16,185,129,0.05)',
-                                  borderColor: 'rgba(16,185,129,0.2)'
-                                }}
-                              >
-                                <Banknote size={14} color="#10b981" />
-                                <Text className="text-[10px] font-black text-emerald-500 text-center" adjustsFontSizeToFit numberOfLines={1}>BAYAR</Text>
-                              </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handlePrintAction(order)}
+                          className="flex-1 border h-12 rounded-xl items-center justify-center flex-row gap-1 px-1"
+                          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                        >
+                          <Printer size={14} color={colors.text} />
+                          <Text className="text-[9px] font-black text-center" style={{ color: colors.text }} adjustsFontSizeToFit numberOfLines={1}>CETAK</Text>
+                        </TouchableOpacity>
 
-                              <TouchableOpacity
-                                onPress={() => handleOpenPiutang(order)}
-                                className="flex-1 h-11 rounded-xl items-center justify-center flex-row gap-1 px-1 border"
-                                style={{
-                                  backgroundColor: 'rgba(59,130,246,0.05)',
-                                  borderColor: 'rgba(59,130,246,0.2)'
-                                }}
-                              >
-                                <CreditCard size={14} color="#3b82f6" />
-                                <Text className="text-[10px] font-black text-blue-500 text-center" adjustsFontSizeToFit numberOfLines={1}>PIUTANG</Text>
-                              </TouchableOpacity>
-                            </>
-                          )}
-
+                        {order.orderStatus !== 'cancelled' && (
                           <TouchableOpacity
-                            onPress={() => handlePrintAction(order)}
-                            className="flex-1 border h-11 rounded-xl items-center justify-center flex-row gap-1 px-1 border"
-                            style={{ 
-                              backgroundColor: 'rgba(148,163,184,0.05)', 
-                              borderColor: colors.border 
-                            }}
+                            onPress={() => handleCancelOrder(order)}
+                            className="bg-rose-500/10 w-12 h-12 rounded-xl items-center justify-center border border-rose-500/30"
                           >
-                            <Printer size={14} color={colors.text} />
-                            <Text className="text-[10px] font-black text-center" style={{ color: colors.text }} adjustsFontSizeToFit numberOfLines={1}>CETAK</Text>
+                            <Trash2 size={16} color="#f43f5e" />
                           </TouchableOpacity>
-
-                          {order.orderStatus !== 'cancelled' && (
-                            <TouchableOpacity
-                              onPress={() => handleCancelOrder(order)}
-                              className="w-11 h-11 rounded-xl items-center justify-center border"
-                              style={{
-                                backgroundColor: 'rgba(244,63,94,0.05)',
-                                borderColor: 'rgba(244,63,94,0.2)'
-                              }}
-                            >
-                              <Trash2 size={16} color="#f43f5e" />
-                            </TouchableOpacity>
-                          )}
-
-                        </View>
+                        )}
 
                       </View>
-                    )}
-                  </View>
+
+                    </View>
+                  )}
                 </View>
               );
             })}

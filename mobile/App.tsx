@@ -80,7 +80,6 @@ const runBackgroundCleanup = async (storeId: string) => {
   }
 };
 import { Alert, Platform, View, Text, TouchableOpacity, ActivityIndicator, Animated, Easing, Vibration, Pressable } from 'react-native';
-import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotificationStore } from './src/store/notificationStore';
 
@@ -192,12 +191,9 @@ function TabNavigator() {
     const isMenuDisabled = isSuperAdminBlocked || isExpiredBlocked;
 
     return {
-      tabBarIcon: ({ color, focused }: any) => {
-        if (typeof iconComponent === 'string') {
-          return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{iconComponent}</Text>;
-        }
+      tabBarIcon: ({ color }: any) => {
         const Icon = iconComponent;
-        return <Icon color={color} size={24} strokeWidth={2} />;
+        return <Icon color={color} size={24} strokeWidth={2.5} />;
       },
       title,
       tabBarButton: (props: any) => (
@@ -278,21 +274,21 @@ function TabNavigator() {
         <Tab.Screen 
           name="Beranda" 
           component={DashboardScreen} 
-          options={getTabOptions('DASBOR UTAMA', '/reports', '📊')}
+          options={getTabOptions('DASBOR UTAMA', '/reports', LayoutDashboard)}
         />
       )}
       {isKasirVisible && (
         <Tab.Screen 
           name="Kasir" 
           component={POSScreen} 
-          options={getTabOptions('IKASIR PRO', '/pos', '🛒')}
+          options={getTabOptions('IKASIR PRO', '/pos', Calculator)}
         />
       )}
       {isPesananVisible && (
         <Tab.Screen 
           name="Pesanan" 
           component={OrdersScreen} 
-          options={getTabOptions('PESANAN ONLINE', '/orders', '📦', {
+          options={getTabOptions('PESANAN ONLINE', '/orders', ShoppingBag, {
             tabBarBadge: newOrdersCount > 0 ? newOrdersCount : undefined,
             tabBarBadgeStyle: {
               backgroundColor: '#ef4444',
@@ -311,14 +307,14 @@ function TabNavigator() {
         <Tab.Screen 
           name="Transaksi" 
           component={TransactionsScreen} 
-          options={getTabOptions('RIWAYAT TRANSAKSI', '/transactions', '💰')}
+          options={getTabOptions('RIWAYAT TRANSAKSI', '/transactions', History)}
         />
       )}
       <Tab.Screen 
         name="Lainnya" 
         component={SettingsScreen} 
         options={{
-          tabBarIcon: ({ focused }: any) => <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>⚙️</Text>,
+          tabBarIcon: ({ color }) => <LayoutGrid color={color} size={24} strokeWidth={2.5} />,
           title: 'MENU LAINNYA',
           tabBarBadge: showExpiredOrWarningBadge ? '!' : undefined,
           tabBarBadgeStyle: showExpiredOrWarningBadge ? {
@@ -891,24 +887,6 @@ export default function App() {
   useEffect(() => {
     activateKeepAwakeAsync().catch(console.warn);
   }, []);
-
-  const [fontsLoaded] = useFonts({
-    'Railey': require('./assets/Railey-PersonalUse.ttf'),
-    'Lovelo-LineLight': require('./assets/Lovelo-LineLight.ttf'),
-    'Lovelo-LineBold': require('./assets/Lovelo-LineBold.ttf'),
-    'Lovelo-Black': require('./assets/Lovelo-Black.ttf'),
-    'Cheque-Regular': require('./assets/Cheque-Regular.ttf'),
-    'Cheque-Black': require('./assets/Cheque-Black.ttf'),
-  });
-
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' }}>
-        <ActivityIndicator size="large" color="#6366f1" />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaProvider>
       <ThemeProvider>

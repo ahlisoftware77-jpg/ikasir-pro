@@ -111,7 +111,6 @@ export interface Transaction {
   storeId?: string;
   downPayment?: number;
   status?: 'active' | 'converted';
-  isTest?: boolean;
 }
 
 export interface Customer {

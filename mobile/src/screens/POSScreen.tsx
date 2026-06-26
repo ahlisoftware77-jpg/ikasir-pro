@@ -714,19 +714,7 @@ export default function POSScreen({ route, navigation }: any) {
                   setViewingReceipt(null);
                   setSuccessTrx(null);
                 } catch (err) {
-                  Alert.alert(
-                    "Koneksi Gagal",
-                    "Gagal terhubung ke printer Bluetooth. Silakan pilih kembali printer dari daftar.",
-                    [
-                      {
-                        text: "OK",
-                        onPress: () => {
-                          setIsBluetoothModalVisible(true);
-                          startBluetoothScan();
-                        }
-                      }
-                    ]
-                  );
+                  Alert.alert("Gagal Mencetak", "Terjadi kesalahan saat berkomunikasi dengan printer.");
                 }
               }
             }

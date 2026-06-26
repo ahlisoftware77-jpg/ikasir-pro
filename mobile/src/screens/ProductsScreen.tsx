@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, Modal, RefreshControl, Vibration, Pressable, Platform, PermissionsAndroid, Dimensions, NativeModules, ScrollView, Share } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, Modal, RefreshControl, Vibration, Pressable, Platform, PermissionsAndroid, Dimensions, NativeModules, ScrollView } from 'react-native';
 import { collection, query, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -157,9 +157,6 @@ export default function ProductsScreen({ navigation }: any) {
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [labelSize, setLabelSize] = useState<'58x30' | '58x20'>('58x30');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [previewImageIndex, setPreviewImageIndex] = useState<number>(0);
-  const flatListRef = React.useRef<FlatList>(null);
 
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
 
@@ -699,20 +696,6 @@ export default function ProductsScreen({ navigation }: any) {
     return () => unsubscribe();
   }, [storeId]);
 
-  const handleShareProduct = async (product: Product) => {
-    if (!storeId || !product.id) return;
-    try {
-      const url = `https://ikasir.my.id/tr?s=${storeId}&p=${product.id}`;
-      await Share.share({
-        message: `Silakan pesan ${product.name} secara langsung lewat link berikut: ${url}`,
-        url: url,
-        title: `Bagikan ${product.name}`
-      });
-    } catch (err: any) {
-      Alert.alert('Gagal Membagikan', err.message || String(err));
-    }
-  };
-
   const handleDelete = (id: string) => {
     Alert.alert(
       'Hapus Produk',
@@ -947,10 +930,10 @@ export default function ProductsScreen({ navigation }: any) {
                     setSelectedIds(filteredProducts.map(p => p.id!));
                   }
                 }}
-                className="px-2.5 py-1.5 rounded-lg border"
-                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                className="px-2.5 py-1.5 rounded-lg border bg-background"
+                style={{ borderColor: colors.border }}
               >
-                <Text className="text-[10px] font-black uppercase" style={{ color: colors.text }}>
+                <Text className="text-[10px] font-black text-foreground uppercase">
                   {selectedIds.length === filteredProducts.length ? 'Batal Semua' : 'Pilih Semua'}
                 </Text>
               </TouchableOpacity>
@@ -1011,6 +994,8 @@ export default function ProductsScreen({ navigation }: any) {
                     } else {
                       setSelectedIds(prev => [...prev, item.id!]);
                     }
+                  } else {
+                    navigation.navigate('EditProduct', { product: item });
                   }
                 }}
                 className="flex-col mb-4 p-4 rounded-[28px] border"
@@ -1031,16 +1016,7 @@ export default function ProductsScreen({ navigation }: any) {
                     </View>
                   )}
 
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const imgs = item.imageUrls && item.imageUrls.length > 0 
-                        ? item.imageUrls 
-                        : (item.imageUrl ? [item.imageUrl] : []);
-                      if (imgs.length > 0) {
-                        setPreviewImages(imgs);
-                        setPreviewImageIndex(0);
-                      }
-                    }}
+                  <View 
                     className="w-16 h-16 rounded-2xl bg-black/5 overflow-hidden items-center justify-center border"
                     style={{ borderColor: colors.border }}
                   >
@@ -1049,7 +1025,7 @@ export default function ProductsScreen({ navigation }: any) {
                     ) : (
                       <Package color={colors.textMuted} opacity={0.2} size={24} />
                     )}
-                  </TouchableOpacity>
+                  </View>
                   
                   <View className="flex-1 ml-4 justify-center">
                     <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={2}>
@@ -1112,15 +1088,6 @@ export default function ProductsScreen({ navigation }: any) {
                     >
                       <Text className="text-xs font-black" style={{ color: colors.accent }}>Ubah</Text>
                     </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      onPress={() => handleShareProduct(item)}
-                      className="flex-1 py-2.5 items-center justify-center rounded-xl border bg-transparent flex-row gap-1.5"
-                      style={{ borderColor: colors.accent }}
-                    >
-                      <Share2 size={12} color={colors.accent} />
-                      <Text className="text-xs font-black" style={{ color: colors.accent }}>Bagikan</Text>
-                    </TouchableOpacity>
                     
                     <TouchableOpacity 
                       onPress={() => {
@@ -1130,10 +1097,6 @@ export default function ProductsScreen({ navigation }: any) {
                           `Pilih tindakan untuk ${item.name}:`,
                           [
                             { text: 'Batal', style: 'cancel' },
-                            {
-                              text: 'Bagikan Link Produk',
-                              onPress: () => handleShareProduct(item)
-                            },
                             { 
                               text: 'Hapus Produk', 
                               style: 'destructive', 
@@ -1197,102 +1160,6 @@ export default function ProductsScreen({ navigation }: any) {
           >
             <X color="white" size={28} />
           </TouchableOpacity>
-        </View>
-      </Modal>
-
-      {/* Image Preview Modal */}
-      <Modal
-        visible={previewImages.length > 0}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setPreviewImages([])}
-      >
-        <View className="flex-1 bg-black/95 justify-center items-center">
-          {/* Header Area */}
-          <View className="absolute top-12 left-0 right-0 px-6 flex-row justify-between items-center z-10">
-            <Text className="text-white font-black text-xs bg-black/40 px-3 py-1.5 rounded-full">
-              {previewImages.length > 1 ? `${previewImageIndex + 1} / ${previewImages.length}` : 'Pratinjau'}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setPreviewImages([])}
-              className="w-10 h-10 rounded-full bg-black/40 items-center justify-center border border-white/10"
-            >
-              <X color="white" size={20} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Left Arrow Navigation */}
-          {previewImages.length > 1 && previewImageIndex > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                const nextIndex = previewImageIndex - 1;
-                flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-                setPreviewImageIndex(nextIndex);
-              }}
-              className="absolute left-4 top-1/2 -mt-6 w-12 h-12 rounded-full bg-black/40 items-center justify-center z-10 border border-white/10"
-            >
-              <ChevronLeft color="white" size={24} />
-            </TouchableOpacity>
-          )}
-
-          {/* Right Arrow Navigation */}
-          {previewImages.length > 1 && previewImageIndex < previewImages.length - 1 && (
-            <TouchableOpacity
-              onPress={() => {
-                const nextIndex = previewImageIndex + 1;
-                flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-                setPreviewImageIndex(nextIndex);
-              }}
-              className="absolute right-4 top-1/2 -mt-6 w-12 h-12 rounded-full bg-black/40 items-center justify-center z-10 border border-white/10"
-            >
-              <ChevronRight color="white" size={24} />
-            </TouchableOpacity>
-          )}
-
-          {/* FlatList for Swiping */}
-          <FlatList
-            ref={flatListRef}
-            data={previewImages}
-            keyExtractor={(_, index) => index.toString()}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => {
-              const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
-              setPreviewImageIndex(idx);
-            }}
-            getItemLayout={(_, index) => ({
-              length: screenWidth,
-              offset: screenWidth * index,
-              index,
-            })}
-            renderItem={({ item }) => (
-              <View style={{ width: screenWidth, height: screenHeight }} className="items-center justify-center p-4">
-                <Image
-                  source={{ uri: item }}
-                  style={{ width: '100%', height: '70%' }}
-                  resizeMode="contain"
-                />
-              </View>
-            )}
-          />
-
-          {/* Indicators / Pagination Dots */}
-          {previewImages.length > 1 && (
-            <View className="absolute bottom-16 flex-row justify-center items-center gap-2">
-              {previewImages.map((_, idx) => (
-                <View
-                  key={idx}
-                  className="rounded-full"
-                  style={{
-                    width: previewImageIndex === idx ? 16 : 8,
-                    height: 8,
-                    backgroundColor: previewImageIndex === idx ? colors.accent : 'rgba(255, 255, 255, 0.3)',
-                  }}
-                />
-              ))}
-            </View>
-          )}
         </View>
       </Modal>
 
