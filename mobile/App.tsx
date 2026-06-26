@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
 
 export const navigationRef = createNavigationContainerRef();
+import { useFonts } from 'expo-font';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -102,6 +103,7 @@ import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import OrderNotificationListener from './src/components/OrderNotificationListener';
 import SuperAdminScreen from './src/screens/SuperAdminScreen';
 import RecycleBinScreen from './src/screens/RecycleBinScreen';
+import UpdateChecker from './src/components/UpdateChecker';
 
 // Icons
 import { Calculator, Package, History, LayoutGrid, LayoutDashboard, ShoppingBag, Wrench, AlertCircle, LogOut } from 'lucide-react-native';
@@ -881,9 +883,13 @@ function NavigationRoot() {
   );
 }
 
-import UpdateChecker from './src/components/UpdateChecker';
-
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    'Railey': require('./assets/Railey-PersonalUse.ttf'),
+    'Cheque-Regular': require('./assets/Cheque-Regular.ttf'),
+    'Lovelo-LineBold': require('./assets/Lovelo-LineBold.ttf'),
+  });
+
   useEffect(() => {
     activateKeepAwakeAsync().catch(console.warn);
   }, []);

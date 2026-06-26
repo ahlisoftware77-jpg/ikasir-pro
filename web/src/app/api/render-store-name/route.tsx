@@ -74,18 +74,15 @@ export async function GET(req: NextRequest) {
     // Font size lebih kecil agar tinggi gambar minimal — semakin kecil gambar,
     // semakin sedikit blank dots yang tercetak sebagai jarak ke baris berikutnya.
     const fontSize = fontId === 'railey' ? 28 : 22;
-    // Tinggi gambar = font size + 2px buffer minimal agar tidak terpotong
-    const imgHeight = fontSize + 2;
+    // Tambahkan buffer yang cukup agar font tidak terpotong di bagian bawah
+    const imgHeight = fontSize + 10;
 
     return new ImageResponse(
       (
         <div
           style={{
             display: 'flex',
-            // alignItems: flex-end → teks di bawah, blank di atas
-            // Sehingga saat dicetak thermal (atas→bawah), blank ada di atas
-            // dan teks langsung diikuti baris berikutnya tanpa gap
-            alignItems: 'flex-end',
+            alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
             height: '100%',
