@@ -771,6 +771,17 @@ export default function OrdersScreen() {
     { id: 'cancelled', label: 'Batal', icon: Ban }
   ];
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'new': return '#3b82f6'; // Blue
+      case 'processing': return '#f59e0b'; // Amber
+      case 'ready': return '#10b981'; // Emerald
+      case 'completed': return '#64748b'; // Slate
+      case 'cancelled': return '#f43f5e'; // Rose
+      default: return '#7c3aed'; // Purple
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
       
@@ -818,7 +829,7 @@ export default function OrdersScreen() {
           })}
         </ScrollView>
       </View>
-
+ 
       {/* Orders List */}
       {loading ? (
         <LoadingSkeleton type="list" count={4} />
@@ -856,14 +867,14 @@ export default function OrdersScreen() {
                   className="rounded-3xl border overflow-hidden mb-4 shadow-sm"
                   style={{ 
                     backgroundColor: colors.surface, 
-                    borderColor: isExpanded ? colors.accent : colors.border 
+                    borderColor: isExpanded ? getStatusColor(order.orderStatus || 'new') : colors.border 
                   }}
                 >
                   <View className="flex-row items-stretch" style={{ minHeight: 90 }}>
-                    {/* Blok Kiri: Ungu Tanggal / Waktu */}
+                    {/* Blok Kiri: Warna dinamis disesuaikan status pesanan */}
                     <View 
                       className="w-[84px] items-center justify-center p-2.5"
-                      style={{ backgroundColor: '#7c3aed' }}
+                      style={{ backgroundColor: getStatusColor(order.orderStatus || 'new') }}
                     >
                       <Text className="text-2xl font-black text-white leading-none">{day}</Text>
                       <Text className="text-[9px] font-black text-white mt-1 uppercase tracking-wider text-center">{monthYear}</Text>
