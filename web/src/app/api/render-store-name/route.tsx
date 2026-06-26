@@ -124,13 +124,13 @@ export async function GET(req: NextRequest) {
             height: '100%',
             backgroundColor: '#ffffff',
             color: `#${color}`,
-            padding: '0px 10px',
+            padding: '0px 2px',
           }}
         >
           <span
             style={{
               fontFamily: hasCustomFont && fontData ? fontName : 'sans-serif',
-              fontSize: fontId === 'railey' ? '40px' : '30px',
+              fontSize: fontId === 'railey' ? '28px' : '22px',
               fontWeight: fontId === 'lovelo' ? 700 : 'bold',
               textAlign: 'center',
               letterSpacing: fontId === 'lovelo' ? '0.12em' : fontId === 'cheque' ? '0.05em' : 'normal',
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
       ),
       {
         width: 384,
-        height: 50,
+        height: 32,
         fonts: fonts,
       }
     );

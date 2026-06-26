@@ -50,6 +50,17 @@ const convertUrlToBase64 = async (url: string, prefixName: string): Promise<stri
   }
 };
 
+const getBaseUrl = (storeSettings: any): string => {
+  let baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+  if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1') || baseUrl.includes('192.168.')) {
+    baseUrl = 'https://ikasir.my.id';
+  }
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1);
+  }
+  return baseUrl;
+};
+
 const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean> => {
   if (!storeId) return true;
   try {
@@ -87,7 +98,7 @@ const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean
 };
 
 export const generateReceiptHtml = (transaction: any, storeSettings?: any, branding?: any, isExpired = true) => {
-  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+  const baseUrl = getBaseUrl(storeSettings);
   let date: Date;
   if (transaction.timestamp?.seconds) {
     date = new Date(transaction.timestamp.seconds * 1000);
@@ -240,7 +251,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
 };
 
 export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
-  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+  const baseUrl = getBaseUrl(storeSettings);
   const terbilang = (nilai: number): string => {
     const bilangan = [
       '', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 
@@ -754,7 +765,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       try {
         const uniqueId = Math.random().toString(36).substring(7);
         const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
-        const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+        const baseUrl = getBaseUrl(storeSettings);
         const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
         const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
         const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -765,12 +776,13 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
         
         const is80 = storeSettings?.paperSize === '80mm';
         const printerWidth = is80 ? 576 : 384;
-        const picWidth = is80 ? 320 : 256;
+        const picWidth = is80 ? 480 : 320;
         const leftPad = Math.floor((printerWidth - picWidth) / 2);
 
         await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
         try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (delErr) {}
-      } catch (err) {
+      } catch (err: any) {
+        console.warn("Gagal render gambar font di test print:", err);
         // Fallback to text
         await BluetoothEscposPrinter.setBlob(1);
         for (const line of wrapText(cleanStoreName.toUpperCase())) {
@@ -857,7 +869,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     try {
       const uniqueId = Math.random().toString(36).substring(7);
       const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
-      const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+      const baseUrl = getBaseUrl(storeSettings);
       const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
       const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
       const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
@@ -869,7 +881,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       
       const is80 = storeSettings?.paperSize === '80mm';
       const printerWidth = is80 ? 576 : 384;
-      const picWidth = is80 ? 320 : 256; // kelipatan 8
+      const picWidth = is80 ? 480 : 320; // kelipatan 8
       const leftPad = Math.floor((printerWidth - picWidth) / 2);
 
       await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
