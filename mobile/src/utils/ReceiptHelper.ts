@@ -724,6 +724,9 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 
   await BluetoothEscposPrinter.printerInit();
 
+  // Feed a few lines at the very beginning to prevent the header/logo from being cut off or printed too high
+  await BluetoothEscposPrinter.printText("\n\r\n\r\n\r\n\r", {});
+
   if (trx.isTest) {
     await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
     
