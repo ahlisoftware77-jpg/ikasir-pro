@@ -145,6 +145,7 @@ interface Product {
   expiryDate?: string;
   warrantyDuration?: number;
   warrantyUnit?: 'days' | 'months' | 'years';
+  unit?: string;
 }
 
 interface ExtraOption {
@@ -830,6 +831,7 @@ export default function POSScreen({ route, navigation }: any) {
   const [manualItemName, setManualItemName] = useState('');
   const [manualItemPrice, setManualItemPrice] = useState('');
   const [manualItemCategory, setManualItemCategory] = useState('Jasa');
+  const [manualItemUnit, setManualItemUnit] = useState('Pcs');
   const [showManualCategoryModal, setShowManualCategoryModal] = useState(false);
   const [showManualCustomCategoryModal, setShowManualCustomCategoryModal] = useState(false);
   const [manualCustomCategoryText, setManualCustomCategoryText] = useState('');
@@ -1528,6 +1530,7 @@ export default function POSScreen({ route, navigation }: any) {
           expiryDate: manualItemExpiryDate.trim() || '',
           warrantyDuration: Number(manualItemWarrantyDuration) || 0,
           warrantyUnit: manualItemWarrantyUnit,
+          unit: manualItemUnit.trim() || 'Pcs',
           imageUrl: finalImageUrl,
           imageUrls: uploadedImageUrls,
           createdAt: new Date()
@@ -1552,6 +1555,7 @@ export default function POSScreen({ route, navigation }: any) {
         expiryDate: manualItemExpiryDate.trim() || '',
         warrantyDuration: Number(manualItemWarrantyDuration) || 0,
         warrantyUnit: manualItemWarrantyUnit,
+        unit: manualItemUnit.trim() || 'Pcs',
         imageUrl: finalImageUrl,
         imageUrls: uploadedImageUrls,
         selectedExtras: [],
@@ -1564,6 +1568,7 @@ export default function POSScreen({ route, navigation }: any) {
       setManualItemName('');
       setManualItemPrice('');
       setManualItemCategory('Jasa');
+      setManualItemUnit('Pcs');
       setSaveToCatalog(false);
       setManualItemBarcode('');
       setManualItemDescription('');
@@ -2558,6 +2563,18 @@ export default function POSScreen({ route, navigation }: any) {
                   </Text>
                   <ChevronDown size={16} color={colors.textMuted} />
                 </TouchableOpacity>
+              </View>
+
+              <View className="space-y-1">
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Satuan</Text>
+                <TextInput
+                  placeholder="e.g. Pcs / Kg / Box / Porsi"
+                  placeholderTextColor={colors.textMuted}
+                  value={manualItemUnit}
+                  onChangeText={setManualItemUnit}
+                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                />
               </View>
               {/* Barcode / Scan / Auto Generate */}
               <View className="space-y-1">
