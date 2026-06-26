@@ -1100,12 +1100,8 @@ export const printReceipt = async (transaction: any, storeSettings?: any) => {
         return;
       }
     } catch (error) {
-      console.error('Direct Bluetooth print failed, falling back to PDF preview:', error);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share/invoice...', ToastAndroid.LONG);
-      } else {
-        Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share/invoice...');
-      }
+      console.error('Direct Bluetooth print failed:', error);
+      throw error;
     }
   }
 

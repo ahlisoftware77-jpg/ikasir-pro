@@ -307,7 +307,19 @@ export default function OrdersScreen() {
                 try {
                   await printReceipt(order, storeSettings);
                 } catch (err) {
-                  Alert.alert("Gagal Mencetak", "Terjadi kesalahan saat berkomunikasi dengan printer.");
+                  Alert.alert(
+                    "Koneksi Gagal",
+                    "Gagal terhubung ke printer Bluetooth. Silakan pilih kembali printer dari daftar.",
+                    [
+                      {
+                        text: "OK",
+                        onPress: () => {
+                          setIsBluetoothModalVisible(true);
+                          startBluetoothScan();
+                        }
+                      }
+                    ]
+                  );
                 }
               }
             }
