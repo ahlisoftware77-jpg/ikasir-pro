@@ -768,7 +768,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       }
       if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
-      const endpoint = `/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+      const endpoint = `/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}&_t=${Date.now()}`;
       const urlsToTry = [
         baseUrl ? `${baseUrl}${endpoint}` : null,
         `https://ikasir-n3j64w7pn-ahlisoftware77-s-projects.vercel.app${endpoint}`,

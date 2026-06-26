@@ -71,10 +71,10 @@ export async function GET(req: NextRequest) {
       }
     ] : undefined;
 
-    // Font size: railey lebih tinggi karena huruf besar/kecil
-    const fontSize = fontId === 'railey' ? 36 : 28;
-    // Tinggi gambar = font size + buffer minimal (2px)
-    // Semakin kecil tinggi gambar, semakin sedikit blank rows yang tercetak sebagai gap
+    // Font size lebih kecil agar tinggi gambar minimal — semakin kecil gambar,
+    // semakin sedikit blank dots yang tercetak sebagai jarak ke baris berikutnya.
+    const fontSize = fontId === 'railey' ? 28 : 22;
+    // Tinggi gambar = font size + 2px buffer minimal agar tidak terpotong
     const imgHeight = fontSize + 2;
 
     return new ImageResponse(
