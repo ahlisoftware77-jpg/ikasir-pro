@@ -746,12 +746,45 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
       } catch (err) {}
     }
 
-    // Store Name
-    await BluetoothEscposPrinter.setBlob(1);
-    for (const line of wrapText(cleanStoreName.toUpperCase())) {
-      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+    // Store Name with font support
+    const fontId = storeSettings?.storeNameFont || 'sans';
+    const isCustomFont = fontId !== 'sans';
+    
+    if (isCustomFont) {
+      try {
+        const uniqueId = Math.random().toString(36).substring(7);
+        const tempFile = `${FileSystem.cacheDirectory}temp_bt_storename_${uniqueId}.png`;
+        const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+        const renderUrl = `${baseUrl}/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}`;
+        const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
+        const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        
+        if (!base64Image || !base64Image.startsWith('iVBORw0KGgo')) {
+          throw new Error("Unduhan bukan gambar PNG valid.");
+        }
+        
+        const is80 = storeSettings?.paperSize === '80mm';
+        const printerWidth = is80 ? 576 : 384;
+        const picWidth = is80 ? 320 : 256;
+        const leftPad = Math.floor((printerWidth - picWidth) / 2);
+
+        await BluetoothEscposPrinter.printPic(base64Image, { width: picWidth, left: leftPad });
+        try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch (delErr) {}
+      } catch (err) {
+        // Fallback to text
+        await BluetoothEscposPrinter.setBlob(1);
+        for (const line of wrapText(cleanStoreName.toUpperCase())) {
+          await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+        }
+        await BluetoothEscposPrinter.setBlob(0);
+      }
+    } else {
+      await BluetoothEscposPrinter.setBlob(1);
+      for (const line of wrapText(cleanStoreName.toUpperCase())) {
+        await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+      }
+      await BluetoothEscposPrinter.setBlob(0);
     }
-    await BluetoothEscposPrinter.setBlob(0);
     
     await BluetoothEscposPrinter.printText(`*** UJI COBA CETAK PENDEK ***\n\r`, {});
     await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
@@ -818,7 +851,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   
   const fontId = storeSettings?.storeNameFont || 'sans';
-  const isCustomFont = ['railey', 'cheque', 'lovelo'].includes(fontId);
+  const isCustomFont = fontId !== 'sans';
   
   if (isCustomFont) {
     try {

@@ -39,6 +39,29 @@ export async function GET(req: NextRequest) {
       }
       throw lastErr || new Error(`Failed to load font ${fontFilename} from all sources`);
     };
+
+    const fetchFont = async (fontFamily: string, weight: number): Promise<ArrayBuffer> => {
+      try {
+        const cssUrl = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@${weight}`;
+        const cssRes = await fetch(cssUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
+          }
+        });
+        const cssText = await cssRes.text();
+        const fontUrlMatch = cssText.match(/src:\s*url\((https:\/\/fonts\.gstatic\.com\/s\/[^\)]+)\)/);
+        if (fontUrlMatch) {
+          const fontRes = await fetch(fontUrlMatch[1]);
+          if (fontRes.ok) {
+            return await fontRes.arrayBuffer();
+          }
+        }
+        throw new Error("Font file URL not found in CSS response.");
+      } catch (err) {
+        console.error(`Failed to fetch dynamic font ${fontFamily} from Google Fonts:`, err);
+        throw err;
+      }
+    };
     
     try {
       if (fontId === 'railey') {
@@ -56,6 +79,26 @@ export async function GET(req: NextRequest) {
         fontWeight = 700;
         hasCustomFont = true;
         fontData = await loadFont('Lovelo-LineBold.ttf', '../../../../public/fonts/Lovelo-LineBold.ttf');
+      } else if (fontId === 'serif') {
+        fontName = 'Playfair Display';
+        fontWeight = 700;
+        hasCustomFont = true;
+        fontData = await fetchFont('Playfair+Display', 700);
+      } else if (fontId === 'mono') {
+        fontName = 'Courier Prime';
+        fontWeight = 400;
+        hasCustomFont = true;
+        fontData = await fetchFont('Courier+Prime', 400);
+      } else if (fontId === 'elegant') {
+        fontName = 'Outfit';
+        fontWeight = 400;
+        hasCustomFont = true;
+        fontData = await fetchFont('Outfit', 400);
+      } else if (fontId === 'bold') {
+        fontName = 'Oswald';
+        fontWeight = 700;
+        hasCustomFont = true;
+        fontData = await fetchFont('Oswald', 700);
       }
     } catch (e) {
       console.error("Failed to load custom font:", e);
@@ -81,18 +124,18 @@ export async function GET(req: NextRequest) {
             height: '100%',
             backgroundColor: '#ffffff',
             color: `#${color}`,
-            padding: '5px 10px',
+            padding: '0px 10px',
           }}
         >
           <span
             style={{
               fontFamily: hasCustomFont && fontData ? fontName : 'sans-serif',
-              fontSize: fontId === 'railey' ? '46px' : '36px',
+              fontSize: fontId === 'railey' ? '40px' : '30px',
               fontWeight: fontId === 'lovelo' ? 700 : 'bold',
               textAlign: 'center',
               letterSpacing: fontId === 'lovelo' ? '0.12em' : fontId === 'cheque' ? '0.05em' : 'normal',
               textTransform: fontId === 'railey' ? 'none' : 'uppercase',
-              lineHeight: '1.2',
+              lineHeight: '1.0',
             }}
           >
             {text}
@@ -101,7 +144,7 @@ export async function GET(req: NextRequest) {
       ),
       {
         width: 384,
-        height: 80,
+        height: 50,
         fonts: fonts,
       }
     );
