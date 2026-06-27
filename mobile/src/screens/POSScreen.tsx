@@ -875,7 +875,7 @@ export default function POSScreen({ route, navigation }: any) {
   const [showManualCategoryModal, setShowManualCategoryModal] = useState(false);
   const [showManualCustomCategoryModal, setShowManualCustomCategoryModal] = useState(false);
   const [manualCustomCategoryText, setManualCustomCategoryText] = useState('');
-  const [saveToCatalog, setSaveToCatalog] = useState(false);
+  const [saveToCatalog, setSaveToCatalog] = useState(true);
   const [manualItemBarcode, setManualItemBarcode] = useState('');
   const [manualItemDescription, setManualItemDescription] = useState('');
   const [manualItemExpiryDate, setManualItemExpiryDate] = useState('');
@@ -1610,7 +1610,7 @@ export default function POSScreen({ route, navigation }: any) {
       setManualItemCategory('Jasa');
       setManualItemUnit('Pcs');
       setUseManualItemCustomUnit(false);
-      setSaveToCatalog(false);
+      setSaveToCatalog(true);
       setManualItemBarcode('');
       setManualItemDescription('');
       setManualItemExpiryDate('');
@@ -2777,23 +2777,6 @@ export default function POSScreen({ route, navigation }: any) {
                   style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
-
-              <TouchableOpacity 
-                onPress={() => setSaveToCatalog(!saveToCatalog)}
-                className="flex-row items-center p-4 border rounded-2xl my-2"
-                style={{ backgroundColor: colors.bg, borderColor: colors.border }}
-              >
-                <View 
-                  className="w-5 h-5 rounded border-2 items-center justify-center mr-3"
-                  style={{ 
-                    backgroundColor: saveToCatalog ? colors.accent : 'transparent',
-                    borderColor: saveToCatalog ? colors.accent : colors.border
-                  }}
-                >
-                  {saveToCatalog && <Check size={14} color="#ffffff" />}
-                </View>
-                <Text className="text-xs font-bold" style={{ color: colors.text }}>Simpan item ini ke katalog produk permanent</Text>
-              </TouchableOpacity>
             </ScrollView>
 
             <TouchableOpacity

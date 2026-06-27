@@ -551,8 +551,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
               )}
             </View>
 
-            <View className="flex-row gap-4">
-              <View className="flex-1">
+            <View className="space-y-4">
+              <View>
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>SKU (Stok)</Text>
                 <View className="flex-row gap-2">
                   <TextInput
@@ -580,8 +580,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 </View>
               </View>
 
-              <View className="flex-1">
-                <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Barcode</Text>
+              <View>
+                <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Barcode (Opsional)</Text>
                 <View className="flex-row gap-2">
                   <TextInput
                     placeholder="Barcode produk"
@@ -591,6 +591,17 @@ export default function ProductFormScreen({ route, navigation }: any) {
                     className="flex-1 p-3.5 rounded-xl border font-bold text-xs"
                     style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
                   />
+                  <TouchableOpacity
+                    onPress={() => {
+                      const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+                      setFormData(prev => ({ ...prev, barcode: randomBarcode }));
+                      Vibration.vibrate(10);
+                    }}
+                    className="p-3.5 bg-accent rounded-xl flex-row items-center gap-1 shadow-md shadow-accent/20"
+                  >
+                    <Sparkles size={14} color="#ffffff" />
+                    <Text className="text-[9px] font-black text-white uppercase tracking-wider">AUTO</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => startScanning('barcode')}
                     className="p-3.5 rounded-xl border justify-center items-center"
