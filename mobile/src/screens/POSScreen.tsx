@@ -504,6 +504,39 @@ const SuccessTransactionModal: React.FC<SuccessTransactionModalProps> = ({
   );
 };
 
+const UNIT_CATEGORIES = [
+  { 
+    name: 'Pcs', 
+    units: [
+      { label: 'Pcs (pc)', value: 'pcs' },
+      { label: 'Lusin (ls)', value: 'ls' },
+      { label: 'Gross (grs)', value: 'grs' }
+    ] 
+  },
+  { 
+    name: 'Berat', 
+    units: [
+      { label: 'Gram (g)', value: 'g' },
+      { label: 'Ons (ons)', value: 'ons' },
+      { label: 'Kilogram (kg)', value: 'kg' }
+    ] 
+  },
+  { 
+    name: 'Volume', 
+    units: [
+      { label: 'Mililiter (ml)', value: 'ml' },
+      { label: 'Liter (L)', value: 'L' }
+    ] 
+  },
+  { 
+    name: 'Panjang', 
+    units: [
+      { label: 'Centimeter (cm)', value: 'cm' },
+      { label: 'Meter (m)', value: 'm' }
+    ] 
+  }
+];
+
 export default function POSScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { user, storeId, isSubscriptionExpired, expiredDisabledMenus } = useAuthStore();
@@ -2530,22 +2563,7 @@ export default function POSScreen({ route, navigation }: any) {
               </View>
 
               <View className="space-y-1">
-                <View className="flex-row items-center justify-between pl-1 pr-1">
-                  <Text className="text-[10px] font-black uppercase tracking-widest" style={{ color: colors.textMuted }}>Nama Item</Text>
-                  <View className="flex-row items-center gap-2">
-                    <Text className="text-[9px] font-bold uppercase" style={{ color: colors.textMuted }}>Kustom Satuan</Text>
-                    <Switch
-                      value={useManualItemCustomUnit}
-                      onValueChange={(val: boolean) => {
-                        setUseManualItemCustomUnit(val);
-                        if (!val) setManualItemUnit('Pcs');
-                      }}
-                      trackColor={{ false: colors.border, true: colors.accent }}
-                      thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-                      style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-                    />
-                  </View>
-                </View>
+                <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nama Item</Text>
                 <TextInput
                   placeholder="e.g. Ongkos Kirim / Servis AC"
                   placeholderTextColor={colors.textMuted}
@@ -2555,20 +2573,6 @@ export default function POSScreen({ route, navigation }: any) {
                   style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                 />
               </View>
-
-              {useManualItemCustomUnit && (
-                <View className="space-y-1">
-                  <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Satuan</Text>
-                  <TextInput
-                    placeholder="e.g. Kg / Box / Porsi"
-                    placeholderTextColor={colors.textMuted}
-                    value={manualItemUnit}
-                    onChangeText={setManualItemUnit}
-                    className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                  />
-                </View>
-              )}
 
               <View className="space-y-1">
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Harga (Rp)</Text>
@@ -2595,6 +2599,68 @@ export default function POSScreen({ route, navigation }: any) {
                   </Text>
                   <ChevronDown size={16} color={colors.textMuted} />
                 </TouchableOpacity>
+              </View>
+
+              <View>
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-[10px] font-black uppercase tracking-[2px] ml-1" style={{ color: colors.textMuted }}>Satuan</Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-[9px] font-bold uppercase" style={{ color: colors.textMuted }}>Kostum Satuan</Text>
+                    <Switch
+                      value={useManualItemCustomUnit}
+                      onValueChange={(val: boolean) => {
+                        setUseManualItemCustomUnit(val);
+                        if (!val) setManualItemUnit('Pcs');
+                      }}
+                      trackColor={{ false: colors.border, true: colors.accent }}
+                      thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                      style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                    />
+                  </View>
+                </View>
+
+                {!useManualItemCustomUnit ? (
+                  <View className="p-4 rounded-2xl border flex-row items-center justify-between opacity-80" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                    <Text className="font-bold" style={{ color: colors.text }}>Pcs (pcs)</Text>
+                    <Text className="text-[9px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-500">DEFAULT</Text>
+                  </View>
+                ) : (
+                  <View className="mt-1 p-4 rounded-2xl border flex gap-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                    {UNIT_CATEGORIES.map(category => (
+                      <View key={category.name} className="flex gap-2">
+                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>{category.name}</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                          {category.units.map(u => (
+                            <TouchableOpacity
+                              key={u.value}
+                              onPress={() => setManualItemUnit(u.value)}
+                              className="px-3 py-2 rounded-xl border"
+                              style={{
+                                backgroundColor: manualItemUnit === u.value ? colors.accent + '20' : colors.bg,
+                                borderColor: manualItemUnit === u.value ? colors.accent : colors.border
+                              }}
+                            >
+                              <Text className="text-[10px] font-bold" style={{ color: manualItemUnit === u.value ? colors.accent : colors.text }}>
+                                {u.label}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                    <View className="mt-2 border-t pt-3" style={{ borderColor: colors.border + '20' }}>
+                      <Text className="text-[9px] font-black uppercase tracking-wider mb-2" style={{ color: colors.textMuted }}>Kustom Lainnya</Text>
+                      <TextInput
+                        placeholder="Contoh: box, koli, sachet"
+                        placeholderTextColor={colors.textMuted + '60'}
+                        value={manualItemUnit}
+                        onChangeText={setManualItemUnit}
+                        className="p-3 rounded-xl border text-xs font-bold"
+                        style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                      />
+                    </View>
+                  </View>
+                )}
               </View>
               {/* Barcode / Scan / Auto Generate */}
               <View className="space-y-1">
