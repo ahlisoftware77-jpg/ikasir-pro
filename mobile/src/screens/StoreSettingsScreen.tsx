@@ -41,7 +41,8 @@ const FONT_OPTIONS = [
   { id: 'bold', name: 'Impact (Oswald)', family: 'System' },
   { id: 'railey', name: 'Railey (Script)', family: 'Railey' },
   { id: 'cheque', name: 'Cheque (Display)', family: 'Cheque-Regular' },
-  { id: 'lovelo', name: 'Lovelo (Inline)', family: 'Lovelo-LineBold' }
+  { id: 'lovelo', name: 'Lovelo (Inline)', family: 'Lovelo-LineBold' },
+  { id: 'sancreek', name: 'Sancreek (Vintage)', family: 'Sancreek-Regular' }
 ];
 
 const getFontFamily = (id: string) => {
@@ -88,6 +89,11 @@ const getFontStyle = (id: string) => {
         fontFamily: 'Lovelo-LineBold',
         textTransform: 'uppercase' as const,
         letterSpacing: 1.5
+      };
+    case 'sancreek':
+      return {
+        fontFamily: 'Sancreek-Regular',
+        textTransform: 'none' as const
       };
     default: // sans
       return {

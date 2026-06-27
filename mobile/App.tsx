@@ -892,6 +892,7 @@ export default function App() {
     'Railey': require('./assets/Railey-PersonalUse.ttf'),
     'Cheque-Regular': require('./assets/Cheque-Regular.ttf'),
     'Lovelo-LineBold': require('./assets/Lovelo-LineBold.ttf'),
+    'Sancreek-Regular': require('./assets/Sancreek-Regular.ttf'),
   });
 
   useEffect(() => {

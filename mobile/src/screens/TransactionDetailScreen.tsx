@@ -130,6 +130,11 @@ const getFontStyle = (id: string) => {
         textTransform: 'uppercase' as const,
         letterSpacing: 1.5
       };
+    case 'sancreek':
+      return {
+        fontFamily: 'Sancreek-Regular',
+        textTransform: 'none' as const
+      };
     default: // sans
       return {
         fontFamily: Platform.select({ ios: 'System', android: 'sans-serif' }),

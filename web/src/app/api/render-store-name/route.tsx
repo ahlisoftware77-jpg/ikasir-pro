@@ -57,6 +57,11 @@ export async function GET(req: NextRequest) {
         fontWeight = 700;
         hasCustomFont = true;
         fontData = await loadFont('Lovelo-LineBold.ttf', '../../../../public/fonts/Lovelo-LineBold.ttf');
+      } else if (fontId === 'sancreek') {
+        fontName = 'Sancreek';
+        fontWeight = 400;
+        hasCustomFont = true;
+        fontData = await loadFont('Sancreek-Regular.ttf', '../../../../public/fonts/Sancreek-Regular.ttf');
       }
     } catch (e) {
       console.error("Failed to load custom font:", e);

@@ -160,6 +160,12 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
             font-weight: 900;
             font-style: normal;
           }
+          @font-face {
+            font-family: 'Sancreek';
+            src: url('${baseUrl}/fonts/Sancreek-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+          }
 
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; }
           .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
@@ -176,12 +182,15 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
                 case 'railey': return "'Railey', cursive";
                 case 'cheque': return "'Cheque', sans-serif";
                 case 'lovelo': return "'Lovelo', sans-serif";
+                case 'sancreek': return "'Sancreek', sans-serif";
                 default: return "'Inter', sans-serif";
               }
             })()};
             ${(() => {
               switch(storeSettings?.storeNameFont) {
                 case 'railey':
+                  return "font-weight: normal; text-transform: none; font-size: 26px;";
+                case 'sancreek':
                   return "font-weight: normal; text-transform: none; font-size: 26px;";
                 case 'elegant':
                   return "font-weight: 300; text-transform: uppercase; letter-spacing: 0.05em;";
@@ -422,6 +431,12 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
           font-weight: 900;
           font-style: normal;
         }
+        @font-face {
+          font-family: 'Sancreek';
+          src: url('${baseUrl}/fonts/Sancreek-Regular.ttf') format('truetype');
+          font-weight: normal;
+          font-style: normal;
+        }
 
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 40px; color: #1e293b; background-color: #ffffff; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #0f172a; }
@@ -439,12 +454,15 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
               case 'railey': return "'Railey', cursive";
               case 'cheque': return "'Cheque', sans-serif";
               case 'lovelo': return "'Lovelo', sans-serif";
+              case 'sancreek': return "'Sancreek', sans-serif";
               default: return "'Inter', sans-serif";
             }
           })()};
           ${(() => {
             switch(storeSettings?.storeNameFont) {
               case 'railey':
+                return "font-weight: normal; text-transform: none; font-size: 28px;";
+              case 'sancreek':
                 return "font-weight: normal; text-transform: none; font-size: 28px;";
               case 'elegant':
                 return "font-weight: 300; text-transform: uppercase; letter-spacing: 0.05em;";
@@ -754,7 +772,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
   
   const fontId = storeSettings?.storeNameFont || 'sans';
-  const isCustomFont = ['railey', 'cheque', 'lovelo'].includes(fontId);
+  const isCustomFont = ['railey', 'cheque', 'lovelo', 'sancreek'].includes(fontId);
   
   if (isCustomFont) {
     try {
