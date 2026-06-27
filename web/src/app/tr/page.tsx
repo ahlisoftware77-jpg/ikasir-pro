@@ -969,7 +969,23 @@ function PublicOrderContent() {
                         }}
                      >
                         {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
-                           <img src={p.imageUrl || p.imageUrls?.[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                           (() => {
+                             const mediaUrl = p.imageUrl || p.imageUrls?.[0] || '';
+                             const isVid = mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov') || mediaUrl.endsWith('.3gp') || mediaUrl.endsWith('.m4v') || mediaUrl.includes('/video/upload/');
+                             if (isVid) {
+                               return (
+                                 <div className="w-full h-full relative bg-slate-950 flex items-center justify-center">
+                                   <video src={mediaUrl} className="w-full h-full object-cover" muted playsInline />
+                                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center animate-pulse">
+                                     <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-slate-900 shadow-md">
+                                       <span className="text-[10px] pl-0.5">▶</span>
+                                     </div>
+                                   </div>
+                                 </div>
+                               );
+                             }
+                             return <img src={mediaUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />;
+                           })()
                         ) : (
                            <div className="w-full h-full flex items-center justify-center opacity-10">
                               <ShoppingBag size={32} />
@@ -2093,14 +2109,31 @@ function PublicOrderContent() {
                </button>
              )}
 
-             {/* Main Image */}
-             <div className="relative w-full h-full flex items-center justify-center">
-               <img 
-                 src={previewImages[previewImageIndex]} 
-                 alt="Product Preview" 
-                 className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-all duration-300" 
-               />
-             </div>
+             {/* Main Image or Video */}
+              <div className="relative w-full h-full flex items-center justify-center">
+                {(() => {
+                  const mediaUrl = previewImages[previewImageIndex];
+                  const isVid = mediaUrl?.endsWith('.mp4') || mediaUrl?.endsWith('.mov') || mediaUrl?.endsWith('.3gp') || mediaUrl?.endsWith('.m4v') || mediaUrl?.includes('/video/upload/');
+                  if (isVid) {
+                    return (
+                      <video 
+                        src={mediaUrl} 
+                        controls 
+                        autoPlay 
+                        playsInline
+                        className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" 
+                      />
+                    );
+                  }
+                  return (
+                    <img 
+                      src={mediaUrl} 
+                      alt="Product Preview" 
+                      className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-all duration-300" 
+                    />
+                  );
+                })()}
+              </div>
 
              {/* Right Arrow */}
              {previewImages.length > 1 && (

@@ -68,10 +68,10 @@ import {
   Calendar,
   Shield
 } from 'lucide-react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, Camera as ExpoCamera } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Image as ImageIcon } from 'lucide-react-native';
-import { Audio } from 'expo-av';
+import { Audio, Video, ResizeMode } from 'expo-av';
 import { printReceipt } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SignaturePad from '../components/SignaturePad';
@@ -1483,7 +1483,7 @@ export default function POSScreen({ route, navigation }: any) {
 
   const pickManualItemImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ['images', 'videos'],
       allowsEditing: true,
       quality: 0.8,
     });
@@ -1502,6 +1502,25 @@ export default function POSScreen({ route, navigation }: any) {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setManualItemImages(prev => [...prev, result.assets[0].uri]);
+    }
+  };
+
+  const recordManualItemVideo = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const micStatus = await ExpoCamera.requestMicrophonePermissionsAsync();
+    if (status !== 'granted' || micStatus.status !== 'granted') {
+      Alert.alert('Izin Ditolak', 'Kami butuh izin kamera & mikrofon untuk merekam video.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['videos'],
+      videoMaxDuration: 30,
       quality: 0.8,
     });
 
@@ -1529,14 +1548,20 @@ export default function POSScreen({ route, navigation }: any) {
       if (manualItemImages && manualItemImages.length > 0) {
         for (const localUri of manualItemImages) {
           const formDataUpload = new FormData();
-          const filename = localUri.split('/').pop();
-          const match = /\.(\w+)$/.exec(filename || '');
-          const type = match ? `image/${match[1]}` : `image`;
+          const filename = localUri.split('/').pop() || 'file';
+          const match = /\.(\w+)$/.exec(filename);
+          const ext = match ? match[1].toLowerCase() : '';
+          const isVideo = ['mp4', 'mov', '3gp', 'm4v', 'avi'].includes(ext);
+          const type = isVideo ? (match ? `video/${match[1]}` : 'video/mp4') : (match ? `image/${match[1]}` : 'image/jpeg');
 
           formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
           formDataUpload.append('upload_preset', 'kasirpos');
 
-          const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+          const uploadUrl = isVideo 
+            ? 'https://api.cloudinary.com/v1_1/dkcjfwbvc/video/upload'
+            : 'https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload';
+
+          const uploadRes = await fetch(uploadUrl, {
             method: 'POST',
             body: formDataUpload,
             headers: {
@@ -2525,17 +2550,36 @@ export default function POSScreen({ route, navigation }: any) {
                 </View>
                 <View className="p-4 rounded-2xl border w-full flex-row items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }} className="flex-row">
-                    {manualItemImages.map((uri, index) => (
-                      <View key={index} className="w-20 h-20 rounded-xl bg-black/5 border overflow-hidden mr-3 justify-center items-center relative" style={{ borderColor: colors.border }}>
-                        <Image source={{ uri }} className="w-full h-full" style={{ resizeMode: 'cover' }} />
-                        <TouchableOpacity 
-                          onPress={() => setManualItemImages(prev => prev.filter((_, idx) => idx !== index))}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-500 items-center justify-center shadow shadow-black/20"
-                        >
-                          <X size={10} color="#ffffff" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
+                    {manualItemImages.map((uri, index) => {
+                      const isVid = uri.endsWith('.mp4') || uri.endsWith('.mov') || uri.endsWith('.3gp') || uri.endsWith('.m4v') || uri.includes('/video/upload/');
+                      return (
+                        <View key={index} className="w-20 h-20 rounded-xl bg-black/5 border overflow-hidden mr-3 justify-center items-center relative" style={{ borderColor: colors.border }}>
+                          {isVid ? (
+                            <View className="w-full h-full justify-center items-center bg-slate-900">
+                              <Video
+                                source={{ uri }}
+                                style={{ width: '100%', height: '100%' }}
+                                resizeMode={ResizeMode.CONTAIN}
+                                useNativeControls={false}
+                                shouldPlay={false}
+                                isMuted={true}
+                              />
+                              <View className="absolute bg-black/60 px-1 py-0.5 rounded bottom-1 right-1">
+                                <Text className="text-[5px] font-black text-white uppercase">VIDEO</Text>
+                              </View>
+                            </View>
+                          ) : (
+                            <Image source={{ uri }} className="w-full h-full" style={{ resizeMode: 'cover' }} />
+                          )}
+                          <TouchableOpacity 
+                            onPress={() => setManualItemImages(prev => prev.filter((_, idx) => idx !== index))}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-500 items-center justify-center shadow shadow-black/20"
+                          >
+                            <X size={10} color="#ffffff" />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
                     
                     {manualItemImages.length < 5 && (
                       <View className="flex-row gap-3">
@@ -2546,6 +2590,14 @@ export default function POSScreen({ route, navigation }: any) {
                         >
                           <Camera size={18} color={colors.textMuted} />
                           <Text className="text-[8px] font-black uppercase text-slate-400 mt-1">Kamera</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={recordManualItemVideo}
+                          className="w-20 h-20 rounded-xl border border-dashed justify-center items-center bg-black/5 flex-col"
+                          style={{ borderColor: colors.border }}
+                        >
+                          <Camera size={18} color="#e11d48" />
+                          <Text className="text-[8px] font-black uppercase text-rose-500 mt-1">Video</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={pickManualItemImage}
