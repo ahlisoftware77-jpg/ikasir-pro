@@ -369,7 +369,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
         
         {activeTab === 'info' && (
-          <View className="flex gap-5 animate-in fade-in duration-200">
+          <View className="flex gap-5">
             {/* Image Section (Multi-Photo) */}
             <View className="mb-4">
               <View className="flex-row justify-between items-center mb-2 px-1">
@@ -513,7 +513,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   <Text className="text-[9px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-500">DEFAULT</Text>
                 </View>
               ) : (
-                <View className="mt-1 p-4 rounded-2xl border flex gap-3 animate-in fade-in duration-200" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="mt-1 p-4 rounded-2xl border flex gap-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                   {UNIT_CATEGORIES.map(category => (
                     <View key={category.name} className="flex gap-2">
                       <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>{category.name}</Text>
@@ -620,7 +620,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         )}
 
         {activeTab === 'harga_stok' && (
-          <View className="flex gap-5 animate-in fade-in duration-200">
+          <View className="flex gap-5">
             
             {/* Pricing Section */}
             <View className="p-5 rounded-3xl border flex gap-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
@@ -687,7 +687,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
               </View>
 
               {formData.manageStock && (
-                <View className="border-t pt-3 flex gap-4 animate-in fade-in duration-200" style={{ borderColor: colors.border + '20' }}>
+                <View className="border-t pt-3 flex gap-4" style={{ borderColor: colors.border + '20' }}>
                   <View>
                     <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Kuantitas Stok Awal</Text>
                     <TextInput
@@ -718,7 +718,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         )}
 
         {activeTab === 'lanjutan' && (
-          <View className="flex gap-5 animate-in fade-in duration-200">
+          <View className="flex gap-5">
             
             {/* Masa Berlaku (Expired) */}
             <View className="p-5 rounded-3xl border flex gap-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
@@ -743,7 +743,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 />
               </View>
               {hasExpiryDate && (
-                <View className="border-t pt-3 flex gap-2 animate-in fade-in duration-200" style={{ borderColor: colors.border + '20' }}>
+                <View className="border-t pt-3 flex gap-2" style={{ borderColor: colors.border + '20' }}>
                   <Text className="text-[10px] font-black uppercase tracking-wider ml-1 mb-1" style={{ color: colors.textMuted }}>Tanggal Kedaluwarsa</Text>
                   <TextInput
                     placeholder="YYYY-MM-DD"
@@ -777,7 +777,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 />
               </View>
               {formData.hasExtras && (
-                <View className="border-t pt-3 flex gap-2 animate-in fade-in duration-200" style={{ borderColor: colors.border + '20' }}>
+                <View className="border-t pt-3 flex gap-2" style={{ borderColor: colors.border + '20' }}>
                   <Text className="text-[10px] font-black uppercase tracking-wider mb-2 ml-1" style={{ color: colors.textMuted }}>Pilih Grup Modifier</Text>
                   {availableExtras.length === 0 ? (
                     <Text className="text-[11px] font-bold italic" style={{ color: colors.textMuted }}>
@@ -844,7 +844,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 />
               </View>
               {hasWarranty && (
-                <View className="border-t pt-3 flex gap-3 animate-in fade-in duration-200" style={{ borderColor: colors.border + '20' }}>
+                <View className="border-t pt-3 flex gap-3" style={{ borderColor: colors.border + '20' }}>
                   <View className="flex-row gap-3">
                     <View className="flex-1">
                       <Text className="text-[10px] font-black uppercase tracking-wider ml-1 mb-1.5" style={{ color: colors.textMuted }}>Durasi</Text>

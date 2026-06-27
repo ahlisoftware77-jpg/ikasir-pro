@@ -1708,7 +1708,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
           <TouchableOpacity 
             onPress={() => setEditingUser(null)}
-            className="p-2.5 rounded-xl border animate-in fade-in active:scale-95"
+            className="p-2.5 rounded-xl border active:scale-95"
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
           >
             <ArrowLeft size={16} color={colors.text} />
@@ -1857,7 +1857,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
           <TouchableOpacity 
             onPress={() => setEditingStore(null)}
-            className="p-2.5 rounded-xl border animate-in fade-in active:scale-95"
+            className="p-2.5 rounded-xl border active:scale-95"
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
           >
             <ArrowLeft size={16} color={colors.text} />
