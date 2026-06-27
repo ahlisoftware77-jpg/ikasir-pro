@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 
 export const navigationRef = createNavigationContainerRef();
 import { useFonts } from 'expo-font';
@@ -896,6 +897,34 @@ export default function App() {
   useEffect(() => {
     activateKeepAwakeAsync().catch(console.warn);
   }, []);
+
+  useEffect(() => {
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      try {
+        const data = response.notification.request.content.data;
+        
+        if (navigationRef.isReady()) {
+          if (data?.type === 'order' || data?.transactionId) {
+            // Redirect to Orders tab ('Pesanan')
+            (navigationRef as any).navigate('Main', { screen: 'Pesanan' });
+          } else if (data?.type === 'broadcast' || data?.broadcastId || data?.superadminNotificationId) {
+            // Redirect to Notifications screen
+            (navigationRef as any).navigate('Notifications');
+          } else {
+            // Default fallback
+            (navigationRef as any).navigate('Notifications');
+          }
+        }
+      } catch (err) {
+        console.error('Error handling notification click response:', err);
+      }
+    });
+
+    return () => {
+      responseSubscription.remove();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
