@@ -40,31 +40,36 @@ export default function NotificationsScreen({ navigation }: any) {
       <TouchableOpacity
         onPress={() => handleNotificationPress(item)}
         activeOpacity={0.8}
-        className="p-4 border-b flex-row items-start justify-between"
+        className="mx-4 my-1.5 p-4 rounded-2xl border flex-row items-center justify-between"
         style={{
-          backgroundColor: item.isRead ? 'transparent' : colors.surface + '20',
-          borderColor: colors.border,
+          backgroundColor: item.isRead ? colors.surface + '90' : colors.surface,
+          borderColor: item.isRead ? colors.border : colors.accent + '60',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: item.isRead ? 0 : 0.05,
+          shadowRadius: 2,
+          elevation: item.isRead ? 0 : 1,
         }}
       >
-        <View className="flex-row items-start flex-1 pr-4">
+        <View className="flex-row items-center flex-1 pr-4">
           {/* Status Indicator Dot */}
-          <View className="pt-1.5 mr-3">
+          <View className="mr-3">
             {!item.isRead ? (
-              <View className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+              <View className="w-2 h-2 rounded-full bg-rose-500" />
             ) : (
-              <View className="w-2.5 h-2.5 rounded-full bg-transparent" />
+              <View className="w-2 h-2 rounded-full bg-transparent" />
             )}
           </View>
 
-          {/* Bell Icon container */}
+          {/* Icon container */}
           <View 
-            className="w-10 h-10 rounded-xl items-center justify-center mr-3.5 border"
+            className="w-10 h-10 rounded-xl items-center justify-center mr-3 border"
             style={{
-              backgroundColor: item.isRead ? colors.surface + '30' : colors.accent + '15',
+              backgroundColor: item.isRead ? colors.bg : colors.accent + '15',
               borderColor: item.isRead ? colors.border : colors.accent + '30',
             }}
           >
-            <Bell size={18} color={item.isRead ? colors.textMuted : colors.accent} />
+            <Bell size={16} color={item.isRead ? colors.textMuted : colors.accent} />
           </View>
 
           {/* Texts */}
@@ -76,14 +81,15 @@ export default function NotificationsScreen({ navigation }: any) {
               {item.title}
             </Text>
             <Text 
-              className="text-xs font-bold mt-1 leading-relaxed"
+              className="text-[11px] font-bold mt-0.5 leading-relaxed"
               style={{ color: colors.textMuted }}
+              numberOfLines={2}
             >
               {item.body}
             </Text>
             <Text 
-              className="text-[9px] font-bold mt-2"
-              style={{ color: colors.textMuted + 'b0' }}
+              className="text-[8px] font-black uppercase mt-1.5 tracking-wider"
+              style={{ color: colors.textMuted + '90' }}
             >
               {formatTime(item.timestamp)}
             </Text>
@@ -91,9 +97,7 @@ export default function NotificationsScreen({ navigation }: any) {
         </View>
 
         {/* Chevron right */}
-        <View className="justify-center h-full pt-3">
-          <ChevronRight size={16} color={colors.textMuted} />
-        </View>
+        <ChevronRight size={14} color={colors.textMuted} />
       </TouchableOpacity>
     );
   };
