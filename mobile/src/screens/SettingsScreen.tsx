@@ -1639,6 +1639,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               setShowFeedbackModalMobile(true);
             })}
             {renderMenuItem('Periksa Pembaruan', '🔄', colors.accent, handleCheckUpdatesManual)}
+            {renderMenuItem('Kunjungi Website', '🌐', '#06b6d4', () => {
+              Vibration.vibrate(10);
+              Linking.openURL('https://ikasir.my.id');
+            })}
           </View>
           <Text className="text-[9px] text-center mt-6 font-bold" style={{ color: colors.textMuted }}>
             iKasir Pro v1.0.1 • OTA Patch: 20-Juni-2026 (OTA Test OK)

@@ -2446,6 +2446,54 @@ export default function SuperAdminPage() {
               </div>
            </form>
 
+            {/* FITUR BERBAYAR CARD */}
+            <div className="bg-surface border border-app-border rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-2xl space-y-8">
+               <div>
+                  <h3 className="text-2xl font-black text-foreground mb-2 flex items-center gap-3">
+                     <ShieldCheck className="text-accent" /> Batasan Fitur Berbayar
+                  </h3>
+                  <p className="text-xs text-app-text-muted font-medium italic leading-relaxed">
+                     Aktifkan fitur yang hanya dapat diakses oleh pengguna merchant yang memiliki paket langganan aktif. Merchant dengan paket expired tidak akan bisa menggunakan fitur-fitur ini.
+                  </p>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {[
+                    { key: 'paid_print_a4', name: 'Cetak Dokumen A4', desc: 'Membatasi pratinjau dan cetak invoice ukuran A4.' },
+                    { key: 'paid_print_delivery', name: 'Cetak Surat Jalan A4', desc: 'Membatasi pencetakan dokumen surat jalan logistik.' },
+                    { key: 'paid_share_signature', name: 'Kirim Link TTD Digital', desc: 'Membatasi fitur kirim tautan tanda tangan digital.' },
+                    { key: 'paid_send_wa', name: 'Tagihan / WhatsApp Alert', desc: 'Membatasi pengiriman tagihan piutang via WhatsApp API.' },
+                    { key: 'paid_print_receipt', name: 'Cetak Struk Kasir Thermal', desc: 'Membatasi pencetakan struk kasir thermal via RawBT/browser.' },
+                  ].map((feat) => (
+                    <div key={feat.key} className="p-4 bg-background border border-app-border rounded-2xl flex items-center justify-between gap-4">
+                      <div>
+                        <h5 className="text-xs font-black text-foreground">{feat.name}</h5>
+                        <p className="text-[10px] text-app-text-muted font-medium mt-1 leading-normal">{feat.desc}</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          type="checkbox" 
+                          checked={infraData[feat.key] ?? false}
+                          onChange={(e) => setInfraData({ ...infraData, [feat.key]: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-app-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                      </label>
+                    </div>
+                  ))}
+               </div>
+
+               <button 
+                 type="button"
+                 onClick={handleUpdateInfra}
+                 disabled={isSaving}
+                 className="w-full py-4 bg-accent hover:bg-accent/80 text-foreground rounded-2xl font-black shadow-xl shadow-accent/20 transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs active:scale-95"
+               >
+                  {isSaving ? <Loader2 className="animate-spin" /> : <Save size={16} />}
+                  SIMPAN KONFIGURASI FITUR BERBAYAR
+               </button>
+            </div>
+
            {/* DATABASE PROJECTS INVENTORY */}
            <div className="mt-16 space-y-8 animate-in slide-in-from-bottom-5 duration-700">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
