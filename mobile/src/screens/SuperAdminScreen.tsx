@@ -2115,6 +2115,43 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                           </View>
                           <Text className="text-[8px] font-black text-slate-500 font-mono">DB: {u.targetProjectId || 'UTAMA'}</Text>
                         </View>
+
+                        {/* Store & Expiry Details */}
+                        {(() => {
+                          const storeObj = superAdminStores.find(s => s.id === u.storeId);
+                          const isExpired = u.validUntil ? new Date(u.validUntil).getTime() < Date.now() : false;
+                          
+                          let storeStatusText = 'TANPA TOKO';
+                          let storeStatusColor = 'bg-slate-500/10 text-slate-400';
+                          if (storeObj) {
+                            if (storeObj.isActive === false) {
+                              storeStatusText = 'TOKO NONAKTIF';
+                              storeStatusColor = 'bg-rose-500/10 text-rose-500';
+                            } else if (isExpired) {
+                              storeStatusText = 'TOKO KADALUWARSA';
+                              storeStatusColor = 'bg-amber-500/10 text-amber-500';
+                            } else {
+                              storeStatusText = 'TOKO AKTIF';
+                              storeStatusColor = 'bg-emerald-500/10 text-emerald-500';
+                            }
+                          }
+
+                          return (
+                            <View className="mt-2 flex-row justify-between items-center bg-black/10 p-2 rounded-xl">
+                              <View className="flex-row items-center gap-1.5">
+                                <Text className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${storeStatusColor}`}>
+                                  {storeStatusText}
+                                </Text>
+                                <Text className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isExpired ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                  {isExpired ? 'KADALUWARSA' : 'AKTIF'}
+                                </Text>
+                              </View>
+                              <Text className="text-[8px] font-bold text-slate-400">
+                                Masa Aktif: {u.validUntil ? (u.validUntil.includes('T') ? u.validUntil.substring(0, 10) : u.validUntil) : '-'}
+                              </Text>
+                            </View>
+                          );
+                        })()}
                       </View>
                     ))}
                   </View>

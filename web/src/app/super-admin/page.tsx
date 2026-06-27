@@ -1776,7 +1776,7 @@ export default function SuperAdminPage() {
                                     <div>
                                        <p className="font-black text-sm text-foreground">{u.name || 'No Name'}</p>
                                        <p className="text-[10px] font-bold text-app-text-muted">{u.email}</p>
-                                       <div className="flex items-center gap-1.5 mt-1">
+                                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
                                             u.role === 'super-admin' ? 'bg-amber-500/10 text-amber-500' : 
                                             u.role === 'admin' ? 'bg-accent/10 text-accent' : 'bg-background text-app-text-muted'
@@ -1786,7 +1786,36 @@ export default function SuperAdminPage() {
                                           <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${u.targetProjectId ? 'bg-amber-500/20 text-amber-500 animate-pulse' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10'}`}>
                                              DB: {u.targetProjectId || 'UTAMA'}
                                           </span>
-                                       </div>
+                                          {(() => {
+                                             const storeObj = stores.find(s => s.id === u.storeId);
+                                             const isExpired = u.validUntil ? new Date(u.validUntil).getTime() < Date.now() : false;
+                                             
+                                             let storeStatusText = 'TANPA TOKO';
+                                             let storeStatusColor = 'bg-slate-500/10 text-slate-400';
+                                             if (storeObj) {
+                                               if (storeObj.isActive === false) {
+                                                 storeStatusText = 'TOKO NONAKTIF';
+                                                 storeStatusColor = 'bg-rose-500/10 text-rose-500';
+                                               } else if (isExpired) {
+                                                 storeStatusText = 'TOKO KADALUWARSA';
+                                                 storeStatusColor = 'bg-amber-500/10 text-amber-500';
+                                               } else {
+                                                 storeStatusText = 'TOKO AKTIF';
+                                                 storeStatusColor = 'bg-emerald-500/10 text-emerald-500';
+                                               }
+                                             }
+                                             return (
+                                               <>
+                                                 <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${storeStatusColor}`}>
+                                                   {storeStatusText}
+                                                 </span>
+                                                 <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${isExpired ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                                   {isExpired ? 'EXPIRED' : 'AKTIF'}
+                                                 </span>
+                                               </>
+                                             );
+                                           })()}
+                                        </div>
                                     </div>
                                  </div>
                               </td>
@@ -1814,10 +1843,15 @@ export default function SuperAdminPage() {
                                  )}
                               </td>
                               <td className="px-8 py-5">
-                                 <div className="flex items-center gap-2 text-app-text-muted font-bold text-xs bg-background/50 px-3 py-1.5 rounded-xl w-fit">
-                                    <History size={14} />
-                                    {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}
-                                 </div>
+                                 {(() => {
+                                   const isExpired = u.validUntil ? new Date(u.validUntil).getTime() < Date.now() : false;
+                                   return (
+                                     <div className={`flex items-center gap-2 font-bold text-xs px-3 py-1.5 rounded-xl w-fit ${isExpired ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-background/50 text-app-text-muted'}`}>
+                                        <History size={14} />
+                                        {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}
+                                     </div>
+                                   );
+                                 })()}
                               </td>
                               <td className="px-8 py-5 text-center">
                                  <div className="flex items-center justify-center gap-2">
@@ -1901,12 +1935,46 @@ export default function SuperAdminPage() {
                            <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest ${u.targetProjectId ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
                              DB: {u.targetProjectId || 'UTAMA'}
                            </span>
+                           {(() => {
+                              const storeObj = stores.find(s => s.id === u.storeId);
+                              const isExpired = u.validUntil ? new Date(u.validUntil).getTime() < Date.now() : false;
+                              
+                              let storeStatusText = 'TANPA TOKO';
+                              let storeStatusColor = 'bg-slate-500/10 text-slate-400';
+                              if (storeObj) {
+                                if (storeObj.isActive === false) {
+                                  storeStatusText = 'TOKO NONAKTIF';
+                                  storeStatusColor = 'bg-rose-500/10 text-rose-500';
+                                } else if (isExpired) {
+                                  storeStatusText = 'TOKO KADALUWARSA';
+                                  storeStatusColor = 'bg-amber-500/10 text-amber-500';
+                                } else {
+                                  storeStatusText = 'TOKO AKTIF';
+                                  storeStatusColor = 'bg-emerald-500/10 text-emerald-500';
+                                }
+                              }
+                              return (
+                                <>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${storeStatusColor}`}>
+                                    {storeStatusText}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${isExpired ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                    {isExpired ? 'EXPIRED' : 'AKTIF'}
+                                  </span>
+                                </>
+                              );
+                            })()}
                         </div>
                         
-                        <div className="flex items-center justify-between text-[9px] font-bold text-app-text-muted bg-background/50 px-3 py-2 rounded-lg">
-                           <span className="flex items-center gap-1"><History size={10} /> {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}</span>
-                           <span className="font-mono opacity-50">#{u.id?.substring(0,8)}</span>
-                        </div>
+                        {(() => {
+                            const isExpired = u.validUntil ? new Date(u.validUntil).getTime() < Date.now() : false;
+                            return (
+                              <div className={`flex items-center justify-between text-[9px] font-bold px-3 py-2 rounded-lg ${isExpired ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'text-app-text-muted bg-background/50'}`}>
+                                 <span className="flex items-center gap-1"><History size={10} /> {u.validUntil ? new Date(u.validUntil).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : '-'}</span>
+                                 <span className="font-mono opacity-50">#{u.id?.substring(0,8)}</span>
+                              </div>
+                            );
+                         })()}
                      </div>
                    ))}
                 </div>
