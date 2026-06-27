@@ -13,7 +13,7 @@ import {
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
-  Wrench, ExternalLink, MessageSquare, Landmark, UserPlus
+  Wrench, ExternalLink, MessageSquare, Landmark, UserPlus, ShieldCheck
 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { 
@@ -2772,6 +2772,55 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   <Check size={14} color={colors.text} />
                   <Text className="font-black text-xs uppercase tracking-wider" style={{ color: colors.text }}>Perbarui Pesan</Text>
                 </Button3D>
+              </View>
+
+              {/* FITUR BERBAYAR CONFIGURATION */}
+              <View className="p-5 rounded-3xl border space-y-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="flex-row items-center gap-3 border-b pb-4" style={{ borderColor: colors.border + '30' }}>
+                  <View className="p-2.5 rounded-xl bg-slate-500/10">
+                    <ShieldCheck size={20} color={colors.accent} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>Batasan Fitur Berbayar</Text>
+                    <Text className="text-[9px] font-bold text-slate-400">Aktifkan fitur yang hanya dapat diakses oleh pelanggan aktif.</Text>
+                  </View>
+                </View>
+
+                <View className="space-y-3">
+                  {[
+                    { key: 'paid_print_a4', name: 'Cetak Dokumen A4', desc: 'Membatasi akses pratinjau dan cetak invoice ukuran A4.' },
+                    { key: 'paid_print_delivery', name: 'Cetak Surat Jalan A4', desc: 'Membatasi pencetakan dokumen surat jalan logistik.' },
+                    { key: 'paid_share_signature', name: 'Kirim Link TTD Digital', desc: 'Membatasi fitur kirim tautan tanda tangan digital.' },
+                    { key: 'paid_send_wa', name: 'Tagihan / WhatsApp Alert', desc: 'Membatasi pengiriman tagihan piutang via WhatsApp API.' },
+                    { key: 'paid_print_receipt', name: 'Cetak Struk Kasir Thermal', desc: 'Membatasi pencetakan struk kasir thermal via Bluetooth.' },
+                  ].map((feat) => (
+                    <View key={feat.key} className="flex-row justify-between items-center p-3.5 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                      <View className="flex-1 pr-4">
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>{feat.name}</Text>
+                        <Text className="text-[8px] font-bold text-slate-400 leading-relaxed mt-0.5">{feat.desc}</Text>
+                      </View>
+                      <Switch
+                        value={infraData[feat.key] ?? false}
+                        onValueChange={(val) => setInfraData({ ...infraData, [feat.key]: val })}
+                        trackColor={{ false: colors.border, true: colors.accent }}
+                        thumbColor="#ffffff"
+                      />
+                    </View>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleUpdateInfra}
+                  disabled={isSaving}
+                  className="py-4 rounded-2xl items-center justify-center mt-2 animate-pulse active:scale-95"
+                  style={{ backgroundColor: colors.accent }}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#0f172a" />
+                  ) : (
+                    <Text className="font-black text-slate-950 text-xs uppercase tracking-wider">Simpan Konfigurasi Fitur</Text>
+                  )}
+                </TouchableOpacity>
               </View>
 
               {/* SYSTEM UTILITIES */}

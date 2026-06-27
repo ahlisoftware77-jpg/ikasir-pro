@@ -147,11 +147,12 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
   const { trx, storeSettings: initialSettings } = route.params;
   const [storeSettings, setStoreSettings] = useState<any>(initialSettings || {});
   const { colors } = useTheme();
-  const { storeId } = useAuthStore();
+  const { storeId, isSubscriptionExpired, role } = useAuthStore();
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [selectedTrx, setSelectedTrx] = useState<Transaction | null>(trx);
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
   const [activePrintJob, setActivePrintJob] = useState<'a4' | 'delivery' | null>(null);
+  const [infraData, setInfraData] = useState<any>({});
 
   useEffect(() => {
     const targetStoreId = storeId || trx?.storeId;
@@ -163,6 +164,31 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
     });
     return () => unsubscribe();
   }, [storeId, trx?.storeId]);
+
+  useEffect(() => {
+    const unsubInfra = onSnapshot(doc(db, 'system_settings', 'infrastructure'), (docSnap) => {
+      if (docSnap.exists()) {
+        setInfraData(docSnap.data());
+      }
+    });
+    return () => unsubInfra();
+  }, []);
+
+  const isFeatureLocked = (key: string, featureName: string) => {
+    if (role === 'super-admin' || role === 'superadmin') return false;
+    const isPaidFeature = infraData?.[key] ?? false;
+    if (isPaidFeature && isSubscriptionExpired) {
+      Alert.alert(
+        'Fitur Premium Kasir Pro',
+        `Fitur "${featureName}" saat ini dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan langganan / perpanjang paket premium Kasir Pro Anda untuk menggunakan fitur ini.`,
+        [
+          { text: 'Tutup', style: 'cancel' }
+        ]
+      );
+      return true;
+    }
+    return false;
+  };
 
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
@@ -892,6 +918,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     <TouchableOpacity 
                       onPress={async () => {
                         if (activePrintJob) return;
+                        if (isFeatureLocked('paid_print_a4', 'Cetak A4')) return;
                         setActivePrintJob('a4');
                         Vibration.vibrate(15);
                         try {
@@ -928,6 +955,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     <TouchableOpacity 
                       onPress={async () => {
                         if (activePrintJob) return;
+                        if (isFeatureLocked('paid_print_delivery', 'Cetak Surat Jalan A4')) return;
                         setActivePrintJob('delivery');
                         Vibration.vibrate(15);
                         try {
@@ -962,7 +990,10 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                      onPress={() => handleShareSignatureLink('trx', selectedTrx.id!)}
+                      onPress={() => {
+                        if (isFeatureLocked('paid_share_signature', 'Kirim Link TTD Digital')) return;
+                        handleShareSignatureLink('trx', selectedTrx.id!);
+                      }}
                       activeOpacity={0.8}
                       className="flex-1 items-center justify-center py-3.5 rounded-2xl border"
                       style={{ 
@@ -976,7 +1007,10 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     
                     {selectedTrx.paymentStatus !== 'paid' && (
                       <TouchableOpacity 
-                        onPress={() => handleSendWA(selectedTrx)}
+                        onPress={() => {
+                          if (isFeatureLocked('paid_send_wa', 'Tagihan / WhatsApp Alert')) return;
+                          handleSendWA(selectedTrx);
+                        }}
                         activeOpacity={0.8}
                         className="flex-1 items-center justify-center py-3.5 rounded-2xl border"
                         style={{ 
@@ -991,7 +1025,10 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                   </View>
 
                   <TouchableOpacity 
-                    onPress={() => setViewingReceipt(selectedTrx)}
+                    onPress={() => {
+                      if (isFeatureLocked('paid_print_receipt', 'Cetak Struk Kasir Thermal')) return;
+                      setViewingReceipt(selectedTrx);
+                    }}
                     activeOpacity={0.9}
                     className="w-full py-4.5 rounded-[24px] items-center justify-center flex-row gap-2.5"
                     style={{ 

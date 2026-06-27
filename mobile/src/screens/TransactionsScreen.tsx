@@ -96,7 +96,7 @@ interface Transaction {
 
 export default function TransactionsScreen({ navigation }: any) {
   const { colors } = useTheme();
-  const { storeId } = useAuthStore();
+  const { storeId, isSubscriptionExpired, role } = useAuthStore();
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +107,32 @@ export default function TransactionsScreen({ navigation }: any) {
   const [timeFilter, setTimeFilter] = useState<'today' | 'weekly' | 'monthly' | 'yearly' | 'all'>('all');
   const [searchText, setSearchText] = useState('');
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
+  const [infraData, setInfraData] = useState<any>({});
+
+  useEffect(() => {
+    const unsubInfra = onSnapshot(doc(db, 'system_settings', 'infrastructure'), (docSnap) => {
+      if (docSnap.exists()) {
+        setInfraData(docSnap.data());
+      }
+    });
+    return () => unsubInfra();
+  }, []);
+
+  const isFeatureLocked = (key: string, featureName: string) => {
+    if (role === 'super-admin' || role === 'superadmin') return false;
+    const isPaidFeature = infraData?.[key] ?? false;
+    if (isPaidFeature && isSubscriptionExpired) {
+      Alert.alert(
+        'Fitur Premium Kasir Pro',
+        `Fitur "${featureName}" saat ini dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan langganan / perpanjang paket premium Kasir Pro Anda untuk menggunakan fitur ini.`,
+        [
+          { text: 'Tutup', style: 'cancel' }
+        ]
+      );
+      return true;
+    }
+    return false;
+  };
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -444,6 +470,7 @@ export default function TransactionsScreen({ navigation }: any) {
   };
 
   const handlePrintAction = async (trx: Transaction) => {
+    if (isFeatureLocked('paid_print_receipt', 'Cetak Struk Kasir Thermal')) return;
     setViewingReceipt(trx);
     try {
       const savedPrinter = await AsyncStorage.getItem('selected_printer');
