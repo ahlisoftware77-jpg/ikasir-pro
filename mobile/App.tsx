@@ -902,6 +902,7 @@ export default function App() {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       try {
         const data = response.notification.request.content.data;
+        if (!data || Object.keys(data).length === 0) return;
         
         if (navigationRef.isReady()) {
           if (data?.type === 'order' || data?.transactionId) {
@@ -909,9 +910,6 @@ export default function App() {
             (navigationRef as any).navigate('Main', { screen: 'Pesanan' });
           } else if (data?.type === 'broadcast' || data?.broadcastId || data?.superadminNotificationId) {
             // Redirect to Notifications screen
-            (navigationRef as any).navigate('Notifications');
-          } else {
-            // Default fallback
             (navigationRef as any).navigate('Notifications');
           }
         }
