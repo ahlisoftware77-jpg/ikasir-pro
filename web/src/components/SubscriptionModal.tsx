@@ -261,7 +261,7 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
                     )}
                     {isBestSeller && (
                       <div className="absolute -top-3.5 -right-1 bg-gradient-to-r from-amber-500 to-emerald-500 text-white text-[7px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-full shadow-lg border border-amber-400 animate-float-badge flex items-center gap-1 z-10">
-                        <Sparkles size={8} className="animate-pulse" /> {pkg.discountLabel ? `${pkg.discountLabel} / TERLARIS` : 'HEMAT 15% / TERLARIS'}
+                        <Sparkles size={8} className="animate-pulse" /> {pkg.discountLabel ? `${pkg.discountLabel} / TERLARIS` : 'TERLARIS'}
                       </div>
                     )}
                     <div className="relative z-10 flex-1 pr-4">
