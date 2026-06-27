@@ -1768,7 +1768,7 @@ export default function SuperAdminPage() {
                       <tbody className="divide-y divide-app-border/30">
                          {group.users.map(u => (
                            <tr key={u.id} className="group hover:bg-background/20 transition-colors">
-                              <td className="px-8 py-5">
+                              <td className={`px-8 py-5 border-l-4 ${u.isActive !== false ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
                                  <div className="flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-foreground font-black text-xs shadow-lg shadow-accent/20">
                                        {u.email?.[0].toUpperCase()}
@@ -1852,7 +1852,7 @@ export default function SuperAdminPage() {
                 {/* Mobile Card View */}
                 <div className="md:hidden divide-y divide-app-border/30">
                    {group.users.map(u => (
-                     <div key={u.id} className="p-5 flex flex-col gap-3">
+                     <div key={u.id} className={`p-5 flex flex-col gap-3 border-l-4 ${u.isActive !== false ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
                         <div className="flex items-start justify-between">
                            <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-xl bg-accent text-foreground flex items-center justify-center font-black text-xs">
@@ -1936,7 +1936,7 @@ export default function SuperAdminPage() {
                  <tbody className="divide-y divide-app-border/30">
                     {stores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
                       <tr key={s.id} className="group hover:bg-background/20 transition-colors">
-                         <td className="px-8 py-6">
+                         <td className={`px-8 py-6 border-l-4 ${s.isActive !== false ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
                             <div className="flex items-center gap-4">
                                <div className="w-12 h-12 rounded-2xl bg-surface border border-app-border flex items-center justify-center text-accent font-black shadow-lg">
                                   <Building2 size={24} />
@@ -2034,7 +2034,7 @@ export default function SuperAdminPage() {
            {/* Mobile Card View for Stores */}
            <div className="md:hidden divide-y divide-app-border">
               {stores.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
-                <div key={s.id} className="p-5 flex flex-col gap-4">
+                <div key={s.id} className={`p-5 flex flex-col gap-4 border-l-4 ${s.isActive !== false ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
                    <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                          <div className="w-10 h-10 rounded-xl bg-background border border-app-border flex items-center justify-center text-accent">

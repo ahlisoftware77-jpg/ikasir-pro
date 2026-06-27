@@ -2063,8 +2063,11 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     {group.users.map((u, idx) => (
                       <View 
                         key={u.id} 
-                        className={`px-5 py-4 ${idx < group.users.length - 1 ? 'border-b' : ''}`}
-                        style={{ borderColor: colors.border + '30' }}
+                        className={`px-5 py-4 border-l-[4px] ${idx < group.users.length - 1 ? 'border-b' : ''}`}
+                        style={{ 
+                          borderColor: colors.border + '30',
+                          borderLeftColor: u.isActive !== false ? '#10b981' : '#f43f5e'
+                        }}
                       >
                         <View className="flex-row items-start justify-between">
                           <View className="flex-row items-center gap-3 flex-1">
@@ -2161,8 +2164,12 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     return (
                       <View 
                         key={s.id} 
-                        className="p-5 rounded-3xl border mb-3" 
-                        style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                        className="p-5 rounded-3xl border-l-[6px] border-y border-r mb-3" 
+                        style={{ 
+                          backgroundColor: colors.surface, 
+                          borderColor: colors.border,
+                          borderLeftColor: s.isActive !== false ? '#10b981' : '#f43f5e'
+                        }}
                       >
                         <View className="flex-row justify-between items-center mb-3">
                           <View className="flex-1 pr-2">
