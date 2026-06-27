@@ -470,34 +470,6 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   )}
                 </ScrollView>
               </View>
-              
-              {/* input URL paste helper */}
-              <View className="w-full mt-3 flex gap-1">
-                <Text className="text-[8px] font-black text-app-text-muted uppercase tracking-wider ml-1" style={{ color: colors.textMuted }}>
-                  Atau Tempel URL Gambar untuk Ditambahkan
-                </Text>
-                <View className="flex-row gap-2">
-                  <TextInput 
-                    placeholder="https://example.com/image.jpg"
-                    placeholderTextColor={colors.textMuted + '60'}
-                    value={formData.imageUrl} 
-                    onChangeText={(text) => setFormData(prev => ({ ...prev, imageUrl: text }))}
-                    className="flex-1 p-3 rounded-xl border text-xs font-bold"
-                    style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
-                  />
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (formData.imageUrl.trim()) {
-                        setImages(prev => [...prev, formData.imageUrl.trim()]);
-                        setFormData(prev => ({ ...prev, imageUrl: '' }));
-                      }
-                    }}
-                    className="px-4 rounded-xl items-center justify-center bg-accent"
-                  >
-                    <Text className="text-white text-xs font-black uppercase">Tambah</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
             </View>
 
             {/* General Fields */}
@@ -508,35 +480,35 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 placeholderTextColor={colors.textMuted + '60'}
                 value={formData.name}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                className="p-4 rounded-2xl border font-bold"
-                style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
+                className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border + '40' }}
               />
             </View>
 
-            <View className="flex-row gap-4">
-              <View className="flex-1">
+            <View className="flex gap-4">
+              <View>
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Kategori Utama</Text>
                 <TouchableOpacity 
                   onPress={() => setShowCategoryModal(true)}
-                  className="p-4 rounded-2xl border font-bold flex-row items-center justify-between"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  className="p-4.5 rounded-[1.25rem] border font-bold flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border + '40' }}
                 >
-                  <Text className="font-bold" style={{ color: formData.category ? colors.text : colors.textMuted + '60' }}>
+                  <Text className="font-bold text-sm" style={{ color: formData.category ? colors.text : colors.textMuted + '60' }}>
                     {formData.category || 'Pilih Kategori'}
                   </Text>
                   <ChevronDown size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
               
-              <View className="flex-1">
+              <View>
                 <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Variasi (Warna/Ukuran)</Text>
                 <TextInput
                   placeholder="Contoh: Merah, XL"
                   placeholderTextColor={colors.textMuted + '60'}
                   value={formData.variation}
                   onChangeText={(text) => setFormData(prev => ({ ...prev, variation: text }))}
-                  className="p-4 rounded-2xl border font-bold"
-                  style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
+                  className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                  style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border + '40' }}
                 />
               </View>
             </View>
@@ -612,19 +584,19 @@ export default function ProductFormScreen({ route, navigation }: any) {
                     placeholderTextColor={colors.textMuted + '60'}
                     value={formData.sku}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, sku: text }))}
-                    className="flex-1 p-3.5 rounded-xl border font-bold text-xs"
-                    style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
+                    className="flex-1 p-4 rounded-[1.25rem] border font-bold text-sm"
+                    style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border + '40' }}
                   />
                   <TouchableOpacity
                     onPress={generateAutomaticSku}
-                    className="p-3.5 bg-accent rounded-xl flex-row items-center gap-1 shadow-md shadow-accent/20"
+                    className="p-4 bg-accent rounded-[1.25rem] flex-row items-center gap-1 shadow-md shadow-accent/20"
                   >
                     <Sparkles size={14} color="#ffffff" />
                     <Text className="text-[9px] font-black text-white uppercase tracking-wider">AUTO</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => startScanning('sku')}
-                    className="p-3.5 rounded-xl border justify-center items-center"
+                    className="p-4 rounded-[1.25rem] border justify-center items-center"
                     style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '30' }}
                   >
                     <Scan size={14} color={colors.accent} />
@@ -640,8 +612,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                     placeholderTextColor={colors.textMuted + '60'}
                     value={formData.barcode}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, barcode: text }))}
-                    className="flex-1 p-3.5 rounded-xl border font-bold text-xs"
-                    style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
+                    className="flex-1 p-4 rounded-[1.25rem] border font-bold text-sm"
+                    style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border + '40' }}
                   />
                   <TouchableOpacity
                     onPress={() => {
@@ -649,14 +621,14 @@ export default function ProductFormScreen({ route, navigation }: any) {
                       setFormData(prev => ({ ...prev, barcode: randomBarcode }));
                       Vibration.vibrate(10);
                     }}
-                    className="p-3.5 bg-accent rounded-xl flex-row items-center gap-1 shadow-md shadow-accent/20"
+                    className="p-4 bg-accent rounded-[1.25rem] flex-row items-center gap-1 shadow-md shadow-accent/20"
                   >
                     <Sparkles size={14} color="#ffffff" />
                     <Text className="text-[9px] font-black text-white uppercase tracking-wider">AUTO</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => startScanning('barcode')}
-                    className="p-3.5 rounded-xl border justify-center items-center"
+                    className="p-4 rounded-[1.25rem] border justify-center items-center"
                     style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '30' }}
                   >
                     <Scan size={14} color={colors.accent} />
@@ -674,9 +646,9 @@ export default function ProductFormScreen({ route, navigation }: any) {
                 numberOfLines={4}
                 value={formData.description}
                 onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                className="p-4 rounded-2xl border font-medium h-32"
+                className="p-4.5 rounded-[1.25rem] border font-medium h-32 text-sm"
                 textAlignVertical="top"
-                style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }}
+                style={{ backgroundColor: colors.surface, color: colors.text, borderColor: colors.border + '40' }}
               />
             </View>
           </View>
@@ -699,8 +671,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   keyboardType="numeric"
                   value={formData.purchasePrice === '0' ? '' : formData.purchasePrice}
                   onChangeText={(text) => setFormData(prev => ({ ...prev, purchasePrice: text }))}
-                  className="p-4 rounded-2xl border font-bold"
-                  style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                  className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                  style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border + '40' }}
                 />
               </View>
 
@@ -711,7 +683,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   keyboardType="numeric"
                   value={formData.price === '0' ? '' : formData.price}
                   onChangeText={(text) => setFormData(prev => ({ ...prev, price: text }))}
-                  className="p-4 rounded-2xl border font-black text-lg"
+                  className="p-4.5 rounded-[1.25rem] border font-black text-lg"
                   style={{ backgroundColor: colors.bg, color: colors.accent, borderColor: colors.accent + '30' }}
                 />
               </View>
@@ -723,8 +695,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   keyboardType="numeric"
                   value={formData.wholesalePrice === '0' ? '' : formData.wholesalePrice}
                   onChangeText={(text) => setFormData(prev => ({ ...prev, wholesalePrice: text }))}
-                  className="p-4 rounded-2xl border font-bold"
-                  style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                  className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                  style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border + '40' }}
                 />
               </View>
             </View>
@@ -758,8 +730,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                       keyboardType="numeric"
                       value={formData.stock}
                       onChangeText={(text) => setFormData(prev => ({ ...prev, stock: text }))}
-                      className="p-4 rounded-2xl border font-bold"
-                      style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                      className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                      style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border + '40' }}
                     />
                   </View>
 
@@ -770,8 +742,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                       placeholderTextColor={colors.textMuted + '60'}
                       value={formData.entryDate}
                       onChangeText={(text) => setFormData(prev => ({ ...prev, entryDate: text }))}
-                      className="p-4 rounded-2xl border font-bold"
-                      style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                      className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                      style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border + '40' }}
                     />
                   </View>
                 </View>
@@ -813,8 +785,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                     placeholderTextColor={colors.textMuted + '60'}
                     value={formData.expiryDate}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, expiryDate: text }))}
-                    className="p-4 rounded-2xl border font-bold"
-                    style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                    className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                    style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border + '40' }}
                   />
                 </View>
               )}
@@ -915,8 +887,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
                         keyboardType="numeric"
                         value={formData.warrantyDuration}
                         onChangeText={(text) => setFormData(prev => ({ ...prev, warrantyDuration: text }))}
-                        className="p-4 rounded-2xl border font-bold"
-                        style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
+                        className="p-4.5 rounded-[1.25rem] border font-bold text-sm"
+                        style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border + '40' }}
                       />
                     </View>
                     <View className="flex-1">

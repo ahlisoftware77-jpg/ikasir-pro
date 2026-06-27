@@ -2623,11 +2623,11 @@ export default function POSScreen({ route, navigation }: any) {
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Nama Item</Text>
                 <TextInput
                   placeholder="e.g. Ongkos Kirim / Servis AC"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textMuted + '60'}
                   value={manualItemName}
                   onChangeText={setManualItemName}
-                  className="border rounded-2xl py-3.5 px-4 text-sm font-bold"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  className="border rounded-[1.25rem] p-4 text-sm font-bold"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border + '40', color: colors.text }}
                 />
               </View>
 
@@ -2635,12 +2635,12 @@ export default function POSScreen({ route, navigation }: any) {
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Harga (Rp)</Text>
                 <TextInput
                   placeholder="0"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textMuted + '60'}
                   keyboardType="numeric"
                   value={manualItemPrice}
                   onChangeText={setManualItemPrice}
-                  className="border rounded-2xl py-3.5 px-4 text-sm font-black"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  className="border rounded-[1.25rem] p-4 text-sm font-black"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border + '40', color: colors.text }}
                 />
               </View>
 
@@ -2648,8 +2648,8 @@ export default function POSScreen({ route, navigation }: any) {
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Kategori</Text>
                 <TouchableOpacity
                   onPress={() => setShowManualCategoryModal(true)}
-                  className="border rounded-2xl py-3.5 px-4 flex-row items-center justify-between"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                  className="border rounded-[1.25rem] p-4 flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border + '40' }}
                 >
                   <Text className="font-bold text-sm" style={{ color: manualItemCategory ? colors.text : colors.textMuted }}>
                     {manualItemCategory || 'Pilih Kategori'}
@@ -2725,16 +2725,16 @@ export default function POSScreen({ route, navigation }: any) {
                 <View className="flex-row gap-2">
                   <TextInput
                     placeholder="Barcode / scan / ketik..."
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.textMuted + '60'}
                     value={manualItemBarcode}
                     onChangeText={setManualItemBarcode}
-                    className="flex-1 border rounded-2xl py-3.5 px-4 text-sm font-bold"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    className="flex-1 border rounded-[1.25rem] p-4 text-sm font-bold"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border + '40', color: colors.text }}
                   />
                   <TouchableOpacity
                     onPress={() => startScanning('manual_barcode')}
-                    className="p-3.5 rounded-2xl border justify-center items-center bg-accent/10"
-                    style={{ borderColor: 'rgba(241,185,3,0.3)' }}
+                    className="p-4 rounded-[1.25rem] border justify-center items-center bg-accent/10"
+                    style={{ borderColor: colors.accent + '30' }}
                   >
                     <Scan size={16} color={colors.accent} />
                   </TouchableOpacity>
@@ -2744,7 +2744,7 @@ export default function POSScreen({ route, navigation }: any) {
                       setManualItemBarcode(randomBarcode);
                       Vibration.vibrate(10);
                     }}
-                    className="px-4 bg-accent rounded-2xl flex-row items-center justify-center gap-1 shadow-md shadow-accent/20"
+                    className="px-4 bg-accent rounded-[1.25rem] flex-row items-center justify-center gap-1 shadow-md shadow-accent/20"
                   >
                     <Sparkles size={14} color="#0f172a" />
                     <Text className="text-[10px] font-black text-[#0f172a] uppercase tracking-wider">AUTO</Text>
@@ -2758,8 +2758,8 @@ export default function POSScreen({ route, navigation }: any) {
                 <View className="flex-row gap-2">
                   <TouchableOpacity
                     onPress={() => setManualItemCalendarVisible(true)}
-                    className="flex-1 border rounded-2xl py-3.5 px-4 flex-row items-center justify-between"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                    className="flex-1 border rounded-[1.25rem] p-4 flex-row items-center justify-between"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border + '40' }}
                   >
                     <Text className="font-bold text-sm" style={{ color: manualItemExpiryDate ? colors.text : colors.textMuted }}>
                       {manualItemExpiryDate || 'Pilih Tanggal Kedaluwarsa'}
@@ -2769,7 +2769,7 @@ export default function POSScreen({ route, navigation }: any) {
                   {manualItemExpiryDate ? (
                     <TouchableOpacity
                       onPress={() => setManualItemExpiryDate('')}
-                      className="px-4 border rounded-2xl items-center justify-center bg-rose-500/10"
+                      className="px-4 border rounded-[1.25rem] items-center justify-center bg-rose-500/10"
                       style={{ borderColor: 'rgba(244,63,94,0.2)' }}
                     >
                       <X size={16} color="#f43f5e" />
@@ -2784,14 +2784,14 @@ export default function POSScreen({ route, navigation }: any) {
                 <View className="flex-row gap-2">
                   <TextInput
                     placeholder="Durasi (e.g. 1)"
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.textMuted + '60'}
                     keyboardType="numeric"
                     value={manualItemWarrantyDuration}
                     onChangeText={setManualItemWarrantyDuration}
-                    className="flex-[1.2] border rounded-2xl py-3.5 px-4 text-sm font-bold"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    className="flex-[1.2] border rounded-[1.25rem] p-4 text-sm font-bold"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border + '40', color: colors.text }}
                   />
-                  <View className="flex-1 flex-row border rounded-2xl p-1" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <View className="flex-1 flex-row border rounded-[1.25rem] p-1" style={{ backgroundColor: colors.surface, borderColor: colors.border + '40' }}>
                     {(['days', 'months', 'years'] as const).map((unit) => {
                       const label = unit === 'days' ? 'Hari' : unit === 'months' ? 'Bln' : 'Thn';
                       const isSelected = manualItemWarrantyUnit === unit;
@@ -2814,19 +2814,18 @@ export default function POSScreen({ route, navigation }: any) {
                 </View>
               </View>
 
-              {/* Deskripsi */}
               <View className="space-y-1">
                 <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.textMuted }}>Deskripsi (Opsional)</Text>
                 <TextInput
                   placeholder="Tambahkan deskripsi atau detail..."
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textMuted + '60'}
                   multiline
                   numberOfLines={3}
                   value={manualItemDescription}
                   onChangeText={setManualItemDescription}
-                  className="border rounded-2xl py-3.5 px-4 text-sm font-medium h-24 text-start"
+                  className="border rounded-[1.25rem] p-4 text-sm font-medium h-24 text-start"
                   textAlignVertical="top"
-                  style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border + '40', color: colors.text }}
                 />
               </View>
             </ScrollView>
