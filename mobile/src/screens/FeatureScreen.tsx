@@ -2132,6 +2132,29 @@ export default function FeatureScreen({ route, navigation }: any) {
     );
   };
 
+  const openWhatsApp = async (phone: string) => {
+    let cleaned = phone.replace(/[^0-9]/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '62' + cleaned.substring(1);
+    }
+    const waUrl = `whatsapp://send?phone=${cleaned}`;
+    const webUrl = `https://wa.me/${cleaned}`;
+    try {
+      const supported = await Linking.canOpenURL(waUrl);
+      if (supported) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Linking.openURL(webUrl);
+      }
+    } catch (err) {
+      try {
+        await Linking.openURL(webUrl);
+      } catch (e) {
+        Alert.alert('Gagal', 'Tidak dapat membuka aplikasi WhatsApp.');
+      }
+    }
+  };
+
   // --- SAVE ACTION ---
   const handleSave = async () => {
     Vibration.vibrate(15);
@@ -3455,13 +3478,7 @@ export default function FeatureScreen({ route, navigation }: any) {
                         </View>
                         {item.customerPhone && item.customerPhone !== '-' && (
                           <TouchableOpacity
-                            onPress={() => {
-                              let cleaned = item.customerPhone.replace(/[^0-9]/g, '');
-                              if (cleaned.startsWith('0')) {
-                                cleaned = '62' + cleaned.substring(1);
-                              }
-                              Linking.openURL(`https://wa.me/${cleaned}`);
-                            }}
+                            onPress={() => openWhatsApp(item.customerPhone)}
                             className="px-2 py-1 bg-emerald-500/10 rounded-lg"
                           >
                             <Text className="text-[8px] font-black text-emerald-500 uppercase">Hubungi WA</Text>
@@ -7128,7 +7145,17 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   </View>
                   <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No. Telepon</Text>
-                    <Text className="text-xs font-bold" style={{ color: colors.text }}>{selectedServiceTicket.customerPhone}</Text>
+                    <View className="flex-row items-center gap-2">
+                      <Text className="text-xs font-bold" style={{ color: colors.text }}>{selectedServiceTicket.customerPhone}</Text>
+                      {selectedServiceTicket.customerPhone && selectedServiceTicket.customerPhone !== '-' && (
+                        <TouchableOpacity
+                          onPress={() => openWhatsApp(selectedServiceTicket.customerPhone)}
+                          className="px-2 py-0.5 bg-emerald-500/10 rounded border border-emerald-500/20"
+                        >
+                          <Text className="text-[8px] font-black text-emerald-500 uppercase">Hubungi WA</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                   <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estimasi Biaya</Text>
