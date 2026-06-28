@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, orderBy, addDoc, where, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, addDoc, where, Timestamp, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { 
@@ -25,7 +25,10 @@ import {
   CreditCard,
   ArrowRightLeft,
   Search,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  Trash2,
+  Info
 } from 'lucide-react';
 import { CashFlow } from '@/types';
 import { exportToExcel } from '@/lib/exportToExcel';
@@ -50,11 +53,15 @@ export default function CashFlowReportPage() {
     type: 'out',
     category: 'operasional',
     amount: '',
-    description: ''
+    description: '',
+    linkedTransactionId: ''
   });
 
   const [manualData, setManualData] = useState<any[]>([]);
   const [trxData, setTrxData] = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [selectedCashFlow, setSelectedCashFlow] = useState<any | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   useEffect(() => {
     if (!storeId) return;
@@ -79,8 +86,10 @@ export default function CashFlowReportPage() {
       orderBy('timestamp', 'desc')
     ), snap => {
        const trxItems: any[] = [];
+       const trxs: any[] = [];
         snap.forEach(doc => {
            const d = doc.data();
+           trxs.push({ id: doc.id, ...d });
            if (d.paymentHistory && d.paymentHistory.length > 0) {
               d.paymentHistory.forEach((entry: any) => {
                  trxItems.push({
@@ -121,6 +130,7 @@ export default function CashFlowReportPage() {
            }
         });
        setTrxData(trxItems);
+       setAllTransactions(trxs);
        setIsLoading(false);
     });
     
@@ -228,6 +238,18 @@ export default function CashFlowReportPage() {
     exportToExcel(formattedData, `Laporan_Arus_Kas_${dateRange}`);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus catatan arus kas ini?")) return;
+    
+    try {
+      await deleteDoc(doc(db, 'cash_flow', id));
+      toast.success("Catatan arus kas berhasil dihapus!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal menghapus catatan: " + err.message);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.amount || !formData.description) return;
@@ -239,12 +261,13 @@ export default function CashFlowReportPage() {
         category: formData.category,
         amount: Number(formData.amount),
         description: formData.description,
+        linkedTransactionId: formData.linkedTransactionId || '',
         timestamp: new Date(),
         userEmail: user?.email || 'admin',
         storeId: storeId
       });
       setIsModalOpen(false);
-      setFormData({ type: 'out', category: 'operasional', amount: '', description: '' });
+      setFormData({ type: 'out', category: 'operasional', amount: '', description: '', linkedTransactionId: '' });
       toast.success('Pencatatan kas berhasil disimpan!');
     } catch (err) {
       console.error(err);
@@ -414,17 +437,18 @@ export default function CashFlowReportPage() {
           <div className="overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse">
                   <thead>
-                      <tr className="bg-background/20 text-app-text-muted text-[10px] font-black uppercase tracking-[0.2em] border-b border-app-border">
+                       <tr className="bg-background/20 text-app-text-muted text-[10px] font-black uppercase tracking-[0.2em] border-b border-app-border">
                           <th className="p-6">Waktu & Sumber</th>
                           <th className="p-6">Kategori & Detail</th>
                           <th className="p-6 text-right">Debit (Masuk)</th>
                           <th className="p-6 text-right">Kredit (Keluar)</th>
                           <th className="p-6 text-right bg-background/50">Saldo Akhir</th>
+                          <th className="p-6 text-center">Aksi</th>
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-app-border/40">
                       {processedDataWithBalance.length === 0 ? (
-                          <tr><td colSpan={5} className="p-20 text-center text-app-text-muted font-bold uppercase tracking-widest opacity-50 italic">Data tidak ditemukan dalam rentang waktu ini</td></tr>
+                          <tr><td colSpan={6} className="p-20 text-center text-app-text-muted font-bold uppercase tracking-widest opacity-50 italic">Data tidak ditemukan dalam rentang waktu ini</td></tr>
                       ) : (
                         processedDataWithBalance.map((item, idx) => (
                             <tr key={idx} className="hover:bg-accent/5 transition-all group">
@@ -464,6 +488,29 @@ export default function CashFlowReportPage() {
                                 </td>
                                 <td className="p-6 text-right font-black text-foreground text-base bg-background/20 tracking-tighter">
                                     Rp {item.runningBalance.toLocaleString('id-ID')}
+                                </td>
+                                <td className="p-6 text-center">
+                                    <div className="flex justify-center items-center gap-2">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedCashFlow(item);
+                                                setIsDetailOpen(true);
+                                            }}
+                                            className="p-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-xl transition-all"
+                                            title="Detail Rincian"
+                                        >
+                                            <Eye size={14} />
+                                        </button>
+                                        {item.isManual && (
+                                            <button 
+                                                onClick={() => handleDelete(item.id)}
+                                                className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-xl transition-all"
+                                                title="Hapus Catatan"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))
@@ -553,6 +600,24 @@ export default function CashFlowReportPage() {
                     </div>
                 </div>
 
+                {formData.type === 'out' && (
+                  <div className="space-y-2">
+                      <label className="text-[10px] font-black text-app-text-muted uppercase tracking-[0.3em] pl-2 mb-2 block">Pilih Transaksi Asal (Opsional)</label>
+                      <select 
+                          value={formData.linkedTransactionId}
+                          onChange={e => setFormData({...formData, linkedTransactionId: e.target.value})}
+                          className="w-full px-6 py-5 bg-background border-2 border-app-border rounded-3xl text-sm font-black text-foreground focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer"
+                      >
+                          <option value="">-- Tidak dikaitkan dengan transaksi --</option>
+                          {allTransactions.map((trx) => (
+                              <option key={trx.id} value={trx.id}>
+                                  Ref: #{trx.id.substring(0, 8)} {trx.customerName ? `- ${trx.customerName}` : ''} (Rp {trx.total?.toLocaleString('id-ID')})
+                              </option>
+                          ))}
+                      </select>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-[0.3em] pl-2 mb-2 block">Keterangan / Deskripsi</label>
                     <textarea 
@@ -578,6 +643,88 @@ export default function CashFlowReportPage() {
                     </button>
                 </div>
              </form>
+          </div>
+        </div>
+      {/* DETAIL MODAL */}
+      {isDetailOpen && selectedCashFlow && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-black/95 backdrop-blur-xl">
+          <div className="bg-surface border-t md:border border-app-border rounded-t-[3rem] md:rounded-[3.5rem] w-full max-w-lg shadow-2xl p-10 h-full md:h-auto overflow-y-auto animate-in slide-in-from-bottom md:zoom-in-95 duration-300">
+             <div className="flex items-start justify-between mb-10">
+                <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-accent/20 text-accent rounded-[1.5rem] flex items-center justify-center">
+                        <Info size={32} />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase leading-none mb-2">Rincian Arus Kas</h2>
+                        <p className="text-xs text-app-text-muted font-bold tracking-widest uppercase">Detail Lengkap Mutasi Kas</p>
+                    </div>
+                </div>
+                <button onClick={() => setIsDetailOpen(false)} className="p-2 border border-app-border rounded-full hover:bg-background transition-colors text-app-text-muted">
+                    <X size={24} />
+                </button>
+             </div>
+
+             <div className="space-y-6">
+                <div className="bg-background border border-app-border rounded-[2rem] p-6 space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Jenis Mutasi</span>
+                        <span className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg tracking-wider ${selectedCashFlow.type === 'in' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {selectedCashFlow.type === 'in' ? 'Pemasukan (+)' : 'Pengeluaran (-)'}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Kategori</span>
+                        <span className="text-xs font-black text-foreground uppercase tracking-wide">{selectedCashFlow.category}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Nominal</span>
+                        <span className={`text-lg font-black ${selectedCashFlow.type === 'in' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            Rp {selectedCashFlow.amount.toLocaleString('id-ID')}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Dicatat Oleh</span>
+                        <span className="text-xs font-bold text-foreground">{selectedCashFlow.userEmail || 'System'}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Metode Bayar</span>
+                        <span className="text-xs font-bold text-foreground uppercase">{selectedCashFlow.paymentMethod || '-'}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Waktu</span>
+                        <span className="text-xs font-bold text-foreground">
+                            {selectedCashFlow.timestamp?.toDate 
+                                ? selectedCashFlow.timestamp.toDate().toLocaleString('id-ID') 
+                                : selectedCashFlow.timestamp instanceof Date 
+                                    ? selectedCashFlow.timestamp.toLocaleString('id-ID') 
+                                    : '-'}
+                        </span>
+                    </div>
+
+                    {selectedCashFlow.linkedTransactionId && (
+                        <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                            <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Terkait Transaksi</span>
+                            <span className="text-xs font-black text-accent">Ref: #{selectedCashFlow.linkedTransactionId.substring(0, 8)}</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest pl-2">Keterangan / Catatan</label>
+                    <div className="bg-background border border-app-border rounded-3xl p-5 text-sm font-bold text-foreground min-h-[5rem] whitespace-pre-line">
+                        {selectedCashFlow.description || '-'}
+                    </div>
+                </div>
+
+                <button onClick={() => setIsDetailOpen(false)} className="w-full py-5 bg-background border border-app-border hover:bg-surface hover:text-foreground text-app-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+                    Tutup Rincian
+                </button>
+             </div>
           </div>
         </div>
       )}

@@ -15,7 +15,7 @@ import {
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
-  ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter,
+  ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
@@ -120,6 +120,10 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [cashFlowCustomStartDate, setCashFlowCustomStartDate] = useState('');
   const [cashFlowCustomEndDate, setCashFlowCustomEndDate] = useState('');
   const [isCashFlowProcessing, setIsCashFlowProcessing] = useState(false);
+  const [cashFlowTrxList, setCashFlowTrxList] = useState<any[]>([]);
+  const [selectedCashFlow, setSelectedCashFlow] = useState<any | null>(null);
+  const [isCashFlowDetailVisible, setIsCashFlowDetailVisible] = useState(false);
+  const [linkedTransactionId, setLinkedTransactionId] = useState('');
 
   // Piutang States
   const [debtFilter, setDebtFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
@@ -516,7 +520,8 @@ export default function FeatureScreen({ route, navigation }: any) {
                   category: data.category || 'operasional',
                   timestamp: data.timestamp,
                   userEmail: data.userEmail || 'admin',
-                  isManual: true
+                  isManual: true,
+                  linkedTransactionId: data.linkedTransactionId || ''
                 });
               });
               currentCF = flowDocs;
@@ -531,8 +536,10 @@ export default function FeatureScreen({ route, navigation }: any) {
             query(collection(db, 'transactions'), where('storeId', '==', storeId)),
             (snapTrx) => {
               const trxInflow: any[] = [];
+              const rawTrxs: any[] = [];
               snapTrx.forEach((doc) => {
                 const data = doc.data();
+                rawTrxs.push({ id: doc.id, ...data });
                 if (data.paymentHistory && data.paymentHistory.length > 0) {
                   data.paymentHistory.forEach((entry: any) => {
                     trxInflow.push({
@@ -576,6 +583,7 @@ export default function FeatureScreen({ route, navigation }: any) {
                 }
               });
               currentTrx = trxInflow;
+              setCashFlowTrxList(rawTrxs);
               updateCombined();
             }, (err) => {
               console.error("Error loading trx for cash flow:", err);
@@ -1895,9 +1903,11 @@ export default function FeatureScreen({ route, navigation }: any) {
             category: cfCat,
             amount: parseFloat(formAmount) || 0,
             description: formName,
+            linkedTransactionId: formType === 'out' ? (linkedTransactionId || '') : '',
             timestamp: new Date().toISOString(),
             userEmail: user?.email || 'admin'
           });
+          setLinkedTransactionId('');
           break;
 
         case 'tutup_buku':
@@ -2664,6 +2674,50 @@ export default function FeatureScreen({ route, navigation }: any) {
                 })}
               </View>
             </View>
+
+            {formType === 'out' && (
+              <View className="mb-4">
+                <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Kaitkan dengan Transaksi (Opsional)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2 py-1">
+                  <TouchableOpacity
+                    onPress={() => {
+                      Vibration.vibrate(5);
+                      setLinkedTransactionId('');
+                    }}
+                    className="px-4 py-3 rounded-2xl border mr-2"
+                    style={{
+                      backgroundColor: linkedTransactionId === '' ? colors.accent : colors.bg,
+                      borderColor: linkedTransactionId === '' ? colors.accent : colors.border
+                    }}
+                  >
+                    <Text className="text-[10px] font-black" style={{ color: linkedTransactionId === '' ? '#ffffff' : colors.textMuted }}>
+                      TIDAK ADA
+                    </Text>
+                  </TouchableOpacity>
+                  {cashFlowTrxList.map((trx) => {
+                    const isSelected = linkedTransactionId === trx.id;
+                    return (
+                      <TouchableOpacity
+                        key={trx.id}
+                        onPress={() => {
+                          Vibration.vibrate(5);
+                          setLinkedTransactionId(trx.id);
+                        }}
+                        className="px-4 py-3 rounded-2xl border mr-2"
+                        style={{
+                          backgroundColor: isSelected ? colors.accent : colors.bg,
+                          borderColor: isSelected ? colors.accent : colors.border
+                        }}
+                      >
+                        <Text className="text-[10px] font-black" style={{ color: isSelected ? '#ffffff' : colors.text }}>
+                          Ref: #{trx.id.substring(0, 6)} - Rp {trx.total?.toLocaleString('id-ID')}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
           </>
         );
       case 'tutup_buku':
@@ -4302,14 +4356,23 @@ export default function FeatureScreen({ route, navigation }: any) {
                 const dateStr = dateObj ? dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'Baru';
                 
                 return (
-                  <View className="p-4 rounded-2xl border mb-3 flex gap-2.5" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      Vibration.vibrate(10);
+                      setSelectedCashFlow(item);
+                      setIsCashFlowDetailVisible(true);
+                    }}
+                    activeOpacity={0.9}
+                    className="p-4 rounded-2xl border mb-3 flex gap-2.5" 
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
                     <View className="flex-row justify-between items-center">
-                      <View className="flex-row items-center gap-3">
+                      <View className="flex-row items-center gap-3 flex-1 mr-2">
                         <View className={`w-8 h-8 rounded-lg items-center justify-center ${item.type === 'in' ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
                           {item.type === 'in' ? <ArrowDownLeft size={16} color="#10b981" /> : <ArrowUpRight size={16} color="#f43f5e" />}
                         </View>
-                        <View>
-                          <Text className="text-xs font-black" style={{ color: colors.text }}>{item.description}</Text>
+                        <View className="flex-1">
+                          <Text className="text-xs font-black text-ellipsis" numberOfLines={1} style={{ color: colors.text }}>{item.description}</Text>
                           <Text className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">{dateStr} • {timeStr} • {item.isManual ? 'MANUAL' : 'SISTEM POS'}</Text>
                         </View>
                       </View>
@@ -4319,7 +4382,7 @@ export default function FeatureScreen({ route, navigation }: any) {
                     </View>
 
                     <View className="flex-row justify-between items-center pt-2 border-t" style={{ borderColor: colors.border + '15' }}>
-                      <View className="flex-row gap-2">
+                      <View className="flex-row gap-2 items-center">
                         <View className="bg-black/5 px-2 py-0.5 rounded-md">
                           <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{item.category}</Text>
                         </View>
@@ -4328,10 +4391,21 @@ export default function FeatureScreen({ route, navigation }: any) {
                             <Text className="text-[8px] font-black text-accent uppercase tracking-widest">{item.paymentMethod}</Text>
                           </View>
                         )}
+                        {item.isManual && (
+                          <TouchableOpacity 
+                            onPress={() => {
+                              Vibration.vibrate(15);
+                              handleDelete(item.id, 'arus_kas');
+                            }} 
+                            className="p-1 rounded-md bg-rose-500/10 ml-1"
+                          >
+                            <Trash2 size={10} color="#f43f5e" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                       <Text className="text-[9px] font-bold text-slate-400">Saldo: Rp {item.runningBalance.toLocaleString('id-ID')}</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               }}
               ListEmptyComponent={
@@ -5866,6 +5940,125 @@ export default function FeatureScreen({ route, navigation }: any) {
           </View>
         </Modal>
       )}
+
+      {/* 6. MODAL DETAIL ARUS KAS */}
+      <Modal 
+        visible={isCashFlowDetailVisible} 
+        animationType="slide" 
+        transparent 
+        onRequestClose={() => setIsCashFlowDetailVisible(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-end items-center">
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 flex-col max-h-[85%]" style={{ backgroundColor: colors.surface }}>
+            
+            {/* Modal Header */}
+            <View className="flex-row justify-between items-center mb-5 border-b pb-3" style={{ borderColor: colors.border + '15' }}>
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-xl bg-accent/15 items-center justify-center">
+                  <Info color={colors.accent} size={20} />
+                </View>
+                <View>
+                  <Text className="text-sm font-black uppercase tracking-tight" style={{ color: colors.text }}>
+                    Rincian Arus Kas
+                  </Text>
+                  <Text className="text-[10px] font-bold text-slate-400">
+                    Detail Mutasi Kasir
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsCashFlowDetailVisible(false)} 
+                className="w-10 h-10 rounded-full bg-black/10 items-center justify-center"
+              >
+                <X color={colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedCashFlow && (
+              <ScrollView className="space-y-4 mb-6" showsVerticalScrollIndicator={false}>
+                <View className="p-5 rounded-3xl border space-y-3.5" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Jenis Mutasi</Text>
+                    <Text className={`px-2.5 py-0.5 text-[9px] font-black uppercase rounded-lg ${selectedCashFlow.type === 'in' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                      {selectedCashFlow.type === 'in' ? 'Pemasukan (+)' : 'Pengeluaran (-)'}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Kategori</Text>
+                    <Text className="text-xs font-black uppercase tracking-wide" style={{ color: colors.text }}>
+                      {selectedCashFlow.category}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nominal</Text>
+                    <Text className="text-base font-black" style={{ color: selectedCashFlow.type === 'in' ? '#10b981' : '#f43f5e' }}>
+                      Rp {selectedCashFlow.amount?.toLocaleString('id-ID')}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dicatat Oleh</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                      {selectedCashFlow.userEmail || 'System'}
+                    </Text>
+                  </View>
+
+                  {selectedCashFlow.paymentMethod && (
+                    <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                      <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Metode Bayar</Text>
+                      <Text className="text-xs font-bold uppercase" style={{ color: colors.text }}>
+                        {selectedCashFlow.paymentMethod}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Waktu Transaksi</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                      {selectedCashFlow.timestamp?.toDate 
+                        ? selectedCashFlow.timestamp.toDate().toLocaleString('id-ID') 
+                        : (selectedCashFlow.timestamp ? new Date(selectedCashFlow.timestamp).toLocaleString('id-ID') : '-')}
+                    </Text>
+                  </View>
+
+                  {selectedCashFlow.linkedTransactionId && (
+                    <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                      <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Terkait Transaksi</Text>
+                      <Text className="text-xs font-black text-blue-500 uppercase">
+                        Ref: #{selectedCashFlow.linkedTransactionId.substring(0, 8)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View className="space-y-2 mt-4">
+                  <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Keterangan / Catatan</Text>
+                  <View className="p-4 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                    <Text className="text-xs font-bold leading-relaxed" style={{ color: colors.text }}>
+                      {selectedCashFlow.description || '-'}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setIsCashFlowDetailVisible(false)}
+              activeOpacity={0.8}
+              className="w-full py-4 rounded-2xl items-center justify-center border"
+              style={{ borderColor: colors.border, backgroundColor: 'transparent' }}
+            >
+              <Text className="font-black text-xs uppercase tracking-widest" style={{ color: colors.text }}>
+                Tutup Rincian
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
