@@ -1745,7 +1745,6 @@ function PublicOrderContent() {
                                  </div>
                               </button>
                            </div>
-                        </div>
                         {(paymentMethod === 'transfer' || paymentMethod === 'qris') && (
                             <div className="p-4 bg-tr/5 border border-tr/20 rounded-2xl flex flex-col gap-3 text-tr">
                                 <div className="flex items-center gap-3">
