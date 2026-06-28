@@ -567,7 +567,7 @@ export default function UsersPage() {
                     </div>
                   )}
                 </div>
-              )))}
+              ))}
             </div>
 
             <div className="mt-8 flex gap-3">
