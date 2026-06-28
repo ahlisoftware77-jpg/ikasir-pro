@@ -204,6 +204,8 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [serviceFormDamage, setServiceFormDamage] = useState('');
   const [serviceFormCost, setServiceFormCost] = useState('');
   const [serviceFormNotes, setServiceFormNotes] = useState('');
+  const [serviceFormWarrantyDuration, setServiceFormWarrantyDuration] = useState('');
+  const [serviceFormWarrantyUnit, setServiceFormWarrantyUnit] = useState('days');
 
 
   const fetchAndShowTransaction = async (trxId: string) => {
@@ -2147,6 +2149,8 @@ export default function FeatureScreen({ route, navigation }: any) {
           }
           const nowStr = new Date().toISOString();
           const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
+          const estPrice = parseFloat(serviceFormCost) || 0;
+          
           await addDoc(collection(db, 'service_tickets'), {
             storeId,
             ticketNo,
@@ -2155,9 +2159,11 @@ export default function FeatureScreen({ route, navigation }: any) {
             deviceModel: formName,
             serialNumber: serviceFormSerial || '-',
             damageDescription: serviceFormDamage,
-            estimatedCost: parseFloat(serviceFormCost) || 0,
+            estimatedCost: estPrice,
             status: 'received',
             notes: serviceFormNotes || '',
+            warrantyDuration: parseInt(serviceFormWarrantyDuration) || 0,
+            warrantyUnit: serviceFormWarrantyUnit,
             timestamp: nowStr,
             updatedAt: nowStr,
             history: [
@@ -2168,10 +2174,31 @@ export default function FeatureScreen({ route, navigation }: any) {
               }
             ]
           });
+
+          // Auto-create linked estimation so it can be loaded directly from POS cashier
+          await addDoc(collection(db, 'estimations'), {
+            storeId,
+            customerName: formCustomer,
+            total: estPrice,
+            status: 'active',
+            validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            timestamp: nowStr,
+            serviceTicketNo: ticketNo,
+            items: [{
+              productName: `Servis: ${formName} (${ticketNo})`,
+              qty: 1,
+              price: estPrice,
+              baseCost: 0,
+              subtotal: estPrice
+            }]
+          });
+
           setServiceFormSerial('');
           setServiceFormDamage('');
           setServiceFormCost('');
           setServiceFormNotes('');
+          setServiceFormWarrantyDuration('');
+          setServiceFormWarrantyUnit('days');
           break;
 
         case 'estimasi':
@@ -2838,6 +2865,8 @@ export default function FeatureScreen({ route, navigation }: any) {
             {renderTextInput('S/N atau IMEI', serviceFormSerial, setServiceFormSerial, 'e.g. SN8291039832')}
             {renderTextInput('Kerusakan / Keluhan *', serviceFormDamage, setServiceFormDamage, 'Deskripsikan gejala kerusakan...')}
             {renderTextInput('Estimasi Biaya Awal (Rp)', serviceFormCost, setServiceFormCost, '0', 'numeric')}
+            {renderTextInput('Masa Garansi', serviceFormWarrantyDuration, setServiceFormWarrantyDuration, '0', 'numeric')}
+            {renderToggleInput('Satuan Garansi', ['days', 'months', 'years'], ['Hari', 'Bulan', 'Tahun'], serviceFormWarrantyUnit, setServiceFormWarrantyUnit)}
             {renderTextInput('Catatan Tambahan', serviceFormNotes, setServiceFormNotes, 'e.g. Casing lecet, kelengkapan unit dsb')}
           </>
         );
@@ -7105,6 +7134,14 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estimasi Biaya</Text>
                     <Text className="text-xs font-black text-emerald-500 font-bold">Rp {selectedServiceTicket.estimatedCost?.toLocaleString('id-ID')}</Text>
                   </View>
+                  {selectedServiceTicket.warrantyDuration ? (
+                    <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
+                      <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Masa Garansi</Text>
+                      <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                        {selectedServiceTicket.warrantyDuration} {selectedServiceTicket.warrantyUnit === 'months' ? 'Bulan' : selectedServiceTicket.warrantyUnit === 'years' ? 'Tahun' : 'Hari'}
+                      </Text>
+                    </View>
+                  ) : null}
                   <View className="flex-col pb-2">
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Gejala Kerusakan</Text>
                     <Text className="text-xs font-medium" style={{ color: colors.text }}>{selectedServiceTicket.damageDescription}</Text>

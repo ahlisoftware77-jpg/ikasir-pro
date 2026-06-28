@@ -87,7 +87,9 @@ export default function ServicesPage() {
     serialNumber: '',
     damageDescription: '',
     estimatedCost: '',
-    notes: ''
+    notes: '',
+    warrantyDuration: '',
+    warrantyUnit: 'days'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -164,6 +166,8 @@ export default function ServicesPage() {
     try {
       const now = new Date().toISOString();
       const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
+      const estPrice = Number(addForm.estimatedCost) || 0;
+      
       const docData = {
         storeId,
         ticketNo,
@@ -172,9 +176,11 @@ export default function ServicesPage() {
         deviceModel: addForm.deviceModel,
         serialNumber: addForm.serialNumber || '-',
         damageDescription: addForm.damageDescription,
-        estimatedCost: Number(addForm.estimatedCost) || 0,
+        estimatedCost: estPrice,
         status: 'received',
         notes: addForm.notes || '',
+        warrantyDuration: Number(addForm.warrantyDuration) || 0,
+        warrantyUnit: addForm.warrantyUnit,
         timestamp: now,
         updatedAt: now,
         history: [
@@ -187,6 +193,25 @@ export default function ServicesPage() {
       };
 
       await addDoc(collection(db, 'service_tickets'), docData);
+
+      // Auto-create linked estimation so it can be loaded directly from POS cashier
+      await addDoc(collection(db, 'estimations'), {
+        storeId,
+        customerName: addForm.customerName,
+        total: estPrice,
+        status: 'active',
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        timestamp: now,
+        serviceTicketNo: ticketNo,
+        items: [{
+          productName: `Servis: ${addForm.deviceModel} (${ticketNo})`,
+          qty: 1,
+          price: estPrice,
+          baseCost: 0,
+          subtotal: estPrice
+        }]
+      });
+
       toast.success("Tiket servis berhasil dibuat!");
       setIsAddModalOpen(false);
       setAddForm({
@@ -196,7 +221,9 @@ export default function ServicesPage() {
         serialNumber: '',
         damageDescription: '',
         estimatedCost: '',
-        notes: ''
+        notes: '',
+        warrantyDuration: '',
+        warrantyUnit: 'days'
       });
     } catch (err: any) {
       console.error(err);
@@ -749,6 +776,31 @@ export default function ServicesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Masa Garansi</label>
+                  <input
+                    type="number"
+                    value={addForm.warrantyDuration}
+                    onChange={(e) => setAddForm({ ...addForm, warrantyDuration: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Satuan Garansi</label>
+                  <select
+                    value={addForm.warrantyUnit}
+                    onChange={(e) => setAddForm({ ...addForm, warrantyUnit: e.target.value })}
+                    className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent appearance-none cursor-pointer"
+                  >
+                    <option value="days">Hari</option>
+                    <option value="months">Bulan</option>
+                    <option value="years">Tahun</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Catatan Tambahan</label>
                 <input
@@ -902,6 +954,14 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                         )}
                       </div>
                     </div>
+                    {selectedTicket.warrantyDuration ? (
+                      <div>
+                        <p className="text-[9px] font-black text-app-text-muted uppercase">Masa Garansi</p>
+                        <p className="font-bold text-foreground mt-0.5">
+                          {selectedTicket.warrantyDuration} {selectedTicket.warrantyUnit === 'months' ? 'Bulan' : selectedTicket.warrantyUnit === 'years' ? 'Tahun' : 'Hari'}
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="border-t border-app-border/40 pt-3">
