@@ -1704,7 +1704,7 @@ export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings
   const dateStr = `${dd}/${mm}/${yy} ${hh}:${mi}`;
 
   await BluetoothEscposPrinter.printerInit();
-  await BluetoothEscposPrinter.printerLeft();
+  await BluetoothEscposPrinter.setWidth(is80mm ? 576 : 384);
 
   const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
   if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {
@@ -1792,7 +1792,7 @@ export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings
   await BluetoothEscposPrinter.printText(`LIVE STATUS TRACKING\n\r`, { fonttype: 1 });
   
   try {
-    await BluetoothEscposPrinter.printQRCode(trackLink, 250, 1);
+    await BluetoothEscposPrinter.printQRCode(trackLink, is80mm ? 250 : 180, 1);
     await BluetoothEscposPrinter.printText('\n\r', {});
   } catch (qrErr) {
     console.warn("Bluetooth QR code print failed, printing raw link:", qrErr);
