@@ -1011,7 +1011,7 @@ function PublicOrderContent() {
                            <p className="text-[10px] font-black text-tr uppercase tracking-widest mt-1.5 opacity-60">{p.category || 'Umum'}</p>
                            {p.description && (
                               <div className="mt-2 text-xs text-slate-500 leading-relaxed font-medium">
-                                 <p className={expandedProducts[p.id!] ? "" : "line-clamp-2"}>
+                                 <p className={`whitespace-pre-line ${expandedProducts[p.id!] ? "" : "line-clamp-2"}`}>
                                     {p.description}
                                  </p>
                                  {p.description.length > 80 && (
