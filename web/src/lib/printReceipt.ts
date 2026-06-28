@@ -841,6 +841,11 @@ export const printServiceA4 = async (ticket: any, storeSettings: any, branding?:
      logoData = await urlToBase64(logoData);
   }
 
+  let sigData = storeSettings?.signatureUrl || '';
+  if (storeSettings?.showSignature !== false && sigData && sigData.startsWith('http')) {
+     sigData = await urlToBase64(sigData);
+  }
+
   const trackLink = `https://ikasir.my.id/services/track?id=${ticket.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackLink)}`;
   const qrBase64 = await urlToBase64(qrUrl);
@@ -1016,12 +1021,24 @@ export const printServiceA4 = async (ticket: any, storeSettings: any, branding?:
           <tr>
             <td class="signature-cell">
               <div>Pelanggan / Pemilik</div>
-              <div class="signature-line"></div>
+              ${ticket.signatureBase64 ? `
+                <div style="margin-top: 10px; margin-bottom: 10px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                  <img src="${ticket.signatureBase64}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+                </div>
+              ` : `
+                <div class="signature-line" style="margin-top: 50px;"></div>
+              `}
               <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${ticket.customerName}</div>
             </td>
             <td class="signature-cell">
               <div>Penerima / Teknisi</div>
-              <div class="signature-line"></div>
+              ${storeSettings?.showSignature !== false && sigData ? `
+                <div style="margin-top: 10px; margin-bottom: 10px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                  <img src="${sigData}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+                </div>
+              ` : `
+                <div class="signature-line"></div>
+              `}
               <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${cleanStoreName}</div>
             </td>
           </tr>

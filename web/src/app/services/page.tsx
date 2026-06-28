@@ -22,6 +22,8 @@ import {
   Trash2, 
   Printer, 
   User, 
+  FileText,
+  FileSignature, 
   History, 
   CheckCircle2, 
   X, 
@@ -482,6 +484,29 @@ export default function ServicesPage() {
     );
   };
 
+  const handleShareSignatureLink = async (ticketId: string) => {
+    try {
+      await updateDoc(doc(db, 'services', ticketId), {
+        isSignatureLinkActive: true
+      });
+      
+      const url = `${window.location.origin}/sign?type=service&id=${ticketId}`;
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Tanda Tangan Nota Penerimaan Servis',
+          text: 'Silakan klik link berikut untuk menandatangani Nota Penerimaan Servis Anda secara digital:',
+          url: url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link tanda tangan disalin ke clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing signature link:', err);
+      toast.error('Gagal mengaktifkan link tanda tangan');
+    }
+  };
+
   return (
     <div className="p-6 md:p-10 space-y-8 max-w-7xl mx-auto">
       {/* Top Banner Header */}
@@ -787,6 +812,14 @@ export default function ServicesPage() {
                 >
                   <Printer size={16} />
                   Cetak Struk
+                </button>
+
+                <button 
+                  onClick={() => handleShareSignatureLink(selectedTicket.id)}
+                  className="p-2.5 bg-background border border-app-border hover:bg-surface text-app-text-muted hover:text-foreground rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+                >
+                  <FileSignature size={16} className="text-amber-500" />
+                  Kirim Link TTD
                 </button>
 
                 <button 

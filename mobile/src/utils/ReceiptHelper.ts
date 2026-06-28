@@ -2107,12 +2107,24 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
           <tr>
             <td class="signature-cell">
               <div>Pelanggan / Pemilik</div>
-              <div class="signature-line"></div>
+              ${ticket.signatureBase64 ? `
+                <div style="margin-top: 10px; margin-bottom: 10px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                  <img src="${ticket.signatureBase64}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+                </div>
+              ` : `
+                <div class="signature-line" style="margin-top: 50px;"></div>
+              `}
               <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${ticket.customerName}</div>
             </td>
             <td class="signature-cell">
               <div>Penerima / Teknisi</div>
-              <div class="signature-line"></div>
+              ${storeSettings?.showSignature !== false && storeSettings?.signatureUrl ? `
+                <div style="margin-top: 10px; margin-bottom: 10px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                  <img src="${storeSettings.signatureUrl}" style="max-height: 60px; max-width: 140px; object-fit: contain;" />
+                </div>
+              ` : `
+                <div class="signature-line"></div>
+              `}
               <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${cleanStoreName}</div>
             </td>
           </tr>
@@ -2168,6 +2180,15 @@ export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
     if (base64Logo) {
       finalSettings = { ...finalSettings, logoUrl: base64Logo };
     }
+
+    let base64Signature = '';
+    if (finalSettings?.showSignature !== false && finalSettings?.signatureUrl) {
+      base64Signature = await convertUrlToBase64(finalSettings.signatureUrl, 'temp_service_a4_sig');
+    }
+    if (base64Signature) {
+      finalSettings = { ...finalSettings, signatureUrl: base64Signature };
+    }
+
     const html = generateServiceA4Html(ticket, finalSettings, branding, isExpired);
     await Print.printAsync({ html });
   } catch (error) {
