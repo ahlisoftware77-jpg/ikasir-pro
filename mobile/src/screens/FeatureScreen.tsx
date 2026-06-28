@@ -448,22 +448,6 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   };
 
-  const handleShareSignatureLink = async (ticket: any) => {
-    try {
-      await updateDoc(doc(db, 'services', ticket.id), {
-        isSignatureLinkActive: true
-      });
-      
-      const url = `https://ikasir.my.id/sign?type=service&id=${ticket.id}`;
-      Share.share({
-        title: 'Tanda Tangan Nota Penerimaan Servis',
-        message: `Silakan klik link berikut untuk menandatangani Nota Penerimaan Servis Anda secara digital:\n${url}`
-      });
-    } catch (err: any) {
-      Alert.alert('Gagal', 'Terjadi kesalahan saat mengaktifkan link tanda tangan: ' + (err.message || String(err)));
-    }
-  };
-
   const handleUploadAttachment = async () => {
     if (!selectedServiceTicket) return;
 
@@ -2747,12 +2731,12 @@ export default function FeatureScreen({ route, navigation }: any) {
   const handleShareSignatureLink = async (type: string, id: string) => {
     try {
       Vibration.vibrate(10);
-      const collectionName = type === 'est' ? 'estimations' : 'transactions';
+      const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'services' : 'transactions';
       await updateDoc(doc(db, collectionName, id), {
         isSignatureLinkActive: true
       });
       
-      const url = `https://kasirkuyk.web.app/sign?type=${type}&id=${id}`;
+      const url = `https://ikasir.my.id/sign?type=${type}&id=${id}`;
       
       await Share.share({
         title: 'Form Tanda Tangan',
@@ -7326,7 +7310,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => handleShareSignatureLink(selectedServiceTicket)}
+                  onPress={() => handleShareSignatureLink('service', selectedServiceTicket.id)}
                   className="flex-1 py-4 rounded-2xl items-center justify-center bg-yellow-500/10 border border-yellow-500/20"
                 >
                   <Text className="font-black text-xs uppercase tracking-widest text-yellow-500">
