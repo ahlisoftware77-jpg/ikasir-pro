@@ -6971,6 +6971,8 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
 
           </View>
         </View>
+      </Modal>
+
       {/* 8. MODAL DETAIL SERVIS ELEKTRONIK */}
       <Modal
         visible={isServiceDetailVisible}
@@ -7285,8 +7287,6 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
 
           </View>
         </View>
-      </Modal>
-
       </Modal>
 
     </SafeAreaView>
