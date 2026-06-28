@@ -11,7 +11,8 @@ import {
   updateDoc,
   deleteDoc, 
   orderBy,
-  getDoc
+  getDoc,
+  getDocs
 } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -167,7 +168,44 @@ export default function ServicesPage() {
       const now = new Date().toISOString();
       const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
       const estPrice = Number(addForm.estimatedCost) || 0;
+      const warrantyDur = Number(addForm.warrantyDuration) || 0;
       
+      // Save customer if not exists
+      const qCust = query(
+        collection(db, 'customers'),
+        where('storeId', '==', storeId),
+        where('name', '==', addForm.customerName)
+      );
+      const snapCust = await getDocs(qCust);
+      if (snapCust.empty) {
+        await addDoc(collection(db, 'customers'), {
+          storeId,
+          name: addForm.customerName,
+          phone: addForm.customerPhone || '-',
+          points: 0,
+          orders: 0,
+          createdAt: now
+        });
+      }
+
+      // Save product for the electronic service unit
+      await addDoc(collection(db, 'products'), {
+        storeId,
+        name: `Servis: ${addForm.deviceModel} (${ticketNo})`,
+        price: estPrice,
+        purchasePrice: 0,
+        wholesalePrice: 0,
+        stock: 1,
+        manageStock: false,
+        category: 'Servis',
+        unit: 'pcs',
+        description: `Kerusakan: ${addForm.damageDescription}.${addForm.notes ? ' Catatan: ' + addForm.notes : ''}`,
+        warrantyDuration: warrantyDur,
+        warrantyUnit: addForm.warrantyUnit || 'days',
+        createdAt: now,
+        updatedAt: now
+      });
+
       const docData = {
         storeId,
         ticketNo,
@@ -179,7 +217,7 @@ export default function ServicesPage() {
         estimatedCost: estPrice,
         status: 'received',
         notes: addForm.notes || '',
-        warrantyDuration: Number(addForm.warrantyDuration) || 0,
+        warrantyDuration: warrantyDur,
         warrantyUnit: addForm.warrantyUnit,
         timestamp: now,
         updatedAt: now,

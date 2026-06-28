@@ -2173,7 +2173,44 @@ export default function FeatureScreen({ route, navigation }: any) {
           const nowStr = new Date().toISOString();
           const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
           const estPrice = parseFloat(serviceFormCost) || 0;
+          const warrantyDur = parseInt(serviceFormWarrantyDuration) || 0;
           
+          // Save customer if not exists
+          const qCust = query(
+            collection(db, 'customers'),
+            where('storeId', '==', storeId),
+            where('name', '==', formCustomer)
+          );
+          const snapCust = await getDocs(qCust);
+          if (snapCust.empty) {
+            await addDoc(collection(db, 'customers'), {
+              storeId,
+              name: formCustomer,
+              phone: formPhone || '-',
+              points: 0,
+              orders: 0,
+              createdAt: nowStr
+            });
+          }
+
+          // Save product for the electronic service unit
+          await addDoc(collection(db, 'products'), {
+            storeId,
+            name: `Servis: ${formName} (${ticketNo})`,
+            price: estPrice,
+            purchasePrice: 0,
+            wholesalePrice: 0,
+            stock: 1,
+            manageStock: false,
+            category: 'Servis',
+            unit: 'pcs',
+            description: `Kerusakan: ${serviceFormDamage}.${serviceFormNotes ? ' Catatan: ' + serviceFormNotes : ''}`,
+            warrantyDuration: warrantyDur,
+            warrantyUnit: serviceFormWarrantyUnit || 'days',
+            createdAt: nowStr,
+            updatedAt: nowStr
+          });
+
           await addDoc(collection(db, 'service_tickets'), {
             storeId,
             ticketNo,
@@ -2185,7 +2222,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             estimatedCost: estPrice,
             status: 'received',
             notes: serviceFormNotes || '',
-            warrantyDuration: parseInt(serviceFormWarrantyDuration) || 0,
+            warrantyDuration: warrantyDur,
             warrantyUnit: serviceFormWarrantyUnit,
             timestamp: nowStr,
             updatedAt: nowStr,
