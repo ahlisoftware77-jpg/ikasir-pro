@@ -7399,6 +7399,29 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Gejala Kerusakan</Text>
                     <Text className="text-xs font-medium" style={{ color: colors.text }}>{selectedServiceTicket.damageDescription}</Text>
                   </View>
+                  {selectedServiceTicket.pickupSchedule && (
+                    <View className="p-3 rounded-2xl border bg-violet-500/5 space-y-2 mt-2" style={{ borderColor: '#8b5cf630' }}>
+                      <Text className="text-[9px] font-black text-violet-500 uppercase tracking-widest">📅 Rencana Jadwal Pengambilan Pelanggan</Text>
+                      <View className="flex-row justify-between">
+                        <View>
+                          <Text className="text-[8px] font-bold text-slate-400 uppercase">Tanggal</Text>
+                          <Text className="text-xs font-bold mt-0.5" style={{ color: colors.text }}>
+                            {new Date(selectedServiceTicket.pickupSchedule.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </Text>
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-[8px] font-bold text-slate-400 uppercase">Jam</Text>
+                          <Text className="text-xs font-bold mt-0.5" style={{ color: colors.text }}>{selectedServiceTicket.pickupSchedule.time} WIB</Text>
+                        </View>
+                      </View>
+                      {selectedServiceTicket.pickupSchedule.notes ? (
+                        <View className="border-t pt-1.5" style={{ borderColor: '#8b5cf620' }}>
+                          <Text className="text-[8px] font-bold text-slate-400 uppercase">Catatan Pelanggan</Text>
+                          <Text className="text-xs italic mt-0.5" style={{ color: colors.text }}>"{selectedServiceTicket.pickupSchedule.notes}"</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
                 </View>
 
                 {/* Status Update Controls */}

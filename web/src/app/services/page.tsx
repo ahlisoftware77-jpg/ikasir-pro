@@ -1069,6 +1069,32 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                       <p className="text-xs italic text-app-text-muted mt-1">{selectedTicket.notes}</p>
                     </div>
                   )}
+
+                  {selectedTicket.pickupSchedule && (
+                    <div className="border-t border-app-border/40 pt-3 bg-accent/5 p-3 rounded-2xl border border-accent/20 space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-black text-accent uppercase tracking-widest">📅 Rencana Jadwal Pengambilan Pelanggan</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-[9px] text-app-text-muted font-bold block">Tanggal</span>
+                          <span className="font-bold text-foreground">
+                            {new Date(selectedTicket.pickupSchedule.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-app-text-muted font-bold block">Jam</span>
+                          <span className="font-bold text-foreground">{selectedTicket.pickupSchedule.time} WIB</span>
+                        </div>
+                      </div>
+                      {selectedTicket.pickupSchedule.notes && (
+                        <div className="border-t border-app-border/30 pt-1.5">
+                          <span className="text-[9px] text-app-text-muted font-bold block">Catatan Pelanggan</span>
+                          <p className="text-xs text-foreground/90 italic">"{selectedTicket.pickupSchedule.notes}"</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Status Update Card */}
