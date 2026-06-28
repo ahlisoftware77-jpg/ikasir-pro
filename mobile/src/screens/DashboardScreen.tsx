@@ -4,7 +4,7 @@ import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, lim
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
-import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard, Globe, Printer, ArrowUpCircle, ArrowDownCircle } from 'lucide-react-native';
+import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard, Globe, Printer, ArrowUpCircle, ArrowDownCircle, Plus } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useNotificationStore } from '../store/notificationStore';
@@ -771,6 +771,56 @@ export default function DashboardScreen({ navigation }: any) {
             >
               <ArrowDownCircle size={16} color="#f43f5e" strokeWidth={2.5} />
               <Text className="text-[10px] font-black uppercase tracking-wider text-rose-400">Catat Uang Keluar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* PINTASAN SERVIS ELEKTRONIK */}
+        <View 
+          className="p-6 rounded-[28px] border mb-6 shadow-xl"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+        >
+          <View className="flex-row items-center gap-4 mb-4">
+            <View className="w-12 h-12 rounded-2xl items-center justify-center bg-blue-500/10 border border-blue-500/20">
+              <Text className="text-xl">🔧</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-black" style={{ color: colors.text }}>Pintasan Servis Elektronik</Text>
+              <Text className="text-[9px] font-bold mt-0.5" style={{ color: colors.textMuted }}>Pantau status servis perangkat elektronik secara real-time</Text>
+            </View>
+          </View>
+
+          <View className="flex-row gap-3">
+            <TouchableOpacity 
+              onPress={() => {
+                Vibration.vibrate(10);
+                navigation.navigate('FeatureDetails', { 
+                  featureId: 'service_elektronik', 
+                  title: 'Servis Elektronik',
+                });
+              }}
+              activeOpacity={0.85}
+              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl"
+              style={{ backgroundColor: colors.accent }}
+            >
+              <Text className="text-[10px] font-black uppercase tracking-wider text-white">Buka Servis</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              onPress={() => {
+                Vibration.vibrate(10);
+                navigation.navigate('FeatureDetails', { 
+                  featureId: 'service_elektronik', 
+                  title: 'Servis Elektronik',
+                  autoOpenAddModal: true
+                });
+              }}
+              activeOpacity={0.85}
+              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl border"
+              style={{ borderColor: colors.border }}
+            >
+              <Plus size={14} color={colors.text} />
+              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Tambah Tiket</Text>
             </TouchableOpacity>
           </View>
         </View>
