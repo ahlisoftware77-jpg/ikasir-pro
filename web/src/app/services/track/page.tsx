@@ -51,6 +51,8 @@ export default function ServiceTrackPage() {
   const [pickupNotes, setPickupNotes] = useState('');
   const [isSubmittingPickup, setIsSubmittingPickup] = useState(false);
 
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+
   const handleConfirmPickup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pickupDate || !pickupTime) {
@@ -354,20 +356,29 @@ export default function ServiceTrackPage() {
               <span>📸</span> Lampiran Bukti Visual Pengerjaan
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {ticket.attachments.map((url: string, index: number) => (
-                <a 
-                  key={index} 
-                  href={url} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="group relative rounded-2xl overflow-hidden border border-slate-800 aspect-square bg-slate-950 hover:border-accent transition-all shadow-md cursor-zoom-in"
-                >
-                  <img src={url} alt={`Bukti Servis ${index + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-slate-950/90 border border-slate-850 text-[8px] font-black uppercase text-white rounded-lg shadow-lg">
-                    Foto {index + 1}
+              {ticket.attachments.map((url: string, index: number) => {
+                const isVideo = url.toLowerCase().match(/\.(mp4|webm|ogg|mov|3gp)$/) || url.includes('/video/upload/');
+                return (
+                  <div 
+                    key={index} 
+                    onClick={() => setPreviewMedia({ url, type: isVideo ? 'video' : 'image' })}
+                    className="group relative rounded-2xl overflow-hidden border border-slate-800 aspect-square bg-slate-950 hover:border-accent transition-all shadow-md cursor-pointer"
+                  >
+                    {isVideo ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-black/65 relative">
+                        <span className="text-3xl text-white opacity-80 group-hover:scale-110 transition-transform">📹</span>
+                        <span className="text-[9px] font-black text-white uppercase tracking-widest mt-2">Putar Video</span>
+                        <div className="absolute inset-0 bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    ) : (
+                      <img src={url} alt={`Bukti Servis ${index + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    )}
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-slate-950/90 border border-slate-850 text-[8px] font-black uppercase text-white rounded-lg shadow-lg z-10">
+                      {isVideo ? 'Video' : 'Foto'} {index + 1}
+                    </div>
                   </div>
-                </a>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -459,6 +470,40 @@ export default function ServiceTrackPage() {
                 {isSubmittingPickup ? 'Menyimpan...' : 'Kirim Konfirmasi Jadwal'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Fullscreen Media Preview Modal */}
+      {previewMedia && (
+        <div 
+          className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/95 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewMedia(null)}
+        >
+          <button 
+            onClick={() => setPreviewMedia(null)}
+            className="absolute top-4 right-4 z-50 p-2.5 bg-slate-900/80 hover:bg-slate-800 text-white rounded-full border border-slate-800 transition-colors shadow-lg"
+          >
+            <X size={20} />
+          </button>
+          
+          <div 
+            className="relative max-w-4xl w-full max-h-[85vh] flex items-center justify-center p-2 rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {previewMedia.type === 'video' ? (
+              <video 
+                src={previewMedia.url} 
+                controls 
+                autoPlay
+                className="w-full max-h-[80vh] rounded-xl shadow-2xl object-contain border border-slate-800 bg-black"
+              />
+            ) : (
+              <img 
+                src={previewMedia.url} 
+                alt="Preview Bukti Visual" 
+                className="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain border border-slate-800 bg-black"
+              />
+            )}
           </div>
         </div>
       )}
