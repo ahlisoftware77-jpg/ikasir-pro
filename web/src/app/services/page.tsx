@@ -208,6 +208,22 @@ export default function ServicesPage() {
       const updatedHistory = [...(selectedTicket.history || []), newHistoryLog];
       
       const docRef = doc(db, 'service_tickets', selectedTicket.id);
+
+      if (newStatus === 'taken' && selectedTicket.status !== 'taken' && (selectedTicket.estimatedCost || 0) > 0) {
+        await addDoc(collection(db, 'cash_flow'), {
+          storeId,
+          type: 'in',
+          category: 'Servis Elektronik',
+          amount: Number(selectedTicket.estimatedCost) || 0,
+          description: `Servis Selesai & Diambil: ${selectedTicket.deviceModel} (Ref: #ST-${selectedTicket.id.substring(0,6).toUpperCase()})`,
+          subNotes: [
+            { description: `Perbaikan unit ${selectedTicket.deviceModel}`, amount: Number(selectedTicket.estimatedCost) || 0 }
+          ],
+          timestamp: now,
+          userEmail: user?.email || 'admin'
+        });
+      }
+
       await updateDoc(docRef, {
         status: newStatus,
         updatedAt: now,

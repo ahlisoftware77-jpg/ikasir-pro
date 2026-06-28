@@ -254,6 +254,21 @@ export default function FeatureScreen({ route, navigation }: any) {
 
       const updatedHistory = [...(selectedServiceTicket.history || []), newHistoryLog];
 
+      if (newServiceStatus === 'taken' && selectedServiceTicket.status !== 'taken' && (selectedServiceTicket.estimatedCost || 0) > 0) {
+        await addDoc(collection(db, 'cash_flow'), {
+          storeId,
+          type: 'in',
+          category: 'Servis Elektronik',
+          amount: Number(selectedServiceTicket.estimatedCost) || 0,
+          description: `Servis Selesai & Diambil: ${selectedServiceTicket.deviceModel} (Ref: #ST-${selectedServiceTicket.id.substring(0,6).toUpperCase()})`,
+          subNotes: [
+            { description: `Perbaikan unit ${selectedServiceTicket.deviceModel}`, amount: Number(selectedServiceTicket.estimatedCost) || 0 }
+          ],
+          timestamp: now,
+          userEmail: user?.email || 'admin'
+        });
+      }
+
       await updateDoc(doc(db, 'service_tickets', selectedServiceTicket.id), {
         status: newServiceStatus,
         updatedAt: now,
