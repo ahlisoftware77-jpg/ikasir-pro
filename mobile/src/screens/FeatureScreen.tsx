@@ -6794,7 +6794,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
 
             <ScrollView className="max-h-[450px] mb-6" showsVerticalScrollIndicator={false}>
               <View className="flex gap-3">
-                {[
+                [
                   { key: 'canAccessPOS', label: 'Buka Menu Kasir (POS)', desc: 'Boleh melakukan transaksi penjualan' },
                   { key: 'canManageProducts', label: 'Manajemen Produk', desc: 'Akses ke daftar/stok barang' },
                   { key: 'canViewReports', label: 'Buka Menu Laporan', desc: 'Boleh melihat omzet & riwayat' },
@@ -6804,6 +6804,9 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   { key: 'canManageUsers', label: 'Kelola Staf / User', desc: 'Boleh tambah/edit data kasir lain' },
                   { key: 'canViewLogs', label: 'Log Aktivitas', desc: 'Lihat riwayat aktifitas sistem' },
                   { key: 'canEditSettings', label: 'Pengaturan Toko', desc: 'Boleh ubah profil & branding toko' },
+                  ...(role === 'super-admin' || role === 'superadmin' ? [
+                    { key: 'canAccessSuperAdminPanel', label: 'Akses Panel Super Admin', desc: 'Memberikan akses menu panel super admin (khusus Super Admin saja yang bisa memberikan hak ini)' }
+                  ] : []),
                 ].map(perm => (
                   <View key={perm.key} className="flex gap-2">
                     <View className="p-4 rounded-2xl border flex-row items-center justify-between" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>

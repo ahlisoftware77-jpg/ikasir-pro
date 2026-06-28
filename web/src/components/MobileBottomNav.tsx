@@ -161,7 +161,7 @@ export default function MobileBottomNav() {
     },
     {
       title: '🔑 Panel Superadmin',
-      show: (role === 'super-admin' || role === 'superadmin'),
+      show: (role === 'super-admin' || role === 'superadmin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel)),
       items: [
         { name: 'Data User', path: '/super-admin?tab=users', icon: '👥', color: '#f59e0b', show: true },
         { name: 'Kelola Toko', path: '/super-admin?tab=stores', icon: '🏪', color: '#3b82f6', show: true },

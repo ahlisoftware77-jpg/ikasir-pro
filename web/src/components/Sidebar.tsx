@@ -198,7 +198,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
         </div>
         <nav className="space-y-1">
           {menuItems.filter(item => {
-            if (item.superOnly) return role === 'super-admin' || role === 'superadmin';
+            if (item.superOnly) return role === 'super-admin' || role === 'superadmin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel);
             
             // Priority for granular permissions
             if ((item as any).permission) {
@@ -290,7 +290,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
             }
 
             if (item.path === '#feedback') {
-              const isSuperAdmin = role === 'super-admin' || role === 'superadmin';
+              const isSuperAdmin = role === 'super-admin' || role === 'superadmin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel);
               if (isSuperAdmin) {
                 return (
                   <div key={item.path} className="py-1">

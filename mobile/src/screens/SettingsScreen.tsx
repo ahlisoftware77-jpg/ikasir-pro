@@ -1570,7 +1570,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         </View>
 
         {/* Section: Panel Superadmin */}
-        {(role === 'super-admin' || role === 'superadmin') && (
+        {(role === 'super-admin' || role === 'superadmin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel)) && (
           <View className="mt-6 px-6">
             <Text className="text-[10px] font-black uppercase tracking-[2px] mb-3 ml-2" style={{ color: colors.accent }}>
               🔑 Panel Superadmin

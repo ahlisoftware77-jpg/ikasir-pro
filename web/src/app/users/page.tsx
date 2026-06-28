@@ -11,7 +11,7 @@ import { Users as UsersIcon, Loader2, Plus, X, UserCog, Trash2 } from 'lucide-re
 import toast from 'react-hot-toast';
 
 export default function UsersPage() {
-  const { user, storeId, storeName, subscriptionUntil } = useAuthStore();
+  const { user, storeId, storeName, subscriptionUntil, role, permissions } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [maxUsers, setMaxUsers] = useState<number>(5);
@@ -502,7 +502,7 @@ export default function UsersPage() {
 
 
             <div className="space-y-4">
-              {[
+              [
                 { key: 'canAccessPOS', label: 'Buka Menu Kasir (POS)', desc: 'Boleh melakukan transaksi penjualan' },
                 { key: 'canManageProducts', label: 'Manajemen Produk', desc: 'Akses ke daftar/stok barang' },
                 { key: 'canViewReports', label: 'Buka Menu Laporan', desc: 'Boleh melihat omzet & riwayat' },
@@ -512,6 +512,9 @@ export default function UsersPage() {
                 { key: 'canManageUsers', label: 'Kelola Staf / User', desc: 'Boleh tambah/edit data kasir lain' },
                 { key: 'canViewLogs', label: 'Log Aktivitas', desc: 'Lihat riwayat aktifitas sistem' },
                 { key: 'canEditSettings', label: 'Pengaturan Toko', desc: 'Boleh ubah profil & branding toko' },
+                ...(role === 'super-admin' || role === 'superadmin' ? [
+                  { key: 'canAccessSuperAdminPanel', label: 'Akses Panel Super Admin', desc: 'Memberikan akses menu panel super admin (khusus Super Admin saja yang bisa memberikan hak ini)' }
+                ] : []),
               ].map(perm => (
                 <div key={perm.key} className="space-y-3">
                   <div className="flex items-center justify-between p-4 bg-background border border-app-border rounded-2xl">

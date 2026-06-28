@@ -48,7 +48,7 @@ import { handleExportJSON, handleImportJSON, handleImportStoreJSON } from '@/lib
 import { getInfraConfig } from '@/lib/infraConfig';
 
 export default function SuperAdminPage() {
-  const { user, role } = useAuthStore();
+  const { user, role, permissions } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -67,6 +67,13 @@ export default function SuperAdminPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'branding' | 'infrastructure' | 'subscriptions' | 'broadcast' | 'feedback' | 'registrations'>('users');
+
+  // Security Check
+  useEffect(() => {
+    if (!isLoading && role !== 'super-admin' && role !== 'superadmin' && !(permissions && (permissions as any).canAccessSuperAdminPanel)) {
+      router.push('/');
+    }
+  }, [role, isLoading, router, permissions]);
 
   useEffect(() => {
     if (tabParam && ['users', 'stores', 'branding', 'infrastructure', 'subscriptions', 'broadcast', 'feedback', 'registrations'].includes(tabParam)) {
@@ -321,12 +328,7 @@ export default function SuperAdminPage() {
     reader.readAsText(file);
   };
 
-  // Security Check
-  useEffect(() => {
-    if (!isLoading && role !== 'super-admin' && role !== 'superadmin') {
-      router.push('/');
-    }
-  }, [role, isLoading, router]);
+
 
   useEffect(() => {
     const qUsers = query(collection(primaryDb, 'users'));
@@ -3432,7 +3434,6 @@ export default function SuperAdminPage() {
                         >
                            <option value="cashier">CASHIER</option>
                            <option value="admin">ADMIN</option>
-                           <option value="super-admin">SUPER-ADMIN</option>
                         </select>
                     </div>
                     <div className="space-y-2">
@@ -3575,7 +3576,6 @@ export default function SuperAdminPage() {
                         >
                            <option value="cashier">CASHIER</option>
                            <option value="admin">ADMIN</option>
-                           <option value="super-admin">SUPER-ADMIN</option>
                         </select>
                     </div>
                     <div className="space-y-2">
