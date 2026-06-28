@@ -4179,6 +4179,7 @@ export default function SuperAdminPage() {
                         { key: '/reports', name: 'Laporan' },
                         { key: '/users', name: 'Manajemen User' },
                         { key: '/logs', name: 'Log Aktifitas' },
+                        { key: '/settings', name: 'Pengaturan Toko' },
                       ].map((item) => {
                         const isDisabled = (editingStore.disabledMenus || []).includes(item.key);
                         return (

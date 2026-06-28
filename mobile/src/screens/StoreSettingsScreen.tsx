@@ -105,10 +105,25 @@ const getFontStyle = (id: string) => {
 
 export default function StoreSettingsScreen({ navigation }: any) {
   const { colors, theme, setTheme } = useTheme();
-  const { user, role, storeId, logout, isSubscriptionExpired, permissions } = useAuthStore();
+  const { user, role, storeId, logout, isSubscriptionExpired, permissions, disabledMenus, expiredDisabledMenus } = useAuthStore();
 
   const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
+
+  useEffect(() => {
+    const isSuperAdminBlocked = disabledMenus?.includes('/settings');
+    const isExpiredBlocked = isSubscriptionExpired && (expiredDisabledMenus || []).includes('/settings');
+    
+    if ((isSuperAdminBlocked || isExpiredBlocked) && role !== 'super-admin' && role !== 'superadmin') {
+      Alert.alert(
+        'Akses Terkunci',
+        isExpiredBlocked 
+          ? 'Masa aktif langganan Anda telah habis. Silakan lakukan perpanjangan langganan untuk mengakses menu ini.'
+          : 'Fitur ini dinonaktifkan oleh administrator.'
+      );
+      navigation.goBack();
+    }
+  }, [disabledMenus, expiredDisabledMenus, isSubscriptionExpired, role, navigation]);
 
   // Profile States
   const { setUser } = useAuthStore();
