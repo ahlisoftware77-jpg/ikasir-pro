@@ -1028,19 +1028,19 @@ function PublicOrderContent() {
                               </div>
                            )}
                         </div>
-                        <div className="flex items-center justify-between mt-4">
+                        <div className="mt-4 flex flex-col gap-2">
                            <p className="font-black text-base text-slate-900 tracking-tighter">Rp {(p.price || 0).toLocaleString('id-ID')}</p>
-                           <div className="flex items-center gap-1.5">
+                           <div className="flex items-center gap-1.5 w-full">
                              <button
                                onClick={() => askAboutProduct(p)}
                                title="Tanyakan Produk via WhatsApp"
-                               className="p-2 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                               className="p-2.5 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all active:scale-95 flex items-center justify-center shadow-sm h-9"
                              >
                                <MessageCircle size={15} />
                              </button>
                              <button 
                                onClick={() => addToCart(p)}
-                               className="px-4 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest"
+                               className="flex-1 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest h-9"
                              >
                                 <Plus size={14} className="stroke-[3]" />
                                 <span>Tambah</span>
