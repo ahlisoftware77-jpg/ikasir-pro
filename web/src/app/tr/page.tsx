@@ -721,6 +721,19 @@ function PublicOrderContent() {
     window.open(`https://wa.me/${p}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const askAboutProduct = (product: Product) => {
+    if (!storeSettings?.phone) {
+      toast.error("Nomor WhatsApp toko tidak tersedia.");
+      return;
+    }
+    let p = storeSettings.phone.replace(/\D/g, '');
+    if (p.startsWith('0')) p = '62' + p.substring(1);
+    
+    const clientName = customerName || 'Pelanggan';
+    const text = `Halo, saya ${clientName}. Saya tertarik dan ingin bertanya tentang produk:\n\n*${product.name}*\nHarga: Rp ${product.price.toLocaleString('id-ID')}\n\nApakah produk ini tersedia?`;
+    window.open(`https://wa.me/${p}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
@@ -1017,13 +1030,22 @@ function PublicOrderContent() {
                         </div>
                         <div className="flex items-center justify-between mt-4">
                            <p className="font-black text-base text-slate-900 tracking-tighter">Rp {(p.price || 0).toLocaleString('id-ID')}</p>
-                           <button 
-                             onClick={() => addToCart(p)}
-                             className="px-4 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest"
-                           >
-                              <Plus size={14} className="stroke-[3]" />
-                              <span>Tambah</span>
-                           </button>
+                           <div className="flex items-center gap-1.5">
+                             <button
+                               onClick={() => askAboutProduct(p)}
+                               title="Tanyakan Produk via WhatsApp"
+                               className="p-2 border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                             >
+                               <MessageCircle size={15} />
+                             </button>
+                             <button 
+                               onClick={() => addToCart(p)}
+                               className="px-4 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest"
+                             >
+                                <Plus size={14} className="stroke-[3]" />
+                                <span>Tambah</span>
+                             </button>
+                           </div>
                         </div>
                      </div>
                    </div>
