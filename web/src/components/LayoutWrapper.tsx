@@ -69,6 +69,74 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     return () => unsubscribe();
   }, [storeId, role]);
 
+  // Real-Time Service Ticket Pickup Schedule Listener
+  useEffect(() => {
+    if (!storeId || (role as string) === 'customer') return;
+
+    const q = query(
+      collection(db, 'service_tickets'),
+      where('storeId', '==', storeId),
+      where('status', '==', 'completed')
+    );
+
+    let isInitialLoad = true;
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      try {
+        const processedStr = localStorage.getItem(`kasir-pro-processed-pickups-${storeId}`);
+        const processedIds = processedStr ? JSON.parse(processedStr) : [];
+        const newProcessedIds = [...processedIds];
+        let changed = false;
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            const data = change.doc.data();
+            const id = change.doc.id;
+
+            if (data.pickupSchedule && data.pickupSchedule.confirmedAt) {
+              const uniqueKey = `${id}_${data.pickupSchedule.confirmedAt}`;
+              if (!processedIds.includes(uniqueKey)) {
+                if (!isInitialLoad) {
+                  // Play Sound via pre-unlocked ref
+                  if (orderAudioRef.current) {
+                    orderAudioRef.current.currentTime = 0;
+                    orderAudioRef.current.volume = 1.0;
+                    orderAudioRef.current.play().catch(e => console.error("Auto-play terblokir browser:", e));
+                  }
+
+                  // Show Toast
+                  toast.success(`📅 JADWAL PENGAMBILAN BARU!\nPelanggan ${data.customerName} mengonfirmasi pengambilan pada ${new Date(data.pickupSchedule.date).toLocaleDateString('id-ID')} pukul ${data.pickupSchedule.time} WIB.`, {
+                    position: 'top-center',
+                    duration: 7000,
+                    style: { border: '2px solid #8b5cf6', padding: '16px', color: '#8b5cf6', fontWeight: 'bold' }
+                  });
+
+                  // Add to internal notifications store
+                  addInternalNotification({
+                    title: 'Jadwal Pengambilan Servis!',
+                    body: `Pelanggan ${data.customerName} mengonfirmasi pengambilan unit ${data.deviceModel} pada ${new Date(data.pickupSchedule.date).toLocaleDateString('id-ID')} pukul ${data.pickupSchedule.time} WIB.`,
+                    type: 'system'
+                  });
+                }
+                newProcessedIds.push(uniqueKey);
+                changed = true;
+              }
+            }
+          }
+        });
+
+        if (changed) {
+          localStorage.setItem(`kasir-pro-processed-pickups-${storeId}`, JSON.stringify(newProcessedIds));
+        }
+      } catch (err) {
+        console.error("Error processing service ticket pickups:", err);
+      }
+      isInitialLoad = false;
+    });
+
+    return () => unsubscribe();
+  }, [storeId, role]);
+
   // Background New Order Listener
   useEffect(() => {
     if (!storeId || (role as string) === 'customer') return;

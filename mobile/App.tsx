@@ -700,6 +700,71 @@ function NavigationRoot() {
     return () => unsubscribe();
   }, [storeId, role]);
 
+  // Real-Time Service Ticket Pickup Schedule Listener for Mobile
+  useEffect(() => {
+    if (!storeId || (role as string) === 'super-admin' || (role as string) === 'superadmin' || (role as string) === 'customer') return;
+
+    const q = query(
+      collection(db, 'service_tickets'),
+      where('storeId', '==', storeId),
+      where('status', '==', 'completed')
+    );
+
+    let isInitialLoad = true;
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      try {
+        const processedStr = await AsyncStorage.getItem(`kasir-pro-mobile-processed-pickups-${storeId}`);
+        const processedIds = processedStr ? JSON.parse(processedStr) : [];
+        const newProcessedIds = [...processedIds];
+        let changed = false;
+
+        for (const change of snapshot.docChanges()) {
+          if (change.type === 'added' || change.type === 'modified') {
+            const data = change.doc.data();
+            const id = change.doc.id;
+
+            if (data.pickupSchedule && data.pickupSchedule.confirmedAt) {
+              const uniqueKey = `${id}_${data.pickupSchedule.confirmedAt}`;
+              if (!processedIds.includes(uniqueKey)) {
+                if (!isInitialLoad) {
+                  // Show native push notification
+                  await Notifications.scheduleNotificationAsync({
+                    content: {
+                      title: '📅 Jadwal Pengambilan Servis!',
+                      body: `Pelanggan ${data.customerName} mengonfirmasi pengambilan unit ${data.deviceModel} pada ${new Date(data.pickupSchedule.date).toLocaleDateString('id-ID')} pukul ${data.pickupSchedule.time} WIB.`,
+                      sound: true,
+                      priority: Notifications.AndroidNotificationPriority.HIGH,
+                    },
+                    trigger: null,
+                  });
+
+                  // Add to local notification store
+                  useNotificationStore.getState().addNotification({
+                    title: 'Jadwal Pengambilan Servis!',
+                    body: `Pelanggan ${data.customerName} mengonfirmasi pengambilan unit ${data.deviceModel} pada ${new Date(data.pickupSchedule.date).toLocaleDateString('id-ID')} pukul ${data.pickupSchedule.time} WIB.`,
+                    data: { type: 'system' }
+                  });
+                }
+                newProcessedIds.push(uniqueKey);
+                changed = true;
+              }
+            }
+          }
+        }
+
+        if (changed) {
+          await AsyncStorage.setItem(`kasir-pro-mobile-processed-pickups-${storeId}`, JSON.stringify(newProcessedIds));
+        }
+      } catch (err) {
+        console.error("Error processing mobile service ticket pickups:", err);
+      }
+      isInitialLoad = false;
+    });
+
+    return () => unsubscribe();
+  }, [storeId, role]);
+
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
