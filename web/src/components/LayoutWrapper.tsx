@@ -20,7 +20,7 @@ import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/fire
 import toast from 'react-hot-toast';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
-  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil, expiredDisabledMenus } = useAuthStore();
+  const { user, role, isLoading, isOnline, isSyncing, wasAuthenticated, logoUrl, setLogoUrl, resetAll, storeId, setNewOrderCount, storeName, isSubscriptionExpired, subscriptionUntil, expiredDisabledMenus, disabledMenus } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const orderAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -643,6 +643,17 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         if (isBlockedPath) {
           router.push('/');
           toast.error('Akses Terkunci. Masa aktif langganan habis.', { id: 'sub-expired-toast', style: { background: '#f43f5e', color: '#fff' } });
+          return;
+        }
+      }
+
+      // 3.5 Protection for SuperAdmin Disabled Menus
+      if (user && role !== 'super-admin' && role !== 'superadmin') {
+        const superadminBlockedPaths = disabledMenus || [];
+        const isSuperadminBlockedPath = superadminBlockedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+        if (isSuperadminBlockedPath) {
+          router.push('/');
+          toast.error('Akses Terkunci. Fitur dinonaktifkan oleh administrator.', { id: 'superadmin-disabled-toast', style: { background: '#f43f5e', color: '#fff' } });
           return;
         }
       }

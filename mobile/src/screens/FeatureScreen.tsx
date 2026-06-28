@@ -7602,14 +7602,16 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     Link TTD
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDeleteServiceTicket(selectedServiceTicket.id)}
-                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
-                >
-                  <Text className="font-black text-xs uppercase tracking-widest text-rose-500">
-                    Hapus
-                  </Text>
-                </TouchableOpacity>
+                {(role === 'admin' || role === 'super-admin' || role === 'superadmin') && (
+                  <TouchableOpacity
+                    onPress={() => handleDeleteServiceTicket(selectedServiceTicket.id)}
+                    className="flex-1 py-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
+                  >
+                    <Text className="font-black text-xs uppercase tracking-widest text-rose-500">
+                      Hapus
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View className="flex-row gap-3">

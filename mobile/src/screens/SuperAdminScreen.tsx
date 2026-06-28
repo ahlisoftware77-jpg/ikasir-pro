@@ -1939,6 +1939,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   { key: '/pos', name: 'Kasir (POS)' },
                   { key: '/orders', name: 'Daftar Pesanan' },
                   { key: '/estimations', name: 'Estimasi Biaya' },
+                  { key: '/services', name: 'Servis Elektronik' },
                   { key: '/shifts', name: 'Shift Karyawan' },
                   { key: '/products', name: 'Manajemen Produk' },
                   { key: '/transactions', name: 'Transaksi' },

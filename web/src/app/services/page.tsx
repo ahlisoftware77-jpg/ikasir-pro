@@ -67,7 +67,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
 };
 
 export default function ServicesPage() {
-  const { storeId, user } = useAuthStore();
+  const { storeId, user, role } = useAuthStore();
   const { branding } = useBranding();
   
   const [tickets, setTickets] = useState<any[]>([]);
@@ -992,13 +992,16 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   Bagikan Status
                 </button>
                 
-                <button 
-                  onClick={() => handleDeleteTicket(selectedTicket.id)}
-                  className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
-                >
-                  <Trash2 size={16} />
-                  Hapus
-                </button>
+                {/* Hapus Tiket: Hanya Admin / Superadmin */}
+                {(role === 'admin' || role === 'super-admin' || role === 'superadmin') && (
+                  <button 
+                    onClick={() => handleDeleteTicket(selectedTicket.id)}
+                    className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+                  >
+                    <Trash2 size={16} />
+                    Hapus
+                  </button>
+                )}
 
                 <button onClick={() => setIsDetailModalOpen(false)} className="p-2 bg-background hover:bg-surface border border-app-border rounded-full text-app-text-muted">
                   <X size={18} />
