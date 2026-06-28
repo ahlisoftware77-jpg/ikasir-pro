@@ -533,18 +533,46 @@ export default function FeatureScreen({ route, navigation }: any) {
               const trxInflow: any[] = [];
               snapTrx.forEach((doc) => {
                 const data = doc.data();
-                if (data.paymentStatus === 'paid') {
-                  trxInflow.push({
-                    id: doc.id,
-                    description: `Penjualan POS #${doc.id.substring(0, 6)}`,
-                    amount: data.total || 0,
-                    type: 'in',
-                    category: 'penjualan',
-                    paymentMethod: data.paymentMethod || 'cash',
-                    timestamp: data.timestamp,
-                    userEmail: data.cashierName || 'System',
-                    isManual: false
+                if (data.paymentHistory && data.paymentHistory.length > 0) {
+                  data.paymentHistory.forEach((entry: any) => {
+                    trxInflow.push({
+                      id: `${doc.id}_${entry.id || Math.random()}`,
+                      description: `Penjualan POS #${doc.id.substring(0, 6)} (${entry.note || 'DP/Cicilan'})`,
+                      amount: entry.amount || 0,
+                      type: 'in',
+                      category: 'penjualan',
+                      paymentMethod: entry.paymentMethod || data.paymentMethod || 'cash',
+                      timestamp: entry.date ? { toDate: () => new Date(entry.date) } : data.timestamp,
+                      userEmail: entry.cashierName || data.cashierName || 'System',
+                      isManual: false
+                    });
                   });
+                } else {
+                  if (data.paymentStatus === 'paid') {
+                    trxInflow.push({
+                      id: doc.id,
+                      description: `Penjualan POS #${doc.id.substring(0, 6)}`,
+                      amount: data.total || 0,
+                      type: 'in',
+                      category: 'penjualan',
+                      paymentMethod: data.paymentMethod || 'cash',
+                      timestamp: data.timestamp,
+                      userEmail: data.cashierName || 'System',
+                      isManual: false
+                    });
+                  } else if (data.paidAmount > 0) {
+                    trxInflow.push({
+                      id: doc.id,
+                      description: `Penjualan POS #${doc.id.substring(0, 6)} (DP)`,
+                      amount: data.paidAmount,
+                      type: 'in',
+                      category: 'penjualan',
+                      paymentMethod: data.paymentMethod || 'cash',
+                      timestamp: data.timestamp,
+                      userEmail: data.cashierName || 'System',
+                      isManual: false
+                    });
+                  }
                 }
               });
               currentTrx = trxInflow;

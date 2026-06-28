@@ -79,21 +79,47 @@ export default function CashFlowReportPage() {
       orderBy('timestamp', 'desc')
     ), snap => {
        const trxItems: any[] = [];
-       snap.forEach(doc => {
-          const d = doc.data();
-          if (d.paymentStatus === 'paid') {
-             trxItems.push({
-                id: doc.id,
-                type: 'in',
-                category: 'penjualan',
-                amount: d.total,
-                paymentMethod: d.paymentMethod || 'cash',
-                description: `Penjualan POS - ${doc.id.substring(0,8)}`,
-                timestamp: d.timestamp,
-                userEmail: d.cashierName || 'System'
-             });
-          }
-       });
+        snap.forEach(doc => {
+           const d = doc.data();
+           if (d.paymentHistory && d.paymentHistory.length > 0) {
+              d.paymentHistory.forEach((entry: any) => {
+                 trxItems.push({
+                    id: `${doc.id}_${entry.id || Math.random()}`,
+                    type: 'in',
+                    category: 'penjualan',
+                    amount: entry.amount || 0,
+                    paymentMethod: entry.paymentMethod || d.paymentMethod || 'cash',
+                    description: `Penjualan POS - ${doc.id.substring(0,8)} (${entry.note || 'DP/Cicilan'})`,
+                    timestamp: entry.date ? { toDate: () => new Date(entry.date) } : d.timestamp,
+                    userEmail: entry.cashierName || d.cashierName || 'System'
+                 });
+              });
+           } else {
+              if (d.paymentStatus === 'paid') {
+                 trxItems.push({
+                    id: doc.id,
+                    type: 'in',
+                    category: 'penjualan',
+                    amount: d.total || 0,
+                    paymentMethod: d.paymentMethod || 'cash',
+                    description: `Penjualan POS - ${doc.id.substring(0,8)}`,
+                    timestamp: d.timestamp,
+                    userEmail: d.cashierName || 'System'
+                 });
+              } else if (d.paidAmount > 0) {
+                 trxItems.push({
+                    id: doc.id,
+                    type: 'in',
+                    category: 'penjualan',
+                    amount: d.paidAmount,
+                    paymentMethod: d.paymentMethod || 'cash',
+                    description: `Penjualan POS - ${doc.id.substring(0,8)} (DP)`,
+                    timestamp: d.timestamp,
+                    userEmail: d.cashierName || 'System'
+                 });
+              }
+           }
+        });
        setTrxData(trxItems);
        setIsLoading(false);
     });
