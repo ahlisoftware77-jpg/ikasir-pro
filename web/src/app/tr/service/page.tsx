@@ -168,39 +168,47 @@ function TrackingContent() {
         {/* Stepper Progress Bar */}
         {ticket.status !== 'cancelled' && (
           <div className="py-10 border-b border-slate-800/60">
-            <div className="relative flex justify-between items-center w-full px-2">
+            <div className="relative">
               {/* Connector Line */}
-              <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1 bg-slate-850 rounded-full z-0">
+              <div className="absolute left-6 right-6 top-5 -translate-y-1/2 h-1 bg-slate-850 rounded-full z-0">
                 <div 
-                  className="h-full bg-gradient-to-r from-accent to-indigo-500 rounded-full transition-all duration-750 ease-out"
+                  className="h-full bg-gradient-to-r from-accent to-indigo-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(var(--color-accent),0.5)]"
                   style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
                 ></div>
               </div>
 
-              {/* Step Dots */}
-              {steps.map((step, idx) => {
-                const isCompleted = idx <= activeIndex;
-                const isActive = idx === activeIndex;
+              {/* Step Dots & Labels */}
+              <div className="relative flex justify-between items-start w-full z-10">
+                {steps.map((step, idx) => {
+                  const isCompleted = idx <= activeIndex;
+                  const isActive = idx === activeIndex;
 
-                return (
-                  <div key={step.key} className="flex flex-col items-center z-10 relative">
-                    <div 
-                      className={`w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 ${
+                  return (
+                    <div key={step.key} className="flex flex-col items-center flex-1">
+                      <div 
+                        className={`w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ease-out transform ${
+                          isActive 
+                            ? 'bg-gradient-to-tr from-accent to-indigo-650 border-accent text-white scale-110 shadow-lg shadow-accent/40 animate-pulse' 
+                            : isCompleted 
+                            ? 'bg-accent/15 border-accent/40 text-accent scale-100' 
+                            : 'bg-slate-900 border-slate-805 text-slate-650 scale-95'
+                        }`}
+                      >
+                        <span className="text-lg transition-transform duration-500">{step.emoji}</span>
+                      </div>
+                      <span className={`text-[9px] font-black uppercase tracking-wider mt-3 text-center transition-colors duration-300 ${
                         isActive 
-                          ? 'bg-gradient-to-tr from-accent to-indigo-600 border-accent text-white scale-110 shadow-lg shadow-accent/40' 
+                          ? 'text-accent font-black' 
                           : isCompleted 
-                          ? 'bg-accent/15 border-accent/40 text-accent' 
-                          : 'bg-slate-900 border-slate-800 text-slate-650'
-                      }`}
-                    >
-                      <span className="text-lg">{step.emoji}</span>
+                          ? 'text-slate-300' 
+                          : 'text-slate-600'
+                      }`}>
+                        {step.label}
+                      </span>
                     </div>
-                    <span className={`text-[9px] font-black uppercase tracking-wider mt-3 ${isActive ? 'text-accent' : isCompleted ? 'text-slate-300' : 'text-slate-600'}`}>
-                      {step.label}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
