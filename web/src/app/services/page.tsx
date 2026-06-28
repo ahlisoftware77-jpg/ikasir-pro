@@ -31,7 +31,8 @@ import {
   AlertTriangle,
   Info,
   Check,
-  DollarSign
+  DollarSign,
+  Share2
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
 import { useBranding } from '@/context/BrandingContext';
@@ -607,6 +608,28 @@ export default function ServicesPage() {
                   <Printer size={16} />
                   Cetak Tanda Terima
                 </button>
+
+                <button 
+                  onClick={() => {
+                    const shareText = `*IKASIR PRO - Tanda Terima Servis*
+
+No. Tiket: #ST-${selectedTicket.id.substring(0,8).toUpperCase()}
+Pelanggan: ${selectedTicket.customerName}
+Perangkat: ${selectedTicket.deviceModel}
+Kerusakan: ${selectedTicket.damageDescription}
+Estimasi Biaya: Rp ${selectedTicket.estimatedCost?.toLocaleString('id-ID')}
+Status: ${STATUS_LABELS[selectedTicket.status]}
+
+Lacak status perbaikan Anda secara real-time di sini:
+https://ikasir.my.id/services/track?id=${selectedTicket.id}`;
+                    navigator.clipboard.writeText(shareText);
+                    toast.success("Link pelacakan disalin ke clipboard!");
+                  }}
+                  className="p-2.5 bg-accent/10 border border-accent/20 hover:bg-accent text-accent hover:text-foreground rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+                >
+                  <Share2 size={16} />
+                  Bagikan Status
+                </button>
                 
                 <button 
                   onClick={() => handleDeleteTicket(selectedTicket.id)}
@@ -643,7 +666,23 @@ export default function ServicesPage() {
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-app-text-muted uppercase">Telepon Pelanggan</p>
-                      <p className="font-bold text-foreground mt-0.5">{selectedTicket.customerPhone}</p>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className="font-bold text-foreground">{selectedTicket.customerPhone}</p>
+                        {selectedTicket.customerPhone && selectedTicket.customerPhone !== '-' && (
+                          <button
+                            onClick={() => {
+                              let cleaned = selectedTicket.customerPhone.replace(/[^0-9]/g, '');
+                              if (cleaned.startsWith('0')) {
+                                cleaned = '62' + cleaned.substring(1);
+                              }
+                              window.open(`https://wa.me/${cleaned}`, '_blank');
+                            }}
+                            className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-black rounded border border-emerald-500/20 uppercase hover:bg-emerald-500 hover:text-white transition-all"
+                          >
+                            Hubungi WA
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

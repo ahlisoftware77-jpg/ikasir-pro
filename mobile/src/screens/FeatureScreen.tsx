@@ -3153,7 +3153,13 @@ export default function FeatureScreen({ route, navigation }: any) {
                         </View>
                         {item.customerPhone && item.customerPhone !== '-' && (
                           <TouchableOpacity
-                            onPress={() => Linking.openURL(`https://wa.me/${item.customerPhone.replace(/[^0-9]/g, '')}`)}
+                            onPress={() => {
+                              let cleaned = item.customerPhone.replace(/[^0-9]/g, '');
+                              if (cleaned.startsWith('0')) {
+                                cleaned = '62' + cleaned.substring(1);
+                              }
+                              Linking.openURL(`https://wa.me/${cleaned}`);
+                            }}
                             className="px-2 py-1 bg-emerald-500/10 rounded-lg"
                           >
                             <Text className="text-[8px] font-black text-emerald-500 uppercase">Hubungi WA</Text>
@@ -3179,15 +3185,18 @@ export default function FeatureScreen({ route, navigation }: any) {
                       </View>
                       <TouchableOpacity
                         onPress={() => {
-                          const receiptHtml = `
-                            No. Tiket: #ST-${item.id.substring(0,6).toUpperCase()}
-                            Pelanggan: ${item.customerName}
-                            Perangkat: ${item.deviceModel}
-                            Kerusakan: ${item.damageDescription}
-                            Estimasi Biaya: Rp ${item.estimatedCost?.toLocaleString('id-ID')}
-                            Status: ${STATUS_LABELS[item.status]}
-                          `;
-                          Share.share({ message: receiptHtml });
+                          const receiptText = `*IKASIR PRO - Tanda Terima Servis*
+
+No. Tiket: #ST-${item.id.substring(0,8).toUpperCase()}
+Pelanggan: ${item.customerName}
+Perangkat: ${item.deviceModel}
+Kerusakan: ${item.damageDescription}
+Estimasi Biaya: Rp ${item.estimatedCost?.toLocaleString('id-ID')}
+Status: ${STATUS_LABELS[item.status]}
+
+Lacak status perbaikan Anda secara real-time di sini:
+https://ikasir.my.id/services/track?id=${item.id}`;
+                          Share.share({ message: receiptText });
                         }}
                         className="p-2 bg-black/5 rounded-xl"
                       >
