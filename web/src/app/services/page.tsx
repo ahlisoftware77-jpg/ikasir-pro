@@ -88,6 +88,10 @@ export default function ServicesPage() {
   const [newStatus, setNewStatus] = useState<string>('');
   const [statusNote, setStatusNote] = useState<string>('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Edit/Delete History Logs
+  const [editingLogIndex, setEditingLogIndex] = useState<number | null>(null);
+  const [editingLogNotes, setEditingLogNotes] = useState('');
   
   // Real-time Tickets Listener
   useEffect(() => {
@@ -262,6 +266,51 @@ export default function ServicesPage() {
     } catch (err: any) {
       console.error(err);
       toast.error("Gagal menghapus tiket: " + err.message);
+    }
+  };
+
+  const handleDeleteHistoryLog = async (logIndex: number) => {
+    if (!selectedTicket) return;
+    if (!window.confirm("Apakah Anda yakin ingin menghapus log riwayat ini?")) return;
+
+    const originalIndex = selectedTicket.history.length - 1 - logIndex;
+    const updatedHistory = selectedTicket.history.filter((_: any, i: number) => i !== originalIndex);
+
+    try {
+      const docRef = doc(db, 'service_tickets', selectedTicket.id);
+      await updateDoc(docRef, { history: updatedHistory });
+      setSelectedTicket((prev: any) => ({ ...prev, history: updatedHistory }));
+      toast.success("Log riwayat berhasil dihapus!");
+    } catch (err: any) {
+      toast.error("Gagal menghapus log: " + err.message);
+    }
+  };
+
+  const handleStartEditHistoryLog = (logIndex: number, currentNotes: string) => {
+    const originalIndex = selectedTicket.history.length - 1 - logIndex;
+    setEditingLogIndex(originalIndex);
+    setEditingLogNotes(currentNotes);
+  };
+
+  const handleSaveEditHistoryLog = async () => {
+    if (!selectedTicket || editingLogIndex === null) return;
+
+    const updatedHistory = selectedTicket.history.map((log: any, i: number) => {
+      if (i === editingLogIndex) {
+        return { ...log, notes: editingLogNotes };
+      }
+      return log;
+    });
+
+    try {
+      const docRef = doc(db, 'service_tickets', selectedTicket.id);
+      await updateDoc(docRef, { history: updatedHistory });
+      setSelectedTicket((prev: any) => ({ ...prev, history: updatedHistory }));
+      setEditingLogIndex(null);
+      setEditingLogNotes('');
+      toast.success("Log riwayat berhasil diperbarui!");
+    } catch (err: any) {
+      toast.error("Gagal memperbarui log: " + err.message);
     }
   };
 
@@ -773,7 +822,46 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                                 {STATUS_LABELS[log.status]}
                               </span>
                             </div>
-                            <p className="text-xs font-semibold text-foreground">{log.notes}</p>
+                            {editingLogIndex === (selectedTicket.history.length - 1 - idx) ? (
+                              <div className="mt-2 flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editingLogNotes}
+                                  onChange={e => setEditingLogNotes(e.target.value)}
+                                  className="flex-1 px-3 py-1 bg-surface border border-app-border rounded-lg text-xs font-semibold text-foreground focus:outline-none"
+                                />
+                                <button
+                                  onClick={handleSaveEditHistoryLog}
+                                  className="px-3 py-1 bg-accent text-white text-[10px] font-black rounded-lg uppercase"
+                                >
+                                  Simpan
+                                </button>
+                                <button
+                                  onClick={() => setEditingLogIndex(null)}
+                                  className="px-3 py-1 bg-app-border text-foreground text-[10px] font-black rounded-lg uppercase"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex justify-between items-start group/log gap-2">
+                                <p className="text-xs font-semibold text-foreground">{log.notes}</p>
+                                <div className="flex items-center gap-2 shrink-0 opacity-50 hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => handleStartEditHistoryLog(idx, log.notes)}
+                                    className="text-[10px] font-bold text-accent hover:underline"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteHistoryLog(idx)}
+                                    className="text-[10px] font-bold text-rose-500 hover:underline"
+                                  >
+                                    Hapus
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

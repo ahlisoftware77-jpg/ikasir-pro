@@ -193,6 +193,8 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [newServiceStatus, setNewServiceStatus] = useState('');
   const [serviceStatusNote, setServiceStatusNote] = useState('');
   const [isUpdatingServiceStatus, setIsUpdatingServiceStatus] = useState(false);
+  const [editingLogIndex, setEditingLogIndex] = useState<number | null>(null);
+  const [editingLogNotes, setEditingLogNotes] = useState('');
 
   // Service form states
   const [serviceFormSerial, setServiceFormSerial] = useState('');
@@ -315,6 +317,63 @@ export default function FeatureScreen({ route, navigation }: any) {
         }
       ]
     );
+  };
+
+  const handleDeleteHistoryLog = async (logIndex: number) => {
+    if (!selectedServiceTicket) return;
+    
+    Alert.alert(
+      "Hapus Log",
+      "Apakah Anda yakin ingin menghapus log riwayat ini?",
+      [
+        { text: "Batal", style: "cancel" },
+        { 
+          text: "Hapus", 
+          style: "destructive",
+          onPress: async () => {
+            const originalIndex = selectedServiceTicket.history.length - 1 - logIndex;
+            const updatedHistory = selectedServiceTicket.history.filter((_: any, i: number) => i !== originalIndex);
+
+            try {
+              const docRef = doc(db, 'service_tickets', selectedServiceTicket.id);
+              await updateDoc(docRef, { history: updatedHistory });
+              setSelectedServiceTicket((prev: any) => ({ ...prev, history: updatedHistory }));
+              Alert.alert("Sukses", "Log riwayat berhasil dihapus!");
+            } catch (err: any) {
+              Alert.alert("Gagal", "Gagal menghapus log: " + err.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleStartEditHistoryLog = (logIndex: number, currentNotes: string) => {
+    const originalIndex = selectedServiceTicket.history.length - 1 - logIndex;
+    setEditingLogIndex(originalIndex);
+    setEditingLogNotes(currentNotes);
+  };
+
+  const handleSaveEditHistoryLog = async () => {
+    if (!selectedServiceTicket || editingLogIndex === null) return;
+
+    const updatedHistory = selectedServiceTicket.history.map((log: any, i: number) => {
+      if (i === editingLogIndex) {
+        return { ...log, notes: editingLogNotes };
+      }
+      return log;
+    });
+
+    try {
+      const docRef = doc(db, 'service_tickets', selectedServiceTicket.id);
+      await updateDoc(docRef, { history: updatedHistory });
+      setSelectedServiceTicket((prev: any) => ({ ...prev, history: updatedHistory }));
+      setEditingLogIndex(null);
+      setEditingLogNotes('');
+      Alert.alert("Sukses", "Log riwayat berhasil diperbarui!");
+    } catch (err: any) {
+      Alert.alert("Gagal", "Gagal memperbarui log: " + err.message);
+    }
   };
 
   // Piutang States
@@ -3187,9 +3246,14 @@ export default function FeatureScreen({ route, navigation }: any) {
                       </View>
                       <TouchableOpacity
                         onPress={() => {
+                          const ticketIdentifier = item.ticketNo 
+                            ? `no=${item.ticketNo}` 
+                            : `id=${item.id}`;
+                          const ticketDisplayNo = item.ticketNo || `ST-${item.id.substring(0,8).toUpperCase()}`;
+
                           const receiptText = `*IKASIR PRO - Tanda Terima Servis*
 
-No. Tiket: #ST-${item.id.substring(0,8).toUpperCase()}
+No. Tiket: ${ticketDisplayNo}
 Pelanggan: ${item.customerName}
 Perangkat: ${item.deviceModel}
 Kerusakan: ${item.damageDescription}
@@ -3197,7 +3261,7 @@ Estimasi Biaya: Rp ${item.estimatedCost?.toLocaleString('id-ID')}
 Status: ${STATUS_LABELS[item.status]}
 
 Lacak status perbaikan Anda secara real-time di sini:
-https://ikasir.my.id/services/track?id=${item.id}`;
+https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                           Share.share({ message: receiptText });
                         }}
                         className="p-2 bg-black/5 rounded-xl"
@@ -6892,7 +6956,45 @@ https://ikasir.my.id/services/track?id=${item.id}`;
                                 </Text>
                               </View>
                             </View>
-                            <Text className="text-xs font-bold" style={{ color: colors.text }}>{log.notes}</Text>
+                            
+                            {editingLogIndex === (selectedServiceTicket.history.length - 1 - idx) ? (
+                              <View className="mt-2 flex-row gap-2 items-center">
+                                <TextInput
+                                  value={editingLogNotes}
+                                  onChangeText={setEditingLogNotes}
+                                  className="flex-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold"
+                                  style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                                />
+                                <TouchableOpacity
+                                  onPress={handleSaveEditHistoryLog}
+                                  className="px-3 py-2 bg-accent rounded-lg"
+                                >
+                                  <Text className="text-[9px] font-black text-white uppercase">Simpan</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={() => setEditingLogIndex(null)}
+                                  className="px-3 py-2 bg-black/10 rounded-lg"
+                                >
+                                  <Text className="text-[9px] font-black text-slate-400 uppercase">Batal</Text>
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
+                              <View className="mt-0.5">
+                                <Text className="text-xs font-bold" style={{ color: colors.text }}>{log.notes}</Text>
+                                <View className="flex-row gap-3.5 mt-1.5">
+                                  <TouchableOpacity
+                                    onPress={() => handleStartEditHistoryLog(idx, log.notes)}
+                                  >
+                                    <Text className="text-[9px] font-black text-accent uppercase">Edit</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => handleDeleteHistoryLog(idx)}
+                                  >
+                                    <Text className="text-[9px] font-black text-rose-500 uppercase">Hapus</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            )}
                           </View>
                         </View>
                       );
@@ -6904,21 +7006,47 @@ https://ikasir.my.id/services/track?id=${item.id}`;
 
             <View className="flex-row gap-3">
               <TouchableOpacity
+                onPress={() => {
+                  const ticketIdentifier = selectedServiceTicket.ticketNo 
+                    ? `no=${selectedServiceTicket.ticketNo}` 
+                    : `id=${selectedServiceTicket.id}`;
+                  const ticketDisplayNo = selectedServiceTicket.ticketNo || `ST-${selectedServiceTicket.id.substring(0,8).toUpperCase()}`;
+
+                  const receiptText = `*IKASIR PRO - Tanda Terima Servis*
+
+No. Tiket: ${ticketDisplayNo}
+Pelanggan: ${selectedServiceTicket.customerName}
+Perangkat: ${selectedServiceTicket.deviceModel}
+Kerusakan: ${selectedServiceTicket.damageDescription}
+Estimasi Biaya: Rp ${selectedServiceTicket.estimatedCost?.toLocaleString('id-ID')}
+Status: ${STATUS_LABELS[selectedServiceTicket.status]}
+
+Lacak status perbaikan Anda secara real-time di sini:
+https://ikasir.my.id/tr/service?${ticketIdentifier}`;
+                  Share.share({ message: receiptText });
+                }}
+                className="flex-1 py-4 rounded-2xl items-center justify-center bg-accent/10 border border-accent/20"
+              >
+                <Text className="font-black text-xs uppercase tracking-widest text-accent">
+                  Bagikan
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={() => handleDeleteServiceTicket(selectedServiceTicket.id)}
                 className="flex-1 py-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
               >
                 <Text className="font-black text-xs uppercase tracking-widest text-rose-500">
-                  Hapus Tiket
+                  Hapus
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setIsServiceDetailVisible(false)}
                 activeOpacity={0.8}
-                className="flex-2 py-4 rounded-2xl items-center justify-center border"
+                className="flex-1 py-4 rounded-2xl items-center justify-center border"
                 style={{ borderColor: colors.border, backgroundColor: 'transparent' }}
               >
                 <Text className="font-black text-xs uppercase tracking-widest" style={{ color: colors.text }}>
-                  Tutup Detail
+                  Tutup
                 </Text>
               </TouchableOpacity>
             </View>
