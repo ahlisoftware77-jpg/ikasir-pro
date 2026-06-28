@@ -1870,14 +1870,14 @@ export default function POSScreen({ route, navigation }: any) {
         transactionData.paymentStatus = dp >= total ? 'paid' : (dp > 0 ? 'partially_paid' : 'unpaid');
         transactionData.paidAmount = dp;
         transactionData.debtAmount = Math.max(0, total - dp);
-        transactionData.paymentMethod = dp > 0 ? 'cash' : null;
+        transactionData.paymentMethod = dp > 0 ? paymentMethod : null;
         if (dp > 0) {
           transactionData.paymentHistory = [{
             id: Math.random().toString(36).substring(2, 9),
             date: localNow.toISOString(),
             amount: dp,
             cashierName: user?.name || user?.displayName || 'Kasir',
-            note: 'Pembayaran Awal (DP)'
+            note: `Pembayaran Awal (DP - ${paymentMethod === 'cash' ? 'Tunai' : paymentMethod.toUpperCase()})`
           }];
         } else {
           transactionData.paymentHistory = [];
@@ -3445,6 +3445,37 @@ export default function POSScreen({ route, navigation }: any) {
 
               {paymentCategory === 'debt' && (
                 <View className="space-y-3 bg-black/5 p-4 rounded-2xl">
+                  {/* Metode Bayar DP */}
+                  <View className="space-y-2 mb-1">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Metode Bayar DP</Text>
+                    <View className="flex-row gap-2">
+                      {[
+                        { id: 'cash', label: 'Tunai' },
+                        { id: 'qris', label: 'QRIS' },
+                        { id: 'transfer', label: 'Transfer' }
+                      ].map(method => (
+                        <TouchableOpacity 
+                          key={method.id}
+                          onPress={() => {
+                            setPaymentMethod(method.id as any);
+                          }}
+                          className="flex-1 py-2.5 rounded-xl border active:opacity-90"
+                          style={{
+                            backgroundColor: paymentMethod === method.id ? colors.accent : colors.surface,
+                            borderColor: paymentMethod === method.id ? colors.accent : 'rgba(0,0,0,0.05)'
+                          }}
+                        >
+                          <Text 
+                            className="text-[9px] font-black uppercase tracking-wider text-center"
+                            style={{ color: paymentMethod === method.id ? '#0f172a' : colors.textMuted }}
+                          >
+                            {method.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
                   <View className="flex-row gap-3">
                     
                     {/* DP */}

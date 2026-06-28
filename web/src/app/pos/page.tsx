@@ -871,14 +871,14 @@ export default function POSPage() {
         transactionData.paymentStatus = dp >= total ? 'paid' : (dp > 0 ? 'partially_paid' : 'unpaid');
         transactionData.paidAmount = dp;
         transactionData.debtAmount = Math.max(0, total - dp);
-        transactionData.paymentMethod = dp > 0 ? 'cash' : null;
+        transactionData.paymentMethod = dp > 0 ? paymentMethod : null;
         if (dp > 0) {
           transactionData.paymentHistory = [{
             id: Math.random().toString(36).substring(2, 9),
             date: localNow.toISOString(),
             amount: dp,
             cashierName: userName || user?.displayName || 'Kasir',
-            note: 'Pembayaran Awal (DP)'
+            note: `Pembayaran Awal (DP - ${paymentMethod === 'cash' ? 'Tunai' : paymentMethod.toUpperCase()})`
           }];
         } else {
           transactionData.paymentHistory = [];
@@ -1871,6 +1871,14 @@ export default function POSPage() {
             {/* DEBT DOWN PAYMENT INPUT (DESKTOP) */}
             {paymentCategory === 'debt' && cart.length > 0 && (
               <div className="pt-2 border-t border-app-border/30 animate-in slide-in-from-bottom-2 space-y-2">
+                <div className="space-y-1">
+                  <p className="text-[10px] text-app-text-muted uppercase font-bold tracking-widest px-1">Metode Bayar DP</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button type="button" onClick={() => setPaymentMethod('cash')} className={`py-1.5 rounded-lg text-[10px] font-bold border transition-all ${paymentMethod === 'cash' ? 'bg-accent text-foreground border-accent shadow-sm' : 'bg-surface border-app-border text-app-text-muted hover:border-accent'}`}>Tunai</button>
+                    <button type="button" onClick={() => setPaymentMethod('qris')} className={`py-1.5 rounded-lg text-[10px] font-bold border transition-all ${paymentMethod === 'qris' ? 'bg-accent text-foreground border-accent shadow-sm' : 'bg-surface border-app-border text-app-text-muted hover:border-accent'}`}>QRIS</button>
+                    <button type="button" onClick={() => setPaymentMethod('transfer')} className={`py-1.5 rounded-lg text-[10px] font-bold border transition-all ${paymentMethod === 'transfer' ? 'bg-accent text-foreground border-accent shadow-sm' : 'bg-surface border-app-border text-app-text-muted hover:border-accent'}`}>TF</button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
                     <p className="text-[10px] text-app-text-muted mb-1 uppercase font-bold tracking-widest px-1">Bayar Awal (DP)</p>
@@ -2813,7 +2821,22 @@ export default function POSPage() {
                       {/* MOBILE DEBT DP INPUT */}
                       {paymentCategory === 'debt' && (
                         <div className="px-3 pb-2 space-y-2 animate-in fade-in duration-300">
-                            <div className="flex items-center justify-between">
+                             <div className="flex items-center justify-between border-b border-app-border/30 pb-2">
+                                <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest">Metode DP</p>
+                                <div className="flex gap-1">
+                                  {['cash', 'qris', 'transfer'].map(method => (
+                                    <button 
+                                      key={method}
+                                      type="button" 
+                                      onClick={() => setPaymentMethod(method as any)} 
+                                      className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase border transition-all ${paymentMethod === method ? 'bg-accent text-foreground border-accent' : 'bg-background border-app-border text-app-text-muted'}`}
+                                    >
+                                      {method === 'cash' ? 'Tunai' : method === 'qris' ? 'QRIS' : 'TF'}
+                                    </button>
+                                  ))}
+                                </div>
+                             </div>
+                             <div className="flex items-center justify-between">
                                <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest">Down Payment (DP)</p>
                                <div className="flex items-center gap-2">
                                  <span className="text-sm font-bold text-foreground">Rp</span>
