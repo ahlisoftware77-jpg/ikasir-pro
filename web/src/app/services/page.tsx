@@ -1,0 +1,728 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  doc, 
+  addDoc,
+  updateDoc,
+  deleteDoc, 
+  orderBy,
+  getDoc
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { 
+  Wrench, 
+  Trash2, 
+  Printer, 
+  User, 
+  History, 
+  CheckCircle2, 
+  X, 
+  Loader2,
+  Calendar,
+  Search,
+  PlusCircle,
+  Clock,
+  Phone,
+  AlertTriangle,
+  Info,
+  Check,
+  DollarSign
+} from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
+import { useBranding } from '@/context/BrandingContext';
+import toast from 'react-hot-toast';
+
+const STATUS_LABELS: Record<string, string> = {
+  received: 'Diterima',
+  checking: 'Pengecekan',
+  pending_part: 'Menunggu Part',
+  repairing: 'Sedang Diperbaiki',
+  completed: 'Selesai',
+  cancelled: 'Dibatalkan',
+  taken: 'Sudah Diambil'
+};
+
+const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  received: { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20' },
+  checking: { bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500/20' },
+  pending_part: { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20' },
+  repairing: { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/20' },
+  completed: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20' },
+  cancelled: { bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'border-rose-500/20' },
+  taken: { bg: 'bg-slate-500/10', text: 'text-slate-500', border: 'border-slate-500/20' }
+};
+
+export default function ServicesPage() {
+  const { storeId, user } = useAuthStore();
+  const { branding } = useBranding();
+  
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Modals
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  
+  // Add Form
+  const [addForm, setAddForm] = useState({
+    customerName: '',
+    customerPhone: '',
+    deviceModel: '',
+    serialNumber: '',
+    damageDescription: '',
+    estimatedCost: '',
+    notes: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Status Update State
+  const [newStatus, setNewStatus] = useState<string>('');
+  const [statusNote, setStatusNote] = useState<string>('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  
+  // Real-time Tickets Listener
+  useEffect(() => {
+    if (!storeId) return;
+
+    setLoading(true);
+    const q = query(
+      collection(db, 'service_tickets'),
+      where('storeId', '==', storeId),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setTickets(docs);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching service tickets:", error);
+      toast.error("Gagal menyinkronkan data servis.");
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [storeId]);
+
+  // Statistics
+  const stats = useMemo(() => {
+    const active = tickets.filter(t => ['received', 'checking', 'pending_part', 'repairing'].includes(t.status)).length;
+    const completed = tickets.filter(t => t.status === 'completed').length;
+    const taken = tickets.filter(t => t.status === 'taken').length;
+    const total = tickets.length;
+    return { active, completed, taken, total };
+  }, [tickets]);
+
+  // Filtered List
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(t => {
+      const matchSearch = 
+        t.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+        t.customerPhone?.includes(search) ||
+        t.deviceModel?.toLowerCase().includes(search.toLowerCase()) ||
+        t.serialNumber?.toLowerCase().includes(search.toLowerCase()) ||
+        t.id?.toLowerCase().includes(search.toLowerCase());
+        
+      if (statusFilter === 'all') return matchSearch;
+      if (statusFilter === 'active') {
+        return matchSearch && ['received', 'checking', 'pending_part', 'repairing'].includes(t.status);
+      }
+      return matchSearch && t.status === statusFilter;
+    });
+  }, [tickets, search, statusFilter]);
+
+  // Handle Add Ticket
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeId) return;
+    if (!addForm.customerName || !addForm.deviceModel || !addForm.damageDescription) {
+      toast.error("Harap isi semua kolom wajib!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const now = new Date().toISOString();
+      const docData = {
+        storeId,
+        customerName: addForm.customerName,
+        customerPhone: addForm.customerPhone || '-',
+        deviceModel: addForm.deviceModel,
+        serialNumber: addForm.serialNumber || '-',
+        damageDescription: addForm.damageDescription,
+        estimatedCost: Number(addForm.estimatedCost) || 0,
+        status: 'received',
+        notes: addForm.notes || '',
+        timestamp: now,
+        updatedAt: now,
+        history: [
+          {
+            status: 'received',
+            notes: 'Tiket servis dibuat. Perangkat diterima oleh kasir.',
+            timestamp: now
+          }
+        ]
+      };
+
+      await addDoc(collection(db, 'service_tickets'), docData);
+      toast.success("Tiket servis berhasil dibuat!");
+      setIsAddModalOpen(false);
+      setAddForm({
+        customerName: '',
+        customerPhone: '',
+        deviceModel: '',
+        serialNumber: '',
+        damageDescription: '',
+        estimatedCost: '',
+        notes: ''
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal membuat tiket: " + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Status Update
+  const handleUpdateStatus = async () => {
+    if (!selectedTicket || !newStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const now = new Date().toISOString();
+      const newHistoryLog = {
+        status: newStatus,
+        notes: statusNote || `Status diperbarui menjadi ${STATUS_LABELS[newStatus]}`,
+        timestamp: now
+      };
+
+      const updatedHistory = [...(selectedTicket.history || []), newHistoryLog];
+      
+      const docRef = doc(db, 'service_tickets', selectedTicket.id);
+      await updateDoc(docRef, {
+        status: newStatus,
+        updatedAt: now,
+        history: updatedHistory
+      });
+
+      // Update local modal state
+      setSelectedTicket((prev: any) => ({
+        ...prev,
+        status: newStatus,
+        updatedAt: now,
+        history: updatedHistory
+      }));
+
+      setStatusNote('');
+      toast.success("Status servis berhasil diperbarui!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal mengubah status: " + err.message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Handle Delete Ticket
+  const handleDeleteTicket = async (id: string) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus tiket servis ini secara permanen?")) return;
+
+    try {
+      await deleteDoc(doc(db, 'service_tickets', id));
+      toast.success("Tiket servis berhasil dihapus!");
+      setIsDetailModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal menghapus tiket: " + err.message);
+    }
+  };
+
+  // Printable Receipt Render
+  const handlePrintReceipt = (ticket: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const receiptHtml = `
+      <html>
+        <head>
+          <title>Tanda Terima Servis - #${ticket.id.substring(0,8)}</title>
+          <style>
+            body { font-family: monospace; padding: 20px; color: #000; width: 300px; margin: 0 auto; }
+            .text-center { text-align: center; }
+            .bold { font-weight: bold; }
+            .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+            .row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 12px; }
+            .header { font-size: 16px; margin-bottom: 5px; }
+          </style>
+        </head>
+        <body onload="window.print(); window.close();">
+          <div class="text-center bold header">IKASIR PRO SERVICE</div>
+          <div class="text-center" style="font-size: 10px;">TANDA TERIMA SERVIS PERANGKAT</div>
+          <div class="divider"></div>
+          <div class="row"><span class="bold">No. Tiket:</span><span>#${ticket.id.substring(0,8)}</span></div>
+          <div class="row"><span>Tanggal:</span><span>${new Date(ticket.timestamp).toLocaleDateString('id-ID')}</span></div>
+          <div class="divider"></div>
+          <div class="row"><span class="bold">Pelanggan:</span><span>${ticket.customerName}</span></div>
+          <div class="row"><span>Telepon:</span><span>${ticket.customerPhone}</span></div>
+          <div class="divider"></div>
+          <div class="row"><span class="bold">Perangkat:</span><span>${ticket.deviceModel}</span></div>
+          <div class="row"><span>S/N atau IMEI:</span><span>${ticket.serialNumber}</span></div>
+          <div class="row"><span class="bold">Kerusakan:</span><span style="text-align: right; max-width: 150px;">${ticket.damageDescription}</span></div>
+          <div class="divider"></div>
+          <div class="row"><span class="bold">Estimasi Biaya:</span><span class="bold">Rp ${ticket.estimatedCost?.toLocaleString('id-ID')}</span></div>
+          <div class="row"><span>Status Awal:</span><span>${STATUS_LABELS[ticket.status]}</span></div>
+          <div class="divider"></div>
+          <div class="text-center" style="font-size: 9px; margin-top: 15px;">
+            Simpan tanda terima ini untuk pengambilan unit.<br>
+            Terima Kasih atas Kepercayaan Anda!
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptHtml);
+    printWindow.document.close();
+  };
+
+  return (
+    <div className="p-6 md:p-10 space-y-8 max-w-7xl mx-auto">
+      {/* Top Banner Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-accent/20 text-accent rounded-2xl flex items-center justify-center">
+              <Wrench size={24} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight text-foreground uppercase">Servis Elektronik</h1>
+              <p className="text-xs text-app-text-muted font-bold uppercase tracking-widest">Manajemen Perbaikan Real-Time</p>
+            </div>
+          </div>
+        </div>
+        
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="px-6 py-4 bg-accent hover:bg-accent-hover text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-accent/25 flex items-center gap-2"
+        >
+          <PlusCircle size={16} />
+          Tambah Tiket Servis
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Servis Aktif', val: stats.active, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { label: 'Selesai Diperbaiki', val: stats.completed, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+          { label: 'Sudah Diambil', val: stats.taken, color: 'text-slate-500', bg: 'bg-slate-500/10' },
+          { label: 'Total Tiket', val: stats.total, color: 'text-blue-500', bg: 'bg-blue-500/10' }
+        ].map((s, idx) => (
+          <div key={idx} className="bg-surface border border-app-border rounded-[2rem] p-6 flex flex-col gap-2">
+            <span className="text-[10px] font-black text-app-text-muted uppercase tracking-wider">{s.label}</span>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-3xl font-black ${s.color}`}>{s.val}</span>
+              <span className={`w-3 h-3 rounded-full ${s.bg}`}></span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter and Search controls */}
+      <div className="bg-surface border border-app-border rounded-[2.5rem] p-6 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          {[
+            { label: 'Semua', val: 'all' },
+            { label: 'Aktif / Sedang Servis', val: 'active' },
+            { label: 'Selesai', val: 'completed' },
+            { label: 'Sudah Diambil', val: 'taken' },
+            { label: 'Batal', val: 'cancelled' }
+          ].map((btn) => (
+            <button
+              key={btn.val}
+              onClick={() => setStatusFilter(btn.val)}
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${statusFilter === btn.val ? 'bg-accent text-white' : 'bg-background hover:bg-surface border border-app-border text-app-text-muted hover:text-foreground'}`}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text-muted" size={18} />
+          <input
+            type="text"
+            placeholder="Cari Pelanggan, Unit, IMEI..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-12 pr-6 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold text-foreground focus:outline-none focus:border-accent transition-all"
+          />
+        </div>
+      </div>
+
+      {/* Tickets List */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <Loader2 className="animate-spin text-accent w-10 h-10" />
+          <p className="text-xs text-app-text-muted font-black tracking-widest uppercase">Menyinkronkan Basis Data Servis...</p>
+        </div>
+      ) : filteredTickets.length === 0 ? (
+        <div className="bg-surface border border-app-border rounded-[3rem] p-16 text-center">
+          <Wrench className="mx-auto text-app-text-muted/40 mb-4" size={48} />
+          <p className="text-sm font-bold text-app-text-muted">Tidak ada tiket servis yang sesuai dengan filter pencarian.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTickets.map((ticket) => {
+            const color = STATUS_COLORS[ticket.status] || STATUS_COLORS.received;
+            return (
+              <div 
+                key={ticket.id} 
+                onClick={() => {
+                  setSelectedTicket(ticket);
+                  setNewStatus(ticket.status);
+                  setIsDetailModalOpen(true);
+                }}
+                className="bg-surface border border-app-border hover:border-accent/40 rounded-[2.5rem] p-6 cursor-pointer shadow-sm hover:shadow-md transition-all group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <span className="text-[10px] font-black text-app-text-muted">#ST-{ticket.id.substring(0,6).toUpperCase()}</span>
+                    <span className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border ${color.bg} ${color.text} ${color.border}`}>
+                      {STATUS_LABELS[ticket.status]}
+                    </span>
+                  </div>
+
+                  <h3 className="text-base font-black text-foreground mb-1 group-hover:text-accent transition-colors">{ticket.deviceModel}</h3>
+                  <p className="text-[10px] text-app-text-muted font-bold uppercase tracking-wider mb-4">S/N: {ticket.serialNumber}</p>
+                  
+                  <div className="space-y-2 border-t border-app-border/40 pt-4 mb-4">
+                    <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                      <User size={14} className="text-app-text-muted" />
+                      <span>{ticket.customerName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-app-text-muted">
+                      <Phone size={14} />
+                      <span>{ticket.customerPhone}</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-xs text-app-text-muted">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      <span className="line-clamp-2">{ticket.damageDescription}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-app-border/40">
+                  <div>
+                    <p className="text-[9px] text-app-text-muted font-black uppercase tracking-wider">Estimasi Biaya</p>
+                    <p className="text-sm font-black text-foreground">Rp {ticket.estimatedCost?.toLocaleString('id-ID')}</p>
+                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrintReceipt(ticket);
+                    }}
+                    className="p-3 bg-background hover:bg-accent/15 hover:text-accent rounded-xl text-app-text-muted transition-all"
+                  >
+                    <Printer size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ADD TICKET MODAL */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+          <div className="bg-surface border border-app-border rounded-[3rem] w-full max-w-xl shadow-2xl p-8 max-h-[90%] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-accent/20 text-accent rounded-xl flex items-center justify-center">
+                  <Wrench size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black uppercase text-foreground leading-none mb-1">Tiket Servis Baru</h2>
+                  <p className="text-[10px] text-app-text-muted font-bold uppercase">Registrasi Unit & Kerusakan</p>
+                </div>
+              </div>
+              <button onClick={() => setIsAddModalOpen(false)} className="p-2 bg-background hover:bg-surface border border-app-border rounded-full text-app-text-muted">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTicket} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Nama Pelanggan *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addForm.customerName}
+                    onChange={(e) => setAddForm({ ...addForm, customerName: e.target.value })}
+                    placeholder="e.g. Budi Raharjo"
+                    className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">No. Telepon</label>
+                  <input
+                    type="text"
+                    value={addForm.customerPhone}
+                    onChange={(e) => setAddForm({ ...addForm, customerPhone: e.target.value })}
+                    placeholder="e.g. 08123456789"
+                    className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Tipe / Model Perangkat *</label>
+                  <input
+                    type="text"
+                    required
+                    value={addForm.deviceModel}
+                    onChange={(e) => setAddForm({ ...addForm, deviceModel: e.target.value })}
+                    placeholder="e.g. iPhone 13 Pro"
+                    className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">S/N atau IMEI</label>
+                  <input
+                    type="text"
+                    value={addForm.serialNumber}
+                    onChange={(e) => setAddForm({ ...addForm, serialNumber: e.target.value })}
+                    placeholder="e.g. SN8291039832"
+                    className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Kerusakan / Keluhan *</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={addForm.damageDescription}
+                  onChange={(e) => setAddForm({ ...addForm, damageDescription: e.target.value })}
+                  placeholder="Deskripsikan gejala kerusakan pada unit perangkat..."
+                  className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent resize-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Estimasi Biaya Awal (Rp)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-app-text-muted">Rp</span>
+                  <input
+                    type="number"
+                    value={addForm.estimatedCost}
+                    onChange={(e) => setAddForm({ ...addForm, estimatedCost: e.target.value })}
+                    placeholder="0"
+                    className="w-full pl-12 pr-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Catatan Tambahan</label>
+                <input
+                  type="text"
+                  value={addForm.notes}
+                  onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                  placeholder="Catatan fisik casing lecet, kelengkapan charger dsb."
+                  className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="flex-1 py-4 bg-background border border-app-border hover:bg-surface rounded-2xl font-black text-[10px] uppercase tracking-widest text-app-text-muted transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-[2] py-4 bg-accent hover:bg-accent-hover text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                >
+                  {isSubmitting && <Loader2 className="animate-spin" size={14} />}
+                  Buat Tiket Servis
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL & TRACKING MODAL */}
+      {isDetailModalOpen && selectedTicket && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+          <div className="bg-surface border border-app-border rounded-[3rem] w-full max-w-4xl shadow-2xl p-8 max-h-[90%] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between mb-8 border-b pb-4" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-accent/20 text-accent rounded-xl flex items-center justify-center">
+                  <Wrench size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black uppercase text-foreground leading-none mb-1">Rincian Tiket Servis</h2>
+                  <p className="text-[10px] text-app-text-muted font-bold uppercase">Pelacakan Log & Pembaruan Status</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => handlePrintReceipt(selectedTicket)}
+                  className="p-2.5 bg-background border border-app-border hover:bg-surface text-app-text-muted hover:text-foreground rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+                >
+                  <Printer size={16} />
+                  Cetak Tanda Terima
+                </button>
+                
+                <button 
+                  onClick={() => handleDeleteTicket(selectedTicket.id)}
+                  className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+                >
+                  <Trash2 size={16} />
+                  Hapus
+                </button>
+
+                <button onClick={() => setIsDetailModalOpen(false)} className="p-2 bg-background hover:bg-surface border border-app-border rounded-full text-app-text-muted">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column: Info & Update Form */}
+              <div className="space-y-6">
+                <div className="bg-background border border-app-border rounded-[2rem] p-5 space-y-4">
+                  <h3 className="text-xs font-black uppercase text-app-text-muted tracking-wider border-b border-app-border/40 pb-2 mb-2">Informasi Unit</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <p className="text-[9px] font-black text-app-text-muted uppercase">Model / Perangkat</p>
+                      <p className="font-bold text-foreground mt-0.5">{selectedTicket.deviceModel}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-app-text-muted uppercase">Nomor Seri / IMEI</p>
+                      <p className="font-bold text-foreground mt-0.5">{selectedTicket.serialNumber}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-app-text-muted uppercase">Nama Pelanggan</p>
+                      <p className="font-bold text-foreground mt-0.5">{selectedTicket.customerName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-app-text-muted uppercase">Telepon Pelanggan</p>
+                      <p className="font-bold text-foreground mt-0.5">{selectedTicket.customerPhone}</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-app-border/40 pt-3">
+                    <p className="text-[9px] font-black text-app-text-muted uppercase">Kerusakan / Keluhan</p>
+                    <p className="text-xs font-medium text-foreground mt-1 bg-surface/50 p-3 rounded-xl border border-app-border/40">{selectedTicket.damageDescription}</p>
+                  </div>
+
+                  {selectedTicket.notes && (
+                    <div className="border-t border-app-border/40 pt-3">
+                      <p className="text-[9px] font-black text-app-text-muted uppercase">Catatan</p>
+                      <p className="text-xs italic text-app-text-muted mt-1">{selectedTicket.notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Update Card */}
+                <div className="bg-background border border-app-border rounded-[2rem] p-5 space-y-4">
+                  <h3 className="text-xs font-black uppercase text-app-text-muted tracking-wider border-b border-app-border/40 pb-2">Ubah Status Servis</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider">Status Baru</label>
+                      <select 
+                        value={newStatus}
+                        onChange={(e) => setNewStatus(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-background border border-app-border rounded-xl text-xs font-bold text-foreground focus:outline-none"
+                      >
+                        {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                          <option key={val} value={val}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider font-bold">Catatan Log Status (Penting)</label>
+                      <input 
+                        type="text"
+                        value={statusNote}
+                        onChange={(e) => setStatusNote(e.target.value)}
+                        placeholder="e.g. Masuk tahap solder IC power / Selesai ganti LCD"
+                        className="w-full px-4 py-2.5 bg-background border border-app-border rounded-xl text-xs font-bold focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleUpdateStatus}
+                      disabled={isUpdatingStatus || newStatus === selectedTicket.status}
+                      className="w-full py-3 bg-accent hover:bg-accent-hover disabled:bg-app-border text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      {isUpdatingStatus && <Loader2 className="animate-spin" size={12} />}
+                      Update Status Servis
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Real-Time logs history */}
+              <div className="flex flex-col">
+                <h3 className="text-xs font-black uppercase text-app-text-muted tracking-wider mb-4 pl-2 flex items-center gap-2">
+                  <History size={16} />
+                  Riwayat Progress Pelacakan Real-time
+                </h3>
+
+                <div className="flex-1 bg-background border border-app-border rounded-[2rem] p-6 overflow-y-auto max-h-[360px]">
+                  <div className="relative border-l border-app-border/80 pl-6 ml-2.5 space-y-6">
+                    {selectedTicket.history && [...selectedTicket.history].reverse().map((log: any, idx: number) => {
+                      const color = STATUS_COLORS[log.status] || STATUS_COLORS.received;
+                      return (
+                        <div key={idx} className="relative">
+                          {/* Dot Badge */}
+                          <div className="absolute -left-[31px] top-0 w-3 h-3 rounded-full border-2 border-background bg-accent"></div>
+                          
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] text-app-text-muted font-bold">
+                                {new Date(log.timestamp).toLocaleString('id-ID')}
+                              </span>
+                              <span className={`px-2 py-0.5 text-[8px] font-black uppercase rounded ${color.bg} ${color.text}`}>
+                                {STATUS_LABELS[log.status]}
+                              </span>
+                            </div>
+                            <p className="text-xs font-semibold text-foreground">{log.notes}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

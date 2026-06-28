@@ -1454,6 +1454,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'estimasi', title: 'Estimasi Biaya' });
             }, false, isSubscriptionExpired, 0, '/estimations')}
+            {renderMenuItem('Servis Elektronik', '🔧', '#8b5cf6', () => {
+              Vibration.vibrate(10);
+              navigation.navigate('FeatureDetails', { featureId: 'service_elektronik', title: 'Servis Elektronik' });
+            }, false, isSubscriptionExpired, 0, '/services')}
             {renderMenuItem('Hutang Piutang', '💸', '#f43f5e', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'piutang', title: 'Hutang Piutang' });

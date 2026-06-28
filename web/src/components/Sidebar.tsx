@@ -30,6 +30,7 @@ const menuItems = [
   { name: 'Kasir (POS)', path: '/pos', icon: '🛒', permission: 'canAccessPOS' },
   { name: 'Daftar Pesanan', path: '/orders', icon: '📦', permission: 'canManageOrders' },
   { name: 'Estimasi Biaya', path: '/estimations', icon: '📋', permission: 'canManageEstimations' },
+  { name: 'Servis Elektronik', path: '/services', icon: '🔧', permission: 'canManageEstimations' },
   { name: 'Panel Super Admin', path: '/super-admin', icon: '🔑', superOnly: true },
   { name: 'Shift Karyawan', path: '/shifts', icon: '⏰', permission: 'canAccessPOS' },
   { name: 'Dashboard', path: '/', icon: '📊', permission: 'canViewReports' },

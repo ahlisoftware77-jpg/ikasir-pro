@@ -16,13 +16,33 @@ import {
   Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
-  Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid
+  Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+
+const STATUS_LABELS: Record<string, string> = {
+  received: 'Diterima',
+  checking: 'Pengecekan',
+  pending_part: 'Menunggu Part',
+  repairing: 'Sedang Diperbaiki',
+  completed: 'Selesai',
+  cancelled: 'Dibatalkan',
+  taken: 'Sudah Diambil'
+};
+
+const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  received: { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.2)' },
+  checking: { bg: 'rgba(139, 92, 246, 0.1)', text: '#8b5cf6', border: 'rgba(139, 92, 246, 0.2)' },
+  pending_part: { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.2)' },
+  repairing: { bg: 'rgba(249, 115, 22, 0.1)', text: '#f97316', border: 'rgba(249, 115, 22, 0.2)' },
+  completed: { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981', border: 'rgba(16, 185, 129, 0.2)' },
+  cancelled: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.2)' },
+  taken: { bg: 'rgba(100, 116, 139, 0.1)', text: '#64748b', border: 'rgba(100, 116, 139, 0.2)' }
+};
 
 export default function FeatureScreen({ route, navigation }: any) {
   const { colors } = useTheme();
@@ -164,6 +184,23 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   }, [selectedCashFlow]);
 
+  // --- SYNCED SERVIS ELEKTRONIK STATES ---
+  const [serviceTickets, setServiceTickets] = useState<any[]>([]);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [serviceStatusFilter, setServiceStatusFilter] = useState<'all' | 'active' | 'completed' | 'taken' | 'cancelled'>('all');
+  const [selectedServiceTicket, setSelectedServiceTicket] = useState<any | null>(null);
+  const [isServiceDetailVisible, setIsServiceDetailVisible] = useState(false);
+  const [newServiceStatus, setNewServiceStatus] = useState('');
+  const [serviceStatusNote, setServiceStatusNote] = useState('');
+  const [isUpdatingServiceStatus, setIsUpdatingServiceStatus] = useState(false);
+
+  // Service form states
+  const [serviceFormSerial, setServiceFormSerial] = useState('');
+  const [serviceFormDamage, setServiceFormDamage] = useState('');
+  const [serviceFormCost, setServiceFormCost] = useState('');
+  const [serviceFormNotes, setServiceFormNotes] = useState('');
+
+
   const fetchAndShowTransaction = async (trxId: string) => {
     setIsFetchingTrx(true);
     try {
@@ -201,6 +238,68 @@ export default function FeatureScreen({ route, navigation }: any) {
     } finally {
       setIsSavingSubNotes(false);
     }
+  };
+
+  const handleUpdateServiceStatus = async () => {
+    if (!selectedServiceTicket || !newServiceStatus) return;
+
+    setIsUpdatingServiceStatus(true);
+    try {
+      const now = new Date().toISOString();
+      const newHistoryLog = {
+        status: newServiceStatus,
+        notes: serviceStatusNote || `Status diperbarui menjadi ${STATUS_LABELS[newServiceStatus] || newServiceStatus}`,
+        timestamp: now
+      };
+
+      const updatedHistory = [...(selectedServiceTicket.history || []), newHistoryLog];
+
+      await updateDoc(doc(db, 'service_tickets', selectedServiceTicket.id), {
+        status: newServiceStatus,
+        updatedAt: now,
+        history: updatedHistory
+      });
+
+      setSelectedServiceTicket((prev: any) => ({
+        ...prev,
+        status: newServiceStatus,
+        updatedAt: now,
+        history: updatedHistory
+      }));
+
+      setServiceStatusNote('');
+      Alert.alert("Sukses", "Status servis berhasil diperbarui!");
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("Eror", "Gagal memperbarui status: " + err.message);
+    } finally {
+      setIsUpdatingServiceStatus(false);
+    }
+  };
+
+  const handleDeleteServiceTicket = async (id: string) => {
+    Alert.alert(
+      "Konfirmasi Hapus",
+      "Apakah Anda yakin ingin menghapus tiket servis ini?",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'service_tickets', id));
+              setIsServiceDetailVisible(false);
+              setSelectedServiceTicket(null);
+              Alert.alert("Sukses", "Tiket servis berhasil dihapus!");
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert("Eror", "Gagal menghapus tiket: " + err.message);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Piutang States
@@ -343,6 +442,26 @@ export default function FeatureScreen({ route, navigation }: any) {
 
     try {
       switch (featureId) {
+        case 'service_elektronik':
+          q = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
+          unsubscribe = onSnapshot(q, (snapshot) => {
+            const docs: any[] = [];
+            snapshot.forEach((doc) => {
+              docs.push({ id: doc.id, ...doc.data() });
+            });
+            docs.sort((a, b) => {
+              const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+              const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+              return timeB - timeA;
+            });
+            setServiceTickets(docs);
+            setLoading(false);
+          }, (err) => {
+            console.error("Error loading service tickets:", err);
+            setLoading(false);
+          });
+          break;
+
         case 'estimasi':
           q = query(collection(db, 'estimations'), where('storeId', '==', storeId));
           unsubscribe = onSnapshot(q, (snapshot) => {
@@ -1735,6 +1854,38 @@ export default function FeatureScreen({ route, navigation }: any) {
       const pr = parseFloat(formPrice) || 0;
 
       switch (featureId) {
+        case 'service_elektronik':
+          if (!formCustomer || !formName || !serviceFormDamage) {
+            Alert.alert('Eror', 'Harap isi Nama Pelanggan, Tipe Unit, dan Kerusakan');
+            return;
+          }
+          const nowStr = new Date().toISOString();
+          await addDoc(collection(db, 'service_tickets'), {
+            storeId,
+            customerName: formCustomer,
+            customerPhone: formPhone || '-',
+            deviceModel: formName,
+            serialNumber: serviceFormSerial || '-',
+            damageDescription: serviceFormDamage,
+            estimatedCost: parseFloat(serviceFormCost) || 0,
+            status: 'received',
+            notes: serviceFormNotes || '',
+            timestamp: nowStr,
+            updatedAt: nowStr,
+            history: [
+              {
+                status: 'received',
+                notes: 'Tiket servis dibuat. Perangkat diterima oleh kasir.',
+                timestamp: nowStr
+              }
+            ]
+          });
+          setServiceFormSerial('');
+          setServiceFormDamage('');
+          setServiceFormCost('');
+          setServiceFormNotes('');
+          break;
+
         case 'estimasi':
           if (!formName || !formBaseCost || !formPrice) {
             Alert.alert('Eror', 'Harap isi semua kolom');
@@ -2390,6 +2541,18 @@ export default function FeatureScreen({ route, navigation }: any) {
 
   const renderFormFields = () => {
     switch (featureId) {
+      case 'service_elektronik':
+        return (
+          <>
+            {renderTextInput('Nama Pelanggan *', formCustomer, setFormCustomer, 'e.g. Budi Raharjo')}
+            {renderTextInput('Nomor Telepon', formPhone, setFormPhone, 'e.g. 08123456789', 'phone-pad')}
+            {renderTextInput('Model / Perangkat *', formName, setFormName, 'e.g. iPhone 13 Pro')}
+            {renderTextInput('S/N atau IMEI', serviceFormSerial, setServiceFormSerial, 'e.g. SN8291039832')}
+            {renderTextInput('Kerusakan / Keluhan *', serviceFormDamage, setServiceFormDamage, 'Deskripsikan gejala kerusakan...')}
+            {renderTextInput('Estimasi Biaya Awal (Rp)', serviceFormCost, setServiceFormCost, '0', 'numeric')}
+            {renderTextInput('Catatan Tambahan', serviceFormNotes, setServiceFormNotes, 'e.g. Casing lecet, kelengkapan unit dsb')}
+          </>
+        );
       case 'estimasi':
         return (
           <>
@@ -2876,6 +3039,159 @@ export default function FeatureScreen({ route, navigation }: any) {
   // --- RENDER CONTENT BY FEATURE ---
   const renderContent = () => {
     switch (featureId) {
+      case 'service_elektronik':
+        const filteredTickets = serviceTickets.filter(t => {
+          const matchesSearch = 
+            (t.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.deviceModel || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.serialNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.customerPhone || '').includes(search);
+            
+          if (serviceStatusFilter === 'all') return matchesSearch;
+          if (serviceStatusFilter === 'active') {
+            return matchesSearch && ['received', 'checking', 'pending_part', 'repairing'].includes(t.status);
+          }
+          return matchesSearch && t.status === serviceStatusFilter;
+        });
+
+        return (
+          <View className="flex-1">
+            {/* Filter Tabs Scrollable */}
+            <View className="h-12 mb-2">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+                {[
+                  { label: 'Semua', val: 'all' },
+                  { label: 'Aktif', val: 'active' },
+                  { label: 'Selesai', val: 'completed' },
+                  { label: 'Sudah Diambil', val: 'taken' },
+                  { label: 'Batal', val: 'cancelled' }
+                ].map(btn => (
+                  <TouchableOpacity
+                    key={btn.val}
+                    onPress={() => setServiceStatusFilter(btn.val as any)}
+                    activeOpacity={0.8}
+                    className="px-4 py-2 rounded-xl justify-center items-center mr-1"
+                    style={{ 
+                      backgroundColor: serviceStatusFilter === btn.val ? colors.accent : colors.surface, 
+                      borderWidth: 1, 
+                      borderColor: colors.border,
+                      height: 38
+                    }}
+                  >
+                    <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: serviceStatusFilter === btn.val ? '#ffffff' : colors.text }}>
+                      {btn.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <FlatList
+              data={filteredTickets}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 80 }}
+              renderItem={({ item }) => {
+                const color = STATUS_COLORS[item.status] || STATUS_COLORS.received;
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedServiceTicket(item);
+                      setNewServiceStatus(item.status);
+                      setIsServiceDetailVisible(true);
+                    }}
+                    activeOpacity={0.85}
+                    className="p-4 rounded-3xl border mb-3 flex-col"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
+                    <View className="flex-row justify-between items-center mb-2">
+                      <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>
+                        #ST-{item.id.substring(0, 6).toUpperCase()}
+                      </Text>
+                      <View className="px-2 py-0.5 rounded border" style={{ backgroundColor: color.bg, borderColor: color.border }}>
+                        <Text className="text-[8px] font-black uppercase" style={{ color: color.text }}>
+                          {STATUS_LABELS[item.status]}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text className="text-sm font-black mb-0.5" style={{ color: colors.text }}>
+                      {item.deviceModel}
+                    </Text>
+                    <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>
+                      S/N: {item.serialNumber}
+                    </Text>
+
+                    <View className="border-t pt-3 flex-col gap-1.5" style={{ borderColor: colors.border + '15' }}>
+                      <View className="flex-row items-center gap-1.5">
+                        <User size={12} color={colors.textMuted} />
+                        <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                          {item.customerName}
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center gap-1.5">
+                          <Phone size={12} color={colors.textMuted} />
+                          <Text className="text-xs font-medium" style={{ color: colors.textMuted }}>
+                            {item.customerPhone}
+                          </Text>
+                        </View>
+                        {item.customerPhone && item.customerPhone !== '-' && (
+                          <TouchableOpacity
+                            onPress={() => Linking.openURL(`https://wa.me/${item.customerPhone.replace(/[^0-9]/g, '')}`)}
+                            className="px-2 py-1 bg-emerald-500/10 rounded-lg"
+                          >
+                            <Text className="text-[8px] font-black text-emerald-500 uppercase">Hubungi WA</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <View className="flex-row items-start gap-1.5 mt-1 bg-black/5 p-2 rounded-xl">
+                        <AlertTriangle size={12} color="#f59e0b" style={{ marginTop: 1 }} />
+                        <Text className="text-[10px] font-medium flex-1" style={{ color: colors.text }}>
+                          {item.damageDescription}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="border-t pt-3 mt-3 flex-row justify-between items-center" style={{ borderColor: colors.border + '15' }}>
+                      <View>
+                        <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>
+                          Estimasi Biaya
+                        </Text>
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>
+                          Rp {item.estimatedCost?.toLocaleString('id-ID')}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const receiptHtml = `
+                            No. Tiket: #ST-${item.id.substring(0,6).toUpperCase()}
+                            Pelanggan: ${item.customerName}
+                            Perangkat: ${item.deviceModel}
+                            Kerusakan: ${item.damageDescription}
+                            Estimasi Biaya: Rp ${item.estimatedCost?.toLocaleString('id-ID')}
+                            Status: ${STATUS_LABELS[item.status]}
+                          `;
+                          Share.share({ message: receiptHtml });
+                        }}
+                        className="p-2 bg-black/5 rounded-xl"
+                      >
+                        <Share2 size={14} color={colors.text} />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <View className="py-20 items-center justify-center">
+                  <Wrench size={36} color={colors.textMuted} className="mb-3" />
+                  <Text className="text-xs font-bold text-slate-400">Tidak ada tiket servis ditemukan.</Text>
+                </View>
+              }
+            />
+          </View>
+        );
+
       case 'estimasi':
         const filteredEstimations = estimations.filter(e => {
           const matchesSearch = (e.customerName || e.name || '').toLowerCase().includes(search.toLowerCase());
@@ -6428,6 +6744,163 @@ export default function FeatureScreen({ route, navigation }: any) {
 
           </View>
         </View>
+      {/* 8. MODAL DETAIL SERVIS ELEKTRONIK */}
+      <Modal
+        visible={isServiceDetailVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsServiceDetailVisible(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-end items-center">
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 flex-col max-h-[85%]" style={{ backgroundColor: colors.surface }}>
+            
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-5 border-b pb-3" style={{ borderColor: colors.border + '15' }}>
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-xl bg-accent/15 items-center justify-center">
+                  <Wrench color={colors.accent} size={20} />
+                </View>
+                <View>
+                  <Text className="text-sm font-black uppercase tracking-tight" style={{ color: colors.text }}>
+                    Detail Tiket Servis
+                  </Text>
+                  <Text className="text-[10px] font-bold text-slate-400">
+                    Pelacakan Real-time Perangkat
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsServiceDetailVisible(false)}
+                className="w-10 h-10 rounded-full bg-black/10 items-center justify-center"
+              >
+                <X color={colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedServiceTicket && (
+              <ScrollView className="space-y-4 mb-4" showsVerticalScrollIndicator={false}>
+                {/* Details Section */}
+                <View className="p-4 rounded-3xl border space-y-2.5" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Model Perangkat</Text>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>{selectedServiceTicket.deviceModel}</Text>
+                  </View>
+                  <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No Seri / IMEI</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>{selectedServiceTicket.serialNumber}</Text>
+                  </View>
+                  <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nama Pelanggan</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>{selectedServiceTicket.customerName}</Text>
+                  </View>
+                  <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No. Telepon</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>{selectedServiceTicket.customerPhone}</Text>
+                  </View>
+                  <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estimasi Biaya</Text>
+                    <Text className="text-xs font-black text-emerald-500 font-bold">Rp {selectedServiceTicket.estimatedCost?.toLocaleString('id-ID')}</Text>
+                  </View>
+                  <View className="flex-col pb-2">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Gejala Kerusakan</Text>
+                    <Text className="text-xs font-medium" style={{ color: colors.text }}>{selectedServiceTicket.damageDescription}</Text>
+                  </View>
+                </View>
+
+                {/* Status Update Controls */}
+                <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ubah Status Servis</Text>
+                  
+                  <View className="flex-row bg-black/10 p-1 rounded-2xl gap-1 flex-wrap">
+                    {Object.keys(STATUS_LABELS).map(statusKey => (
+                      <TouchableOpacity
+                        key={statusKey}
+                        onPress={() => setNewServiceStatus(statusKey)}
+                        className="px-2.5 py-1.5 rounded-lg mr-1 mb-1 items-center justify-center"
+                        style={{ backgroundColor: newServiceStatus === statusKey ? colors.accent : 'transparent' }}
+                      >
+                        <Text className="text-[8px] font-black uppercase" style={{ color: newServiceStatus === statusKey ? '#ffffff' : colors.text }}>
+                          {STATUS_LABELS[statusKey]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <TextInput
+                    placeholder="Tulis catatan update status (opsional)..."
+                    placeholderTextColor={colors.textMuted + '60'}
+                    value={serviceStatusNote}
+                    onChangeText={setServiceStatusNote}
+                    className="p-3 rounded-xl border text-xs font-bold"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                  />
+
+                  <TouchableOpacity
+                    onPress={handleUpdateServiceStatus}
+                    disabled={isUpdatingServiceStatus || newServiceStatus === selectedServiceTicket.status}
+                    className="py-3 rounded-xl items-center justify-center"
+                    style={{ backgroundColor: colors.accent, opacity: (newServiceStatus === selectedServiceTicket.status) ? 0.5 : 1 }}
+                  >
+                    <Text className="text-[10px] font-black uppercase text-white tracking-wider">
+                      {isUpdatingServiceStatus ? 'Memproses...' : 'Simpan Pembaruan Status'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Riwayat Logs tracking */}
+                <View className="space-y-2 mt-2">
+                  <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Riwayat Progress Servis</Text>
+                  <View className="p-4 rounded-3xl border space-y-4" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                    {selectedServiceTicket.history && [...selectedServiceTicket.history].reverse().map((log: any, idx: number) => {
+                      const color = STATUS_COLORS[log.status] || STATUS_COLORS.received;
+                      return (
+                        <View key={idx} className="flex-row items-start gap-3 border-l-2 pl-3" style={{ borderColor: colors.accent }}>
+                          <View className="flex-1">
+                            <View className="flex-row items-center gap-2 mb-0.5">
+                              <Text className="text-[9px] text-slate-400 font-bold">
+                                {new Date(log.timestamp).toLocaleString('id-ID')}
+                              </Text>
+                              <View className="px-1.5 py-0.5 rounded" style={{ backgroundColor: color.bg, borderColor: color.border }}>
+                                <Text className="text-[7px] font-black uppercase" style={{ color: color.text }}>
+                                  {STATUS_LABELS[log.status]}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text className="text-xs font-bold" style={{ color: colors.text }}>{log.notes}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => handleDeleteServiceTicket(selectedServiceTicket.id)}
+                className="flex-1 py-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
+              >
+                <Text className="font-black text-xs uppercase tracking-widest text-rose-500">
+                  Hapus Tiket
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setIsServiceDetailVisible(false)}
+                activeOpacity={0.8}
+                className="flex-2 py-4 rounded-2xl items-center justify-center border"
+                style={{ borderColor: colors.border, backgroundColor: 'transparent' }}
+              >
+                <Text className="font-black text-xs uppercase tracking-widest" style={{ color: colors.text }}>
+                  Tutup Detail
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+
       </Modal>
 
     </SafeAreaView>
