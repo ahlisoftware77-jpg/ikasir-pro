@@ -6794,7 +6794,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
 
             <ScrollView className="max-h-[450px] mb-6" showsVerticalScrollIndicator={false}>
               <View className="flex gap-3">
-                [
+                {[
                   { key: 'canAccessPOS', label: 'Buka Menu Kasir (POS)', desc: 'Boleh melakukan transaksi penjualan' },
                   { key: 'canManageProducts', label: 'Manajemen Produk', desc: 'Akses ke daftar/stok barang' },
                   { key: 'canViewReports', label: 'Buka Menu Laporan', desc: 'Boleh melihat omzet & riwayat' },
