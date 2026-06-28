@@ -7337,11 +7337,11 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
+
               <TouchableOpacity
                 onPress={() => setIsServiceDetailVisible(false)}
                 activeOpacity={0.8}
-                className="flex-1 py-4 rounded-2xl items-center justify-center border"
+                className="w-full py-4 rounded-2xl items-center justify-center border"
                 style={{ borderColor: colors.border, backgroundColor: 'transparent' }}
               >
                 <Text className="font-black text-xs uppercase tracking-widest" style={{ color: colors.text }}>
