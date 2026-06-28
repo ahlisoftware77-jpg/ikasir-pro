@@ -1285,6 +1285,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         '/pos': 'canAccessPOS',
         '/orders': 'canManageOrders',
         '/estimations': 'canManageEstimations',
+        '/services': 'canManageEstimations',
         '/shifts': 'canAccessPOS',
         '/products': 'canManageProducts',
         '/transactions': 'canAccessPOS',

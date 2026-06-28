@@ -664,6 +664,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         else if (pathname.startsWith('/products') && !permissions.canManageProducts) {
           router.push('/pos');
         }
+        // Services Check
+        else if (pathname.startsWith('/services') && !permissions.canManageEstimations) {
+          router.push('/');
+        }
         // Users Check
         else if (pathname === '/users' && !permissions.canManageUsers) {
           router.push('/');

@@ -2668,6 +2668,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                       { name: 'Kasir (POS)', path: '/pos' },
                       { name: 'Daftar Pesanan', path: '/orders' },
                       { name: 'Estimasi Biaya', path: '/estimations' },
+                      { name: 'Servis Elektronik', path: '/services' },
                       { name: 'Shift Karyawan', path: '/shifts' },
                       { name: 'Manajemen Produk', path: '/products' },
                       { name: 'Transaksi', path: '/transactions' },
