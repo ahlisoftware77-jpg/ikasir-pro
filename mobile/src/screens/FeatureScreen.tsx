@@ -447,14 +447,42 @@ export default function FeatureScreen({ route, navigation }: any) {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setIsUploadingAttachment(true);
         const imageUri = result.assets[0].uri;
-        
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
-        
-        const storageRef = ref(storage, `service_attachments/${selectedServiceTicket.id}/${Date.now()}`);
-        await uploadBytes(storageRef, blob);
-        const downloadUrl = await getDownloadURL(storageRef);
-        
+
+        const docSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+        let cloudName = 'dkcjfwbvc';
+        let uploadPreset = 'kasirpos';
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.cloudinary_cloud_name) cloudName = data.cloudinary_cloud_name;
+          if (data.cloudinary_upload_preset) uploadPreset = data.cloudinary_upload_preset;
+        }
+
+        const uploadData = new FormData();
+        const uriParts = imageUri.split('.');
+        const fileType = uriParts[uriParts.length - 1];
+        uploadData.append('file', {
+          uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
+          type: `image/${fileType}`,
+          name: `upload_${Date.now()}.${fileType}`,
+        } as any);
+        uploadData.append('upload_preset', uploadPreset);
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+          method: 'POST',
+          body: uploadData,
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error?.message || 'Gagal mengunggah ke Cloudinary');
+        }
+
+        const uploadResult = await uploadRes.json();
+        const downloadUrl = uploadResult.secure_url;
+
         const updatedAttachments = [...(selectedServiceTicket.attachments || []), downloadUrl];
         await updateDoc(doc(db, 'service_tickets', selectedServiceTicket.id), {
           attachments: updatedAttachments
@@ -465,7 +493,7 @@ export default function FeatureScreen({ route, navigation }: any) {
           attachments: updatedAttachments
         }));
 
-        Alert.alert('Sukses', 'Foto bukti berhasil dilampirkan!');
+        Alert.alert('Sukses', 'Foto bukti berhasil dilampirkan via Cloudinary!');
       }
     } catch (error: any) {
       console.error(error);
@@ -497,11 +525,6 @@ export default function FeatureScreen({ route, navigation }: any) {
                 ...prev,
                 attachments: updatedAttachments
               }));
-
-              if (imageUrl.includes("firebasestorage")) {
-                const fileRef = ref(storage, imageUrl);
-                await deleteObject(fileRef).catch(console.error);
-              }
 
               Alert.alert("Sukses", "Foto bukti berhasil dihapus!");
             } catch (err: any) {

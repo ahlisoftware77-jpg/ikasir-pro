@@ -38,6 +38,7 @@ import {
   Share2
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth';
+import { getInfraConfig } from '@/lib/infraConfig';
 import { useBranding } from '@/context/BrandingContext';
 import toast from 'react-hot-toast';
 
@@ -375,9 +376,24 @@ export default function ServicesPage() {
     setIsUploadingAttachment(true);
 
     try {
-      const storageRef = ref(storage, `service_attachments/${selectedTicket.id}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
+      const config = await getInfraConfig();
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+
+      const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: uploadData
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error?.message || 'Gagal mengunggah ke Cloudinary');
+      }
+
+      const uploadResult = await uploadRes.json();
+      const downloadUrl = uploadResult.secure_url;
 
       const updatedAttachments = [...(selectedTicket.attachments || []), downloadUrl];
       const docRef = doc(db, 'service_tickets', selectedTicket.id);
@@ -388,7 +404,7 @@ export default function ServicesPage() {
         attachments: updatedAttachments
       }));
 
-      toast.success("Foto bukti berhasil dilampirkan!");
+      toast.success("Foto bukti berhasil dilampirkan via Cloudinary!");
     } catch (err: any) {
       toast.error("Gagal mengunggah foto: " + err.message);
     } finally {
@@ -409,11 +425,6 @@ export default function ServicesPage() {
         ...prev,
         attachments: updatedAttachments
       }));
-
-      if (imageUrl.includes("firebasestorage")) {
-        const fileRef = ref(storage, imageUrl);
-        await deleteObject(fileRef).catch(console.error);
-      }
 
       toast.success("Foto bukti berhasil dihapus!");
     } catch (err: any) {
