@@ -223,7 +223,8 @@ function PublicOrderContent() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isConfirmingCheckout, setIsConfirmingCheckout] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<'pickup' | 'delivery'>('pickup');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'qris'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'qris' | 'debt'>('cash');
+  const [downPayment, setDownPayment] = useState<number>(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [selectedStoreBankId, setSelectedStoreBankId] = useState<string>('');
   const [selectedStoreEwalletId, setSelectedStoreEwalletId] = useState<string>('');
@@ -789,14 +790,15 @@ function PublicOrderContent() {
             : null,
         paymentProofUrl: (paymentMethod === 'transfer' || paymentMethod === 'qris') ? paymentProofUrl : '',
         orderStatus: 'new',
-        paymentStatus: 'pending',
+        paymentStatus: paymentMethod === 'debt' ? (downPayment >= finalTotal ? 'paid' : (downPayment > 0 ? 'partially_paid' : 'unpaid')) : 'pending',
+        paymentCategory: paymentMethod === 'debt' ? 'debt' : 'order',
         deliveryType: fulfillmentType,
         deliveryAddress: fulfillmentType === 'delivery' ? deliveryAddress : '',
         orderType: 'online',
         cashierName: 'Online (Sistem)',
         cashierId: 'online',
-        paidAmount: 0,
-        debtAmount: finalTotal,
+        paidAmount: paymentMethod === 'debt' ? downPayment : 0,
+        debtAmount: paymentMethod === 'debt' ? Math.max(0, finalTotal - downPayment) : finalTotal,
         timestamp: serverTimestamp(),
       };
 
@@ -1694,14 +1696,14 @@ function PublicOrderContent() {
                                  placeholder="Masukkan alamat lengkap..."
                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 pl-12 text-sm font-bold focus:outline-none focus:border-tr transition-all min-h-[100px] text-slate-900"
                                />
-                            </div>
-                         </div>
+                             </div>
+                          </div>
                        )}
 
                         {/* Method Selection */}
                         <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300 pt-2">
                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metode Pembayaran</label>
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                               <button 
                                 onClick={() => setPaymentMethod('cash')}
                                 className={`p-5 rounded-3xl border transition-all flex items-center justify-start gap-4 active:scale-[0.98] ${paymentMethod === 'cash' ? 'border-tr bg-tr text-white shadow-lg shadow-tr/20 font-black' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'}`}
@@ -1732,9 +1734,20 @@ function PublicOrderContent() {
                                     <div className="text-[9px] opacity-70">Gopay / Ovo / Dana</div>
                                  </div>
                               </button>
+                              <button 
+                                onClick={() => setPaymentMethod('debt')}
+                                className={`p-5 rounded-3xl border transition-all flex items-center justify-start gap-4 active:scale-[0.98] ${paymentMethod === 'debt' ? 'border-tr bg-tr text-white shadow-lg shadow-tr/20 font-black' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'}`}
+                              >
+                                 <ClipboardList size={24} className={paymentMethod === 'debt' ? 'text-white' : 'text-slate-400'} />
+                                 <div className="text-left">
+                                    <div className="text-[10px] font-black uppercase tracking-widest">Piutang / Hutang</div>
+                                    <div className="text-[9px] opacity-70">Bayar Nanti / Tempo</div>
+                                 </div>
+                              </button>
                            </div>
-                          {paymentMethod !== 'cash' && (
-                              <div className="p-4 bg-tr/5 border border-tr/20 rounded-2xl flex flex-col gap-3 text-tr">
+                        </div>
+                        {(paymentMethod === 'transfer' || paymentMethod === 'qris') && (
+                            <div className="p-4 bg-tr/5 border border-tr/20 rounded-2xl flex flex-col gap-3 text-tr">
                                 <div className="flex items-center gap-3">
                                   <AlertTriangle size={18} className="shrink-0" />
                                   <p className="text-[10px] font-black uppercase leading-relaxed">Instruksi pembayaran {paymentMethod === 'transfer' ? 'Transfer Bank' : 'QRIS E-Wallet'} akan diinformasikan oleh staf kami melalui WhatsApp untuk konfirmasi pesanan.</p>
@@ -1955,8 +1968,31 @@ function PublicOrderContent() {
                                     )}
                                   </div>
                               </div>
-                          )}
-                       </div>
+                                              )}
+                           {paymentMethod === 'debt' && (
+                              <div className="p-4 bg-tr/5 border border-tr/20 rounded-3xl flex flex-col gap-3 text-slate-800 animate-in fade-in duration-300">
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Masukkan Uang Muka / DP (Rp)</label>
+                                  <div className="relative flex items-center">
+                                    <span className="absolute left-4 font-black text-xs text-slate-400">Rp</span>
+                                    <input
+                                      type="number"
+                                      placeholder="0"
+                                      value={downPayment || ''}
+                                      onChange={(e) => setDownPayment(Math.max(0, Number(e.target.value)))}
+                                      className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-2xl bg-white text-slate-900 font-black text-sm focus:outline-none focus:border-tr transition-all shadow-inner"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-center bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sisa Piutang</span>
+                                  <span className="text-sm font-black text-rose-500">
+                                    Rp {Math.max(0, (subtotalSum + (fulfillmentType === 'delivery' ? (storeSettings?.deliveryFee || 0) : 0) + (storeSettings?.useTax ? Math.round((subtotalSum * (storeSettings?.taxRate || 0)) / 100) : 0)) - downPayment).toLocaleString('id-ID')}
+                                  </span>
+                                </div>
+                              </div>
+                           )}
+                        </div>
 
                        {/* Summary Info */}
                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl space-y-2">
