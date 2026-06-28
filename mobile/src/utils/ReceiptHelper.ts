@@ -1571,7 +1571,7 @@ export const generateServiceReceiptHtml = (ticket: any, storeSettings?: any, bra
       </head>
       <body>
         <div class="header">
-          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `<div style="text-align: center; margin-bottom: 8px;"><img src="${storeSettings.logoUrl}" style="max-width: 100px; max-height: 70px; filter: grayscale(100%);" /></div>` : ''}
+          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `<div style="text-align: center; margin-bottom: 8px;"><img src="${storeSettings.logoUrl}" style="max-width: 100px; max-height: 70px;" /></div>` : ''}
           <div class="store-name">${cleanStoreName}</div>
           ${address ? `<div class="info">${address}</div>` : ''}
           ${phone ? `<div class="info">Telp: ${phone}</div>` : ''}
@@ -1706,14 +1706,23 @@ export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings
   await BluetoothEscposPrinter.printerInit();
   await BluetoothEscposPrinter.printerLeft();
 
-  if (storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl) {
+  const activeLogoUrl = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl;
+  if (activeLogoUrl && storeSettings?.showLogoOnReceipt !== false) {
     try {
-      const base64Logo = await convertUrlToBase64(storeSettings.logoUrl, 'logo_service_temp');
-      const pureBase64 = base64Logo.split(',')[1] || base64Logo;
-      await BluetoothEscposPrinter.printPic(pureBase64, { width: 160 });
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+      const uniqueId = Math.random().toString(36).substring(7);
+      const tempFile = `${FileSystem.cacheDirectory}temp_bt_logo_svc_${uniqueId}.jpg`;
+      const { uri } = await FileSystem.downloadAsync(activeLogoUrl, tempFile);
+      const base64Image = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      
+      await BluetoothEscposPrinter.printPic(base64Image, { width: 180, left: 0 });
       await BluetoothEscposPrinter.printText('\n\r', {});
-    } catch (e) {
-      console.warn("Skip print logo on bluetooth:", e);
+      
+      try {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      } catch (delErr) {}
+    } catch (err: any) {
+      console.warn("Gagal mencetak logo Bluetooth pada servis:", err);
     }
   }
 
@@ -1976,7 +1985,7 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
           <tr>
             <td class="header-logo" style="width: auto; padding-right: 15px; vertical-align: middle; text-align: left;">
               ${storeSettings?.logoUrl ? `
-                <img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
+                <img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; object-fit: contain;" />
               ` : ''}
             </td>
             <td class="header-store" style="text-align: left; vertical-align: middle;">

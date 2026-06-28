@@ -923,7 +923,7 @@ export const printServiceA4 = async (ticket: any, storeSettings: any, branding?:
           <tr>
             <td class="header-logo" style="width: auto; padding-right: 15px; vertical-align: middle; text-align: left;">
               ${logoData ? `
-                <img src="${logoData}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
+                <img src="${logoData}" style="max-width: 120px; max-height: 80px; object-fit: contain;" />
               ` : ''}
             </td>
             <td class="header-store" style="text-align: left; vertical-align: middle;">
