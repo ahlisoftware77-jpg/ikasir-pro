@@ -152,8 +152,10 @@ export default function ServicesPage() {
     setIsSubmitting(true);
     try {
       const now = new Date().toISOString();
+      const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
       const docData = {
         storeId,
+        ticketNo,
         customerName: addForm.customerName,
         customerPhone: addForm.customerPhone || '-',
         deviceModel: addForm.deviceModel,
@@ -216,7 +218,7 @@ export default function ServicesPage() {
           type: 'in',
           category: 'Servis Elektronik',
           amount: Number(selectedTicket.estimatedCost) || 0,
-          description: `Servis Selesai & Diambil: ${selectedTicket.deviceModel} (Ref: #ST-${selectedTicket.id.substring(0,6).toUpperCase()})`,
+          description: `Servis Selesai & Diambil: ${selectedTicket.deviceModel} (Ref: ${selectedTicket.ticketNo || `ST-${selectedTicket.id.substring(0,6).toUpperCase()}`})`,
           subNotes: [
             { description: `Perbaikan unit ${selectedTicket.deviceModel}`, amount: Number(selectedTicket.estimatedCost) || 0 }
           ],
@@ -412,7 +414,7 @@ export default function ServicesPage() {
               >
                 <div>
                   <div className="flex justify-between items-start mb-4">
-                    <span className="text-[10px] font-black text-app-text-muted">#ST-{ticket.id.substring(0,6).toUpperCase()}</span>
+                    <span className="text-[10px] font-black text-app-text-muted">{ticket.ticketNo || `ST-${ticket.id.substring(0,6).toUpperCase()}`}</span>
                     <span className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg border ${color.bg} ${color.text} ${color.border}`}>
                       {STATUS_LABELS[ticket.status]}
                     </span>
@@ -611,9 +613,14 @@ export default function ServicesPage() {
 
                 <button 
                   onClick={() => {
+                    const ticketIdentifier = selectedTicket.ticketNo 
+                      ? `no=${selectedTicket.ticketNo}` 
+                      : `id=${selectedTicket.id}`;
+                    const ticketDisplayNo = selectedTicket.ticketNo || `ST-${selectedTicket.id.substring(0,8).toUpperCase()}`;
+
                     const shareText = `*IKASIR PRO - Tanda Terima Servis*
 
-No. Tiket: #ST-${selectedTicket.id.substring(0,8).toUpperCase()}
+No. Tiket: ${ticketDisplayNo}
 Pelanggan: ${selectedTicket.customerName}
 Perangkat: ${selectedTicket.deviceModel}
 Kerusakan: ${selectedTicket.damageDescription}
@@ -621,7 +628,7 @@ Estimasi Biaya: Rp ${selectedTicket.estimatedCost?.toLocaleString('id-ID')}
 Status: ${STATUS_LABELS[selectedTicket.status]}
 
 Lacak status perbaikan Anda secara real-time di sini:
-https://ikasir.my.id/services/track?id=${selectedTicket.id}`;
+https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     navigator.clipboard.writeText(shareText);
                     toast.success("Link pelacakan disalin ke clipboard!");
                   }}

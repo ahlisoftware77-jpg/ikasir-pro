@@ -260,7 +260,7 @@ export default function FeatureScreen({ route, navigation }: any) {
           type: 'in',
           category: 'Servis Elektronik',
           amount: Number(selectedServiceTicket.estimatedCost) || 0,
-          description: `Servis Selesai & Diambil: ${selectedServiceTicket.deviceModel} (Ref: #ST-${selectedServiceTicket.id.substring(0,6).toUpperCase()})`,
+          description: `Servis Selesai & Diambil: ${selectedServiceTicket.deviceModel} (Ref: ${selectedServiceTicket.ticketNo || `ST-${selectedServiceTicket.id.substring(0,6).toUpperCase()}`})`,
           subNotes: [
             { description: `Perbaikan unit ${selectedServiceTicket.deviceModel}`, amount: Number(selectedServiceTicket.estimatedCost) || 0 }
           ],
@@ -1875,8 +1875,10 @@ export default function FeatureScreen({ route, navigation }: any) {
             return;
           }
           const nowStr = new Date().toISOString();
+          const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
           await addDoc(collection(db, 'service_tickets'), {
             storeId,
+            ticketNo,
             customerName: formCustomer,
             customerPhone: formPhone || '-',
             deviceModel: formName,
@@ -3121,7 +3123,7 @@ export default function FeatureScreen({ route, navigation }: any) {
                   >
                     <View className="flex-row justify-between items-center mb-2">
                       <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>
-                        #ST-{item.id.substring(0, 6).toUpperCase()}
+                        {item.ticketNo || `ST-${item.id.substring(0, 6).toUpperCase()}`}
                       </Text>
                       <View className="px-2 py-0.5 rounded border" style={{ backgroundColor: color.bg, borderColor: color.border }}>
                         <Text className="text-[8px] font-black uppercase" style={{ color: color.text }}>
@@ -6786,7 +6788,7 @@ https://ikasir.my.id/services/track?id=${item.id}`;
                 </View>
                 <View>
                   <Text className="text-sm font-black uppercase tracking-tight" style={{ color: colors.text }}>
-                    Detail Tiket Servis
+                    {selectedServiceTicket?.ticketNo || (selectedServiceTicket?.id ? `ST-${selectedServiceTicket.id.substring(0, 6).toUpperCase()}` : '')}
                   </Text>
                   <Text className="text-[10px] font-bold text-slate-400">
                     Pelacakan Real-time Perangkat
