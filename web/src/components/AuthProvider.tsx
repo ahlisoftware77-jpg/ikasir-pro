@@ -398,6 +398,54 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
                         ...userData.permissions
                       });
                     }
+
+                    if (userData.role === 'super-admin' || userData.role === 'superadmin' || !!(userData.permissions && userData.permissions.canAccessSuperAdminPanel)) {
+                      if (!unsubscribeSuperAdminNotifications) {
+                        const { collection, onSnapshot: fireOnSnapshot } = await import('firebase/firestore');
+                        const { useNotificationStore } = await import('@/store/notifications');
+                        
+                        unsubscribeSuperAdminNotifications = fireOnSnapshot(
+                          collection(primaryDb, 'superadmin_notifications'),
+                          (snapshot) => {
+                            try {
+                              const processedStr = localStorage.getItem('kasir-pro-processed-superadmin-notifications');
+                              const processedIds = processedStr ? JSON.parse(processedStr) : [];
+                              const newProcessedIds = [...processedIds];
+                              let changed = false;
+                              
+                              snapshot.docChanges().forEach((change) => {
+                                if (change.type === 'added') {
+                                  const data = change.doc.data();
+                                  const id = change.doc.id;
+                                  
+                                  if (!processedIds.includes(id)) {
+                                    useNotificationStore.getState().addNotification({
+                                      title: data.title,
+                                      body: data.message,
+                                      type: 'system',
+                                      metadata: {
+                                        superadminNotificationId: id,
+                                        createdAt: data.createdAt,
+                                        type: data.type,
+                                        registrationId: data.registrationId
+                                      }
+                                    });
+                                    newProcessedIds.push(id);
+                                    changed = true;
+                                  }
+                                }
+                              });
+                              
+                              if (changed) {
+                                localStorage.setItem('kasir-pro-processed-superadmin-notifications', JSON.stringify(newProcessedIds));
+                              }
+                            } catch (err) {
+                              console.error("Error processing superadmin notifications for sub-admin:", err);
+                            }
+                          }
+                        );
+                      }
+                    }
                   }
 
                   // SYNC DYNAMIC INFRASTRUCTURE (Multi-Tenancy)

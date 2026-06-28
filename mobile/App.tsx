@@ -466,7 +466,7 @@ function NavigationRoot() {
         if (userData.role) {
           useAuthStore.getState().setRole(userData.role);
           
-          if (userData.role === 'super-admin' || userData.role === 'superadmin') {
+          if (userData.role === 'super-admin' || userData.role === 'superadmin' || !!(userData.permissions && userData.permissions.canAccessSuperAdminPanel)) {
             if (!unsubSuperadminNotifications) {
               unsubSuperadminNotifications = onSnapshot(collection(db, 'superadmin_notifications'), async (snapshot) => {
                 try {

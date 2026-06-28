@@ -281,13 +281,13 @@ const orderListenerTask = async (_taskData?: { delay: number }) => {
 // ─── React Component ─────────────────────────────────────────────
 // Handles: foreground alerts, vibration, starting/stopping bg service
 export default function OrderNotificationListener() {
-  const { storeId, role } = useAuthStore();
+  const { storeId, role, permissions } = useAuthStore();
   const addNotification = useNotificationStore(state => state.addNotification);
   const appState = useRef(AppState.currentState);
 
   // Listen to new subscription requests if user is a superadmin
   useEffect(() => {
-    if (role !== 'superadmin' && role !== 'super-admin') return;
+    if (role !== 'superadmin' && role !== 'super-admin' && !(permissions && (permissions as any).canAccessSuperAdminPanel)) return;
 
     const q = query(
       collection(db, 'subscription_requests'),
@@ -336,7 +336,7 @@ export default function OrderNotificationListener() {
     });
 
     return () => unsubscribe();
-  }, [role, addNotification]);
+  }, [role, permissions, addNotification]);
 
   // 1. Request notification permissions and listen to Firebase ID Token changes
   useEffect(() => {
@@ -380,7 +380,7 @@ export default function OrderNotificationListener() {
   // 1.5 Get FCM Device Token and save to Firestore
   useEffect(() => {
     async function registerFCMToken() {
-      const targetStoreId = (role === 'superadmin' || role === 'super-admin') ? 'superadmin' : storeId;
+      const targetStoreId = (role === 'superadmin' || role === 'super-admin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel)) ? 'superadmin' : storeId;
       if (!targetStoreId) return;
       try {
         const { status } = await Notifications.getPermissionsAsync();
@@ -405,7 +405,7 @@ export default function OrderNotificationListener() {
     
     // Slight delay to ensure auth state is ready
     setTimeout(registerFCMToken, 2000);
-  }, [storeId, role]);
+  }, [storeId, role, permissions]);
 
   // 2. Start/stop the Android foreground service based on storeId
   useEffect(() => {
