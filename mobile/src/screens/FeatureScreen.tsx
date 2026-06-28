@@ -58,6 +58,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isSelectProductVisible, setIsSelectProductVisible] = useState(false);
   const [searchSelectCust, setSearchSelectCust] = useState('');
   const [searchSelectProd, setSearchSelectProd] = useState('');
+  const [selectedSelectProdCat, setSelectedSelectProdCat] = useState('Semua');
   const [loading, setLoading] = useState(true);
 
   // --- FORM STATES ---
@@ -771,9 +772,9 @@ export default function FeatureScreen({ route, navigation }: any) {
 
     try {
       switch (featureId) {
-        case 'service_elektronik':
+        case 'service_elektronik': {
           q = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
-          unsubscribe = onSnapshot(q, (snapshot) => {
+          const unsubTickets = onSnapshot(q, (snapshot) => {
             const docs: any[] = [];
             snapshot.forEach((doc) => {
               docs.push({ id: doc.id, ...doc.data() });
@@ -789,7 +790,38 @@ export default function FeatureScreen({ route, navigation }: any) {
             console.error("Error loading service tickets:", err);
             setLoading(false);
           });
+
+          const unsubCust = onSnapshot(query(collection(db, 'customers'), where('storeId', '==', storeId)), (snapshot) => {
+            const docs: any[] = [];
+            snapshot.forEach((doc) => {
+              docs.push({ id: doc.id, ...doc.data() });
+            });
+            setCustomers(docs);
+          }, (err) => {
+            console.error("Error loading customers for service:", err);
+          });
+
+          const unsubProds = onSnapshot(query(collection(db, 'products'), where('storeId', '==', storeId)), (snapshot) => {
+            const prods: any[] = [];
+            const cats = new Set<string>();
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              prods.push({ id: doc.id, ...data });
+              if (data.category) cats.add(data.category);
+            });
+            setAllProducts(prods);
+            setAllCategories(Array.from(cats).sort());
+          }, (err) => {
+            console.error("Error loading products for service:", err);
+          });
+
+          unsubscribe = () => {
+            unsubTickets();
+            unsubCust();
+            unsubProds();
+          };
           break;
+        }
 
         case 'estimasi':
           q = query(collection(db, 'estimations'), where('storeId', '==', storeId));
@@ -6159,11 +6191,38 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               onChangeText={setSearchSelectProd}
               placeholder="Cari produk..."
               placeholderTextColor={colors.textMuted}
-              className="w-full px-4 py-3 rounded-2xl border mb-4 font-bold text-xs"
+              className="w-full px-4 py-3 rounded-2xl border mb-3 font-bold text-xs"
               style={{ color: colors.text, borderColor: colors.border, backgroundColor: colors.bg }}
             />
+            {/* Category Filter Chips */}
+            <View className="mb-4">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+                {['Semua', ...allCategories].map((cat) => {
+                  const isActive = selectedSelectProdCat === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      onPress={() => setSelectedSelectProdCat(cat)}
+                      className="px-3 py-1.5 rounded-xl border mr-2"
+                      style={{
+                        backgroundColor: isActive ? colors.accent : colors.bg,
+                        borderColor: isActive ? colors.accent : colors.border + '25'
+                      }}
+                    >
+                      <Text className="text-[10px] font-black uppercase" style={{ color: isActive ? '#fff' : colors.text }}>
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
             <FlatList
-              data={allProducts.filter(p => p.name.toLowerCase().includes(searchSelectProd.toLowerCase()))}
+              data={allProducts.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(searchSelectProd.toLowerCase());
+                const matchesCat = selectedSelectProdCat === 'Semua' || p.category === selectedSelectProdCat;
+                return matchesSearch && matchesCat;
+              })}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
@@ -6180,6 +6239,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     }
                     setIsSelectProductVisible(false);
                     setSearchSelectProd('');
+                    setSelectedSelectProdCat('Semua');
                   }}
                   className="p-4 mb-2 rounded-2xl border"
                   style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}
