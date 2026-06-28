@@ -1976,8 +1976,8 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; padding: 30px; background-color: #fff; }
         .invoice-container { max-width: 800px; margin: 0 auto; }
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .header-logo { width: 120px; vertical-align: top; }
-        .header-store { text-align: right; vertical-align: top; }
+        .header-logo { width: 120px; vertical-align: top; text-align: right; }
+        .header-store { text-align: left; vertical-align: top; }
         .store-title { font-size: 18px; font-weight: 900; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
         .store-info { font-size: 11px; color: #475569; margin: 2px 0; }
         .title-section { text-align: center; margin-bottom: 20px; }
@@ -2007,16 +2007,16 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
         <!-- HEADER -->
         <table class="header-table">
           <tr>
-            <td class="header-logo">
-              ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `
-                <img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
-              ` : ''}
-            </td>
             <td class="header-store">
               <h3 class="store-title">${cleanStoreName}</h3>
               ${address ? `<p class="store-info">${address}</p>` : ''}
               ${phone ? `<p class="store-info">Telp: ${phone}</p>` : ''}
               ${storeNpwp}
+            </td>
+            <td class="header-logo">
+              ${storeSettings?.logoUrl ? `
+                <img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
+              ` : ''}
             </td>
           </tr>
         </table>
@@ -2174,7 +2174,7 @@ export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
   try {
     let finalSettings = settings;
     let base64Logo = '';
-    if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
+    if (finalSettings?.logoUrl) {
       base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_service_a4_logo');
     }
     if (base64Logo) {
