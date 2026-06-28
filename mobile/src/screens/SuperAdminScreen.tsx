@@ -685,7 +685,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         validUntil: editingUser.validUntil || '',
         name: editingUser.name,
         storeId: editingUser.storeId || 'default-store',
-        createdAt: editingUser.createdAt || new Date().toISOString()
+        createdAt: editingUser.createdAt || new Date().toISOString(),
+        permissions: editingUser.permissions || {}
       });
       Alert.alert('Sukses', 'Data pengguna berhasil diperbarui!');
       setEditingUser(null);
@@ -1806,6 +1807,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   <CalendarRange size={14} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
+            </View>
+
+            {/* Toggle Hak Akses Panel Super Admin */}
+            <View className="p-4 rounded-2xl border flex-row items-center justify-between" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              <View className="flex-1 pr-2">
+                <Text className="text-xs font-black" style={{ color: colors.text }}>Akses Panel Super Admin</Text>
+                <Text className="text-[9px] font-bold text-slate-400 italic mt-0.5">
+                  Izinkan pengguna ini mengelola dan membuka Panel Superadmin
+                </Text>
+              </View>
+              <Switch
+                value={!!(editingUser.permissions?.canAccessSuperAdminPanel)}
+                onValueChange={(val) => {
+                  const updatedPermissions = {
+                    ...(editingUser.permissions || {}),
+                    canAccessSuperAdminPanel: val
+                  };
+                  setEditingUser({
+                    ...editingUser,
+                    permissions: updatedPermissions
+                  });
+                }}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                thumbColor="#ffffff"
+                style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+              />
             </View>
 
             {/* Freeze and Subscription Toggles */}

@@ -594,7 +594,8 @@ export default function SuperAdminPage() {
         validUntil: editingUser.validUntil || '',
         name: editingUser.name,
         storeId: editingUser.storeId || 'default-store',
-        createdAt: editingUser.createdAt || new Date().toISOString()
+        createdAt: editingUser.createdAt || new Date().toISOString(),
+        permissions: editingUser.permissions || {}
       });
       alert('Data pengguna berhasil diperbarui!');
       setEditingUser(null);
@@ -3471,6 +3472,31 @@ export default function SuperAdminPage() {
                         </select>
                         <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text-muted" size={18} />
                      </div>
+                  </div>
+
+                  {/* Toggle Hak Akses Panel Super Admin */}
+                  <div className="flex items-center justify-between p-4 bg-background border border-app-border rounded-2xl">
+                     <div className="flex-1 pr-2">
+                        <p className="text-xs font-black text-foreground">Akses Panel Super Admin</p>
+                        <p className="text-[9px] font-bold text-app-text-muted italic mt-0.5">
+                           Izinkan pengguna ini mengelola dan membuka Panel Superadmin
+                        </p>
+                     </div>
+                     <input
+                        type="checkbox"
+                        checked={!!(editingUser.permissions?.canAccessSuperAdminPanel)}
+                        onChange={(e) => {
+                           const updatedPermissions = {
+                              ...(editingUser.permissions || {}),
+                              canAccessSuperAdminPanel: e.target.checked
+                           };
+                           setEditingUser({
+                              ...editingUser,
+                              permissions: updatedPermissions
+                           });
+                        }}
+                        className="w-5 h-5 accent-accent cursor-pointer"
+                     />
                   </div>
 
                  <div className="flex gap-4">
