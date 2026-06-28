@@ -62,6 +62,39 @@ import toast from 'react-hot-toast';
 import { logActivity } from '@/lib/activity';
 import { getInfraConfig } from '@/lib/infraConfig';
 
+const UNIT_CATEGORIES = [
+  { 
+    name: 'Pcs', 
+    units: [
+      { label: 'Pcs (pc)', value: 'pcs' },
+      { label: 'Lusin (ls)', value: 'ls' },
+      { label: 'Gross (grs)', value: 'grs' }
+    ] 
+  },
+  { 
+    name: 'Berat', 
+    units: [
+      { label: 'Gram (g)', value: 'g' },
+      { label: 'Ons (ons)', value: 'ons' },
+      { label: 'Kilogram (kg)', value: 'kg' }
+    ] 
+  },
+  { 
+    name: 'Volume', 
+    units: [
+      { label: 'Mililiter (ml)', value: 'ml' },
+      { label: 'Liter (L)', value: 'L' }
+    ] 
+  },
+  { 
+    name: 'Panjang', 
+    units: [
+      { label: 'Centimeter (cm)', value: 'cm' },
+      { label: 'Meter (m)', value: 'm' }
+    ] 
+  }
+];
+
 interface SelectedExtra {
   groupName: string;
   optionName: string;
@@ -204,6 +237,7 @@ export default function POSPage() {
   const [manualItemWarrantyDuration, setManualItemWarrantyDuration] = useState('');
   const [manualItemWarrantyUnit, setManualItemWarrantyUnit] = useState<'days' | 'months' | 'years'>('months');
   const [manualItemImages, setManualItemImages] = useState<{ id: string; url: string; file?: File }[]>([]);
+  const [manualItemUnit, setManualItemUnit] = useState('pcs');
   const [estimationValidityDays, setEstimationValidityDays] = useState(7);
   const [editingEstimationId, setEditingEstimationId] = useState<string | null>(null);
   const [originalEstimationData, setOriginalEstimationData] = useState<any>(null);
@@ -1211,6 +1245,7 @@ export default function POSPage() {
           warrantyUnit: manualItemWarrantyUnit,
           imageUrl: finalImageUrl,
           imageUrls: uploadedImageUrls,
+          unit: manualItemUnit.trim() || 'pcs',
           createdAt: serverTimestamp()
         };
         const docRef = await addDoc(collection(db, 'products'), prodData);
@@ -1236,6 +1271,7 @@ export default function POSPage() {
         warrantyUnit: manualItemWarrantyUnit,
         imageUrl: finalImageUrl,
         imageUrls: uploadedImageUrls,
+        unit: manualItemUnit.trim() || 'pcs',
         selectedExtras: [],
         discountName: null,
         note: ''
@@ -1253,6 +1289,7 @@ export default function POSPage() {
       setManualItemWarrantyDuration('');
       setManualItemWarrantyUnit('months');
       setManualItemImages([]);
+      setManualItemUnit('pcs');
       toast.success('Item ditambahkan ke keranjang');
     } catch (err: any) {
       console.error(err);
@@ -3241,7 +3278,7 @@ export default function POSPage() {
                       className="w-full p-3.5 bg-background border border-app-border rounded-xl font-black text-foreground focus:outline-none focus:border-accent text-sm"
                     />
                  </div>
-
+                 
                  {/* Kategori */}
                  <div className="space-y-1">
                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Kategori</label>
@@ -3254,6 +3291,44 @@ export default function POSPage() {
                           <option key={cat} value={cat}>{cat}</option>
                        ))}
                     </select>
+                 </div>
+
+                 {/* Satuan (Unit) */}
+                 <div className="space-y-1">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Satuan</label>
+                    <div className="p-4 rounded-2xl border border-app-border bg-background/50 flex flex-col gap-3">
+                       {UNIT_CATEGORIES.map(category => (
+                          <div key={category.name} className="flex flex-col gap-1.5">
+                             <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{category.name}</span>
+                             <div className="flex flex-wrap gap-2">
+                                {category.units.map(u => (
+                                   <button
+                                      key={u.value}
+                                      type="button"
+                                      onClick={() => setManualItemUnit(u.value)}
+                                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                                         manualItemUnit === u.value 
+                                            ? 'bg-accent/20 border-accent text-accent' 
+                                            : 'bg-background border-app-border text-slate-400 hover:border-slate-550'
+                                      }`}
+                                   >
+                                      {u.label}
+                                   </button>
+                                ))}
+                             </div>
+                          </div>
+                       ))}
+                       <div className="mt-2 border-t border-app-border/40 pt-3 flex flex-col gap-1.5">
+                          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">Kustom Lainnya</span>
+                          <input
+                             type="text"
+                             placeholder="Contoh: box, koli, sachet"
+                             value={manualItemUnit}
+                             onChange={e => setManualItemUnit(e.target.value)}
+                             className="w-full p-3 bg-background border border-app-border rounded-xl font-bold text-foreground focus:outline-none focus:border-accent text-xs"
+                          />
+                       </div>
+                    </div>
                  </div>
 
                  {/* Barcode (Optional) */}
