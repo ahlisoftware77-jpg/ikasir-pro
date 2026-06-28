@@ -1841,97 +1841,64 @@ export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
     console.warn("Failed to fetch branding:", err);
   }
 
-  return new Promise<void>((resolve) => {
-    Alert.alert(
-      'Konfirmasi Cetak Struk',
-      'Pilih tindakan cetak struk thermal tanda terima:',
-      [
-        {
-          text: 'Cetak Sekarang',
-          onPress: async () => {
-            if (hasBluetoothNativeModule && BluetoothEscposPrinter) {
-              try {
-                const activePrinterAddress = await AsyncStorage.getItem('selected_printer_address');
-                const activePrinter = await AsyncStorage.getItem('selected_printer');
-                
-                if (activePrinterAddress && BluetoothManager) {
-                  if (Platform.OS === 'android') {
-                    ToastAndroid.show('Menghubungkan & mencetak struk...', ToastAndroid.SHORT);
-                  }
-                  try {
-                    await BluetoothManager.connect(activePrinterAddress);
-                    await new Promise((res) => setTimeout(res, 500));
-                  } catch (connErr) {
-                    console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
-                  }
-                  await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
-                  if (Platform.OS === 'android') {
-                    ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
-                  } else {
-                    Alert.alert('Sukses', 'Struk berhasil dicetak!');
-                  }
-                  resolve();
-                  return;
-                } else if (activePrinter) {
-                  if (Platform.OS === 'android') {
-                    ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
-                  }
-                  await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
-                  if (Platform.OS === 'android') {
-                    ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
-                  } else {
-                    Alert.alert('Sukses', 'Struk berhasil dicetak!');
-                  }
-                  resolve();
-                  return;
-                }
-              } catch (error) {
-                console.error('Direct Bluetooth service print failed, falling back to PDF preview:', error);
-                if (Platform.OS === 'android') {
-                  ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share...', ToastAndroid.LONG);
-                } else {
-                  Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share...');
-                }
-              }
-            }
-
-            try {
-              let finalSettings = settings;
-              let base64Logo = '';
-              if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
-                base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_service_receipt_logo');
-              }
-              if (base64Logo) {
-                finalSettings = { ...finalSettings, logoUrl: base64Logo };
-              }
-              const html = generateServiceReceiptHtml(ticket, finalSettings, branding, isExpired);
-              await Print.printAsync({ html });
-              resolve();
-            } catch (error) {
-              console.error('Error printing service receipt:', error);
-              resolve();
-            }
-          }
-        },
-        {
-          text: 'Pilih Printer Lain',
-          onPress: () => {
-            Alert.alert(
-              'Ganti Printer',
-              'Untuk menghubungkan printer bluetooth thermal baru, silakan gunakan menu "Pengaturan Printer" pada panel navigasi utama aplikasi Anda.'
-            );
-            resolve();
-          }
-        },
-        {
-          text: 'Batal',
-          style: 'cancel',
-          onPress: () => resolve()
+  if (hasBluetoothNativeModule && BluetoothEscposPrinter) {
+    try {
+      const activePrinterAddress = await AsyncStorage.getItem('selected_printer_address');
+      const activePrinter = await AsyncStorage.getItem('selected_printer');
+      
+      if (activePrinterAddress && BluetoothManager) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Menghubungkan & mencetak struk...', ToastAndroid.SHORT);
         }
-      ],
-      { cancelable: true }
-    );
-  });
+        try {
+          await BluetoothManager.connect(activePrinterAddress);
+          await new Promise((res) => setTimeout(res, 500));
+        } catch (connErr) {
+          console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
+        }
+        await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Sukses', 'Struk berhasil dicetak!');
+        }
+        return;
+      } else if (activePrinter) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
+        }
+        await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Sukses', 'Struk berhasil dicetak!');
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('Direct Bluetooth service print failed, falling back to PDF preview:', error);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share...', ToastAndroid.LONG);
+      } else {
+        Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share...');
+      }
+    }
+  }
+
+  try {
+    let finalSettings = settings;
+    let base64Logo = '';
+    if (finalSettings?.logoUrl) {
+      base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_service_receipt_logo');
+    }
+    if (base64Logo) {
+      finalSettings = { ...finalSettings, logoUrl: base64Logo };
+    }
+    const html = generateServiceReceiptHtml(ticket, finalSettings, branding, isExpired);
+    await Print.printAsync({ html });
+  } catch (error) {
+    console.error('Error printing service receipt:', error);
+  }
 };
 
 export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding?: any, isExpired = true) => {
@@ -2005,18 +1972,18 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
     <body>
       <div class="invoice-container">
         <!-- HEADER -->
-        <table class="header-table">
+        <table class="header-table" style="width: auto; margin-bottom: 20px;">
           <tr>
-            <td class="header-store">
-              <h3 class="store-title">${cleanStoreName}</h3>
-              ${address ? `<p class="store-info">${address}</p>` : ''}
-              ${phone ? `<p class="store-info">Telp: ${phone}</p>` : ''}
-              ${storeNpwp}
-            </td>
-            <td class="header-logo">
+            <td class="header-logo" style="width: auto; padding-right: 15px; vertical-align: middle; text-align: left;">
               ${storeSettings?.logoUrl ? `
                 <img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
               ` : ''}
+            </td>
+            <td class="header-store" style="text-align: left; vertical-align: middle;">
+              <h3 class="store-title" style="margin: 0 0 3px 0;">${cleanStoreName}</h3>
+              ${address ? `<p class="store-info" style="margin: 1px 0;">${address}</p>` : ''}
+              ${phone ? `<p class="store-info" style="margin: 1px 0;">Telp: ${phone}</p>` : ''}
+              ${storeNpwp}
             </td>
           </tr>
         </table>

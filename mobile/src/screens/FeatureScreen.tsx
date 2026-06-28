@@ -432,9 +432,39 @@ export default function FeatureScreen({ route, navigation }: any) {
   const handlePrintServiceReceipt = async (ticket: any) => {
     try {
       if (!storeId) return;
+      const savedPrinter = await AsyncStorage.getItem('selected_printer');
       const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
       const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
-      await printServiceReceipt(ticket, settingsData);
+
+      if (savedPrinter) {
+        Alert.alert(
+          "Cetak Struk",
+          `Mencetak menggunakan printer bluetooth "${savedPrinter}"?`,
+          [
+            { text: "Batal", style: "cancel" },
+            { 
+              text: "Pilih Printer Lain", 
+              onPress: () => {
+                Alert.alert("Info", "Silakan atur atau hubungkan printer bluetooth Anda kembali melalui menu Pengaturan.");
+              }
+            },
+            {
+              text: "Cetak Sekarang",
+              onPress: async () => {
+                Vibration.vibrate(15);
+                try {
+                  await printServiceReceipt(ticket, settingsData);
+                } catch (err: any) {
+                  Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        // Fallback langsung ke printServiceReceipt (yang akan mengalihkan ke dialog cetak/A4 share jika modul bluetooth tidak terhubung)
+        await printServiceReceipt(ticket, settingsData);
+      }
     } catch (err: any) {
       Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
     }

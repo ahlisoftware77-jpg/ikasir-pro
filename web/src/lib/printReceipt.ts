@@ -919,18 +919,18 @@ export const printServiceA4 = async (ticket: any, storeSettings: any, branding?:
     <body>
       <div class="invoice-container">
         <!-- HEADER -->
-        <table class="header-table">
+        <table class="header-table" style="width: auto; margin-bottom: 20px;">
           <tr>
-            <td class="header-store">
-              <h3 class="store-title">${cleanStoreName}</h3>
-              ${address ? `<p class="store-info">${address}</p>` : ''}
-              ${phone ? `<p class="store-info">Telp: ${phone}</p>` : ''}
-              ${storeNpwp}
-            </td>
-            <td class="header-logo">
+            <td class="header-logo" style="width: auto; padding-right: 15px; vertical-align: middle; text-align: left;">
               ${logoData ? `
                 <img src="${logoData}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
               ` : ''}
+            </td>
+            <td class="header-store" style="text-align: left; vertical-align: middle;">
+              <h3 class="store-title" style="margin: 0 0 3px 0;">${cleanStoreName}</h3>
+              ${address ? `<p class="store-info" style="margin: 1px 0;">${address}</p>` : ''}
+              ${phone ? `<p class="store-info" style="margin: 1px 0;">Telp: ${phone}</p>` : ''}
+              ${storeNpwp}
             </td>
           </tr>
         </table>
