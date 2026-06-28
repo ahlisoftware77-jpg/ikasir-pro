@@ -5526,7 +5526,7 @@ export default function FeatureScreen({ route, navigation }: any) {
 
   const showFloatingButton = [
     'estimasi', 'piutang', 'ekstra', 'diskon', 
-    'pelanggan', 'staff', 'arus_kas', 'tutup_buku'
+    'pelanggan', 'staff', 'arus_kas', 'tutup_buku', 'service_elektronik'
   ].includes(featureId);
 
   if (loading) {
