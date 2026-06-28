@@ -599,7 +599,8 @@ export default function FeatureScreen({ route, navigation }: any) {
                   timestamp: data.timestamp,
                   userEmail: data.userEmail || 'admin',
                   isManual: true,
-                  linkedTransactionId: data.linkedTransactionId || ''
+                  linkedTransactionId: data.linkedTransactionId || '',
+                  subNotes: data.subNotes || []
                 });
               });
               currentCF = flowDocs;
