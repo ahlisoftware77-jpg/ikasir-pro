@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Wrench, Phone, Calendar, AlertTriangle, Shield, CheckCircle, Clock, ArrowLeft, ArrowRight, User, Share2 } from 'lucide-react';
+import { Wrench, Phone, Calendar, AlertTriangle, Shield, CheckCircle, Clock, ArrowLeft, ArrowRight, User, Share2, Camera } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -233,6 +233,32 @@ function TrackingContent() {
           </div>
         </div>
       </div>
+
+      {/* Photo Attachments Section (Real-Time) */}
+      {ticket.attachments && ticket.attachments.length > 0 && (
+        <div className="bg-surface border border-app-border rounded-[2.5rem] p-6 shadow-xl space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+            <Camera size={14} className="text-accent" />
+            Lampiran Foto Bukti Servis
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {ticket.attachments.map((url: string, index: number) => (
+              <a 
+                key={index} 
+                href={url} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="relative rounded-2xl overflow-hidden border border-app-border aspect-square bg-background hover:scale-[1.02] transition-transform shadow-sm cursor-zoom-in"
+              >
+                <img src={url} alt={`Bukti Servis ${index + 1}`} className="w-full h-full object-cover" />
+                <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/75 text-[8px] font-black uppercase text-white rounded">
+                  Foto {index + 1}
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Timeline Section */}
       <div className="bg-surface border border-app-border rounded-[2.5rem] p-6 shadow-xl">

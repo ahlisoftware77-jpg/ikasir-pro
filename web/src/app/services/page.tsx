@@ -13,8 +13,11 @@ import {
   orderBy,
   getDoc
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { 
+  Camera,
+  Paperclip,
   Wrench, 
   Trash2, 
   Printer, 
@@ -311,6 +314,110 @@ export default function ServicesPage() {
       toast.success("Log riwayat berhasil diperbarui!");
     } catch (err: any) {
       toast.error("Gagal memperbarui log: " + err.message);
+    }
+  };
+
+  const handleQuickUpdateStatus = async (targetStatus: string, defaultNote: string) => {
+    if (!selectedTicket) return;
+    setIsUpdatingStatus(true);
+    try {
+      const now = new Date().toISOString();
+      const newHistoryLog = {
+        status: targetStatus,
+        notes: defaultNote,
+        timestamp: now
+      };
+      const updatedHistory = [...(selectedTicket.history || []), newHistoryLog];
+
+      const docRef = doc(db, 'service_tickets', selectedTicket.id);
+
+      if (targetStatus === 'taken' && selectedTicket.status !== 'taken' && (selectedTicket.estimatedCost || 0) > 0) {
+        await addDoc(collection(db, 'cash_flow'), {
+          storeId,
+          type: 'in',
+          category: 'Servis Elektronik',
+          amount: Number(selectedTicket.estimatedCost) || 0,
+          description: `Servis Selesai & Diambil: ${selectedTicket.deviceModel} (Ref: ${selectedTicket.ticketNo || `ST-${selectedTicket.id.substring(0,6).toUpperCase()}`})`,
+          subNotes: [
+            { description: `Perbaikan unit ${selectedTicket.deviceModel}`, amount: Number(selectedTicket.estimatedCost) || 0 }
+          ],
+          timestamp: now,
+          userEmail: user?.email || 'admin'
+        });
+      }
+
+      await updateDoc(docRef, {
+        status: targetStatus,
+        updatedAt: now,
+        history: updatedHistory
+      });
+
+      setSelectedTicket((prev: any) => ({
+        ...prev,
+        status: targetStatus,
+        updatedAt: now,
+        history: updatedHistory
+      }));
+
+      toast.success(`Status berhasil diperbarui ke ${STATUS_LABELS[targetStatus]}!`);
+    } catch (err: any) {
+      toast.error("Gagal update status: " + err.message);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
+  const handleUploadAttachment = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedTicket || !e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setIsUploadingAttachment(true);
+
+    try {
+      const storageRef = ref(storage, `service_attachments/${selectedTicket.id}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      const updatedAttachments = [...(selectedTicket.attachments || []), downloadUrl];
+      const docRef = doc(db, 'service_tickets', selectedTicket.id);
+      await updateDoc(docRef, { attachments: updatedAttachments });
+
+      setSelectedTicket((prev: any) => ({
+        ...prev,
+        attachments: updatedAttachments
+      }));
+
+      toast.success("Foto bukti berhasil dilampirkan!");
+    } catch (err: any) {
+      toast.error("Gagal mengunggah foto: " + err.message);
+    } finally {
+      setIsUploadingAttachment(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (imageUrl: string) => {
+    if (!selectedTicket) return;
+    if (!window.confirm("Apakah Anda yakin ingin menghapus foto bukti ini?")) return;
+
+    try {
+      const updatedAttachments = selectedTicket.attachments.filter((url: string) => url !== imageUrl);
+      const docRef = doc(db, 'service_tickets', selectedTicket.id);
+      await updateDoc(docRef, { attachments: updatedAttachments });
+
+      setSelectedTicket((prev: any) => ({
+        ...prev,
+        attachments: updatedAttachments
+      }));
+
+      if (imageUrl.includes("firebasestorage")) {
+        const fileRef = ref(storage, imageUrl);
+        await deleteObject(fileRef).catch(console.error);
+      }
+
+      toast.success("Foto bukti berhasil dihapus!");
+    } catch (err: any) {
+      toast.error("Gagal menghapus foto: " + err.message);
     }
   };
 
@@ -759,14 +866,85 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 <div className="bg-background border border-app-border rounded-[2rem] p-5 space-y-4">
                   <h3 className="text-xs font-black uppercase text-app-text-muted tracking-wider border-b border-app-border/40 pb-2">Ubah Status Servis</h3>
                   
-                  <div className="space-y-4">
+                  {/* Quick Workflow Buttons */}
+                  <div className="space-y-2">
+                    <p className="text-[9px] font-black text-app-text-muted uppercase tracking-wider">Alur Proses Cepat</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTicket.status === 'received' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateStatus('checking', 'Unit masuk tahap pengecekan awal.')}
+                          className="px-3 py-2 bg-purple-500/10 text-purple-500 border border-purple-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-purple-500 hover:text-white transition-all"
+                        >
+                          → Mulai Pengecekan
+                        </button>
+                      )}
+                      {selectedTicket.status === 'checking' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickUpdateStatus('repairing', 'Unit mulai dikerjakan / diperbaiki.')}
+                            className="px-3 py-2 bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-orange-500 hover:text-white transition-all"
+                          >
+                            → Mulai Perbaikan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickUpdateStatus('pending_part', 'Menunggu suku cadang/sparepart.')}
+                            className="px-3 py-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-amber-500 hover:text-white transition-all"
+                          >
+                            → Tunggu Sparepart
+                          </button>
+                        </>
+                      )}
+                      {selectedTicket.status === 'pending_part' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateStatus('repairing', 'Suku cadang tersedia. Mulai perbaikan.')}
+                          className="px-3 py-2 bg-orange-500/10 text-orange-500 border border-orange-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-orange-500 hover:text-white transition-all"
+                        >
+                          → Mulai Perbaikan
+                        </button>
+                      )}
+                      {(selectedTicket.status === 'repairing' || selectedTicket.status === 'pending_part') && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateStatus('completed', 'Perbaikan unit telah selesai.')}
+                          className="px-3 py-2 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-emerald-500 hover:text-white transition-all"
+                        >
+                          ✓ Selesai Perbaikan
+                        </button>
+                      )}
+                      {selectedTicket.status === 'completed' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateStatus('taken', 'Unit diserahkan ke pelanggan.')}
+                          className="px-3 py-2 bg-slate-500/10 text-slate-500 border border-slate-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-slate-500 hover:text-white transition-all"
+                        >
+                          ✓ Unit Diambil Pelanggan
+                        </button>
+                      )}
+                      {selectedTicket.status !== 'taken' && selectedTicket.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickUpdateStatus('cancelled', 'Pekerjaan servis dibatalkan.')}
+                          className="px-3 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[10px] font-black rounded-xl uppercase hover:bg-rose-500 hover:text-white transition-all"
+                        >
+                          ✕ Batalkan Servis
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-app-border/40 pt-4 space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider">Status Baru</label>
+                      <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider">Pembaruan Manual</label>
                       <select 
                         value={newStatus}
                         onChange={(e) => setNewStatus(e.target.value)}
                         className="w-full px-4 py-2.5 bg-background border border-app-border rounded-xl text-xs font-bold text-foreground focus:outline-none"
                       >
+                        <option value="">Pilih status...</option>
                         {Object.entries(STATUS_LABELS).map(([val, label]) => (
                           <option key={val} value={val}>{label}</option>
                         ))}
@@ -787,12 +965,64 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     <button
                       type="button"
                       onClick={handleUpdateStatus}
-                      disabled={isUpdatingStatus || newStatus === selectedTicket.status}
+                      disabled={isUpdatingStatus || !newStatus || newStatus === selectedTicket.status}
                       className="w-full py-3 bg-accent hover:bg-accent-hover disabled:bg-app-border text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
                     >
                       {isUpdatingStatus && <Loader2 className="animate-spin" size={12} />}
                       Update Status Servis
                     </button>
+                  </div>
+                </div>
+
+                {/* Attachment Upload Card */}
+                <div className="bg-background border border-app-border rounded-[2rem] p-5 space-y-4">
+                  <h3 className="text-xs font-black uppercase text-app-text-muted tracking-wider border-b border-app-border/40 pb-2 flex items-center gap-2">
+                    <Camera size={14} />
+                    Lampiran Foto Bukti Servis
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-app-border hover:border-accent rounded-2xl p-4 cursor-pointer transition-all bg-surface/50">
+                        <Paperclip size={20} className="text-app-text-muted mb-1" />
+                        <span className="text-[10px] font-black uppercase text-app-text-muted">Pilih File Foto</span>
+                        <span className="text-[8px] text-app-text-muted mt-0.5">JPG, PNG maks 5MB</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadAttachment}
+                          disabled={isUploadingAttachment}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {isUploadingAttachment && (
+                      <div className="flex items-center justify-center gap-2 py-2">
+                        <Loader2 className="animate-spin text-accent" size={14} />
+                        <span className="text-[10px] font-bold text-accent uppercase">Mengunggah Foto...</span>
+                      </div>
+                    )}
+
+                    {selectedTicket.attachments && selectedTicket.attachments.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        {selectedTicket.attachments.map((url: string, index: number) => (
+                          <div key={index} className="relative group rounded-xl overflow-hidden border border-app-border aspect-square bg-surface">
+                            <img src={url} alt={`Bukti ${index + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAttachment(url)}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-500/90 hover:bg-rose-600 text-white flex items-center justify-center text-xs shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Hapus foto"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-app-text-muted italic text-center py-2">Belum ada foto bukti yang dilampirkan.</p>
+                    )}
                   </div>
                 </div>
               </div>

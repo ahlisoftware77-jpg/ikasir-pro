@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, ScrollView, Vibration, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Share, Linking, Pressable } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, ScrollView, Vibration, Alert, Modal, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Share, Linking, Pressable, Image } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
-import { db } from '../lib/firebase';
+import { db, storage } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import * as ImagePicker from 'expo-image-picker';
 import { initializeApp, getApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { 
@@ -16,7 +18,7 @@ import {
   Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
-  Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2
+  Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
 } from 'lucide-react-native';
 import { printReceipt, printA4 } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
@@ -374,6 +376,141 @@ export default function FeatureScreen({ route, navigation }: any) {
     } catch (err: any) {
       Alert.alert("Gagal", "Gagal memperbarui log: " + err.message);
     }
+  };
+
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
+  const handleQuickUpdateStatus = async (targetStatus: string, defaultNote: string) => {
+    if (!selectedServiceTicket) return;
+    setIsUpdatingServiceStatus(true);
+    try {
+      const now = new Date().toISOString();
+      const newHistoryLog = {
+        status: targetStatus,
+        notes: defaultNote,
+        timestamp: now
+      };
+      const updatedHistory = [...(selectedServiceTicket.history || []), newHistoryLog];
+
+      if (targetStatus === 'taken' && selectedServiceTicket.status !== 'taken' && (selectedServiceTicket.estimatedCost || 0) > 0) {
+        await addDoc(collection(db, 'cash_flow'), {
+          storeId,
+          type: 'in',
+          category: 'Servis Elektronik',
+          amount: Number(selectedServiceTicket.estimatedCost) || 0,
+          description: `Servis Selesai & Diambil: ${selectedServiceTicket.deviceModel} (Ref: ${selectedServiceTicket.ticketNo || `ST-${selectedServiceTicket.id.substring(0,6).toUpperCase()}`})`,
+          subNotes: [
+            { description: `Perbaikan unit ${selectedServiceTicket.deviceModel}`, amount: Number(selectedServiceTicket.estimatedCost) || 0 }
+          ],
+          timestamp: now,
+          userEmail: user?.email || 'admin'
+        });
+      }
+
+      await updateDoc(doc(db, 'service_tickets', selectedServiceTicket.id), {
+        status: targetStatus,
+        updatedAt: now,
+        history: updatedHistory
+      });
+
+      setSelectedServiceTicket((prev: any) => ({
+        ...prev,
+        status: targetStatus,
+        updatedAt: now,
+        history: updatedHistory
+      }));
+
+      Alert.alert("Sukses", `Status berhasil diperbarui ke ${STATUS_LABELS[targetStatus]}!`);
+    } catch (err: any) {
+      Alert.alert("Gagal", "Gagal memperbarui status: " + err.message);
+    } finally {
+      setIsUpdatingServiceStatus(false);
+    }
+  };
+
+  const handleUploadAttachment = async () => {
+    if (!selectedServiceTicket) return;
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk melampirkan foto.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsUploadingAttachment(true);
+        const imageUri = result.assets[0].uri;
+        
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        
+        const storageRef = ref(storage, `service_attachments/${selectedServiceTicket.id}/${Date.now()}`);
+        await uploadBytes(storageRef, blob);
+        const downloadUrl = await getDownloadURL(storageRef);
+        
+        const updatedAttachments = [...(selectedServiceTicket.attachments || []), downloadUrl];
+        await updateDoc(doc(db, 'service_tickets', selectedServiceTicket.id), {
+          attachments: updatedAttachments
+        });
+
+        setSelectedServiceTicket((prev: any) => ({
+          ...prev,
+          attachments: updatedAttachments
+        }));
+
+        Alert.alert('Sukses', 'Foto bukti berhasil dilampirkan!');
+      }
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Gagal', 'Tidak dapat mengunggah foto: ' + error.message);
+    } finally {
+      setIsUploadingAttachment(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (imageUrl: string) => {
+    if (!selectedServiceTicket) return;
+
+    Alert.alert(
+      "Hapus Foto",
+      "Apakah Anda yakin ingin menghapus foto bukti ini?",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const updatedAttachments = selectedServiceTicket.attachments.filter((url: string) => url !== imageUrl);
+              await updateDoc(doc(db, 'service_tickets', selectedServiceTicket.id), {
+                attachments: updatedAttachments
+              });
+
+              setSelectedServiceTicket((prev: any) => ({
+                ...prev,
+                attachments: updatedAttachments
+              }));
+
+              if (imageUrl.includes("firebasestorage")) {
+                const fileRef = ref(storage, imageUrl);
+                await deleteObject(fileRef).catch(console.error);
+              }
+
+              Alert.alert("Sukses", "Foto bukti berhasil dihapus!");
+            } catch (err: any) {
+              Alert.alert("Gagal", "Gagal menghapus foto: " + err.message);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Piutang States
@@ -6901,40 +7038,135 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
                   <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ubah Status Servis</Text>
                   
-                  <View className="flex-row bg-black/10 p-1 rounded-2xl gap-1 flex-wrap">
-                    {Object.keys(STATUS_LABELS).map(statusKey => (
-                      <TouchableOpacity
-                        key={statusKey}
-                        onPress={() => setNewServiceStatus(statusKey)}
-                        className="px-2.5 py-1.5 rounded-lg mr-1 mb-1 items-center justify-center"
-                        style={{ backgroundColor: newServiceStatus === statusKey ? colors.accent : 'transparent' }}
-                      >
-                        <Text className="text-[8px] font-black uppercase" style={{ color: newServiceStatus === statusKey ? '#ffffff' : colors.text }}>
-                          {STATUS_LABELS[statusKey]}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                  {/* Quick Workflow Buttons on Mobile */}
+                  <View className="space-y-1.5">
+                    <Text className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Alur Proses Cepat</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {selectedServiceTicket.status === 'received' && (
+                        <TouchableOpacity
+                          onPress={() => handleQuickUpdateStatus('checking', 'Unit masuk tahap pengecekan awal.')}
+                          className="px-2.5 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-xl"
+                        >
+                          <Text className="text-[8px] font-black text-purple-500 uppercase">→ Mulai Pengecekan</Text>
+                        </TouchableOpacity>
+                      )}
+                      {selectedServiceTicket.status === 'checking' && (
+                        <>
+                          <TouchableOpacity
+                            onPress={() => handleQuickUpdateStatus('repairing', 'Unit mulai diperbaiki.')}
+                            className="px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-xl"
+                          >
+                            <Text className="text-[8px] font-black text-orange-500 uppercase">→ Mulai Perbaikan</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleQuickUpdateStatus('pending_part', 'Menunggu ketersediaan sparepart.')}
+                            className="px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl"
+                          >
+                            <Text className="text-[8px] font-black text-amber-500 uppercase">→ Tunggu Sparepart</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                      {selectedServiceTicket.status === 'pending_part' && (
+                        <TouchableOpacity
+                          onPress={() => handleQuickUpdateStatus('repairing', 'Sparepart tersedia. Mulai perbaikan.')}
+                          className="px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/20 rounded-xl"
+                        >
+                          <Text className="text-[8px] font-black text-orange-500 uppercase">→ Mulai Perbaikan</Text>
+                        </TouchableOpacity>
+                      )}
+                      {(selectedServiceTicket.status === 'repairing' || selectedServiceTicket.status === 'pending_part') && (
+                        <TouchableOpacity
+                          onPress={() => handleQuickUpdateStatus('completed', 'Perbaikan unit telah selesai.')}
+                          className="px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"
+                        >
+                          <Text className="text-[8px] font-black text-emerald-500 uppercase">✓ Selesai Perbaikan</Text>
+                        </TouchableOpacity>
+                      )}
+                      {selectedServiceTicket.status === 'completed' && (
+                        <TouchableOpacity
+                          onPress={() => handleQuickUpdateStatus('taken', 'Unit diserahkan ke pelanggan.')}
+                          className="px-2.5 py-1.5 bg-slate-500/10 border border-slate-500/20 rounded-xl"
+                        >
+                          <Text className="text-[8px] font-black text-slate-500 uppercase">✓ Diambil Pelanggan</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
 
-                  <TextInput
-                    placeholder="Tulis catatan update status (opsional)..."
-                    placeholderTextColor={colors.textMuted + '60'}
-                    value={serviceStatusNote}
-                    onChangeText={setServiceStatusNote}
-                    className="p-3 rounded-xl border text-xs font-bold"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
-                  />
+                  <View className="border-t pt-3 space-y-3" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Pembaruan Manual</Text>
+                    <View className="flex-row bg-black/10 p-1 rounded-2xl gap-1 flex-wrap">
+                      {Object.keys(STATUS_LABELS).map(statusKey => (
+                        <TouchableOpacity
+                          key={statusKey}
+                          onPress={() => setNewServiceStatus(statusKey)}
+                          className="px-2.5 py-1.5 rounded-lg mr-1 mb-1 items-center justify-center"
+                          style={{ backgroundColor: newServiceStatus === statusKey ? colors.accent : 'transparent' }}
+                        >
+                          <Text className="text-[8px] font-black uppercase" style={{ color: newServiceStatus === statusKey ? '#ffffff' : colors.text }}>
+                            {STATUS_LABELS[statusKey]}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <TextInput
+                      placeholder="Tulis catatan update status (opsional)..."
+                      placeholderTextColor={colors.textMuted + '60'}
+                      value={serviceStatusNote}
+                      onChangeText={setServiceStatusNote}
+                      className="p-3 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+
+                    <TouchableOpacity
+                      onPress={handleUpdateServiceStatus}
+                      disabled={isUpdatingServiceStatus || !newServiceStatus || newServiceStatus === selectedServiceTicket.status}
+                      className="py-3 rounded-xl items-center justify-center"
+                      style={{ backgroundColor: colors.accent, opacity: (!newServiceStatus || newServiceStatus === selectedServiceTicket.status) ? 0.5 : 1 }}
+                    >
+                      <Text className="text-[10px] font-black uppercase text-white tracking-wider">
+                        {isUpdatingServiceStatus ? 'Memproses...' : 'Simpan Pembaruan Status'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Photo Attachments Panel on Mobile */}
+                <View className="p-4 rounded-3xl border space-y-3" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Foto Bukti & Lampiran</Text>
 
                   <TouchableOpacity
-                    onPress={handleUpdateServiceStatus}
-                    disabled={isUpdatingServiceStatus || newServiceStatus === selectedServiceTicket.status}
-                    className="py-3 rounded-xl items-center justify-center"
-                    style={{ backgroundColor: colors.accent, opacity: (newServiceStatus === selectedServiceTicket.status) ? 0.5 : 1 }}
+                    onPress={handleUploadAttachment}
+                    disabled={isUploadingAttachment}
+                    className="py-3 rounded-xl items-center justify-center flex-row gap-2 border-2 border-dashed"
+                    style={{ borderColor: colors.border }}
                   >
-                    <Text className="text-[10px] font-black uppercase text-white tracking-wider">
-                      {isUpdatingServiceStatus ? 'Memproses...' : 'Simpan Pembaruan Status'}
+                    <Camera size={14} color={colors.text} />
+                    <Text className="text-[10px] font-black uppercase" style={{ color: colors.text }}>
+                      {isUploadingAttachment ? 'Mengunggah...' : 'Unggah Foto Bukti'}
                     </Text>
                   </TouchableOpacity>
+
+                  {selectedServiceTicket.attachments && selectedServiceTicket.attachments.length > 0 ? (
+                    <View className="flex-row flex-wrap gap-2 mt-2">
+                      {selectedServiceTicket.attachments.map((url: string, index: number) => (
+                        <View key={index} className="relative rounded-xl overflow-hidden border aspect-square w-16" style={{ borderColor: colors.border }}>
+                          <Pressable onPress={() => Linking.openURL(url)}>
+                            <Image source={{ uri: url }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+                          </Pressable>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteAttachment(url)}
+                            className="absolute -top-1 -right-1 bg-rose-500 w-5 h-5 rounded-full items-center justify-center shadow-lg"
+                          >
+                            <Text className="text-[10px] font-black text-white">✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text className="text-[9px] text-slate-500 italic text-center py-2">Belum ada foto bukti terlampir.</Text>
+                  )}
                 </View>
 
                 {/* Riwayat Logs tracking */}
