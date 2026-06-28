@@ -1841,63 +1841,95 @@ export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
     console.warn("Failed to fetch branding:", err);
   }
 
-  if (hasBluetoothNativeModule && BluetoothEscposPrinter) {
-    try {
-      const activePrinterAddress = await AsyncStorage.getItem('selected_printer_address');
-      const activePrinter = await AsyncStorage.getItem('selected_printer');
-      
-      if (activePrinterAddress && BluetoothManager) {
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Menghubungkan & mencetak struk...', ToastAndroid.SHORT);
-        }
-        try {
-          await BluetoothManager.connect(activePrinterAddress);
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } catch (connErr) {
-          console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
-        }
-        await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Sukses', 'Struk berhasil dicetak!');
-        }
-        return;
-      } else if (activePrinter) {
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
-        }
-        await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
-        } else {
-          Alert.alert('Sukses', 'Struk berhasil dicetak!');
-        }
-        return;
-      }
-    } catch (error) {
-      console.error('Direct Bluetooth service print failed, falling back to PDF preview:', error);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share...', ToastAndroid.LONG);
-      } else {
-        Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share...');
-      }
-    }
-  }
+  return new Promise<void>((resolve) => {
+    Alert.alert(
+      'Konfirmasi Cetak Struk',
+      'Pilih tindakan cetak struk thermal tanda terima:',
+      [
+        {
+          text: 'Cetak Sekarang',
+          onPress: async () => {
+            if (hasBluetoothNativeModule && BluetoothEscposPrinter) {
+              try {
+                const activePrinterAddress = await AsyncStorage.getItem('selected_printer_address');
+                const activePrinter = await AsyncStorage.getItem('selected_printer');
+                
+                if (activePrinterAddress && BluetoothManager) {
+                  if (Platform.OS === 'android') {
+                    ToastAndroid.show('Menghubungkan & mencetak struk...', ToastAndroid.SHORT);
+                  }
+                  try {
+                    await BluetoothManager.connect(activePrinterAddress);
+                    await new Promise((res) => setTimeout(res, 500));
+                  } catch (connErr) {
+                    console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
+                  }
+                  await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
+                  if (Platform.OS === 'android') {
+                    ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
+                  } else {
+                    Alert.alert('Sukses', 'Struk berhasil dicetak!');
+                  }
+                  resolve();
+                  return;
+                } else if (activePrinter) {
+                  if (Platform.OS === 'android') {
+                    ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
+                  }
+                  await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
+                  if (Platform.OS === 'android') {
+                    ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
+                  } else {
+                    Alert.alert('Sukses', 'Struk berhasil dicetak!');
+                  }
+                  resolve();
+                  return;
+                }
+              } catch (error) {
+                console.error('Direct Bluetooth service print failed, falling back to PDF preview:', error);
+                if (Platform.OS === 'android') {
+                  ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share...', ToastAndroid.LONG);
+                } else {
+                  Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share...');
+                }
+              }
+            }
 
-  try {
-    let finalSettings = settings;
-    let base64Logo = '';
-    if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
-      base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_service_receipt_logo');
-    }
-    if (base64Logo) {
-      finalSettings = { ...finalSettings, logoUrl: base64Logo };
-    }
-    const html = generateServiceReceiptHtml(ticket, finalSettings, branding, isExpired);
-    await Print.printAsync({ html });
-  } catch (error) {
-    console.error('Error printing service receipt:', error);
-    throw error;
-  }
+            try {
+              let finalSettings = settings;
+              let base64Logo = '';
+              if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
+                base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_service_receipt_logo');
+              }
+              if (base64Logo) {
+                finalSettings = { ...finalSettings, logoUrl: base64Logo };
+              }
+              const html = generateServiceReceiptHtml(ticket, finalSettings, branding, isExpired);
+              await Print.printAsync({ html });
+              resolve();
+            } catch (error) {
+              console.error('Error printing service receipt:', error);
+              resolve();
+            }
+          }
+        },
+        {
+          text: 'Pilih Printer Lain',
+          onPress: () => {
+            Alert.alert(
+              'Ganti Printer',
+              'Untuk menghubungkan printer bluetooth thermal baru, silakan gunakan menu "Pengaturan Printer" pada panel navigasi utama aplikasi Anda.'
+            );
+            resolve();
+          }
+        },
+        {
+          text: 'Batal',
+          style: 'cancel',
+          onPress: () => resolve()
+        }
+      ],
+      { cancelable: true }
+    );
+  });
 };
