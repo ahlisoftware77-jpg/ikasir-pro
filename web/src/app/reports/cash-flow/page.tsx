@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, orderBy, addDoc, where, Timestamp, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, addDoc, where, Timestamp, doc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { 
@@ -62,6 +62,46 @@ export default function CashFlowReportPage() {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [selectedCashFlow, setSelectedCashFlow] = useState<any | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const [tempSubNotes, setTempSubNotes] = useState<{ description: string; amount: string }[]>([
+    { description: '', amount: '' }
+  ]);
+  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+  const [isTrxDetailOpen, setIsTrxDetailOpen] = useState(false);
+  const [isFetchingTrx, setIsFetchingTrx] = useState(false);
+  const [detailSubNotes, setDetailSubNotes] = useState<{ description: string; amount: string }[]>([]);
+  const [isSavingSubNotes, setIsSavingSubNotes] = useState(false);
+
+  const [cashFlowTrxDetails, setCashFlowTrxDetails] = useState<any | null>(null);
+  const [isLoadingTrxDetails, setIsLoadingTrxDetails] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCashFlow) {
+      setCashFlowTrxDetails(null);
+      setDetailSubNotes([]);
+      return;
+    }
+
+    if (selectedCashFlow.isManual) {
+      const formattedNotes = (selectedCashFlow.subNotes || []).map((n: any) => ({
+        description: n.description,
+        amount: String(n.amount)
+      }));
+      setDetailSubNotes(formattedNotes.length > 0 ? formattedNotes : [{ description: '', amount: '' }]);
+      setCashFlowTrxDetails(null);
+    } else {
+      const trxId = selectedCashFlow.id.split('_')[0];
+      setIsLoadingTrxDetails(true);
+      const docRef = doc(db, 'transactions', trxId);
+      getDoc(docRef).then(docSnap => {
+        if (docSnap.exists()) {
+          setCashFlowTrxDetails(docSnap.data());
+        }
+      }).catch(console.error).finally(() => {
+        setIsLoadingTrxDetails(false);
+      });
+    }
+  }, [selectedCashFlow]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -238,6 +278,45 @@ export default function CashFlowReportPage() {
     exportToExcel(formattedData, `Laporan_Arus_Kas_${dateRange}`);
   };
 
+  const fetchAndShowTransaction = async (trxId: string) => {
+    setIsFetchingTrx(true);
+    try {
+      const docRef = doc(db, 'transactions', trxId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSelectedTransaction({ id: docSnap.id, ...docSnap.data() });
+        setIsTrxDetailOpen(true);
+      } else {
+        toast.error("Transaksi tidak ditemukan di database.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal memuat detail transaksi: " + err.message);
+    } finally {
+      setIsFetchingTrx(false);
+    }
+  };
+
+  const handleSaveSubNotes = async (cashFlowId: string) => {
+    setIsSavingSubNotes(true);
+    try {
+      const cleanSubNotes = detailSubNotes
+        .filter(n => n.description.trim() !== '' && n.amount.trim() !== '')
+        .map(n => ({ description: n.description, amount: Number(n.amount) }));
+
+      await updateDoc(doc(db, 'cash_flow', cashFlowId), {
+        subNotes: cleanSubNotes
+      });
+      setSelectedCashFlow((prev: any) => ({ ...prev, subNotes: cleanSubNotes }));
+      toast.success("Sub-catatan berhasil diperbarui!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Gagal menyimpan sub-catatan: " + err.message);
+    } finally {
+      setIsSavingSubNotes(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus catatan arus kas ini?")) return;
     
@@ -256,18 +335,24 @@ export default function CashFlowReportPage() {
     
     setIsProcessing(true);
     try {
+      const cleanSubNotes = tempSubNotes
+        .filter(n => n.description.trim() !== '' && n.amount.trim() !== '')
+        .map(n => ({ description: n.description, amount: Number(n.amount) }));
+
       await addDoc(collection(db, 'cash_flow'), {
         type: formData.type,
         category: formData.category,
         amount: Number(formData.amount),
         description: formData.description,
         linkedTransactionId: formData.linkedTransactionId || '',
+        subNotes: cleanSubNotes,
         timestamp: new Date(),
         userEmail: user?.email || 'admin',
         storeId: storeId
       });
       setIsModalOpen(false);
       setFormData({ type: 'out', category: 'operasional', amount: '', description: '', linkedTransactionId: '' });
+      setTempSubNotes([{ description: '', amount: '' }]);
       toast.success('Pencatatan kas berhasil disimpan!');
     } catch (err) {
       console.error(err);
@@ -618,6 +703,57 @@ export default function CashFlowReportPage() {
                   </div>
                 )}
 
+                <div className="space-y-4 border-t border-app-border/40 pt-4">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-[0.3em] pl-2 mb-2 block">
+                        Rincian Sub Catatan (Opsional)
+                    </label>
+                    <div className="space-y-3">
+                        {tempSubNotes.map((note, idx) => (
+                            <div key={idx} className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Nama Rincian (e.g. Beras)"
+                                    value={note.description}
+                                    onChange={e => {
+                                        const newNotes = [...tempSubNotes];
+                                        newNotes[idx].description = e.target.value;
+                                        setTempSubNotes(newNotes);
+                                    }}
+                                    className="flex-[2] px-4 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold text-foreground focus:outline-none"
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Jumlah (Rp)"
+                                    value={note.amount}
+                                    onChange={e => {
+                                        const newNotes = [...tempSubNotes];
+                                        newNotes[idx].amount = e.target.value;
+                                        setTempSubNotes(newNotes);
+                                    }}
+                                    className="flex-1 px-4 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold text-foreground focus:outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const newNotes = tempSubNotes.filter((_, i) => i !== idx);
+                                        setTempSubNotes(newNotes.length > 0 ? newNotes : [{ description: '', amount: '' }]);
+                                    }}
+                                    className="px-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20"
+                                >
+                                    Hapus
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setTempSubNotes([...tempSubNotes, { description: '', amount: '' }])}
+                        className="py-2.5 px-4 bg-background border border-app-border text-[9px] font-black uppercase tracking-widest text-accent rounded-xl hover:bg-surface transition-all"
+                    >
+                        + Tambah Baris Rincian
+                    </button>
+                </div>
+
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-app-text-muted uppercase tracking-[0.3em] pl-2 mb-2 block">Keterangan / Deskripsi</label>
                     <textarea 
@@ -709,20 +845,224 @@ export default function CashFlowReportPage() {
                     {selectedCashFlow.linkedTransactionId && (
                         <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
                             <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Terkait Transaksi</span>
-                            <span className="text-xs font-black text-accent">Ref: #{selectedCashFlow.linkedTransactionId.substring(0, 8)}</span>
+                            <button 
+                                type="button" 
+                                onClick={() => fetchAndShowTransaction(selectedCashFlow.linkedTransactionId)}
+                                className="text-xs font-black text-accent hover:underline focus:outline-none"
+                            >
+                                Ref: #{selectedCashFlow.linkedTransactionId.substring(0, 8)}
+                            </button>
+                        </div>
+                    )}
+
+                    {!selectedCashFlow.isManual && (
+                        <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                            <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Detail Transaksi POS</span>
+                            <button 
+                                type="button" 
+                                onClick={() => fetchAndShowTransaction(selectedCashFlow.id.split('_')[0])}
+                                className="text-xs font-black text-accent hover:underline focus:outline-none"
+                            >
+                                Lihat Nota #{selectedCashFlow.id.split('_')[0].substring(0, 8)}
+                            </button>
                         </div>
                     )}
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest pl-2">Keterangan / Catatan</label>
-                    <div className="bg-background border border-app-border rounded-3xl p-5 text-sm font-bold text-foreground min-h-[5rem] whitespace-pre-line">
+                    <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest pl-2">Keterangan / Catatan Utama</label>
+                    <div className="bg-background border border-app-border rounded-3xl p-5 text-sm font-bold text-foreground min-h-[4rem] whitespace-pre-line">
                         {selectedCashFlow.description || '-'}
                     </div>
                 </div>
 
+                {/* SUB NOTES / BREAKDOWN SECTION */}
+                <div className="space-y-4 border-t border-app-border/40 pt-4">
+                    <h3 className="text-[10px] font-black text-app-text-muted uppercase tracking-[0.2em]">Rincian Penggunaan Dana</h3>
+                    
+                    {selectedCashFlow.isManual ? (
+                        /* Manual Cashflow: Editable Sub Notes */
+                        <div className="space-y-3">
+                            {detailSubNotes.map((note, idx) => (
+                                <div key={idx} className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Rincian"
+                                        value={note.description}
+                                        onChange={e => {
+                                            const newNotes = [...detailSubNotes];
+                                            newNotes[idx].description = e.target.value;
+                                            setDetailSubNotes(newNotes);
+                                        }}
+                                        className="flex-[2] px-4 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold text-foreground focus:outline-none"
+                                    />
+                                    <input
+                                        type="number"
+                                        placeholder="Jumlah"
+                                        value={note.amount}
+                                        onChange={e => {
+                                            const newNotes = [...detailSubNotes];
+                                            newNotes[idx].amount = e.target.value;
+                                            setDetailSubNotes(newNotes);
+                                        }}
+                                        className="flex-1 px-4 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold text-foreground focus:outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const newNotes = detailSubNotes.filter((_, i) => i !== idx);
+                                            setDetailSubNotes(newNotes.length > 0 ? newNotes : [{ description: '', amount: '' }]);
+                                        }}
+                                        className="px-3 bg-rose-500/10 text-rose-500 rounded-xl hover:bg-rose-500/20 text-xs font-bold"
+                                    >
+                                        Hapus
+                                    </button>
+                                </div>
+                            ))}
+                            
+                            <div className="flex justify-between items-center gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setDetailSubNotes([...detailSubNotes, { description: '', amount: '' }])}
+                                    className="py-2 px-4 bg-background border border-app-border text-[9px] font-black uppercase tracking-widest text-accent rounded-xl hover:bg-surface transition-all"
+                                >
+                                    + Tambah Baris
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isSavingSubNotes}
+                                    onClick={() => handleSaveSubNotes(selectedCashFlow.id)}
+                                    className="py-2 px-5 bg-accent text-foreground text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-accent-hover transition-all flex items-center gap-2"
+                                >
+                                    {isSavingSubNotes ? 'Menyimpan...' : 'Simpan Rincian'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        /* POS Transaction: View Only Purchased Items */
+                        <div className="bg-background border border-app-border rounded-[2rem] p-5 space-y-3">
+                            {isLoadingTrxDetails ? (
+                                <div className="py-4 text-center text-xs text-app-text-muted font-bold uppercase tracking-widest animate-pulse">
+                                    Memuat rincian keranjang POS...
+                                </div>
+                            ) : cashFlowTrxDetails?.items ? (
+                                <div className="space-y-2">
+                                    {cashFlowTrxDetails.items.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex justify-between text-xs pb-2 border-b border-app-border/20 last:border-0 last:pb-0">
+                                            <div className="flex-1 pr-2">
+                                                <p className="font-bold text-foreground">{item.productName}</p>
+                                                <p className="text-[9px] text-app-text-muted font-black">{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</p>
+                                            </div>
+                                            <span className="font-black text-foreground">Rp {item.subtotal?.toLocaleString('id-ID')}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-xs text-app-text-muted italic">Tidak ada rincian item POS.</div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 <button onClick={() => setIsDetailOpen(false)} className="w-full py-5 bg-background border border-app-border hover:bg-surface hover:text-foreground text-app-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
                     Tutup Rincian
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TRANSACTION PREVIEW MODAL */}
+      {isTrxDetailOpen && selectedTransaction && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-4 bg-black/95 backdrop-blur-xl">
+          <div className="bg-surface border-t md:border border-app-border rounded-t-[3rem] md:rounded-[3.5rem] w-full max-w-lg shadow-2xl p-10 h-full md:h-auto overflow-y-auto animate-in slide-in-from-bottom md:zoom-in-95 duration-300">
+             <div className="flex items-start justify-between mb-10">
+                <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-accent/20 text-accent rounded-[1.5rem] flex items-center justify-center">
+                        <DollarSign size={32} />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black text-foreground tracking-tight uppercase leading-none mb-2">Detail Transaksi</h2>
+                        <p className="text-xs text-app-text-muted font-bold tracking-widest uppercase">Nota Penjualan POS</p>
+                    </div>
+                </div>
+                <button onClick={() => setIsTrxDetailOpen(false)} className="p-2 border border-app-border rounded-full hover:bg-background transition-colors text-app-text-muted">
+                    <X size={24} />
+                </button>
+             </div>
+
+             <div className="space-y-6">
+                <div className="bg-background border border-app-border rounded-[2rem] p-6 space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Nomor Nota</span>
+                        <span className="text-xs font-black text-foreground uppercase tracking-wide">#{selectedTransaction.id.substring(0, 8)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Pelanggan</span>
+                        <span className="text-xs font-bold text-foreground">{selectedTransaction.customerName || 'Umum'}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Kasir</span>
+                        <span className="text-xs font-bold text-foreground">{selectedTransaction.cashierName || 'System'}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Status Bayar</span>
+                        <span className={`px-2 py-0.5 text-[9px] font-black uppercase rounded-lg tracking-wider ${selectedTransaction.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : selectedTransaction.paymentStatus === 'partially_paid' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {selectedTransaction.paymentStatus === 'paid' ? 'Lunas' : selectedTransaction.paymentStatus === 'partially_paid' ? 'Dicicil' : 'Hutang'}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Metode Pembayaran</span>
+                        <span className="text-xs font-bold text-foreground uppercase">{selectedTransaction.paymentMethod || 'cash'}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Waktu</span>
+                        <span className="text-xs font-bold text-foreground">
+                            {selectedTransaction.timestamp?.toDate 
+                                ? selectedTransaction.timestamp.toDate().toLocaleString('id-ID') 
+                                : selectedTransaction.timestamp 
+                                    ? new Date(selectedTransaction.timestamp).toLocaleString('id-ID') 
+                                    : '-'}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Total Pembelanjaan</span>
+                        <span className="text-sm font-black text-foreground">
+                            Rp {selectedTransaction.total?.toLocaleString('id-ID')}
+                        </span>
+                    </div>
+
+                    <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                        <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Telah Dibayar</span>
+                        <span className="text-sm font-black text-emerald-500">
+                            Rp {selectedTransaction.paidAmount?.toLocaleString('id-ID')}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[9px] font-black text-app-text-muted uppercase tracking-widest pl-2">Keranjang Belanja</label>
+                    <div className="bg-background border border-app-border rounded-[2rem] p-6 space-y-3">
+                        {selectedTransaction.items && selectedTransaction.items.map((item: any, idx: number) => (
+                            <div key={idx} className="flex justify-between text-xs pb-3 border-b border-app-border/20 last:border-0 last:pb-0">
+                                <div className="flex-1 pr-2">
+                                    <p className="font-bold text-foreground">{item.productName}</p>
+                                    <p className="text-[9px] text-app-text-muted font-black">{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</p>
+                                </div>
+                                <span className="font-black text-foreground">Rp {item.subtotal?.toLocaleString('id-ID')}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <button onClick={() => setIsTrxDetailOpen(false)} className="w-full py-5 bg-background border border-app-border hover:bg-surface hover:text-foreground text-app-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+                    Tutup Detail Transaksi
                 </button>
              </div>
           </div>

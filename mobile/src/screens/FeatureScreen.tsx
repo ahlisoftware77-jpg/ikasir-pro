@@ -125,6 +125,84 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isCashFlowDetailVisible, setIsCashFlowDetailVisible] = useState(false);
   const [linkedTransactionId, setLinkedTransactionId] = useState('');
 
+  const [tempSubNotes, setTempSubNotes] = useState<{ description: string; amount: string }[]>([
+    { description: '', amount: '' }
+  ]);
+  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+  const [isTrxDetailVisible, setIsTrxDetailVisible] = useState(false);
+  const [isFetchingTrx, setIsFetchingTrx] = useState(false);
+  const [detailSubNotes, setDetailSubNotes] = useState<{ description: string; amount: string }[]>([]);
+  const [isSavingSubNotes, setIsSavingSubNotes] = useState(false);
+  const [cashFlowTrxDetails, setCashFlowTrxDetails] = useState<any | null>(null);
+  const [isLoadingTrxDetails, setIsLoadingTrxDetails] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCashFlow) {
+      setCashFlowTrxDetails(null);
+      setDetailSubNotes([]);
+      return;
+    }
+
+    if (selectedCashFlow.isManual) {
+      const formattedNotes = (selectedCashFlow.subNotes || []).map((n: any) => ({
+        description: n.description,
+        amount: String(n.amount)
+      }));
+      setDetailSubNotes(formattedNotes.length > 0 ? formattedNotes : [{ description: '', amount: '' }]);
+      setCashFlowTrxDetails(null);
+    } else {
+      const trxId = selectedCashFlow.id.split('_')[0];
+      setIsLoadingTrxDetails(true);
+      const docRef = doc(db, 'transactions', trxId);
+      getDoc(docRef).then(docSnap => {
+        if (docSnap.exists()) {
+          setCashFlowTrxDetails(docSnap.data());
+        }
+      }).catch(console.error).finally(() => {
+        setIsLoadingTrxDetails(false);
+      });
+    }
+  }, [selectedCashFlow]);
+
+  const fetchAndShowTransaction = async (trxId: string) => {
+    setIsFetchingTrx(true);
+    try {
+      const docRef = doc(db, 'transactions', trxId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setSelectedTransaction({ id: docSnap.id, ...docSnap.data() });
+        setIsTrxDetailVisible(true);
+      } else {
+        Alert.alert("Eror", "Transaksi tidak ditemukan di database.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("Eror", "Gagal memuat detail transaksi: " + err.message);
+    } finally {
+      setIsFetchingTrx(false);
+    }
+  };
+
+  const handleSaveSubNotes = async (cashFlowId: string) => {
+    setIsSavingSubNotes(true);
+    try {
+      const cleanSubNotes = detailSubNotes
+        .filter(n => n.description.trim() !== '' && n.amount.trim() !== '')
+        .map(n => ({ description: n.description, amount: Number(n.amount) }));
+
+      await updateDoc(doc(db, 'cash_flow', cashFlowId), {
+        subNotes: cleanSubNotes
+      });
+      setSelectedCashFlow((prev: any) => ({ ...prev, subNotes: cleanSubNotes }));
+      Alert.alert("Sukses", "Sub-catatan berhasil diperbarui!");
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("Eror", "Gagal menyimpan sub-catatan: " + err.message);
+    } finally {
+      setIsSavingSubNotes(false);
+    }
+  };
+
   // Piutang States
   const [debtFilter, setDebtFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
   const [selectedDebt, setSelectedDebt] = useState<any | null>(null);
@@ -1897,6 +1975,10 @@ export default function FeatureScreen({ route, navigation }: any) {
             return;
           }
           const cfCat = formCategory || (formType === 'in' ? 'modal' : 'operasional');
+          const cleanSubNotes = tempSubNotes
+            .filter(n => n.description.trim() !== '' && n.amount.trim() !== '')
+            .map(n => ({ description: n.description, amount: Number(n.amount) }));
+
           await addDoc(collection(db, 'cash_flow'), {
             storeId,
             type: formType,
@@ -1904,10 +1986,12 @@ export default function FeatureScreen({ route, navigation }: any) {
             amount: parseFloat(formAmount) || 0,
             description: formName,
             linkedTransactionId: formType === 'out' ? (linkedTransactionId || '') : '',
+            subNotes: cleanSubNotes,
             timestamp: new Date().toISOString(),
             userEmail: user?.email || 'admin'
           });
           setLinkedTransactionId('');
+          setTempSubNotes([{ description: '', amount: '' }]);
           break;
 
         case 'tutup_buku':
@@ -2718,6 +2802,57 @@ export default function FeatureScreen({ route, navigation }: any) {
                 </ScrollView>
               </View>
             )}
+
+            <View className="mb-4 border-t border-slate-200/50 pt-4">
+              <Text className="text-[10px] font-black uppercase mb-2" style={{ color: colors.textMuted }}>Rincian Sub Catatan (Opsional)</Text>
+              <View className="space-y-2">
+                {tempSubNotes.map((note, idx) => (
+                  <View key={idx} className="flex-row gap-2 items-center">
+                    <TextInput
+                      placeholder="e.g. Beras"
+                      placeholderTextColor={colors.textMuted}
+                      value={note.description}
+                      onChangeText={val => {
+                        const newNotes = [...tempSubNotes];
+                        newNotes[idx].description = val;
+                        setTempSubNotes(newNotes);
+                      }}
+                      className="flex-[2] p-2.5 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TextInput
+                      placeholder="e.g. 50000"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="numeric"
+                      value={note.amount}
+                      onChangeText={val => {
+                        const newNotes = [...tempSubNotes];
+                        newNotes[idx].amount = val;
+                        setTempSubNotes(newNotes);
+                      }}
+                      className="flex-1 p-2.5 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        const newNotes = tempSubNotes.filter((_, i) => i !== idx);
+                        setTempSubNotes(newNotes.length > 0 ? newNotes : [{ description: '', amount: '' }]);
+                      }}
+                      className="p-2.5 rounded-xl bg-rose-500/10"
+                    >
+                      <X size={14} color="#f43f5e" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity
+                onPress={() => setTempSubNotes([...tempSubNotes, { description: '', amount: '' }])}
+                className="mt-2.5 py-2 px-3 border-2 border-dashed rounded-xl items-center justify-center"
+                style={{ borderColor: colors.accent + '30' }}
+              >
+                <Text className="text-[9px] font-black text-accent uppercase tracking-widest">+ Tambah Baris Rincian</Text>
+              </TouchableOpacity>
+            </View>
           </>
         );
       case 'tutup_buku':
@@ -6027,20 +6162,126 @@ export default function FeatureScreen({ route, navigation }: any) {
                   {selectedCashFlow.linkedTransactionId && (
                     <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
                       <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Terkait Transaksi</Text>
-                      <Text className="text-xs font-black text-blue-500 uppercase">
-                        Ref: #{selectedCashFlow.linkedTransactionId.substring(0, 8)}
-                      </Text>
+                      <TouchableOpacity onPress={() => {
+                        Vibration.vibrate(10);
+                        fetchAndShowTransaction(selectedCashFlow.linkedTransactionId);
+                      }}>
+                        <Text className="text-xs font-black text-blue-500 uppercase underline">
+                          Ref: #{selectedCashFlow.linkedTransactionId.substring(0, 8)}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {!selectedCashFlow.isManual && (
+                    <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                      <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Detail Transaksi POS</Text>
+                      <TouchableOpacity onPress={() => {
+                        Vibration.vibrate(10);
+                        fetchAndShowTransaction(selectedCashFlow.id.split('_')[0]);
+                      }}>
+                        <Text className="text-xs font-black text-blue-500 uppercase underline">
+                          Lihat Nota #{selectedCashFlow.id.split('_')[0].substring(0, 8)}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
 
                 <View className="space-y-2 mt-4">
-                  <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Keterangan / Catatan</Text>
+                  <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Keterangan / Catatan Utama</Text>
                   <View className="p-4 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
                     <Text className="text-xs font-bold leading-relaxed" style={{ color: colors.text }}>
                       {selectedCashFlow.description || '-'}
                     </Text>
                   </View>
+                </View>
+
+                {/* SUB NOTES / BREAKDOWN SECTION */}
+                <View className="space-y-3 mt-4 border-t border-slate-200/30 pt-4">
+                  <Text className="text-[10px] font-black uppercase pl-2 mb-1" style={{ color: colors.textMuted }}>
+                    Rincian Penggunaan Dana
+                  </Text>
+                  {selectedCashFlow.isManual ? (
+                    /* Manual Sub Notes */
+                    <View className="space-y-2">
+                      {detailSubNotes.map((note, idx) => (
+                        <View key={idx} className="flex-row gap-2 items-center">
+                          <TextInput
+                            placeholder="Rincian"
+                            placeholderTextColor={colors.textMuted}
+                            value={note.description}
+                            onChangeText={val => {
+                              const newNotes = [...detailSubNotes];
+                              newNotes[idx].description = val;
+                              setDetailSubNotes(newNotes);
+                            }}
+                            className="flex-[2] p-2.5 rounded-xl border text-xs font-bold"
+                            style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                          />
+                          <TextInput
+                            placeholder="Jumlah"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="numeric"
+                            value={note.amount}
+                            onChangeText={val => {
+                              const newNotes = [...detailSubNotes];
+                              newNotes[idx].amount = val;
+                              setDetailSubNotes(newNotes);
+                            }}
+                            className="flex-1 p-2.5 rounded-xl border text-xs font-bold"
+                            style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                          />
+                          <TouchableOpacity
+                            onPress={() => {
+                              const newNotes = detailSubNotes.filter((_, i) => i !== idx);
+                              setDetailSubNotes(newNotes.length > 0 ? newNotes : [{ description: '', amount: '' }]);
+                            }}
+                            className="p-2.5 rounded-xl bg-rose-500/10"
+                          >
+                            <X size={14} color="#f43f5e" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      <View className="flex-row justify-between items-center gap-2 pt-2">
+                        <TouchableOpacity
+                          onPress={() => setDetailSubNotes([...detailSubNotes, { description: '', amount: '' }])}
+                          className="py-2 px-3 border border-slate-200 rounded-xl"
+                          style={{ borderColor: colors.border }}
+                        >
+                          <Text className="text-[9px] font-black uppercase" style={{ color: colors.text }}>+ Tambah</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          disabled={isSavingSubNotes}
+                          onPress={() => handleSaveSubNotes(selectedCashFlow.id)}
+                          className="py-2 px-4 rounded-xl flex-row items-center gap-1.5"
+                          style={{ backgroundColor: colors.accent }}
+                        >
+                          {isSavingSubNotes && <ActivityIndicator size="small" color="#ffffff" />}
+                          <Text className="text-[9px] font-black uppercase text-white">Simpan Rincian</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    /* POS Items */
+                    <View className="p-4 rounded-2xl border space-y-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                      {isLoadingTrxDetails ? (
+                        <ActivityIndicator size="small" color={colors.accent} className="py-2" />
+                      ) : cashFlowTrxDetails?.items ? (
+                        cashFlowTrxDetails.items.map((item: any, idx: number) => (
+                          <View key={idx} className="flex-row justify-between pb-2 border-b last:border-0 last:pb-0" style={{ borderColor: colors.border + '15' }}>
+                            <View className="flex-1 pr-2">
+                              <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.productName}</Text>
+                              <Text className="text-[9px] font-black mt-0.5" style={{ color: colors.textMuted }}>{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</Text>
+                            </View>
+                            <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {item.subtotal?.toLocaleString('id-ID')}</Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text className="text-xs font-bold italic" style={{ color: colors.textMuted }}>Tidak ada rincian item POS.</Text>
+                      )}
+                    </View>
+                  )}
                 </View>
               </ScrollView>
             )}
@@ -6053,6 +6294,134 @@ export default function FeatureScreen({ route, navigation }: any) {
             >
               <Text className="font-black text-xs uppercase tracking-widest" style={{ color: colors.text }}>
                 Tutup Rincian
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
+
+      {/* 7. MODAL DETAIL TRANSAKSI PREVIEW */}
+      <Modal 
+        visible={isTrxDetailVisible} 
+        animationType="slide" 
+        transparent 
+        onRequestClose={() => setIsTrxDetailVisible(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-end items-center">
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 flex-col max-h-[85%]" style={{ backgroundColor: colors.surface }}>
+            
+            {/* Modal Header */}
+            <View className="flex-row justify-between items-center mb-5 border-b pb-3" style={{ borderColor: colors.border + '15' }}>
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-xl bg-accent/15 items-center justify-center">
+                  <CreditCard color={colors.accent} size={20} />
+                </View>
+                <View>
+                  <Text className="text-sm font-black uppercase tracking-tight" style={{ color: colors.text }}>
+                    Detail Transaksi
+                  </Text>
+                  <Text className="text-[10px] font-bold text-slate-400">
+                    Nota Penjualan POS
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsTrxDetailVisible(false)} 
+                className="w-10 h-10 rounded-full bg-black/10 items-center justify-center"
+              >
+                <X color={colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedTransaction && (
+              <ScrollView className="space-y-4 mb-6" showsVerticalScrollIndicator={false}>
+                <View className="p-5 rounded-3xl border space-y-3.5" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nomor Nota</Text>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>
+                      #{selectedTransaction.id.substring(0, 8)}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pelanggan</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                      {selectedTransaction.customerName || 'Umum'}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Kasir</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                      {selectedTransaction.cashierName || 'System'}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status Bayar</Text>
+                    <Text className={`px-2.5 py-0.5 text-[9px] font-black uppercase rounded-lg ${selectedTransaction.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-500' : selectedTransaction.paymentStatus === 'partially_paid' ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                      {selectedTransaction.paymentStatus === 'paid' ? 'Lunas' : selectedTransaction.paymentStatus === 'partially_paid' ? 'Dicicil' : 'Hutang'}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Metode Pembayaran</Text>
+                    <Text className="text-xs font-bold uppercase" style={{ color: colors.text }}>
+                      {selectedTransaction.paymentMethod || 'cash'}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Waktu</Text>
+                    <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                      {selectedTransaction.timestamp?.toDate 
+                        ? selectedTransaction.timestamp.toDate().toLocaleString('id-ID') 
+                        : (selectedTransaction.timestamp ? new Date(selectedTransaction.timestamp).toLocaleString('id-ID') : '-')}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Belanja</Text>
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>
+                      Rp {selectedTransaction.total?.toLocaleString('id-ID')}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Telah Dibayar</Text>
+                    <Text className="text-sm font-black text-emerald-500">
+                      Rp {selectedTransaction.paidAmount?.toLocaleString('id-ID')}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className="space-y-2 mt-4">
+                  <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-2">Keranjang Belanja</Text>
+                  <View className="p-4 rounded-2xl border space-y-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                    {selectedTransaction.items && selectedTransaction.items.map((item: any, idx: number) => (
+                      <View key={idx} className="flex-row justify-between pb-2 border-b last:border-0 last:pb-0" style={{ borderColor: colors.border + '15' }}>
+                        <View className="flex-1 pr-2">
+                          <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.productName}</Text>
+                          <Text className="text-[9px] font-black mt-0.5" style={{ color: colors.textMuted }}>{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</Text>
+                        </View>
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {item.subtotal?.toLocaleString('id-ID')}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              onPress={() => setIsTrxDetailVisible(false)}
+              activeOpacity={0.8}
+              className="w-full py-4 rounded-2xl items-center justify-center border"
+              style={{ borderColor: colors.border, backgroundColor: 'transparent' }}
+            >
+              <Text className="font-black text-xs uppercase tracking-widest" style={{ color: colors.text }}>
+                Tutup Detail Transaksi
               </Text>
             </TouchableOpacity>
 
