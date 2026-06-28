@@ -661,3 +661,174 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
     alert("Pop-up diblokir. Izinkan pop-up untuk mencetak struk.");
   }
 };
+
+export const printServiceReceipt = async (ticket: any, storeSettings: any, branding?: any) => {
+  const isExpired = await checkSubscriptionExpired(ticket.storeId);
+  const is80mm = storeSettings?.paperSize === '80mm';
+  const paperWidth = is80mm ? '300px' : '220px';
+  const fontSize = is80mm ? '14px' : '12px';
+
+  let logoData = storeSettings?.thermalLogoUrl || storeSettings?.logoUrl || '';
+  if (storeSettings?.showLogoOnReceipt !== false && logoData && logoData.startsWith('http')) {
+     logoData = await urlToBase64(logoData);
+  }
+
+  // Generate QR Code Link using a reliable free service
+  const trackLink = `https://ikasir.my.id/services/track?id=${ticket.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackLink)}`;
+  const qrBase64 = await urlToBase64(qrUrl);
+
+  const formatDate = (date: Date) => {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}`;
+  };
+
+  const dateStr = ticket.createdAt?.toDate 
+    ? formatDate(ticket.createdAt.toDate())
+    : ticket.createdAt instanceof Date 
+    ? formatDate(ticket.createdAt)
+    : ticket.createdAt?.seconds 
+    ? formatDate(new Date(ticket.createdAt.seconds * 1000))
+    : formatDate(new Date());
+
+  const rawStoreName = storeSettings?.storeName || branding?.appName || 'IKASIR PRO';
+  const cleanStoreName = rawStoreName.includes('@') ? rawStoreName.split('@')[0] : rawStoreName;
+
+  const renderCenteredLines = (str: string, className = '') => {
+    if (!str) return '';
+    return str.split('\n').map(line => `<div class="${className}" style="text-align: center;">${line.trim()}</div>`).join('');
+  };
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Tanda Terima Servis #${ticket.ticketNo || ticket.id.substring(0,8).toUpperCase()}</title>
+      <style>
+        body { font-family: 'Courier New', Courier, monospace; font-size: ${fontSize}; color: black; background: white; margin: 0; padding: 10px; width: ${is80mm ? '280px' : '200px'}; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        .divider { border-top: 1px dashed black; margin: 6px 0; }
+        .flex { display: flex; justify-content: space-between; }
+        .store-name {
+          font-size: calc(${fontSize} + 2px);
+          font-weight: 900;
+          text-transform: uppercase;
+          text-align: center;
+        }
+        .store-info { font-size: calc(${fontSize} - 1px); text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin: 5px 0; }
+        td { font-size: ${fontSize}; padding: 2px 0; vertical-align: top; }
+        .section-title { font-weight: bold; text-transform: uppercase; text-align: center; margin: 10px 0 5px 0; font-size: calc(${fontSize} - 1px); }
+        .signature-box { margin-top: 20px; display: flex; justify-content: space-between; text-align: center; }
+        .signature-line { margin-top: 40px; border-top: 1px solid black; width: 85px; display: inline-block; font-size: calc(${fontSize} - 2px); }
+      </style>
+    </head>
+    <body>
+      <div class="text-center" style="margin-bottom: 6px;">
+        ${storeSettings?.showLogoOnReceipt !== false && logoData ? `
+          <div style="margin-bottom: 6px; width: 100%;">
+            <img src="${logoData}" style="width: 80px; height: auto; display: inline-block; filter: grayscale(100%) contrast(1.8) brightness(1.1);" />
+          </div>
+        ` : ''}
+        ${renderCenteredLines(cleanStoreName.toUpperCase(), 'store-name')}
+        ${storeSettings?.showReceiptAddress !== false ? renderCenteredLines(storeSettings?.address || '', 'store-info') : ''}
+        ${storeSettings?.showReceiptPhone !== false ? renderCenteredLines(storeSettings?.phone || '', 'store-info') : ''}
+      </div>
+
+      <div class="divider"></div>
+      <div class="text-center font-bold" style="margin: 4px 0; font-size: calc(${fontSize} + 1px);">
+        TANDA TERIMA SERVIS
+      </div>
+      <div class="divider"></div>
+
+      <div>
+        <div class="flex"><span>No Tiket:</span><span class="font-bold">${ticket.ticketNo || `ST-${ticket.id.substring(0, 8).toUpperCase()}`}</span></div>
+        <div class="flex"><span>Tanggal:</span><span>${dateStr}</span></div>
+        <div class="flex"><span>Pelanggan:</span><span>${ticket.customerName}</span></div>
+        <div class="flex"><span>No HP:</span><span>${ticket.customerPhone}</span></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">- DETAIL PERANGKAT -</div>
+      <div>
+        <div class="flex"><span>Unit:</span><span class="font-bold">${ticket.deviceModel}</span></div>
+        <div class="flex"><span>S/N atau IMEI:</span><span>${ticket.serialNumber || '-'}</span></div>
+        <div style="margin-top: 4px;">
+          <div class="font-bold" style="font-size: calc(${fontSize} - 1px);">Keluhan / Masalah:</div>
+          <div style="white-space: pre-wrap; font-style: italic; margin-top: 2px;">${ticket.damageDescription}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-title">- BIAYA & GARANSI -</div>
+      <div>
+        <div class="flex font-bold"><span>Estimasi Biaya:</span><span>Rp ${(ticket.estimatedCost || 0).toLocaleString('id-ID')}</span></div>
+        ${ticket.downPayment > 0 ? `
+          <div class="flex"><span>Uang Muka (DP):</span><span>Rp ${Number(ticket.downPayment).toLocaleString('id-ID')}</span></div>
+          <div class="flex font-bold"><span>Sisa Pembayaran:</span><span>Rp ${(Number(ticket.estimatedCost) - Number(ticket.downPayment)).toLocaleString('id-ID')}</span></div>
+        ` : ''}
+        ${ticket.warrantyDuration ? `
+          <div class="flex"><span>Garansi Toko:</span><span>${ticket.warrantyDuration} ${ticket.warrantyUnit === 'months' ? 'Bulan' : ticket.warrantyUnit === 'days' ? 'Hari' : 'Tahun'}</span></div>
+        ` : ''}
+        ${ticket.notes ? `
+          <div style="margin-top: 5px; font-size: calc(${fontSize} - 2px); font-style: italic; white-space: pre-wrap;">
+            Catatan: ${ticket.notes}
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="divider"></div>
+      <div class="text-center" style="margin: 12px 0 5px 0;">
+        <div class="font-bold" style="font-size: calc(${fontSize} - 2px); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">Live Status Tracking</div>
+        <img src="${qrBase64}" style="width: 100px; height: 100px; display: inline-block; image-rendering: pixelated;" />
+        <div style="font-size: calc(${fontSize} - 3px); margin-top: 6px; font-weight: bold; line-height: 1.2;">
+          Pindai QR Code untuk melacak status servis secara real-time
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      
+      <div class="signature-box">
+        <div>
+          <div>Pelanggan</div>
+          <div class="signature-line"></div>
+        </div>
+        <div>
+          <div>Teknisi</div>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+
+      <div class="text-center" style="margin-top: 20px; font-size: calc(${fontSize} - 3.5px); font-style: italic; line-height: 1.3;">
+        * Unit yang tidak diambil dalam waktu 30 hari di luar tanggung jawab toko kami.
+      </div>
+      
+      ${isExpired && branding?.receiptWatermark ? `
+        <div class="text-center" style="margin-top: 15px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px solid #eee; padding-top: 5px;">
+           ${renderCenteredLines(branding.receiptWatermark)}
+        </div>
+      ` : ''}
+      
+      <script>
+        window.onload = function() { window.print(); window.close(); }
+      </script>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '', `width=${paperWidth},height=650`);
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  } else {
+    alert("Pop-up diblokir. Izinkan pop-up untuk mencetak struk.");
+  }
+};

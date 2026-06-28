@@ -40,6 +40,7 @@ import {
 import { useAuthStore } from '@/store/auth';
 import { getInfraConfig } from '@/lib/infraConfig';
 import { useBranding } from '@/context/BrandingContext';
+import { printServiceReceipt } from '@/lib/printReceipt';
 import toast from 'react-hot-toast';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -433,50 +434,28 @@ export default function ServicesPage() {
   };
 
   // Printable Receipt Render
-  const handlePrintReceipt = (ticket: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+  const handlePrintReceipt = async (ticket: any) => {
+    let settings = null;
+    try {
+      if (storeId) {
+        const docRef = doc(db, 'settings', `store_${storeId}`);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          settings = docSnap.data();
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat pengaturan cetak:", err);
+    }
 
-    const receiptHtml = `
-      <html>
-        <head>
-          <title>Tanda Terima Servis - #${ticket.id.substring(0,8)}</title>
-          <style>
-            body { font-family: monospace; padding: 20px; color: #000; width: 300px; margin: 0 auto; }
-            .text-center { text-align: center; }
-            .bold { font-weight: bold; }
-            .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
-            .row { display: flex; justify-content: space-between; margin: 5px 0; font-size: 12px; }
-            .header { font-size: 16px; margin-bottom: 5px; }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          <div class="text-center bold header">IKASIR PRO SERVICE</div>
-          <div class="text-center" style="font-size: 10px;">TANDA TERIMA SERVIS PERANGKAT</div>
-          <div class="divider"></div>
-          <div class="row"><span class="bold">No. Tiket:</span><span>#${ticket.id.substring(0,8)}</span></div>
-          <div class="row"><span>Tanggal:</span><span>${new Date(ticket.timestamp).toLocaleDateString('id-ID')}</span></div>
-          <div class="divider"></div>
-          <div class="row"><span class="bold">Pelanggan:</span><span>${ticket.customerName}</span></div>
-          <div class="row"><span>Telepon:</span><span>${ticket.customerPhone}</span></div>
-          <div class="divider"></div>
-          <div class="row"><span class="bold">Perangkat:</span><span>${ticket.deviceModel}</span></div>
-          <div class="row"><span>S/N atau IMEI:</span><span>${ticket.serialNumber}</span></div>
-          <div class="row"><span class="bold">Kerusakan:</span><span style="text-align: right; max-width: 150px;">${ticket.damageDescription}</span></div>
-          <div class="divider"></div>
-          <div class="row"><span class="bold">Estimasi Biaya:</span><span class="bold">Rp ${ticket.estimatedCost?.toLocaleString('id-ID')}</span></div>
-          <div class="row"><span>Status Awal:</span><span>${STATUS_LABELS[ticket.status]}</span></div>
-          <div class="divider"></div>
-          <div class="text-center" style="font-size: 9px; margin-top: 15px;">
-            Simpan tanda terima ini untuk pengambilan unit.<br>
-            Terima Kasih atas Kepercayaan Anda!
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(receiptHtml);
-    printWindow.document.close();
+    toast.promise(
+      printServiceReceipt(ticket, settings, branding),
+      {
+        loading: 'Mempersiapkan struk thermal & QR Code...',
+        success: 'Jendela cetak struk siap!',
+        error: 'Gagal mencetak struk tanda terima.'
+      }
+    );
   };
 
   return (
