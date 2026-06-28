@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Phone, Calendar, AlertTriangle, Shield, CheckCircle, RefreshCw, X, ArrowLeft, Clock, Camera, Wrench } from 'lucide-react';
 import Link from 'next/link';
@@ -44,6 +44,38 @@ export default function ServiceTrackPage() {
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [isPickupModalOpen, setIsPickupModalOpen] = useState(false);
+  const [pickupDate, setPickupDate] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
+  const [pickupNotes, setPickupNotes] = useState('');
+  const [isSubmittingPickup, setIsSubmittingPickup] = useState(false);
+
+  const handleConfirmPickup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pickupDate || !pickupTime) {
+      alert("Silakan pilih tanggal dan jam pengambilan.");
+      return;
+    }
+    setIsSubmittingPickup(true);
+    try {
+      const docRef = doc(db, 'service_tickets', ticket.id);
+      await updateDoc(docRef, {
+        pickupSchedule: {
+          date: pickupDate,
+          time: pickupTime,
+          notes: pickupNotes,
+          confirmedAt: new Date().toISOString()
+        }
+      });
+      setIsPickupModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal menyimpan jadwal pengambilan: " + err.message);
+    } finally {
+      setIsSubmittingPickup(false);
+    }
+  };
 
   useEffect(() => {
     if (!ticketId) {
@@ -198,7 +230,7 @@ export default function ServiceTrackPage() {
                         >
                           <span className="text-lg transition-transform duration-500">{step.emoji}</span>
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-wider mt-3 text-center transition-colors duration-300 ${
+                        <span className={`text-[9px] font-black uppercase tracking-wider mt-6 text-center transition-colors duration-300 ${
                           isActive 
                             ? 'text-accent font-black' 
                             : isCompleted 
@@ -212,6 +244,60 @@ export default function ServiceTrackPage() {
                   })}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Jadwal Pengambilan Section */}
+          {(ticket.status === 'completed' || ticket.pickupSchedule) && (
+            <div className="bg-gradient-to-tr from-accent/15 via-indigo-950/30 to-accent/5 border border-accent/25 rounded-[2rem] p-6 space-y-4 backdrop-blur-xl relative overflow-hidden shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-accent/20 border border-accent/30 rounded-2xl flex items-center justify-center text-accent shadow-inner">
+                  <span className="text-xl">📦</span>
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-200">Jadwal Pengambilan Unit</h3>
+                  <p className="text-[10px] text-slate-400">Konfirmasi rencana waktu kedatangan Anda ke toko</p>
+                </div>
+              </div>
+
+              {ticket.pickupSchedule ? (
+                <div className="bg-slate-950/60 border border-slate-800/40 rounded-2xl p-4 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Tanggal Rencana</span>
+                      <span className="text-sm font-bold text-white mt-0.5 block">
+                        {new Date(ticket.pickupSchedule.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Jam Rencana</span>
+                      <span className="text-sm font-bold text-white mt-0.5 block">{ticket.pickupSchedule.time} WIB</span>
+                    </div>
+                  </div>
+                  {ticket.pickupSchedule.notes && (
+                    <div className="border-t border-slate-800/40 pt-2">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Catatan Tambahan</span>
+                      <p className="text-xs text-slate-300 mt-0.5 italic">"{ticket.pickupSchedule.notes}"</p>
+                    </div>
+                  )}
+                  <div className="border-t border-slate-800/40 pt-2 flex items-center gap-1.5 justify-end">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Terkonfirmasi</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950/30 p-4 rounded-2xl border border-slate-800/40">
+                  <p className="text-xs text-slate-300 leading-relaxed max-w-md">
+                    Unit Anda telah selesai diperbaiki dan siap diambil. Silakan konfirmasi jadwal kedatangan agar teknisi kami dapat mempersiapkan unit Anda.
+                  </p>
+                  <button
+                    onClick={() => setIsPickupModalOpen(true)}
+                    className="px-5 py-3 bg-gradient-to-r from-accent to-indigo-650 text-white rounded-2xl font-black text-xs uppercase tracking-wider hover:opacity-95 transition-all shadow-lg shadow-accent/25 whitespace-nowrap self-start sm:self-center"
+                  >
+                    Konfirmasi Jadwal
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -318,6 +404,64 @@ export default function ServiceTrackPage() {
           </div>
         </div>
       </div>
+      {/* Pickup Schedule Modal */}
+      {isPickupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 max-w-md w-full space-y-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-200 flex items-center gap-2">
+                <span>📅</span> Atur Jadwal Pengambilan
+              </h3>
+              <button onClick={() => setIsPickupModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPickup} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tanggal Kedatangan</label>
+                <input
+                  type="date"
+                  required
+                  value={pickupDate}
+                  onChange={(e) => setPickupDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-accent transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estimasi Jam Kedatangan</label>
+                <input
+                  type="time"
+                  required
+                  value={pickupTime}
+                  onChange={(e) => setPickupTime(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-accent transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Catatan Tambahan (Opsional)</label>
+                <textarea
+                  value={pickupNotes}
+                  onChange={(e) => setPickupNotes(e.target.value)}
+                  placeholder="Contoh: Saya ambil sore hari sepulang kerja, tolong siapkan nota cetak."
+                  rows={3}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-accent transition-colors resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmittingPickup}
+                className="w-full py-4 bg-gradient-to-r from-accent to-indigo-650 hover:from-accent/90 hover:to-indigo-600/90 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-accent/20 disabled:opacity-50"
+              >
+                {isSubmittingPickup ? 'Menyimpan...' : 'Kirim Konfirmasi Jadwal'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

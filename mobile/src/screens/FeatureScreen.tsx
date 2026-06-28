@@ -489,22 +489,56 @@ export default function FeatureScreen({ route, navigation }: any) {
   const handleUploadAttachment = async () => {
     if (!selectedServiceTicket) return;
 
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk melampirkan foto.');
-        return;
-      }
+    Alert.alert(
+      "Pilih Sumber Lampiran",
+      "Silakan pilih untuk mengambil foto/video dari kamera langsung atau galeri perangkat.",
+      [
+        {
+          text: "📸 Kamera (Foto/Video)",
+          onPress: () => processPickAttachment('camera')
+        },
+        {
+          text: "🖼️ Galeri (Foto/Video)",
+          onPress: () => processPickAttachment('library')
+        },
+        {
+          text: "Batal",
+          style: "cancel"
+        }
+      ]
+    );
+  };
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.5,
-      });
+  const processPickAttachment = async (source: 'camera' | 'library') => {
+    try {
+      let result;
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Izin Ditolak', 'Izin kamera diperlukan untuk mengambil foto/video langsung.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
+          allowsEditing: true,
+          quality: 0.5,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Izin Ditolak', 'Izin galeri diperlukan untuk melampirkan foto/video.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.All,
+          allowsEditing: true,
+          quality: 0.5,
+        });
+      }
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setIsUploadingAttachment(true);
-        const imageUri = result.assets[0].uri;
+        const fileUri = result.assets[0].uri;
 
         const docSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
         let cloudName = 'dkcjfwbvc';
@@ -516,16 +550,19 @@ export default function FeatureScreen({ route, navigation }: any) {
         }
 
         const uploadData = new FormData();
-        const uriParts = imageUri.split('.');
-        const fileType = uriParts[uriParts.length - 1];
+        const uriParts = fileUri.split('.');
+        const fileType = uriParts[uriParts.length - 1].toLowerCase();
+        const isVideo = ['mp4', 'mov', '3gp', 'avi', 'mkv', 'webm'].includes(fileType);
+        const mimeType = isVideo ? `video/${fileType}` : `image/${fileType}`;
+
         uploadData.append('file', {
-          uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
-          type: `image/${fileType}`,
+          uri: Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri,
+          type: mimeType,
           name: `upload_${Date.now()}.${fileType}`,
         } as any);
         uploadData.append('upload_preset', uploadPreset);
 
-        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
           method: 'POST',
           body: uploadData,
           headers: {
@@ -551,11 +588,11 @@ export default function FeatureScreen({ route, navigation }: any) {
           attachments: updatedAttachments
         }));
 
-        Alert.alert('Sukses', 'Foto bukti berhasil dilampirkan via Cloudinary!');
+        Alert.alert('Sukses', 'Lampiran berhasil diunggah via Cloudinary!');
       }
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Gagal', 'Tidak dapat mengunggah foto: ' + error.message);
+      Alert.alert('Gagal', 'Tidak dapat mengunggah lampiran: ' + error.message);
     } finally {
       setIsUploadingAttachment(false);
     }
@@ -7474,28 +7511,38 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   >
                     <Camera size={14} color={colors.text} />
                     <Text className="text-[10px] font-black uppercase" style={{ color: colors.text }}>
-                      {isUploadingAttachment ? 'Mengunggah...' : 'Unggah Foto Bukti'}
+                      {isUploadingAttachment ? 'Mengunggah...' : 'Unggah Foto / Video Bukti'}
                     </Text>
                   </TouchableOpacity>
 
                   {selectedServiceTicket.attachments && selectedServiceTicket.attachments.length > 0 ? (
                     <View className="flex-row flex-wrap gap-2 mt-2">
-                      {selectedServiceTicket.attachments.map((url: string, index: number) => (
-                        <View key={index} className="relative rounded-xl overflow-hidden border aspect-square w-16" style={{ borderColor: colors.border }}>
-                          <Pressable onPress={() => Linking.openURL(url)}>
-                            <Image source={{ uri: url }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
-                          </Pressable>
-                          <TouchableOpacity
-                            onPress={() => handleDeleteAttachment(url)}
-                            className="absolute -top-1 -right-1 bg-rose-500 w-5 h-5 rounded-full items-center justify-center shadow-lg"
-                          >
-                            <Text className="text-[10px] font-black text-white">✕</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))}
+                      {selectedServiceTicket.attachments.map((url: string, index: number) => {
+                        const isVideo = url.toLowerCase().match(/\.(mp4|webm|ogg|mov|3gp)$/) || url.includes('/video/upload/');
+                        return (
+                          <View key={index} className="relative rounded-xl overflow-hidden border aspect-square w-16" style={{ borderColor: colors.border }}>
+                            <Pressable onPress={() => Linking.openURL(url)}>
+                              {isVideo ? (
+                                <View className="w-full h-full items-center justify-center bg-black/80 rounded-lg">
+                                  <Play size={20} color="#fff" />
+                                  <Text className="text-[8px] font-black text-white mt-1 uppercase">Video</Text>
+                                </View>
+                              ) : (
+                                <Image source={{ uri: url }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+                              )}
+                            </Pressable>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteAttachment(url)}
+                              className="absolute -top-1 -right-1 bg-rose-500 w-5 h-5 rounded-full items-center justify-center shadow-lg"
+                            >
+                              <Text className="text-[10px] font-black text-white">✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
                     </View>
                   ) : (
-                    <Text className="text-[9px] text-slate-500 italic text-center py-2">Belum ada foto bukti terlampir.</Text>
+                    <Text className="text-[9px] text-slate-500 italic text-center py-2">Belum ada foto/video bukti terlampir.</Text>
                   )}
                 </View>
 

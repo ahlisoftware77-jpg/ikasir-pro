@@ -484,7 +484,7 @@ export default function ServicesPage() {
       uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
 
       const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
         method: 'POST',
         body: uploadData
       });
@@ -506,9 +506,9 @@ export default function ServicesPage() {
         attachments: updatedAttachments
       }));
 
-      toast.success("Foto bukti berhasil dilampirkan via Cloudinary!");
+      toast.success("Lampiran berhasil diunggah via Cloudinary!");
     } catch (err: any) {
-      toast.error("Gagal mengunggah foto: " + err.message);
+      toast.error("Gagal mengunggah lampiran: " + err.message);
     } finally {
       setIsUploadingAttachment(false);
     }
@@ -1187,18 +1187,18 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 <div className="bg-background border border-app-border rounded-[2rem] p-5 space-y-4">
                   <h3 className="text-xs font-black uppercase text-app-text-muted tracking-wider border-b border-app-border/40 pb-2 flex items-center gap-2">
                     <Camera size={14} />
-                    Lampiran Foto Bukti Servis
+                    Lampiran Foto & Video Bukti
                   </h3>
 
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-app-border hover:border-accent rounded-2xl p-4 cursor-pointer transition-all bg-surface/50">
                         <Paperclip size={20} className="text-app-text-muted mb-1" />
-                        <span className="text-[10px] font-black uppercase text-app-text-muted">Pilih File Foto</span>
-                        <span className="text-[8px] text-app-text-muted mt-0.5">JPG, PNG maks 5MB</span>
+                        <span className="text-[10px] font-black uppercase text-app-text-muted">Pilih File Foto / Video</span>
+                        <span className="text-[8px] text-app-text-muted mt-0.5">Gambar atau Video maks 10MB</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/*,video/*"
                           onChange={handleUploadAttachment}
                           disabled={isUploadingAttachment}
                           className="hidden"
@@ -1209,28 +1209,35 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     {isUploadingAttachment && (
                       <div className="flex items-center justify-center gap-2 py-2">
                         <Loader2 className="animate-spin text-accent" size={14} />
-                        <span className="text-[10px] font-bold text-accent uppercase">Mengunggah Foto...</span>
+                        <span className="text-[10px] font-bold text-accent uppercase">Mengunggah File...</span>
                       </div>
                     )}
 
                     {selectedTicket.attachments && selectedTicket.attachments.length > 0 ? (
                       <div className="grid grid-cols-3 gap-2 mt-2">
-                        {selectedTicket.attachments.map((url: string, index: number) => (
-                          <div key={index} className="relative group rounded-xl overflow-hidden border border-app-border aspect-square bg-surface">
-                            <img src={url} alt={`Bukti ${index + 1}`} className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAttachment(url)}
-                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-500/90 hover:bg-rose-600 text-white flex items-center justify-center text-xs shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Hapus foto"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
+                        {selectedTicket.attachments.map((url: string, index: number) => {
+                          const isVideo = url.toLowerCase().match(/\.(mp4|webm|ogg|mov|3gp)$/) || url.includes('/video/upload/');
+                          return (
+                            <div key={index} className="relative group rounded-xl overflow-hidden border border-app-border aspect-square bg-surface">
+                              {isVideo ? (
+                                <video src={url} controls className="w-full h-full object-cover" />
+                              ) : (
+                                <img src={url} alt={`Bukti ${index + 1}`} className="w-full h-full object-cover" />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAttachment(url)}
+                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-500/90 hover:bg-rose-600 text-white flex items-center justify-center text-xs shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Hapus file"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
-                      <p className="text-[10px] text-app-text-muted italic text-center py-2">Belum ada foto bukti yang dilampirkan.</p>
+                      <p className="text-[10px] text-app-text-muted italic text-center py-2">Belum ada foto/video bukti yang dilampirkan.</p>
                     )}
                   </div>
                 </div>
