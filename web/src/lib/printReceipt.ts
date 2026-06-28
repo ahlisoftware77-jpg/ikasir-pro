@@ -892,7 +892,43 @@ export const printServiceA4 = async (ticket: any, storeSettings: any, branding?:
         .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
         .header-logo { width: 120px; vertical-align: top; text-align: right; }
         .header-store { text-align: left; vertical-align: top; }
-        .store-title { font-size: 18px; font-weight: 900; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
+        .store-title { 
+          font-size: 18px; 
+          color: #0f172a; 
+          margin: 0 0 5px 0; 
+          line-height: 1.2;
+          font-family: ${(() => {
+            switch(storeSettings?.storeNameFont) {
+              case 'serif': return "'Playfair Display', Georgia, serif";
+              case 'mono': return "'Courier New', Courier, monospace";
+              case 'elegant': return "'Outfit', sans-serif";
+              case 'bold': return "'Oswald', sans-serif";
+              case 'railey': return "'Railey', cursive";
+              case 'cheque': return "'Cheque', sans-serif";
+              case 'lovelo': return "'Lovelo', sans-serif";
+              case 'sancreek': return "'Sancreek', sans-serif";
+              default: return "'Inter', sans-serif";
+            }
+          })()};
+          ${(() => {
+            switch(storeSettings?.storeNameFont) {
+              case 'railey':
+                return "font-weight: normal; text-transform: none; font-size: 26px;";
+              case 'sancreek':
+                return "font-weight: normal; text-transform: none; font-size: 26px;";
+              case 'elegant':
+                return "font-weight: 300; text-transform: uppercase; letter-spacing: 0.05em;";
+              case 'bold':
+                return "font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em;";
+              case 'lovelo':
+                return "font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;";
+              case 'cheque':
+                return "font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;";
+              default:
+                return "font-weight: 900; text-transform: uppercase;";
+            }
+          })()};
+        }
         .store-info { font-size: 11px; color: #475569; margin: 2px 0; }
         .title-section { text-align: center; margin-bottom: 20px; }
         .main-title { font-size: 20px; font-weight: 900; color: #0f172a; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 5px 0; }
