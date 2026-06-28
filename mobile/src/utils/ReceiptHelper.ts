@@ -1524,3 +1524,380 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
     throw error;
   }
 };
+
+export const generateServiceReceiptHtml = (ticket: any, storeSettings?: any, branding?: any, isExpired = true) => {
+  const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
+  const is80mm = storeSettings?.paperSize === '80mm';
+  const fontSize = is80mm ? '14px' : '12px';
+
+  const storeName = storeSettings?.storeName || 'KASIR PRO';
+  const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
+  const address = storeSettings?.address || '';
+  const phone = storeSettings?.phone || '';
+
+  const trackLink = `https://ikasir.my.id/services/track?id=${ticket.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackLink)}`;
+
+  let dateStr = '';
+  if (ticket.createdAt?.seconds) {
+    dateStr = new Date(ticket.createdAt.seconds * 1000).toLocaleString('id-ID');
+  } else if (ticket.createdAt?.toDate) {
+    dateStr = ticket.createdAt.toDate().toLocaleString('id-ID');
+  } else if (ticket.createdAt instanceof Date) {
+    dateStr = ticket.createdAt.toLocaleString('id-ID');
+  } else if (ticket.createdAt) {
+    dateStr = new Date(ticket.createdAt).toLocaleString('id-ID');
+  } else {
+    dateStr = new Date().toLocaleString('id-ID');
+  }
+
+  return `
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <style>
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #000; background: #fff; }
+          .header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 10px; }
+          .store-name { font-size: 20px; font-weight: 900; text-transform: uppercase; margin-bottom: 5px; }
+          .info { font-size: 11px; margin-bottom: 2px; text-align: center; }
+          .divider { border-top: 1px dashed #ccc; margin: 10px 0; }
+          .flex { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+          .section-title { font-weight: bold; text-transform: uppercase; text-align: center; margin: 12px 0 6px 0; font-size: 11px; letter-spacing: 1px; }
+          .signature-box { margin-top: 25px; display: flex; justify-content: space-between; text-align: center; font-size: 12px; }
+          .signature-line { margin-top: 40px; border-top: 1px solid #000; width: 90px; display: inline-block; }
+          .qr-box { text-align: center; margin: 15px 0 10px 0; }
+          .qr-image { width: 120px; height: 120px; display: inline-block; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `<div style="text-align: center; margin-bottom: 8px;"><img src="${storeSettings.logoUrl}" style="max-width: 100px; max-height: 70px; filter: grayscale(100%);" /></div>` : ''}
+          <div class="store-name">${cleanStoreName}</div>
+          ${address ? `<div class="info">${address}</div>` : ''}
+          ${phone ? `<div class="info">Telp: ${phone}</div>` : ''}
+        </div>
+        
+        <div class="text-center font-bold" style="font-size: 14px; text-align: center; margin: 5px 0;">TANDA TERIMA SERVIS</div>
+        <div class="divider"></div>
+
+        <div>
+          <div class="flex"><span>No Tiket:</span><span class="font-bold">${ticket.ticketNo || `ST-${ticket.id.substring(0, 8).toUpperCase()}`}</span></div>
+          <div class="flex"><span>Tanggal:</span><span>${dateStr}</span></div>
+          <div class="flex"><span>Pelanggan:</span><span>${ticket.customerName}</span></div>
+          <div class="flex"><span>No HP:</span><span>${ticket.customerPhone}</span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-title">- DETAIL PERANGKAT -</div>
+        <div>
+          <div class="flex"><span>Unit:</span><span class="font-bold">${ticket.deviceModel}</span></div>
+          <div class="flex"><span>S/N atau IMEI:</span><span>${ticket.serialNumber || '-'}</span></div>
+          <div style="font-size: 12px; margin-top: 4px;">
+            <div class="font-bold">Keluhan / Masalah:</div>
+            <div style="font-style: italic; white-space: pre-wrap; color: #333;">${ticket.damageDescription}</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-title">- BIAYA & GARANSI -</div>
+        <div>
+          <div class="flex font-bold"><span>Estimasi Biaya:</span><span>Rp ${(ticket.estimatedCost || 0).toLocaleString('id-ID')}</span></div>
+          ${ticket.downPayment > 0 ? `
+            <div class="flex"><span>Uang Muka (DP):</span><span>Rp ${Number(ticket.downPayment).toLocaleString('id-ID')}</span></div>
+            <div class="flex font-bold"><span>Sisa Pembayaran:</span><span>Rp ${(Number(ticket.estimatedCost) - Number(ticket.downPayment)).toLocaleString('id-ID')}</span></div>
+          ` : ''}
+          ${ticket.warrantyDuration ? `
+            <div class="flex"><span>Garansi Toko:</span><span>${ticket.warrantyDuration} ${ticket.warrantyUnit === 'months' ? 'Bulan' : ticket.warrantyUnit === 'days' ? 'Hari' : 'Tahun'}</span></div>
+          ` : ''}
+          ${ticket.notes ? `<div style="font-size: 11px; font-style: italic; margin-top: 4px;">Catatan: ${ticket.notes}</div>` : ''}
+        </div>
+
+        <div class="divider"></div>
+        <div class="qr-box">
+          <div class="font-bold" style="font-size: 11px; margin-bottom: 5px; text-transform: uppercase;">Live Status Tracking</div>
+          <img class="qr-image" src="${qrUrl}" />
+          <div style="font-size: 10px; margin-top: 5px; font-weight: bold; color: #555;">Scan untuk melacak status servis real-time</div>
+        </div>
+
+        <div class="divider"></div>
+        
+        <div class="signature-box">
+          <div>
+            <div>Pelanggan</div>
+            <div class="signature-line"></div>
+          </div>
+          <div>
+            <div>Teknisi</div>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+
+        <div class="text-center" style="margin-top: 20px; font-size: 9px; font-style: italic; text-align: center; color: #666;">
+          * Unit yang tidak diambil dalam waktu 30 hari di luar tanggung jawab toko kami.
+        </div>
+
+        ${isExpired && branding?.receiptWatermark ? `
+          <div style="text-align: center; margin-top: 15px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px dashed #ccc; padding-top: 8px; color: #999; letter-spacing: 2px;">
+            ${branding.receiptWatermark}
+          </div>
+        ` : ''}
+      </body>
+    </html>
+  `;
+};
+
+export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings?: any, branding?: any, isExpired = true) => {
+  if (!BluetoothEscposPrinter) {
+    throw new Error('Bluetooth printer module is not available');
+  }
+
+  let date: Date;
+  if (ticket.createdAt?.seconds) {
+    date = new Date(ticket.createdAt.seconds * 1000);
+  } else if (ticket.createdAt?.toDate) {
+    date = ticket.createdAt.toDate();
+  } else if (ticket.createdAt instanceof Date) {
+    date = ticket.createdAt;
+  } else if (ticket.createdAt) {
+    date = new Date(ticket.createdAt);
+  } else {
+    date = new Date();
+  }
+
+  const storeName = storeSettings?.storeName || 'KASIR PRO';
+  const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
+  const address = storeSettings?.address || '';
+  const phone = storeSettings?.phone || '';
+  const is80mm = storeSettings?.paperSize === '80mm';
+
+  const W = is80mm ? 42 : 32;
+  const divider = '-'.repeat(W);
+
+  const lr = (left: string, right: string): string => {
+    const spaces = W - left.length - right.length;
+    return left + (spaces > 0 ? ' '.repeat(spaces) : ' ') + right;
+  };
+
+  const wrapText = (str: string): string[] => {
+    if (!str) return [''];
+    const words = str.split(/\s+/);
+    const lines: string[] = [];
+    let cur = '';
+    for (const word of words) {
+      const test = cur ? cur + ' ' + word : word;
+      if (test.length <= W) {
+        cur = test;
+      } else {
+        if (cur) lines.push(cur);
+        cur = word;
+      }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = date.getFullYear();
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  const dateStr = `${dd}/${mm}/${yy} ${hh}:${mi}`;
+
+  await BluetoothEscposPrinter.printerInit();
+  await BluetoothEscposPrinter.printerLeft();
+
+  if (storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl) {
+    try {
+      const base64Logo = await convertUrlToBase64(storeSettings.logoUrl, 'logo_service_temp');
+      const pureBase64 = base64Logo.split(',')[1] || base64Logo;
+      await BluetoothEscposPrinter.printPic(pureBase64, { width: 160 });
+      await BluetoothEscposPrinter.printText('\n\r', {});
+    } catch (e) {
+      console.warn("Skip print logo on bluetooth:", e);
+    }
+  }
+
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+  await BluetoothEscposPrinter.printText(`${cleanStoreName.toUpperCase()}\n\r`, { fonttype: 1, heigthtype: 1, widthtype: 1 });
+  
+  if (address) {
+    const addrLines = wrapText(address);
+    for (const line of addrLines) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, {});
+    }
+  }
+  if (phone) {
+    await BluetoothEscposPrinter.printText(`Telp: ${phone}\n\r`, {});
+  }
+
+  await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+  await BluetoothEscposPrinter.printText(`TANDA TERIMA SERVIS\n\r`, { fonttype: 1 });
+  await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+  await BluetoothEscposPrinter.printText(lr(`No Tiket:`, ticket.ticketNo || `ST-${ticket.id.substring(0,8).toUpperCase()}`) + '\n\r', {});
+  await BluetoothEscposPrinter.printText(lr(`Tanggal:`, dateStr) + '\n\r', {});
+  await BluetoothEscposPrinter.printText(lr(`Pelanggan:`, ticket.customerName || 'Umum') + '\n\r', {});
+  await BluetoothEscposPrinter.printText(lr(`No HP:`, ticket.customerPhone || '-') + '\n\r', {});
+
+  await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+  await BluetoothEscposPrinter.printText(`- DETAIL PERANGKAT -\n\r`, { fonttype: 1 });
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+  await BluetoothEscposPrinter.printText(lr(`Unit:`, ticket.deviceModel) + '\n\r', {});
+  await BluetoothEscposPrinter.printText(lr(`S/N atau IMEI:`, ticket.serialNumber || '-') + '\n\r', {});
+  
+  await BluetoothEscposPrinter.printText(`Keluhan:\n\r`, { fonttype: 1 });
+  const keluhanLines = wrapText(ticket.damageDescription || '-');
+  for (const line of keluhanLines) {
+    await BluetoothEscposPrinter.printText(`  ${line}\n\r`, {});
+  }
+
+  await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+  await BluetoothEscposPrinter.printText(`- BIAYA & GARANSI -\n\r`, { fonttype: 1 });
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+  await BluetoothEscposPrinter.printText(lr(`Estimasi Biaya:`, `Rp ${(ticket.estimatedCost || 0).toLocaleString('id-ID')}`) + '\n\r', { fonttype: 1 });
+  
+  if (ticket.downPayment > 0) {
+    await BluetoothEscposPrinter.printText(lr(`Uang Muka (DP):`, `Rp ${Number(ticket.downPayment).toLocaleString('id-ID')}`) + '\n\r', {});
+    await BluetoothEscposPrinter.printText(lr(`Sisa Bayar:`, `Rp ${(Number(ticket.estimatedCost) - Number(ticket.downPayment)).toLocaleString('id-ID')}`) + '\n\r', { fonttype: 1 });
+  }
+
+  if (ticket.warrantyDuration) {
+    const wUnitLabel = ticket.warrantyUnit === 'months' ? 'Bulan' : ticket.warrantyUnit === 'days' ? 'Hari' : 'Tahun';
+    await BluetoothEscposPrinter.printText(lr(`Garansi Toko:`, `${ticket.warrantyDuration} ${wUnitLabel}`) + '\n\r', {});
+  }
+
+  if (ticket.notes) {
+    await BluetoothEscposPrinter.printText(`Catatan:\n\r`, {});
+    const notesLines = wrapText(ticket.notes);
+    for (const line of notesLines) {
+      await BluetoothEscposPrinter.printText(`  ${line}\n\r`, {});
+    }
+  }
+
+  const trackLink = `https://ikasir.my.id/services/track?id=${ticket.id}`;
+  await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+  await BluetoothEscposPrinter.printText(`LIVE STATUS TRACKING\n\r`, { fonttype: 1 });
+  
+  try {
+    await BluetoothEscposPrinter.printQRCode(trackLink, 250, 1);
+    await BluetoothEscposPrinter.printText('\n\r', {});
+  } catch (qrErr) {
+    console.warn("Bluetooth QR code print failed, printing raw link:", qrErr);
+    await BluetoothEscposPrinter.printText(`Pelacakan Online:\n\r`, {});
+    const linkLines = wrapText(trackLink);
+    for (const line of linkLines) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, {});
+    }
+  }
+  await BluetoothEscposPrinter.printText(`Pindai QR Code untuk pelacakan live\n\r`, {});
+  await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
+
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+  const sigLine = '_'.repeat(Math.floor(W/2) - 2);
+  await BluetoothEscposPrinter.printText(lr('Pelanggan', 'Teknisi') + '\n\r', {});
+  await BluetoothEscposPrinter.printText('\n\r\n\r\n\r', {});
+  await BluetoothEscposPrinter.printText(lr(`(${sigLine})`, `(${sigLine})`) + '\n\r', {});
+
+  await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+  await BluetoothEscposPrinter.printText(`\n\r* Unit yg tidak diambil dlm 30 hari\n\rdi luar tanggung jawab toko kami.\n\r`, {});
+
+  if (isExpired && branding?.receiptWatermark) {
+    await BluetoothEscposPrinter.printText(`\n\r${branding.receiptWatermark}\n\r`, {});
+  }
+
+  await BluetoothEscposPrinter.printText(`\n\r\n\r\n\r`, {});
+};
+
+export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
+  let settings = storeSettings;
+  let branding: any = null;
+  const isExpired = await checkSubscriptionExpired(ticket?.storeId);
+
+  if (ticket?.storeId) {
+    try {
+      const { db } = require('../lib/firebase');
+      const { doc, getDoc } = require('firebase/firestore');
+      const docSnap = await getDoc(doc(db, 'settings', `store_${ticket.storeId}`));
+      if (docSnap.exists()) {
+        settings = { ...settings, ...docSnap.data() };
+      }
+    } catch (err) {
+      console.warn("Failed to fetch settings from Firestore in printServiceReceipt:", err);
+    }
+  }
+
+  try {
+    const { db } = require('../lib/firebase');
+    const { doc, getDoc } = require('firebase/firestore');
+    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    if (brandingSnap.exists()) {
+      branding = brandingSnap.data();
+    }
+  } catch (err) {
+    console.warn("Failed to fetch branding:", err);
+  }
+
+  if (hasBluetoothNativeModule && BluetoothEscposPrinter) {
+    try {
+      const activePrinterAddress = await AsyncStorage.getItem('selected_printer_address');
+      const activePrinter = await AsyncStorage.getItem('selected_printer');
+      
+      if (activePrinterAddress && BluetoothManager) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Menghubungkan & mencetak struk...', ToastAndroid.SHORT);
+        }
+        try {
+          await BluetoothManager.connect(activePrinterAddress);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (connErr) {
+          console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
+        }
+        await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Sukses', 'Struk berhasil dicetak!');
+        }
+        return;
+      } else if (activePrinter) {
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
+        }
+        await printServiceReceiptViaBluetooth(ticket, settings, branding, isExpired);
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
+        } else {
+          Alert.alert('Sukses', 'Struk berhasil dicetak!');
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('Direct Bluetooth service print failed, falling back to PDF preview:', error);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show('Cetak langsung gagal, mengalihkan ke cetak share...', ToastAndroid.LONG);
+      } else {
+        Alert.alert('Info', 'Cetak langsung gagal, mengalihkan ke cetak share...');
+      }
+    }
+  }
+
+  try {
+    let finalSettings = settings;
+    let base64Logo = '';
+    if (finalSettings?.showLogoOnReceipt !== false && finalSettings?.logoUrl) {
+      base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_service_receipt_logo');
+    }
+    if (base64Logo) {
+      finalSettings = { ...finalSettings, logoUrl: base64Logo };
+    }
+    const html = generateServiceReceiptHtml(ticket, finalSettings, branding, isExpired);
+    await Print.printAsync({ html });
+  } catch (error) {
+    console.error('Error printing service receipt:', error);
+    throw error;
+  }
+};

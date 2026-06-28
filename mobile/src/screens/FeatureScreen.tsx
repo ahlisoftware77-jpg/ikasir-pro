@@ -20,7 +20,7 @@ import {
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
 } from 'lucide-react-native';
-import { printReceipt, printA4 } from '../utils/ReceiptHelper';
+import { printReceipt, printA4, printServiceReceipt } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -425,6 +425,16 @@ export default function FeatureScreen({ route, navigation }: any) {
       Alert.alert("Gagal", "Gagal memperbarui status: " + err.message);
     } finally {
       setIsUpdatingServiceStatus(false);
+    }
+  };
+
+  const handlePrintServiceReceipt = async (ticket: any) => {
+    try {
+      const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+      const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
+      await printServiceReceipt(ticket, settingsData);
+    } catch (err: any) {
+      Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
     }
   };
 
@@ -7286,6 +7296,14 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               >
                 <Text className="font-black text-xs uppercase tracking-widest text-accent">
                   Bagikan
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handlePrintServiceReceipt(selectedServiceTicket)}
+                className="flex-1 py-4 rounded-2xl items-center justify-center bg-emerald-500/10 border border-emerald-500/20"
+              >
+                <Text className="font-black text-xs uppercase tracking-widest text-emerald-500">
+                  Cetak
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
