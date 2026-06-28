@@ -486,7 +486,7 @@ export default function ServicesPage() {
 
   const handleShareSignatureLink = async (ticketId: string) => {
     try {
-      await updateDoc(doc(db, 'services', ticketId), {
+      await updateDoc(doc(db, 'service_tickets', ticketId), {
         isSignatureLinkActive: true
       });
       

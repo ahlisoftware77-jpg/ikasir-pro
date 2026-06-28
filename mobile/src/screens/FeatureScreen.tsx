@@ -432,55 +432,9 @@ export default function FeatureScreen({ route, navigation }: any) {
   const handlePrintServiceReceipt = async (ticket: any) => {
     try {
       if (!storeId) return;
-      const savedPrinter = await AsyncStorage.getItem('selected_printer');
       const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
       const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
-
-      if (savedPrinter) {
-        Alert.alert(
-          "Cetak Struk",
-          `Mencetak menggunakan printer bluetooth "${savedPrinter}"?`,
-          [
-            { text: "Batal", style: "cancel" },
-            { 
-              text: "Pilih Printer Lain", 
-              onPress: () => {
-                Alert.alert("Info", "Silakan atur atau hubungkan printer bluetooth Anda kembali melalui menu Pengaturan.");
-              }
-            },
-            {
-              text: "Cetak Sekarang",
-              onPress: async () => {
-                Vibration.vibrate(15);
-                try {
-                  await printServiceReceipt(ticket, settingsData);
-                } catch (err: any) {
-                  Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
-                }
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert(
-          "Printer Belum Terhubung",
-          "Silakan sambungkan printer bluetooth Anda terlebih dahulu melalui menu Pengaturan.",
-          [
-            { text: "Batal", style: "cancel" },
-            {
-              text: "Cetak Langsung",
-              onPress: async () => {
-                Vibration.vibrate(15);
-                try {
-                  await printServiceReceipt(ticket, settingsData);
-                } catch (err: any) {
-                  Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
-                }
-              }
-            }
-          ]
-        );
-      }
+      await printServiceReceipt(ticket, settingsData);
     } catch (err: any) {
       Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
     }
@@ -2779,7 +2733,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const handleShareSignatureLink = async (type: string, id: string) => {
     try {
       Vibration.vibrate(10);
-      const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'services' : 'transactions';
+      const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'service_tickets' : 'transactions';
       await updateDoc(doc(db, collectionName, id), {
         isSignatureLinkActive: true
       });

@@ -21,7 +21,7 @@ function SignatureContent() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'services' : 'transactions';
+  const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'service_tickets' : 'transactions';
 
   useEffect(() => {
     if (!type || !id) {
