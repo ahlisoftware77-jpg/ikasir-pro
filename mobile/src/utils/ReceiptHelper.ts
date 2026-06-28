@@ -1761,7 +1761,67 @@ export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings
   }
 
   await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
-  await BluetoothEscposPrinter.printText(`${cleanStoreName.toUpperCase()}\n\r`, { fonttype: 1, heigthtype: 1, widthtype: 1 });
+  const fontId = storeSettings?.storeNameFont || 'sans';
+  const isCustomFont = ['railey', 'cheque', 'lovelo', 'sancreek'].includes(fontId);
+  
+  if (isCustomFont) {
+    try {
+      let baseUrl = storeSettings?.webBaseUrl || '';
+      if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1') || baseUrl.includes('192.168.')) {
+        baseUrl = '';
+      }
+      if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
+      const endpoint = `/api/render-store-name?text=${encodeURIComponent(cleanStoreName)}&font=${fontId}&_t=${Date.now()}`;
+      const urlsToTry = [
+        `https://ikasir.my.id${endpoint}`,
+        baseUrl && baseUrl !== 'https://ikasir.my.id' ? `${baseUrl}${endpoint}` : null,
+      ].filter(Boolean) as string[];
+
+      let base64Image: string | null = null;
+      let downloadedUri: string | null = null;
+
+      for (const renderUrl of urlsToTry) {
+        try {
+          const uniqueId = Math.random().toString(36).substring(7);
+          const tempFile = `${FileSystem.cacheDirectory}temp_bt_svc_storename_${uniqueId}.png`;
+          const { uri } = await FileSystem.downloadAsync(renderUrl, tempFile);
+          const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+          if (b64 && b64.startsWith('iVBORw0KGgo')) {
+            base64Image = b64;
+            downloadedUri = uri;
+            break;
+          }
+          try { await FileSystem.deleteAsync(uri, { idempotent: true }); } catch {}
+        } catch {}
+      }
+
+      if (!base64Image) {
+        throw new Error('Semua URL gagal menghasilkan gambar PNG font yang valid.');
+      }
+
+      const printerWidth = is80mm ? 576 : 384;
+      await BluetoothEscposPrinter.printPic(base64Image, { width: printerWidth, left: 0 });
+      await BluetoothEscposPrinter.printerLineSpace(30);
+
+      if (downloadedUri) {
+        try { await FileSystem.deleteAsync(downloadedUri, { idempotent: true }); } catch {}
+      }
+    } catch (err: any) {
+      console.warn('Gagal mencetak header kustom sebagai gambar pada servis:', err);
+      await BluetoothEscposPrinter.setBlob(1);
+      for (const line of wrapText(cleanStoreName.toUpperCase())) {
+        await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+      }
+      await BluetoothEscposPrinter.setBlob(0);
+    }
+  } else {
+    await BluetoothEscposPrinter.setBlob(1);
+    for (const line of wrapText(cleanStoreName.toUpperCase())) {
+      await BluetoothEscposPrinter.printText(`${line}\n\r`, { encoding: 'GBK', codepage: 0 });
+    }
+    await BluetoothEscposPrinter.setBlob(0);
+  }
   
   if (address) {
     const addrLines = wrapText(address);
