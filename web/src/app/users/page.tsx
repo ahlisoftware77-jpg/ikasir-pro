@@ -502,7 +502,7 @@ export default function UsersPage() {
 
 
             <div className="space-y-4">
-              [
+              {[
                 { key: 'canAccessPOS', label: 'Buka Menu Kasir (POS)', desc: 'Boleh melakukan transaksi penjualan' },
                 { key: 'canManageProducts', label: 'Manajemen Produk', desc: 'Akses ke daftar/stok barang' },
                 { key: 'canViewReports', label: 'Buka Menu Laporan', desc: 'Boleh melihat omzet & riwayat' },
@@ -567,7 +567,7 @@ export default function UsersPage() {
                     </div>
                   )}
                 </div>
-              ))}
+              )))}
             </div>
 
             <div className="mt-8 flex gap-3">
