@@ -54,6 +54,10 @@ export default function FeatureScreen({ route, navigation }: any) {
 
   const [search, setSearch] = useState('');
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [isSelectCustomerVisible, setIsSelectCustomerVisible] = useState(false);
+  const [isSelectProductVisible, setIsSelectProductVisible] = useState(false);
+  const [searchSelectCust, setSearchSelectCust] = useState('');
+  const [searchSelectProd, setSearchSelectProd] = useState('');
   const [loading, setLoading] = useState(true);
 
   // --- FORM STATES ---
@@ -2919,10 +2923,28 @@ export default function FeatureScreen({ route, navigation }: any) {
       case 'service_elektronik':
         return (
           <>
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Data Pelanggan</Text>
+              <TouchableOpacity
+                onPress={() => setIsSelectCustomerVisible(true)}
+                className="px-3 py-1 bg-accent/10 rounded-lg border border-accent/20"
+              >
+                <Text className="text-[10px] font-black text-accent uppercase">Pilih dari Kontak</Text>
+              </TouchableOpacity>
+            </View>
             {renderTextInput('Nama Pelanggan *', formCustomer, setFormCustomer, 'e.g. Budi Raharjo')}
             {renderTextInput('Nomor Telepon', formPhone, setFormPhone, 'e.g. 08123456789', 'phone-pad')}
             {renderTextInput('Model / Perangkat *', formName, setFormName, 'e.g. iPhone 13 Pro')}
             {renderTextInput('S/N atau IMEI', serviceFormSerial, setServiceFormSerial, 'e.g. SN8291039832')}
+            <View className="flex-row justify-between items-center mb-1 mt-2">
+              <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Masalah & Biaya</Text>
+              <TouchableOpacity
+                onPress={() => setIsSelectProductVisible(true)}
+                className="px-3 py-1 bg-accent/10 rounded-lg border border-accent/20"
+              >
+                <Text className="text-[10px] font-black text-accent uppercase">Lihat Produk</Text>
+              </TouchableOpacity>
+            </View>
             {renderTextInput('Kerusakan / Keluhan *', serviceFormDamage, setServiceFormDamage, 'Deskripsikan gejala kerusakan...')}
             {renderTextInput('Estimasi Biaya Awal (Rp)', serviceFormCost, setServiceFormCost, '0', 'numeric')}
             {renderTextInput('Masa Garansi', serviceFormWarrantyDuration, setServiceFormWarrantyDuration, '0', 'numeric')}
@@ -6027,6 +6049,133 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Select Customer Sub-Modal */}
+      <Modal visible={isSelectCustomerVisible} animationType="slide" transparent onRequestClose={() => setIsSelectCustomerVisible(false)}>
+        <View className="flex-1 bg-black/60 justify-end items-center">
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 h-[80%]" style={{ backgroundColor: colors.surface }}>
+            <View className="flex-row justify-between items-center mb-4">
+              <View>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Pilih Pelanggan</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Pilih kontak pelanggan terdaftar</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsSelectCustomerVisible(false)} className="w-8 h-8 rounded-full bg-black/10 items-center justify-center">
+                <X color={colors.text} size={16} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              value={searchSelectCust}
+              onChangeText={setSearchSelectCust}
+              placeholder="Cari pelanggan..."
+              placeholderTextColor={colors.textMuted}
+              className="w-full px-4 py-3 rounded-2xl border mb-4 font-bold text-xs"
+              style={{ color: colors.text, borderColor: colors.border, backgroundColor: colors.bg }}
+            />
+            <FlatList
+              data={customers.filter(c => c.name.toLowerCase().includes(searchSelectCust.toLowerCase()) || (c.phone && c.phone.includes(searchSelectCust)))}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setFormCustomer(item.name);
+                    setFormPhone(item.phone || '');
+                    setIsSelectCustomerVisible(false);
+                    setSearchSelectCust('');
+                  }}
+                  className="p-4 mb-2 rounded-2xl flex-row justify-between items-center border"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}
+                >
+                  <View>
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
+                    <Text className="text-xs font-bold mt-1" style={{ color: colors.textMuted }}>{item.phone || '-'}</Text>
+                  </View>
+                  <Text className="text-[10px] font-black text-accent uppercase">Pilih</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View className="items-center py-10">
+                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Tidak ada data pelanggan</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Select Product Sub-Modal */}
+      <Modal visible={isSelectProductVisible} animationType="slide" transparent onRequestClose={() => setIsSelectProductVisible(false)}>
+        <View className="flex-1 bg-black/60 justify-end items-center">
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-10 h-[80%]" style={{ backgroundColor: colors.surface }}>
+            <View className="flex-row justify-between items-center mb-4">
+              <View>
+                <Text className="text-lg font-black" style={{ color: colors.text }}>Pilih Produk</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Pilih produk untuk mengisi detail otomatis</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsSelectProductVisible(false)} className="w-8 h-8 rounded-full bg-black/10 items-center justify-center">
+                <X color={colors.text} size={16} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              value={searchSelectProd}
+              onChangeText={setSearchSelectProd}
+              placeholder="Cari produk..."
+              placeholderTextColor={colors.textMuted}
+              className="w-full px-4 py-3 rounded-2xl border mb-4 font-bold text-xs"
+              style={{ color: colors.text, borderColor: colors.border, backgroundColor: colors.bg }}
+            />
+            <FlatList
+              data={allProducts.filter(p => p.name.toLowerCase().includes(searchSelectProd.toLowerCase()))}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setFormName(item.name);
+                    setServiceFormDamage(item.description || item.name);
+                    setServiceFormCost(String(item.price || 0));
+                    if (item.warrantyDuration !== undefined) {
+                      setServiceFormWarrantyDuration(String(item.warrantyDuration));
+                    }
+                    if (item.warrantyUnit) {
+                      setServiceFormWarrantyUnit(item.warrantyUnit);
+                    }
+                    setIsSelectProductVisible(false);
+                    setSearchSelectProd('');
+                  }}
+                  className="p-4 mb-2 rounded-2xl border"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}
+                >
+                  <View className="flex-row justify-between items-start">
+                    <View className="flex-1 mr-2">
+                      <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={1}>{item.name}</Text>
+                      {item.description ? (
+                        <Text className="text-[11px] font-bold text-slate-400 mt-1" numberOfLines={1}>
+                          {item.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text className="text-xs font-black text-emerald-500">Rp {item.price?.toLocaleString('id-ID')}</Text>
+                  </View>
+                  <View className="flex-row justify-between items-center mt-3 pt-2 border-t" style={{ borderColor: colors.border + '10' }}>
+                    <Text className="text-[10px] font-black text-slate-500">Stok: {item.stock || 0} {item.unit || 'pcs'}</Text>
+                    {item.warrantyDuration ? (
+                      <Text className="text-[10px] font-black text-amber-500">
+                        Garansi: {item.warrantyDuration} {item.warrantyUnit === 'months' ? 'Bulan' : item.warrantyUnit === 'years' ? 'Tahun' : 'Hari'}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View className="items-center py-10">
+                  <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Tidak ada data produk</Text>
+                </View>
+              }
+            />
+          </View>
+        </View>
       </Modal>
 
       {/* Item Edit Modal */}

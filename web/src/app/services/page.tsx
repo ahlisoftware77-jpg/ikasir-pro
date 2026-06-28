@@ -93,6 +93,40 @@ export default function ServicesPage() {
     warrantyUnit: 'days'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [isSelectCustomerOpen, setIsSelectCustomerOpen] = useState(false);
+  const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
+  const [searchCustQuery, setSearchCustQuery] = useState('');
+  const [searchProdQuery, setSearchProdQuery] = useState('');
+
+  // Real-time Customers & Products Listener
+  useEffect(() => {
+    if (!storeId) return;
+
+    const qCust = query(
+      collection(db, 'customers'),
+      where('storeId', '==', storeId)
+    );
+    const unsubscribeCust = onSnapshot(qCust, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCustomers(docs);
+    });
+
+    const qProd = query(
+      collection(db, 'products'),
+      where('storeId', '==', storeId)
+    );
+    const unsubscribeProd = onSnapshot(qProd, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProducts(docs);
+    });
+
+    return () => {
+      unsubscribeCust();
+      unsubscribeProd();
+    };
+  }, [storeId]);
   
   // Status Update State
   const [newStatus, setNewStatus] = useState<string>('');
@@ -740,6 +774,16 @@ export default function ServicesPage() {
             </div>
 
             <form onSubmit={handleCreateTicket} className="space-y-6">
+              <div className="flex justify-between items-center pl-1 mb-1">
+                <span className="text-[9px] font-black text-app-text-muted uppercase tracking-wider">Identitas Pelanggan</span>
+                <button
+                  type="button"
+                  onClick={() => setIsSelectCustomerOpen(true)}
+                  className="px-2.5 py-1 bg-accent/15 border border-accent/20 rounded-lg text-[9px] font-black uppercase text-accent hover:bg-accent/25 transition-colors"
+                >
+                  Pilih dari Kontak
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Nama Pelanggan *</label>
@@ -789,7 +833,16 @@ export default function ServicesPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block pl-1">Kerusakan / Keluhan *</label>
+                <div className="flex justify-between items-center pl-1 mb-1">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block">Kerusakan / Keluhan *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectProductOpen(true)}
+                    className="px-2.5 py-1 bg-accent/15 border border-accent/20 rounded-lg text-[9px] font-black uppercase text-accent hover:bg-accent/25 transition-colors"
+                  >
+                    Lihat Produk
+                  </button>
+                </div>
                 <textarea
                   required
                   rows={2}
@@ -1252,6 +1305,126 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* SELECT CUSTOMER MODAL */}
+      {isSelectCustomerOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="bg-surface border border-app-border rounded-[3rem] w-full max-w-lg shadow-2xl p-8 max-h-[80%] flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-base font-black uppercase text-foreground leading-none mb-1">Pilih Pelanggan</h3>
+                <p className="text-[10px] text-app-text-muted font-bold uppercase">Gunakan data pelanggan yang sudah terdaftar</p>
+              </div>
+              <button onClick={() => { setIsSelectCustomerOpen(false); setSearchCustQuery(''); }} className="p-2 bg-background hover:bg-surface border border-app-border rounded-full text-app-text-muted">
+                <X size={16} />
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={searchCustQuery}
+              onChange={e => setSearchCustQuery(e.target.value)}
+              placeholder="Cari nama atau nomor telepon..."
+              className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent mb-4"
+            />
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {customers
+                .filter(c => c.name.toLowerCase().includes(searchCustQuery.toLowerCase()) || (c.phone && c.phone.includes(searchCustQuery)))
+                .map((cust) => (
+                  <div
+                    key={cust.id}
+                    onClick={() => {
+                      setAddForm({
+                        ...addForm,
+                        customerName: cust.name,
+                        customerPhone: cust.phone || ''
+                      });
+                      setIsSelectCustomerOpen(false);
+                      setSearchCustQuery('');
+                    }}
+                    className="p-4 bg-background hover:bg-accent/5 border border-app-border hover:border-accent/30 rounded-2xl cursor-pointer flex items-center justify-between transition-all"
+                  >
+                    <div>
+                      <h4 className="text-xs font-black text-foreground">{cust.name}</h4>
+                      <p className="text-[10px] text-app-text-muted font-bold mt-1">{cust.phone || '-'}</p>
+                    </div>
+                    <span className="text-[9px] font-black text-accent uppercase tracking-wider">Pilih</span>
+                  </div>
+                ))}
+              {customers.filter(c => c.name.toLowerCase().includes(searchCustQuery.toLowerCase()) || (c.phone && c.phone.includes(searchCustQuery))).length === 0 && (
+                <p className="text-xs text-app-text-muted text-center py-8 font-semibold">Tidak ditemukan data pelanggan</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SELECT PRODUCT MODAL */}
+      {isSelectProductOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="bg-surface border border-app-border rounded-[3rem] w-full max-w-lg shadow-2xl p-8 max-h-[80%] flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-base font-black uppercase text-foreground leading-none mb-1">Pilih Produk</h3>
+                <p className="text-[10px] text-app-text-muted font-bold uppercase">Gunakan data produk untuk mengisi form otomatis</p>
+              </div>
+              <button onClick={() => { setIsSelectProductOpen(false); setSearchProdQuery(''); }} className="p-2 bg-background hover:bg-surface border border-app-border rounded-full text-app-text-muted">
+                <X size={16} />
+              </button>
+            </div>
+
+            <input
+              type="text"
+              value={searchProdQuery}
+              onChange={e => setSearchProdQuery(e.target.value)}
+              placeholder="Cari produk berdasarkan nama..."
+              className="w-full px-5 py-3 bg-background border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent mb-4"
+            />
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {products
+                .filter(p => p.name.toLowerCase().includes(searchProdQuery.toLowerCase()))
+                .map((prod) => (
+                  <div
+                    key={prod.id}
+                    onClick={() => {
+                      setAddForm({
+                        ...addForm,
+                        deviceModel: prod.name,
+                        damageDescription: prod.description || prod.name,
+                        estimatedCost: String(prod.price || 0),
+                        warrantyDuration: prod.warrantyDuration !== undefined ? String(prod.warrantyDuration) : addForm.warrantyDuration,
+                        warrantyUnit: prod.warrantyUnit || addForm.warrantyUnit
+                      });
+                      setIsSelectProductOpen(false);
+                      setSearchProdQuery('');
+                    }}
+                    className="p-4 bg-background hover:bg-accent/5 border border-app-border hover:border-accent/30 rounded-2xl cursor-pointer transition-all"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="mr-2">
+                        <h4 className="text-xs font-black text-foreground">{prod.name}</h4>
+                        {prod.description ? (
+                          <p className="text-[10px] text-app-text-muted font-bold mt-1 line-clamp-1">{prod.description}</p>
+                        ) : null}
+                      </div>
+                      <span className="text-xs font-black text-emerald-500 shrink-0">Rp {prod.price?.toLocaleString('id-ID')}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-app-border/40">
+                      <span className="text-[9px] text-app-text-muted font-bold">Stok: {prod.stock || 0} {prod.unit || 'pcs'}</span>
+                      {prod.warrantyDuration ? (
+                        <span className="text-[9px] text-amber-500 font-bold">Garansi: {prod.warrantyDuration} {prod.warrantyUnit === 'months' ? 'Bulan' : prod.warrantyUnit === 'years' ? 'Tahun' : 'Hari'}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              {products.filter(p => p.name.toLowerCase().includes(searchProdQuery.toLowerCase())).length === 0 && (
+                <p className="text-xs text-app-text-muted text-center py-8 font-semibold">Tidak ditemukan data produk</p>
+              )}
             </div>
           </div>
         </div>
