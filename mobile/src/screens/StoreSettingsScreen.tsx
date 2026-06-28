@@ -105,7 +105,7 @@ const getFontStyle = (id: string) => {
 
 export default function StoreSettingsScreen({ navigation }: any) {
   const { colors, theme, setTheme } = useTheme();
-  const { user, role, storeId, logout, isSubscriptionExpired } = useAuthStore();
+  const { user, role, storeId, logout, isSubscriptionExpired, permissions } = useAuthStore();
 
   const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
@@ -1401,7 +1401,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
 
   // Helper to render grid item
   const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isDisabled = false) => {
-    if (isAdminOnly && role !== 'admin') return null;
+    if (isAdminOnly && role !== 'admin' && role !== 'super-admin' && role !== 'superadmin' && !(permissions && (permissions as any).canAccessSuperAdminPanel)) return null;
 
     return (
       <TouchableOpacity

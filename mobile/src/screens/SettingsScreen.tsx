@@ -1277,7 +1277,7 @@ export default function SettingsScreen({ navigation, route }: any) {
 
   // Helper to render grid item
   const renderMenuItem = (label: string, IconComponent: any, color: string, onPress: () => void, isAdminOnly = false, isExpiredBlocked = false, badgeCount = 0, path?: string) => {
-    if (isAdminOnly && role !== 'admin') return null;
+    if (isAdminOnly && role !== 'admin' && role !== 'super-admin' && role !== 'superadmin' && !(permissions && (permissions as any).canAccessSuperAdminPanel)) return null;
 
     // 1. Check Cashier Permissions: Hide completely if no permission
     if (path) {
