@@ -20,7 +20,7 @@ import {
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
 } from 'lucide-react-native';
-import { printReceipt, printA4, printServiceReceipt } from '../utils/ReceiptHelper';
+import { printReceipt, printA4, printServiceReceipt, printServiceA4 } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -435,6 +435,16 @@ export default function FeatureScreen({ route, navigation }: any) {
       await printServiceReceipt(ticket, settingsData);
     } catch (err: any) {
       Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak: ' + (err.message || String(err)));
+    }
+  };
+
+  const handlePrintServiceA4 = async (ticket: any) => {
+    try {
+      const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+      const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
+      await printServiceA4(ticket, settingsData);
+    } catch (err: any) {
+      Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak A4: ' + (err.message || String(err)));
     }
   };
 
@@ -7271,15 +7281,16 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               </ScrollView>
             )}
 
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={() => {
-                  const ticketIdentifier = selectedServiceTicket.ticketNo 
-                    ? `no=${selectedServiceTicket.ticketNo}` 
-                    : `id=${selectedServiceTicket.id}`;
-                  const ticketDisplayNo = selectedServiceTicket.ticketNo || `ST-${selectedServiceTicket.id.substring(0,8).toUpperCase()}`;
+            <View className="gap-3">
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => {
+                    const ticketIdentifier = selectedServiceTicket.ticketNo 
+                      ? `no=${selectedServiceTicket.ticketNo}` 
+                      : `id=${selectedServiceTicket.id}`;
+                    const ticketDisplayNo = selectedServiceTicket.ticketNo || `ST-${selectedServiceTicket.id.substring(0,8).toUpperCase()}`;
 
-                  const receiptText = `*IKASIR PRO - Tanda Terima Servis*
+                    const receiptText = `*IKASIR PRO - Tanda Terima Servis*
 
 No. Tiket: ${ticketDisplayNo}
 Pelanggan: ${selectedServiceTicket.customerName}
@@ -7290,30 +7301,43 @@ Status: ${STATUS_LABELS[selectedServiceTicket.status]}
 
 Lacak status perbaikan Anda secara real-time di sini:
 https://ikasir.my.id/tr/service?${ticketIdentifier}`;
-                  Share.share({ message: receiptText });
-                }}
-                className="flex-1 py-4 rounded-2xl items-center justify-center bg-accent/10 border border-accent/20"
-              >
-                <Text className="font-black text-xs uppercase tracking-widest text-accent">
-                  Bagikan
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handlePrintServiceReceipt(selectedServiceTicket)}
-                className="flex-1 py-4 rounded-2xl items-center justify-center bg-emerald-500/10 border border-emerald-500/20"
-              >
-                <Text className="font-black text-xs uppercase tracking-widest text-emerald-500">
-                  Cetak
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDeleteServiceTicket(selectedServiceTicket.id)}
-                className="flex-1 py-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
-              >
-                <Text className="font-black text-xs uppercase tracking-widest text-rose-500">
-                  Hapus
-                </Text>
-              </TouchableOpacity>
+                    Share.share({ message: receiptText });
+                  }}
+                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-accent/10 border border-accent/20"
+                >
+                  <Text className="font-black text-xs uppercase tracking-widest text-accent">
+                    Bagikan
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDeleteServiceTicket(selectedServiceTicket.id)}
+                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
+                >
+                  <Text className="font-black text-xs uppercase tracking-widest text-rose-500">
+                    Hapus
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => handlePrintServiceA4(selectedServiceTicket)}
+                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-amber-500/10 border border-amber-500/20"
+                >
+                  <Text className="font-black text-xs uppercase tracking-widest text-amber-500">
+                    Cetak A4
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handlePrintServiceReceipt(selectedServiceTicket)}
+                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-emerald-500/10 border border-emerald-500/20"
+                >
+                  <Text className="font-black text-xs uppercase tracking-widest text-emerald-500">
+                    Cetak Struk
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
               <TouchableOpacity
                 onPress={() => setIsServiceDetailVisible(false)}
                 activeOpacity={0.8}

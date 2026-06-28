@@ -832,3 +832,218 @@ export const printServiceReceipt = async (ticket: any, storeSettings: any, brand
     alert("Pop-up diblokir. Izinkan pop-up untuk mencetak struk.");
   }
 };
+
+export const printServiceA4 = async (ticket: any, storeSettings: any, branding?: any) => {
+  const isExpired = await checkSubscriptionExpired(ticket.storeId);
+
+  let logoData = storeSettings?.logoUrl || storeSettings?.thermalLogoUrl || '';
+  if (storeSettings?.showLogoOnReceipt !== false && logoData && logoData.startsWith('http')) {
+     logoData = await urlToBase64(logoData);
+  }
+
+  const trackLink = `https://ikasir.my.id/services/track?id=${ticket.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackLink)}`;
+  const qrBase64 = await urlToBase64(qrUrl);
+
+  const formatDate = (date: Date) => {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y} ${h}:${min}`;
+  };
+
+  const dateStr = ticket.createdAt?.toDate 
+    ? formatDate(ticket.createdAt.toDate())
+    : ticket.createdAt instanceof Date 
+    ? formatDate(ticket.createdAt)
+    : ticket.createdAt?.seconds 
+    ? formatDate(new Date(ticket.createdAt.seconds * 1000))
+    : formatDate(new Date());
+
+  const storeName = storeSettings?.storeName || branding?.appName || 'IKASIR PRO STORE';
+  const cleanStoreName = storeName.includes('@') ? storeName.split('@')[0] : storeName;
+  const address = storeSettings?.address || '';
+  const phone = storeSettings?.phone || '';
+  const storeNpwp = storeSettings?.npwp ? `<p class="store-info" style="font-size: 11px; color: #475569; margin: 2px 0;">NPWP: ${storeSettings.npwp}</p>` : '';
+
+  const warrantyText = ticket.warrantyDuration 
+    ? `${ticket.warrantyDuration} ${ticket.warrantyUnit === 'months' ? 'Bulan' : ticket.warrantyUnit === 'days' ? 'Hari' : 'Tahun'}`
+    : 'Tidak Ada';
+
+  const docNote = storeSettings?.a4ServiceNote || "* Simpan tanda terima ini secara baik sebagai bukti pengambilan barang yang sah.\n* Barang yang tidak diambil dalam waktu 30 hari di luar tanggung jawab toko kami.\n* Garansi servis berlaku untuk kendala/masalah kerusakan yang sama.";
+  const docNoteHtml = docNote.replace(/\n/g, '<br/>');
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <title>Nota Penerimaan Servis #${ticket.ticketNo || ticket.id.substring(0,8).toUpperCase()}</title>
+      <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; margin: 0; padding: 30px; background-color: #fff; }
+        .invoice-container { max-width: 800px; margin: 0 auto; }
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .header-logo { width: 120px; vertical-align: top; }
+        .header-store { text-align: right; vertical-align: top; }
+        .store-title { font-size: 18px; font-weight: 900; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
+        .store-info { font-size: 11px; color: #475569; margin: 2px 0; }
+        .title-section { text-align: center; margin-bottom: 20px; }
+        .main-title { font-size: 20px; font-weight: 900; color: #0f172a; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 5px 0; }
+        .sub-title { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; }
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .info-cell { padding: 12px; width: 50%; vertical-align: top; }
+        .info-label { font-size: 9px; font-weight: 900; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .info-val { font-size: 12px; font-weight: 700; color: #0f172a; }
+        .detail-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .detail-table th { padding: 10px 8px; background-color: #0f172a; color: #fff; font-size: 10px; font-weight: 900; text-transform: uppercase; text-align: left; }
+        .detail-table td { padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+        .summary-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; gap: 20px; }
+        .terms-box { flex: 1.3; font-size: 10px; color: #64748b; line-height: 1.6; }
+        .terms-title { font-weight: bold; color: #0f172a; margin-bottom: 6px; text-transform: uppercase; font-size: 10px; }
+        .cost-box { flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+        .cost-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .cost-row.grand-total { font-size: 14px; font-weight: 900; color: #10b981; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 6px; margin-bottom: 0; }
+        .qr-section { text-align: center; padding: 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; display: inline-block; }
+        .signature-section { width: 100%; border-collapse: collapse; margin-top: 30px; text-align: center; }
+        .signature-cell { width: 50%; vertical-align: top; font-size: 12px; }
+        .signature-line { margin-top: 50px; border-top: 1px solid #94a3b8; width: 150px; display: inline-block; }
+      </style>
+    </head>
+    <body>
+      <div class="invoice-container">
+        <!-- HEADER -->
+        <table class="header-table">
+          <tr>
+            <td class="header-logo">
+              ${storeSettings?.showLogoOnReceipt !== false && logoData ? `
+                <img src="${logoData}" style="max-width: 120px; max-height: 80px; object-fit: contain; filter: grayscale(100%);" />
+              ` : ''}
+            </td>
+            <td class="header-store">
+              <h3 class="store-title">${cleanStoreName}</h3>
+              ${address ? `<p class="store-info">${address}</p>` : ''}
+              ${phone ? `<p class="store-info">Telp: ${phone}</p>` : ''}
+              ${storeNpwp}
+            </td>
+          </tr>
+        </table>
+
+        <!-- TITLE -->
+        <div class="title-section">
+          <h2 class="main-title">NOTA PENERIMAAN SERVIS</h2>
+          <p class="sub-title">No. Tiket: #${ticket.ticketNo || `ST-${ticket.id.substring(0,8).toUpperCase()}`}</p>
+        </div>
+
+        <!-- INFO -->
+        <table class="info-table">
+          <tr>
+            <td class="info-cell" style="border-right: 1px solid #e2e8f0;">
+              <div class="info-label">Informasi Pelanggan</div>
+              <div class="info-val" style="font-size: 13px; margin-bottom: 2px;">${ticket.customerName}</div>
+              <div class="store-info" style="font-size: 12px; font-weight: bold; color: #475569;">HP: ${ticket.customerPhone || '-'}</div>
+            </td>
+            <td class="info-cell">
+              <div class="info-label">Informasi Dokumen</div>
+              <div class="store-info" style="font-size: 12px;">Tanggal Diterima: <b>${dateStr}</b></div>
+              <div class="store-info" style="font-size: 12px;">Teknisi: <b>${ticket.history?.[0]?.userEmail?.split('@')?.[0] || 'Admin'}</b></div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- TABLE -->
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th style="width: 35%;">Perangkat / Unit</th>
+              <th style="width: 25%;">S/N atau IMEI</th>
+              <th style="width: 40%;">Diagnosa Kerusakan / Masalah</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight: bold; color: #0f172a; font-size: 12px;">${ticket.deviceModel}</td>
+              <td style="font-family: monospace; font-size: 11px;">${ticket.serialNumber || '-'}</td>
+              <td style="white-space: pre-wrap; color: #333; font-size: 11px;">${ticket.damageDescription}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- SUMMARY SECTION -->
+        <div class="summary-container">
+          <!-- Terms and QR -->
+          <div style="display: flex; flex-direction: column; gap: 15px; flex: 1.3;">
+            <div class="terms-box">
+              <div class="terms-title">Syarat & Ketentuan Servis:</div>
+              <div>${docNoteHtml}</div>
+            </div>
+            
+            <div>
+              <div class="qr-section">
+                <div style="font-weight: bold; font-size: 9px; text-transform: uppercase; margin-bottom: 6px; color: #0f172a; letter-spacing: 0.5px;">Live Status Tracking</div>
+                <img src="${qrBase64}" style="width: 80px; height: 80px; border: 1px solid #e2e8f0; padding: 2px; background: #fff;" />
+                <div style="font-size: 8px; color: #64748b; margin-top: 4px; font-weight: bold; max-width: 140px; line-height: 1.3;">Pindai QR ini untuk melacak status servis secara langsung</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Costs -->
+          <div class="cost-box">
+            <div class="terms-title" style="margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Rincian Biaya</div>
+            <div class="cost-row">
+              <span style="color: #64748b;">Estimasi Biaya:</span>
+              <span style="font-weight: bold;">Rp ${(ticket.estimatedCost || 0).toLocaleString('id-ID')}</span>
+            </div>
+            <div class="cost-row">
+              <span style="color: #64748b;">Uang Muka (DP):</span>
+              <span style="font-weight: bold;">Rp ${Number(ticket.downPayment || 0).toLocaleString('id-ID')}</span>
+            </div>
+            <div class="cost-row">
+              <span style="color: #64748b;">Garansi Toko:</span>
+              <span style="font-weight: bold;">${warrantyText}</span>
+            </div>
+            
+            <div class="cost-row grand-total">
+              <span>Sisa Pembayaran:</span>
+              <span>Rp ${(Number(ticket.estimatedCost || 0) - Number(ticket.downPayment || 0)).toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIGNATURES -->
+        <table class="signature-section">
+          <tr>
+            <td class="signature-cell">
+              <div>Pelanggan / Pemilik</div>
+              <div class="signature-line"></div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${ticket.customerName}</div>
+            </td>
+            <td class="signature-cell">
+              <div>Penerima / Teknisi</div>
+              <div class="signature-line"></div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${cleanStoreName}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Watermark -->
+        ${isExpired && branding?.receiptWatermark ? `
+          <div style="text-align: center; margin-top: 50px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.4; border-top: 1px dashed #cbd5e1; padding-top: 10px; color: #475569; letter-spacing: 2px;">
+            ${branding.receiptWatermark}
+          </div>
+        ` : ''}
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '', `width=850,height=800`);
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  } else {
+    alert("Pop-up diblokir. Izinkan pop-up untuk mencetak nota A4.");
+  }
+};

@@ -40,7 +40,7 @@ import {
 import { useAuthStore } from '@/store/auth';
 import { getInfraConfig } from '@/lib/infraConfig';
 import { useBranding } from '@/context/BrandingContext';
-import { printServiceReceipt } from '@/lib/printReceipt';
+import { printServiceReceipt, printServiceA4 } from '@/lib/printReceipt';
 import toast from 'react-hot-toast';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -458,6 +458,30 @@ export default function ServicesPage() {
     );
   };
 
+  const handlePrintA4 = async (ticket: any) => {
+    let settings = null;
+    try {
+      if (storeId) {
+        const docRef = doc(db, 'settings', `store_${storeId}`);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          settings = docSnap.data();
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat pengaturan cetak A4:", err);
+    }
+
+    toast.promise(
+      printServiceA4(ticket, settings, branding),
+      {
+        loading: 'Mempersiapkan nota servis A4...',
+        success: 'Jendela cetak nota A4 siap!',
+        error: 'Gagal mencetak nota servis A4.'
+      }
+    );
+  };
+
   return (
     <div className="p-6 md:p-10 space-y-8 max-w-7xl mx-auto">
       {/* Top Banner Header */}
@@ -750,11 +774,19 @@ export default function ServicesPage() {
               
               <div className="flex items-center gap-3">
                 <button 
+                  onClick={() => handlePrintA4(selectedTicket)}
+                  className="p-2.5 bg-background border border-app-border hover:bg-surface text-app-text-muted hover:text-foreground rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+                >
+                  <FileText size={16} className="text-accent" />
+                  Cetak A4
+                </button>
+
+                <button 
                   onClick={() => handlePrintReceipt(selectedTicket)}
                   className="p-2.5 bg-background border border-app-border hover:bg-surface text-app-text-muted hover:text-foreground rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
                 >
                   <Printer size={16} />
-                  Cetak Tanda Terima
+                  Cetak Struk
                 </button>
 
                 <button 
