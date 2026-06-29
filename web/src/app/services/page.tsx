@@ -222,24 +222,6 @@ export default function ServicesPage() {
         });
       }
 
-      // Save product for the electronic service unit
-      await addDoc(collection(db, 'products'), {
-        storeId,
-        name: `Servis: ${addForm.deviceModel} (${ticketNo})`,
-        price: estPrice,
-        purchasePrice: 0,
-        wholesalePrice: 0,
-        stock: 1,
-        manageStock: false,
-        category: 'Servis',
-        unit: 'pcs',
-        description: `Kerusakan: ${addForm.damageDescription}.${addForm.notes ? ' Catatan: ' + addForm.notes : ''}`,
-        warrantyDuration: warrantyDur,
-        warrantyUnit: addForm.warrantyUnit || 'days',
-        createdAt: now,
-        updatedAt: now
-      });
-
       const docData = {
         storeId,
         ticketNo,

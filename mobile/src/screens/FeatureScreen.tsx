@@ -2266,24 +2266,6 @@ export default function FeatureScreen({ route, navigation }: any) {
             });
           }
 
-          // Save product for the electronic service unit
-          await addDoc(collection(db, 'products'), {
-            storeId,
-            name: `Servis: ${formName} (${ticketNo})`,
-            price: estPrice,
-            purchasePrice: 0,
-            wholesalePrice: 0,
-            stock: 1,
-            manageStock: false,
-            category: 'Servis',
-            unit: 'pcs',
-            description: `Kerusakan: ${serviceFormDamage}.${serviceFormNotes ? ' Catatan: ' + serviceFormNotes : ''}`,
-            warrantyDuration: warrantyDur,
-            warrantyUnit: serviceFormWarrantyUnit || 'days',
-            createdAt: nowStr,
-            updatedAt: nowStr
-          });
-
           await addDoc(collection(db, 'service_tickets'), {
             storeId,
             ticketNo,
