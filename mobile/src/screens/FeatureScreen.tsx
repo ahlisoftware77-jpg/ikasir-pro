@@ -7177,11 +7177,24 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                         </View>
                       ))}
 
-                      {/* Total Rincian */}
-                      <View className="flex-row justify-between items-center px-4 py-2.5 rounded-xl border mt-1" style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}>
-                        <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Total Rincian:</Text>
-                        <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {detailSubNotes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0).toLocaleString('id-ID')}</Text>
-                      </View>
+                      {(() => {
+                        const subNotesSum = detailSubNotes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+                        const diff = (Number(selectedCashFlow.amount) || 0) - subNotesSum;
+                        return (
+                          <View className="space-y-1.5 mt-1">
+                            <View className="flex-row justify-between items-center px-4 py-2.5 rounded-xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}>
+                              <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Total Rincian:</Text>
+                              <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {subNotesSum.toLocaleString('id-ID')}</Text>
+                            </View>
+                            <View className="flex-row justify-between items-center px-4 py-2.5 rounded-xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}>
+                              <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Selisih:</Text>
+                              <Text className="text-xs font-black" style={{ color: diff === 0 ? '#10b981' : '#f43f5e' }}>
+                                Rp {diff.toLocaleString('id-ID')}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
 
                       <View className="flex-row justify-between items-center gap-2 pt-2">
                         <TouchableOpacity

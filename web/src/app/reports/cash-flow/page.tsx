@@ -921,11 +921,24 @@ export default function CashFlowReportPage() {
                                 </div>
                             ))}
 
-                            {/* Total Rincian */}
-                            <div className="flex justify-between items-center px-4 py-3 bg-app-surface/60 border border-app-border/40 rounded-2xl mt-1">
-                                <span className="text-[10px] font-black uppercase text-app-text-muted">Total Rincian:</span>
-                                <span className="text-xs font-black text-foreground">Rp {detailSubNotes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0).toLocaleString('id-ID')}</span>
-                            </div>
+                            {(() => {
+                                const subNotesSum = detailSubNotes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+                                const diff = (Number(selectedCashFlow.amount) || 0) - subNotesSum;
+                                return (
+                                    <div className="space-y-1.5 mt-2">
+                                        <div className="flex justify-between items-center px-4 py-2.5 bg-app-surface/60 border border-app-border/40 rounded-2xl">
+                                            <span className="text-[10px] font-black uppercase text-app-text-muted">Total Rincian:</span>
+                                            <span className="text-xs font-black text-foreground">Rp {subNotesSum.toLocaleString('id-ID')}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center px-4 py-2.5 bg-app-surface/60 border border-app-border/40 rounded-2xl">
+                                            <span className="text-[10px] font-black uppercase text-app-text-muted">Selisih:</span>
+                                            <span className={`text-xs font-black ${diff === 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                Rp {diff.toLocaleString('id-ID')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             
                             <div className="flex justify-between items-center gap-2 pt-2">
                                 <button
