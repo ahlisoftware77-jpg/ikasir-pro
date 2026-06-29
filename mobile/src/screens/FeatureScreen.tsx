@@ -47,6 +47,27 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
   taken: { bg: 'rgba(100, 116, 139, 0.1)', text: '#64748b', border: 'rgba(100, 116, 139, 0.2)' }
 };
 
+const categoryMap: Record<string, { label: string, emoji: string }> = {
+  modal: { label: 'Tambahan Modal', emoji: '💵' },
+  piutang: { label: 'Pelunasan Piutang', emoji: '📈' },
+  penjualan: { label: 'Penjualan / POS', emoji: '🛍️' },
+  jasa: { label: 'Jasa & Servis', emoji: '🔧' },
+  investasi: { label: 'Investasi & Bunga', emoji: '🏦' },
+  hibah: { label: 'Hibah / Hadiah', emoji: '🎁' },
+  operasional: { label: 'Operasional', emoji: '⚙️' },
+  belanja: { label: 'Belanja Stok', emoji: '📦' },
+  listrik: { label: 'Listrik & Air', emoji: '⚡' },
+  gaji: { label: 'Gaji Karyawan', emoji: '👤' },
+  sewa: { label: 'Sewa Tempat', emoji: '🏠' },
+  transportasi: { label: 'Transportasi', emoji: '🚗' },
+  promosi: { label: 'Promosi & Iklan', emoji: '📣' },
+  pemeliharaan: { label: 'Pemeliharaan', emoji: '🛠️' },
+  pribadi: { label: 'Pribadi (Prive)', emoji: '💸' },
+  pajak: { label: 'Pajak & Asuransi', emoji: '🛡️' },
+  konsumsi: { label: 'Konsumsi & ATK', emoji: '☕' },
+  lainnya: { label: 'Lain-lain', emoji: '❓' }
+};
+
 export default function FeatureScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { featureId, title } = route.params;
@@ -3324,17 +3345,26 @@ export default function FeatureScreen({ route, navigation }: any) {
       case 'arus_kas':
         const catOptions = formType === 'in'
           ? [
-              { value: 'modal', label: 'Tambahan Modal' },
-              { value: 'piutang', label: 'Pelunasan Piutang' },
-              { value: 'lainnya', label: 'Lainnya' }
+              { value: 'modal', label: '💵 Tambahan Modal' },
+              { value: 'piutang', label: '📈 Pelunasan Piutang' },
+              { value: 'jasa', label: '🔧 Jasa & Servis' },
+              { value: 'investasi', label: '🏦 Investasi & Bunga' },
+              { value: 'hibah', label: '🎁 Hibah / Hadiah' },
+              { value: 'lainnya', label: '💰 Lainnya' }
             ]
           : [
-              { value: 'operasional', label: 'Operasional' },
-              { value: 'belanja', label: 'Belanja Stok' },
-              { value: 'listrik', label: 'Listrik & Air' },
-              { value: 'gaji', label: 'Gaji Karyawan' },
-              { value: 'pribadi', label: 'Pribadi (Prive)' },
-              { value: 'lainnya', label: 'Lain-lain' }
+              { value: 'operasional', label: '⚙️ Operasional' },
+              { value: 'belanja', label: '📦 Belanja Stok' },
+              { value: 'listrik', label: '⚡ Listrik & Air' },
+              { value: 'gaji', label: '👤 Gaji Karyawan' },
+              { value: 'sewa', label: '🏠 Sewa Tempat' },
+              { value: 'transportasi', label: '🚗 Transportasi' },
+              { value: 'promosi', label: '📣 Promosi & Iklan' },
+              { value: 'pemeliharaan', label: '🛠️ Pemeliharaan' },
+              { value: 'pribadi', label: '💸 Pribadi (Prive)' },
+              { value: 'pajak', label: '🛡️ Pajak & Asuransi' },
+              { value: 'konsumsi', label: '☕ Konsumsi & ATK' },
+              { value: 'lainnya', label: '❓ Lain-lain' }
             ];
         return (
           <>
@@ -5294,7 +5324,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     <View className="flex-row justify-between items-center pt-2 border-t" style={{ borderColor: colors.border + '15' }}>
                       <View className="flex-row gap-2 items-center">
                         <View className="bg-black/5 px-2 py-0.5 rounded-md">
-                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{item.category}</Text>
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{categoryMap[item.category]?.emoji || '📝'} {categoryMap[item.category]?.label || item.category}</Text>
                         </View>
                         {item.paymentMethod && (
                           <View className="bg-accent/10 px-2 py-0.5 rounded-md">
@@ -5336,12 +5366,15 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             renderItem={({ item }) => (
               <View className="p-4 rounded-2xl border mb-3 flex gap-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
                 <View className="flex-row justify-between items-center">
-                  <View>
-                    <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
-                    <Text className="text-[10px] font-bold text-slate-400 mt-1">Telp: {item.phone} • Blanja: {item.orders}x</Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-lg">👑</Text>
+                    <View>
+                      <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
+                      <Text className="text-[10px] font-bold text-slate-400 mt-1">📞 {item.phone} • 🛍️ Belanja: {item.orders}x</Text>
+                    </View>
                   </View>
                   <View className="bg-indigo-500/10 px-3 py-1.5 rounded-xl border border-indigo-500/20">
-                    <Text className="text-xs font-black text-indigo-400">{item.points} Poin</Text>
+                    <Text className="text-xs font-black text-indigo-400">💎 {item.points} Poin</Text>
                   </View>
                 </View>
                 {/* Actions */}
@@ -5875,8 +5908,8 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     </Text>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={1}>{item.name || 'User Tanpa Nama'}</Text>
-                    <Text className="text-[10px] font-bold text-slate-400 mt-0.5" numberOfLines={1}>{item.email}</Text>
+                    <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={1}>💼 {item.name || 'User Tanpa Nama'}</Text>
+                    <Text className="text-[10px] font-bold text-slate-400 mt-0.5" numberOfLines={1}>📧 {item.email}</Text>
                     <View className="flex-row items-center gap-2 mt-1.5">
                       <View 
                         className="px-2 py-0.5 rounded-md border" 
@@ -5886,7 +5919,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                         }}
                       >
                         <Text className="text-[8px] font-black uppercase tracking-widest" style={{ color: item.role === 'admin' ? colors.accent : colors.textMuted }}>
-                          {item.role === 'admin' ? 'Admin' : 'Kasir'}
+                          {item.role === 'admin' ? '⚡ Admin' : '👤 Kasir'}
                         </Text>
                       </View>
                     </View>
@@ -7056,7 +7089,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   <View className="flex-row justify-between items-center pb-2.5 border-b" style={{ borderColor: colors.border + '15' }}>
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Kategori</Text>
                     <Text className="text-xs font-black uppercase tracking-wide" style={{ color: colors.text }}>
-                      {selectedCashFlow.category}
+                      {categoryMap[selectedCashFlow.category]?.emoji || '📝'} {categoryMap[selectedCashFlow.category]?.label || selectedCashFlow.category}
                     </Text>
                   </View>
 

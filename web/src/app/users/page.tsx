@@ -344,8 +344,12 @@ export default function UsersPage() {
                              {(u.email || u.name)?.substring(0,2)}
                           </div>
                           <div>
-                            <p className="text-foreground font-black text-sm">{u.name || 'User Tanpa Nama'}</p>
-                            <p className="text-[10px] text-app-text-muted font-bold">{u.email}</p>
+                             <p className="text-foreground font-black text-sm flex items-center gap-1.5">
+                                <span>💼 {u.name || 'User Tanpa Nama'}</span>
+                             </p>
+                             <p className="text-[10px] text-app-text-muted font-bold flex items-center gap-1">
+                                <span>📧 {u.email}</span>
+                             </p>
                           </div>
                        </div>
                     </td>
@@ -355,7 +359,7 @@ export default function UsersPage() {
                         ? 'bg-accent/10 border-accent/30 text-accent shadow-sm shadow-accent/5' 
                         : 'bg-background border-app-border text-app-text-muted'
                       }`}>
-                        {u.role || 'KASIR'}
+                        {u.role === 'admin' ? '⚡ ADMINISTRATOR' : '👤 KASIR REGULER'}
                       </span>
                     </td>
                     <td className="p-6 text-center">
@@ -399,12 +403,16 @@ export default function UsersPage() {
                          {(u.email || u.name)?.substring(0,2)}
                       </div>
                       <div className="flex-1 min-w-0 pr-4">
-                         <h4 className="font-bold text-foreground text-sm truncate">{u.name || 'User Tanpa Nama'}</h4>
-                         <p className="text-[10px] text-app-text-muted truncate">{u.email}</p>
-                         <div className="flex items-center gap-2 mt-2">
-                           <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${u.role === 'admin' ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-background border-app-border text-app-text-muted'}`}>
-                             {u.role || 'KASIR'}
-                           </span>
+                          <h4 className="font-bold text-foreground text-sm truncate flex items-center gap-1.5">
+                             <span>💼 {u.name || 'User Tanpa Nama'}</span>
+                          </h4>
+                          <p className="text-[10px] text-app-text-muted truncate flex items-center gap-1">
+                             <span>📧 {u.email}</span>
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${u.role === 'admin' ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-background border-app-border text-app-text-muted'}`}>
+                              {u.role === 'admin' ? '⚡ ADMIN' : '👤 KASIR'}
+                            </span>
                            <div className="flex items-center gap-1">
                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
                              <span className="text-emerald-500 font-black text-[8px] uppercase">Aktif</span>

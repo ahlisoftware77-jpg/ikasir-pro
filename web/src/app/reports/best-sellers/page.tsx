@@ -124,8 +124,8 @@ export default function BestSellersReportPage() {
                       idx === 1 ? 'bg-slate-400 text-black shadow-slate-400/20' : 
                       'bg-amber-700 text-white shadow-amber-700/20'
                    }`}>
-                      <Medal size={14} /> Juara {idx + 1}
-                   </div>
+                    {idx === 0 ? '🥇 Juara 1 👑' : idx === 1 ? '🥈 Juara 2 💎' : '🥉 Juara 3 ⭐'}
+                    </div>
                    <div className="bg-background/50 p-2 rounded-xl border border-app-border">
                       <TrendingUp size={16} className="text-accent" />
                    </div>
@@ -186,7 +186,10 @@ export default function BestSellersReportPage() {
                                <div className="w-10 h-10 rounded-xl bg-background border border-app-border flex items-center justify-center text-[10px] font-black text-app-text-muted group-hover:border-accent group-hover:text-accent transition-all uppercase">
                                   {item.name.substring(0,2)}
                                </div>
-                               <div className="font-bold text-foreground group-hover:translate-x-1 transition-transform">{item.name}</div>
+                               <div className="font-bold text-foreground group-hover:translate-x-1 transition-transform flex items-center gap-1.5">
+                                   <span>{idx === 0 ? '👑' : idx === 1 ? '💎' : idx === 2 ? '⭐' : '🔥'}</span>
+                                   <span>{item.name}</span>
+                               </div>
                             </div>
                         </td>
                         <td className="p-6 text-center">
@@ -226,7 +229,10 @@ export default function BestSellersReportPage() {
                   </div>
 
                   <div className="flex-1 min-w-0 pr-2">
-                    <h4 className="font-black text-foreground text-sm tracking-tight leading-tight mb-2 truncate">{item.name}</h4>
+                    <h4 className="font-black text-foreground text-sm tracking-tight leading-tight mb-2 truncate flex items-center gap-1.5">
+                       <span>{idx === 0 ? '👑' : idx === 1 ? '💎' : idx === 2 ? '⭐' : '🔥'}</span>
+                       <span className="truncate">{item.name}</span>
+                    </h4>
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1.5 bg-background px-2.5 py-1 rounded-lg border border-app-border">
                            <Package size={10} className="text-accent" />

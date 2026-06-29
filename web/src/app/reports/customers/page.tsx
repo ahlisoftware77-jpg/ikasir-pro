@@ -198,51 +198,54 @@ export default function CustomerReportPage() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-app-border">
-                   {mergedStats.map((stat, idx) => (
-                     <tr key={idx} className="hover:bg-background/30 transition-colors group">
-                       <td className="p-4 text-center">
-                           {idx < 3 ? (
-                              <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center font-black text-xs ${
-                                 idx === 0 ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 shadow-lg shadow-yellow-500/20' : 
-                                 idx === 1 ? 'bg-slate-300/20 text-slate-300 border border-slate-300/30' : 
-                                 'bg-amber-700/20 text-amber-600 border border-amber-700/30'
-                              }`}>
-                                 {idx + 1}
+                    {mergedStats.map((stat, idx) => (
+                      <tr key={idx} className="hover:bg-background/30 transition-colors group">
+                        <td className="p-4 text-center">
+                            {idx < 3 ? (
+                               <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center font-black text-sm ${
+                                  idx === 0 ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 shadow-lg shadow-yellow-500/20 animate-bounce' : 
+                                  idx === 1 ? 'bg-slate-300/20 text-slate-300 border border-slate-300/30' : 
+                                  'bg-amber-700/20 text-amber-600 border border-amber-700/30'
+                               }`}>
+                                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                               </div>
+                            ) : (
+                               <span className="text-app-text-muted font-bold text-sm">#{idx + 1}</span>
+                            )}
+                        </td>
+                        <td className="p-4 font-bold text-sm text-foreground">
+                           <div className="flex items-center gap-2">
+                             <span className="text-base">{idx === 0 ? '👑' : idx < 3 ? '💎' : '👤'}</span>
+                             <span>{stat.name}</span>
+                             {stat.id && <span className="ml-2 bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-black">Member</span>}
+                           </div>
+                        </td>
+                        <td className="p-4 text-center font-black">
+                           {stat.totalOrders}x
+                        </td>
+                        <td className="p-4 text-xs font-bold text-app-text-muted">
+                           {stat.lastOrder ? stat.lastOrder.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                        </td>
+                        <td className="p-4 text-right font-black text-emerald-400">
+                           Rp {stat.totalSpent.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-4 text-center">
+                           {stat.id ? (
+                              <div className="flex justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button onClick={() => handleEditClick(stat)} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
+                                    <Edit2 size={16} />
+                                 </button>
+                                 <button onClick={() => handleDeleteClick(stat)} className="p-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg transition-colors">
+                                    <Trash2 size={16} />
+                                 </button>
                               </div>
                            ) : (
-                              <span className="text-app-text-muted font-bold text-sm">#{idx + 1}</span>
+                              <span className="text-[10px] text-app-text-muted font-bold uppercase">-</span>
                            )}
-                       </td>
-                       <td className="p-4 font-bold text-sm text-foreground">
-                          {stat.name}
-                          {stat.id && <span className="ml-2 bg-accent/10 text-accent border border-accent/20 px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-black">Member</span>}
-                       </td>
-                       <td className="p-4 text-center font-black">
-                          {stat.totalOrders}x
-                       </td>
-                       <td className="p-4 text-xs font-bold text-app-text-muted">
-                          {stat.lastOrder ? stat.lastOrder.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                       </td>
-                       <td className="p-4 text-right font-black text-emerald-400">
-                          Rp {stat.totalSpent.toLocaleString('id-ID')}
-                       </td>
-                       <td className="p-4 text-center">
-                          {stat.id ? (
-                             <div className="flex justify-center items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEditClick(stat)} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
-                                   <Edit2 size={16} />
-                                </button>
-                                <button onClick={() => handleDeleteClick(stat)} className="p-2 bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg transition-colors">
-                                   <Trash2 size={16} />
-                                </button>
-                             </div>
-                          ) : (
-                             <span className="text-[10px] text-app-text-muted font-bold uppercase">-</span>
-                          )}
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                </table>
             </div>
 
@@ -252,12 +255,12 @@ export default function CustomerReportPage() {
                 <div key={idx} className="p-4 flex gap-4 hover:bg-background/20 transition-colors items-center">
                   <div className="shrink-0">
                     {idx < 3 ? (
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shadow-lg ${
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-base shadow-lg ${
                         idx === 0 ? 'bg-yellow-500 text-white shadow-yellow-500/20' : 
                         idx === 1 ? 'bg-slate-400 text-white shadow-slate-400/20' : 
                         'bg-amber-700 text-white shadow-amber-700/20'
                       }`}>
-                        {idx + 1}
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
                       </div>
                     ) : (
                       <div className="w-10 h-10 rounded-2xl bg-background border border-app-border flex items-center justify-center text-app-text-muted font-bold text-xs uppercase tracking-tighter shadow-inner">
@@ -269,7 +272,10 @@ export default function CustomerReportPage() {
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex justify-between items-start gap-2">
                       <div className="min-w-0">
-                        <p className="font-bold text-sm text-foreground truncate leading-tight">{stat.name}</p>
+                        <p className="font-bold text-sm text-foreground truncate leading-tight flex items-center gap-1.5">
+                          <span>{idx === 0 ? '👑' : idx < 3 ? '💎' : '👤'}</span>
+                          <span>{stat.name}</span>
+                        </p>
                         <p className="text-[10px] text-app-text-muted font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
                           {stat.id ? <span className="text-accent">MEMBER</span> : "TAMU"}
                           <span className="w-1 h-1 bg-app-border rounded-full"></span>

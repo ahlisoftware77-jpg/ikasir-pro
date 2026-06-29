@@ -34,6 +34,27 @@ import { CashFlow } from '@/types';
 import { exportToExcel } from '@/lib/exportToExcel';
 import toast from 'react-hot-toast';
 
+const categoryMap: { [key: string]: { label: string, emoji: string } } = {
+  modal: { label: 'Tambahan Modal', emoji: '💵' },
+  piutang: { label: 'Pelunasan Piutang', emoji: '📈' },
+  penjualan: { label: 'Penjualan / POS', emoji: '🛍️' },
+  jasa: { label: 'Jasa & Servis', emoji: '🔧' },
+  investasi: { label: 'Investasi & Bunga', emoji: '🏦' },
+  hibah: { label: 'Hibah / Hadiah', emoji: '🎁' },
+  operasional: { label: 'Operasional', emoji: '⚙️' },
+  belanja: { label: 'Belanja Stok', emoji: '📦' },
+  listrik: { label: 'Listrik & Air', emoji: '⚡' },
+  gaji: { label: 'Gaji Karyawan', emoji: '👤' },
+  sewa: { label: 'Sewa Tempat', emoji: '🏠' },
+  transportasi: { label: 'Transportasi', emoji: '🚗' },
+  promosi: { label: 'Promosi & Iklan', emoji: '📣' },
+  pemeliharaan: { label: 'Pemeliharaan', emoji: '🛠️' },
+  pribadi: { label: 'Pribadi (Prive)', emoji: '💸' },
+  pajak: { label: 'Pajak & Asuransi', emoji: '🛡️' },
+  konsumsi: { label: 'Konsumsi & ATK', emoji: '☕' },
+  lainnya: { label: 'Lain-lain', emoji: '❓' }
+};
+
 export default function CashFlowReportPage() {
   const { user, storeId } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
@@ -556,7 +577,7 @@ export default function CashFlowReportPage() {
                                     <h4 className="text-sm font-bold text-foreground leading-snug line-clamp-1">{item.description}</h4>
                                     <div className="flex items-center gap-4 mt-2">
                                         <div className="flex items-center gap-1.5 text-[9px] font-black text-app-text-muted uppercase tracking-widest bg-background border border-app-border px-2 py-1 rounded-md">
-                                            <Tag size={10} className="text-accent" /> {item.category}
+                                            <Tag size={10} className="text-accent" /> {categoryMap[item.category]?.emoji || '📝'} {categoryMap[item.category]?.label || item.category}
                                         </div>
                                         {item.paymentMethod && (
                                             <div className="flex items-center gap-1.5 text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-1 rounded-md">
@@ -652,18 +673,27 @@ export default function CashFlowReportPage() {
                     >
                         {formData.type === 'in' ? (
                             <>
-                                <option value="modal">TAMBAHAN MODAL</option>
-                                <option value="piutang">PELUNASAN PIUTANG</option>
-                                <option value="lainnya">PENDAPATAN LAINNYA</option>
+                                <option value="modal">💵 TAMBAHAN MODAL</option>
+                                <option value="piutang">📈 PELUNASAN PIUTANG</option>
+                                <option value="jasa">🔧 JASA & SERVIS</option>
+                                <option value="investasi">🏦 INVESTASI & BUNGA</option>
+                                <option value="hibah">🎁 HIBAH / HADIAH</option>
+                                <option value="lainnya">💰 LAINNYA</option>
                             </>
                         ) : (
                             <>
-                                <option value="operasional">BIAYA OPERASIONAL</option>
-                                <option value="belanja">BELANJA STOK / BAHAN</option>
-                                <option value="listrik">LISTRIK & AIR</option>
-                                <option value="gaji">GAJI KARYAWAN</option>
-                                <option value="pribadi">KEPERLUAN PRIBADI (PRIVE)</option>
-                                <option value="lainnya">LAIN-LAIN</option>
+                                <option value="operasional">⚙️ BIAYA OPERASIONAL</option>
+                                <option value="belanja">📦 BELANJA STOK / BAHAN</option>
+                                <option value="listrik">⚡ LISTRIK & AIR</option>
+                                <option value="gaji">👤 GAJI KARYAWAN</option>
+                                <option value="sewa">🏠 SEWA TEMPAT</option>
+                                <option value="transportasi">🚗 BIAYA TRANSPORTASI</option>
+                                <option value="promosi">📣 PROMOSI & IKLAN</option>
+                                <option value="pemeliharaan">🛠️ PEMELIHARAAN</option>
+                                <option value="pribadi">💸 KEPERLUAN PRIBADI (PRIVE)</option>
+                                <option value="pajak">🛡️ PAJAK & ASURANSI</option>
+                                <option value="konsumsi">☕ KONSUMSI & ATK</option>
+                                <option value="lainnya">❓ LAIN-LAIN</option>
                             </>
                         )}
                     </select>
@@ -812,7 +842,7 @@ export default function CashFlowReportPage() {
 
                     <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
                         <span className="text-[9px] font-black text-app-text-muted uppercase tracking-widest">Kategori</span>
-                        <span className="text-xs font-black text-foreground uppercase tracking-wide">{selectedCashFlow.category}</span>
+                        <span className="text-xs font-black text-foreground uppercase tracking-wide">{categoryMap[selectedCashFlow.category]?.emoji || '📝'} {categoryMap[selectedCashFlow.category]?.label || selectedCashFlow.category}</span>
                     </div>
 
                     <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
