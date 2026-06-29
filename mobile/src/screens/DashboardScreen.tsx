@@ -265,14 +265,7 @@ export default function DashboardScreen({ navigation }: any) {
     ];
   }, [broadcasts]);
 
-  // Auto-slide announcements
-  useEffect(() => {
-    if (activeBroadcasts.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [activeBroadcasts.length]);
+  // Announcements auto-slide removed per user request
 
   const { totalRevenue, totalProductsSold, topProducts } = useMemo(() => {
     let revenue = 0;
@@ -424,110 +417,111 @@ export default function DashboardScreen({ navigation }: any) {
 
         {/* SECTION: ANNOUNCEMENTS CAROUSEL */}
         {!isLoadingBroadcasts && activeBroadcasts.length > 0 && (
-          <View 
-            className="p-6 rounded-[28px] border mb-6 relative overflow-hidden"
-            style={{ backgroundColor: '#1e1b4b', borderColor: '#3730a3' }}
-          >
-            {/* Subtle glow effect */}
-            <View className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full filter blur-xl pointer-events-none" style={{ position: 'absolute' }} />
-
-            <View className="flex-row items-center justify-between mb-4 z-10">
-              <View className="flex-row items-center gap-2">
-                <View className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 items-center justify-center">
-                  <Text className="text-base">📢</Text>
-                </View>
-                <Text className="text-[10px] font-black uppercase tracking-wider text-white">
-                  Pengumuman & Info Terbaru
-                </Text>
-              </View>
-              {activeBroadcasts.length > 1 && (
-                <View className="flex-row gap-1.5">
-                  <TouchableOpacity
-                    onPress={() => {
-                      Vibration.vibrate(5);
-                      setCurrentSlide((prev) => (prev === 0 ? activeBroadcasts.length - 1 : prev - 1));
-                    }}
-                    className="w-7 h-7 rounded-lg items-center justify-center bg-white/10 border border-white/10"
-                  >
-                    <ChevronLeft size={14} color="#ffffff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      Vibration.vibrate(5);
-                      setCurrentSlide((prev) => (prev + 1) % activeBroadcasts.length);
-                    }}
-                    className="w-7 h-7 rounded-lg items-center justify-center bg-white/10 border border-white/10"
-                  >
-                    <ChevronRight size={14} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            <View className="flex-col gap-4 z-10">
-              <View className="space-y-2 flex-1">
-                <View className="px-2.5 py-0.5 rounded-lg border w-fit bg-white/10 border-white/10">
-                  <Text className="text-[8px] font-black uppercase tracking-wider text-emerald-300">
-                    {new Date(activeBroadcasts[currentSlide].createdAt || Date.now()).toLocaleDateString('id-ID', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </Text>
-                </View>
-                <Text className="text-sm font-black tracking-tight text-white mt-1">
-                  {activeBroadcasts[currentSlide].title}
-                </Text>
-                <Text className="text-[10px] font-bold mt-1 leading-relaxed text-slate-300">
-                  {activeBroadcasts[currentSlide].message}
-                  {activeBroadcasts[currentSlide].data?.link && (
-                    <Text 
-                      style={{ textDecorationLine: 'underline' }} 
-                      className="text-emerald-400 font-black"
-                      onPress={() => {
-                        Vibration.vibrate(5);
-                        Linking.openURL(activeBroadcasts[currentSlide].data.link);
-                      }}
-                    >
-                      {' '}disini
-                    </Text>
-                  )}
-                </Text>
-              </View>
-
-              {activeBroadcasts[currentSlide].data?.imageUrl && (
+          <View className="mb-6">
+            <FlatList
+              data={activeBroadcasts}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.id}
+              onMomentumScrollEnd={(e) => {
+                const width = e.nativeEvent.layoutMeasurement.width;
+                const offset = e.nativeEvent.contentOffset.x;
+                const index = Math.round(offset / width);
+                setCurrentSlide(index);
+              }}
+              renderItem={({ item, index }) => (
                 <View 
-                  className="w-full aspect-[2/1] rounded-2xl overflow-hidden border bg-black/10 border-white/10"
+                  className="p-6 rounded-[28px] border relative overflow-hidden"
+                  style={{ 
+                    backgroundColor: '#1e1b4b', 
+                    borderColor: '#3730a3',
+                    width: Dimensions.get('window').width - 48, // screen width minus horizontal margins (24 * 2 = 48)
+                    marginRight: index === activeBroadcasts.length - 1 ? 0 : 0
+                  }}
                 >
-                  <Image
-                    source={{ uri: activeBroadcasts[currentSlide].data.imageUrl }}
-                    className="w-full h-full"
-                    style={{ resizeMode: 'cover' }}
-                  />
+                  {/* Subtle glow effect */}
+                  <View className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full filter blur-xl pointer-events-none" style={{ position: 'absolute' }} />
+
+                  <View className="flex-row items-center justify-between mb-4 z-10">
+                    <View className="flex-row items-center gap-2">
+                      <View className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 items-center justify-center">
+                        <Text className="text-base">📢</Text>
+                      </View>
+                      <Text className="text-[10px] font-black uppercase tracking-wider text-white">
+                        Pengumuman & Info Terbaru
+                      </Text>
+                    </View>
+                    {activeBroadcasts.length > 1 && (
+                      <View className="bg-white/10 px-2.5 py-1 rounded-full border border-white/10">
+                        <Text className="text-[8px] font-black text-white">{index + 1} / {activeBroadcasts.length}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View className="flex-col gap-4 z-10">
+                    <View className="space-y-2 flex-1">
+                      <View className="px-2.5 py-0.5 rounded-lg border w-fit bg-white/10 border-white/10">
+                        <Text className="text-[8px] font-black uppercase tracking-wider text-emerald-300">
+                          {new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </Text>
+                      </View>
+                      <Text className="text-sm font-black tracking-tight text-white mt-1">
+                        {item.title}
+                      </Text>
+                      <Text className="text-[10px] font-bold mt-1 leading-relaxed text-slate-300">
+                        {item.message}
+                        {item.data?.link && (
+                          <Text 
+                            style={{ textDecorationLine: 'underline' }} 
+                            className="text-emerald-400 font-black"
+                            onPress={() => {
+                              Vibration.vibrate(5);
+                              Linking.openURL(item.data.link);
+                            }}
+                          >
+                            {' '}disini
+                          </Text>
+                        )}
+                      </Text>
+                    </View>
+
+                    {item.data?.imageUrl && (
+                      <View 
+                        className="w-full aspect-[2/1] rounded-2xl overflow-hidden border bg-black/10 border-white/10"
+                      >
+                        <Image
+                          source={{ uri: item.data.imageUrl }}
+                          className="w-full h-full"
+                          style={{ resizeMode: 'cover' }}
+                        />
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
-            </View>
+            />
 
             {/* Dots Indicator */}
             {activeBroadcasts.length > 1 && (
-              <View className="flex-row justify-center gap-1.5 mt-4 z-10">
+              <View className="flex-row justify-center gap-1.5 mt-3 z-10">
                 {activeBroadcasts.map((_, idx) => (
-                  <TouchableOpacity
+                  <View
                     key={idx}
-                    onPress={() => {
-                      Vibration.vibrate(5);
-                      setCurrentSlide(idx);
-                    }}
                     className="h-1.5 rounded-full"
                     style={{
                       width: currentSlide === idx ? 16 : 6,
-                      backgroundColor: currentSlide === idx ? '#34d399' : '#475569'
+                      backgroundColor: currentSlide === idx ? '#818cf8' : 'rgba(129, 140, 248, 0.2)'
                     }}
                   />
                 ))}
               </View>
             )}
-          </View>
+          </div>
         )}
 
         {/* SECTION: PRICING CARD - PREMIUM DESIGN */}
