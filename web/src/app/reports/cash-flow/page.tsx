@@ -1109,6 +1109,15 @@ export default function CashFlowReportPage() {
                             Rp {selectedTransaction.paidAmount?.toLocaleString('id-ID')}
                         </span>
                     </div>
+
+                    {selectedTransaction.paymentStatus !== 'paid' && selectedTransaction.debtAmount !== undefined && (
+                        <div className="flex justify-between items-center pb-3 border-b border-app-border/40">
+                            <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Sisa Bayar (Utang)</span>
+                            <span className="text-sm font-black text-rose-500">
+                                Rp {selectedTransaction.debtAmount?.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-2">
