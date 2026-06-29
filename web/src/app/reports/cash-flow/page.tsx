@@ -69,6 +69,7 @@ export default function CashFlowReportPage() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchVisible, setIsSearchVisible] = useState(true);
   
   const [formData, setFormData] = useState({
     type: 'out',
@@ -512,19 +513,31 @@ export default function CashFlowReportPage() {
 
       {/* FILTER TABS & SEARCH */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2">
-          <div className="flex items-center gap-1.5 bg-surface border border-app-border p-1 rounded-2xl w-full md:w-auto">
-             {(['all', 'income', 'expense'] as const).map(tab => (
-                 <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-background text-accent border border-app-border shadow-sm' : 'text-app-text-muted'}`}
-                 >
-                    {tab === 'income' ? 'Pemasukan' : tab === 'expense' ? 'Pengeluaran' : 'Semua'}
-                 </button>
-             ))}
+          <div className="flex items-center gap-2 bg-surface border border-app-border p-1 rounded-2xl w-full md:w-auto">
+             <div className="flex items-center gap-1.5 flex-1 md:flex-none">
+                 {(['all', 'income', 'expense'] as const).map(tab => (
+                     <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-background text-accent border border-app-border shadow-sm' : 'text-app-text-muted'}`}
+                     >
+                        {tab === 'income' ? 'Pemasukan' : tab === 'expense' ? 'Pengeluaran' : 'Semua'}
+                     </button>
+                 ))}
+             </div>
+             
+             {/* Search Toggle Button */}
+             <button
+                type="button"
+                onClick={() => setIsSearchVisible(!isSearchVisible)}
+                className={`p-3 rounded-xl transition-all border ${isSearchVisible ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-background border-app-border text-app-text-muted hover:text-foreground'}`}
+                title="Toggle Pencarian"
+             >
+                <Search size={14} />
+             </button>
           </div>
           
-          <div className="relative w-full md:w-64 group flex items-center">
+          <div className={`relative w-full md:w-64 group flex items-center transition-all duration-300 overflow-hidden ${isSearchVisible ? 'max-h-20 opacity-100 py-0' : 'max-h-0 opacity-0 py-0 pointer-events-none'}`}>
               <div className="absolute left-4 flex items-center justify-center pointer-events-none text-app-text-muted group-focus-within:text-accent transition-colors">
                  <Search size={16} />
               </div>
@@ -532,7 +545,9 @@ export default function CashFlowReportPage() {
                  type="text" 
                  placeholder="Cari transaksi..." 
                  value={searchQuery}
-                 onChange={e => setSearchQuery(e.target.value)}
+                 onChange={e => {
+                    setSearchQuery(e.target.value);
+                 }}
                  className="w-full pl-10 pr-4 py-3 bg-surface border border-app-border rounded-2xl text-xs font-bold focus:outline-none focus:border-accent transition-all" 
               />
           </div>

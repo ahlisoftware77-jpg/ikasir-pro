@@ -74,6 +74,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const { storeId, user, role, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
   const [search, setSearch] = useState('');
+  const [isSearchVisible, setIsSearchVisible] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isSelectCustomerVisible, setIsSelectCustomerVisible] = useState(false);
   const [isSelectProductVisible, setIsSelectProductVisible] = useState(false);
@@ -1785,13 +1786,19 @@ export default function FeatureScreen({ route, navigation }: any) {
     if (exportableFeatures.includes(featureId)) {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity 
-            onPress={handleExportExcelCSV} 
-            style={{ marginRight: 15 }}
-            activeOpacity={0.7}
-          >
-            <Download size={20} color={colors.text} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15, gap: 15 }}>
+            {featureId === 'arus_kas' && (
+              <TouchableOpacity onPress={() => setIsSearchVisible(prev => !prev)} activeOpacity={0.7}>
+                <Search size={20} color={colors.text} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              onPress={handleExportExcelCSV} 
+              activeOpacity={0.7}
+            >
+              <Download size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
         )
       });
     } else {
@@ -1799,7 +1806,7 @@ export default function FeatureScreen({ route, navigation }: any) {
         headerRight: undefined
       });
     }
-  }, [featureId, navigation, colors, reportsPenjualanState, omzetReportState, rawSoldTransactions, cashflows, stockLogs, debts, salesTransactions, omzetPeriodType, soldMonthFilter, soldYearFilter, salesAnalyticsClearedAt, soldTimeFilter, salesSummary]);
+  }, [featureId, navigation, colors, reportsPenjualanState, omzetReportState, rawSoldTransactions, cashflows, stockLogs, debts, salesTransactions, omzetPeriodType, soldMonthFilter, soldYearFilter, salesAnalyticsClearedAt, soldTimeFilter, salesSummary, isSearchVisible]);
 
   // --- FORM NAV ACTION (ADD/EDIT/DELETE) ---
   const openFormModal = (item?: any) => {
@@ -6051,7 +6058,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
       
       {/* Search Header for list views */}
-      {['estimasi', 'piutang', 'gudang', 'ekstra', 'diskon', 'pelanggan', 'staff', 'shift', 'arus_kas'].includes(featureId) && (
+      {['estimasi', 'piutang', 'gudang', 'ekstra', 'diskon', 'pelanggan', 'staff', 'shift', 'arus_kas'].includes(featureId) && (isSearchVisible || featureId !== 'arus_kas') && (
         <View className="px-6 py-4 border-b" style={{ borderColor: colors.border }}>
           <View 
             className="flex-row items-center px-4 py-3.5 rounded-2xl border"
