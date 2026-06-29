@@ -959,23 +959,25 @@ function PublicOrderContent() {
             <div className="grid grid-cols-1 gap-5">
                {filteredProducts.map(p => {
                  const isHighlighted = p.id === highlightedProductId;
+                 const isOutOfStock = p.manageStock !== false && (p.stock === undefined || p.stock === null || p.stock <= 0);
                  return (
                    <div 
                      key={p.id} 
                      id={`prod-${p.id}`}
-                     className={`bg-white border rounded-3xl p-5 flex gap-5 transition-all group shadow-sm ${
+                     className={`bg-white border rounded-3xl p-5 flex gap-5 transition-all group shadow-sm relative ${
                        isHighlighted 
                          ? 'ring-4 ring-tr/50 border-tr scale-[1.02] shadow-xl shadow-tr/20' 
                          : 'border-slate-100 hover:border-tr/30'
                      }`}
                    >
                      <div 
-                        className={`w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 transition-all ${
+                        className={`w-24 h-24 rounded-2xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 transition-all relative ${
                           (p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0])) 
                             ? 'cursor-zoom-in active:scale-95 hover:border-tr/50' 
                             : ''
                         }`}
                         onClick={() => {
+                           if (isOutOfStock) return;
                            const imgs = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
                            if (imgs.length > 0) {
                              setPreviewImages(imgs);
@@ -983,6 +985,14 @@ function PublicOrderContent() {
                            }
                         }}
                      >
+                        {/* Out of Stock Overlay */}
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center z-10 p-1 text-center">
+                            <span className="text-[9px] font-black text-white uppercase tracking-widest bg-rose-600 px-2 py-0.5 rounded-md shadow-lg shadow-rose-600/20">Terjual</span>
+                            <span className="text-[8px] font-bold text-slate-300 mt-1 uppercase leading-none">Stok Kosong</span>
+                          </div>
+                        )}
+
                         {p.imageUrl || (p.imageUrls && p.imageUrls.length > 0 && p.imageUrls[0]) ? (
                            (() => {
                              const mediaUrl = p.imageUrl || p.imageUrls?.[0] || '';
@@ -1041,11 +1051,22 @@ function PublicOrderContent() {
                                <MessageCircle size={15} />
                              </button>
                              <button 
+                               disabled={isOutOfStock}
                                onClick={() => addToCart(p)}
-                               className="flex-1 py-2 bg-tr hover:brightness-105 text-slate-950 rounded-2xl flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all shadow-tr/20 text-[10px] font-black uppercase tracking-widest h-9"
+                               className={`flex-1 py-2 rounded-2xl flex items-center justify-center gap-1.5 shadow-md transition-all text-[10px] font-black uppercase tracking-widest h-9 ${
+                                 isOutOfStock 
+                                   ? 'bg-slate-100 text-slate-400 border border-slate-200/50 cursor-not-allowed shadow-none active:scale-100' 
+                                   : 'bg-tr hover:brightness-105 text-slate-950 shadow-tr/20 active:scale-95'
+                                }`}
                              >
-                                <Plus size={14} className="stroke-[3]" />
-                                <span>Tambah</span>
+                                {isOutOfStock ? (
+                                  <span>Habis</span>
+                                ) : (
+                                  <>
+                                    <Plus size={14} className="stroke-[3]" />
+                                    <span>Tambah</span>
+                                  </>
+                                )}
                              </button>
                            </div>
                         </div>
