@@ -7176,6 +7176,13 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                           </TouchableOpacity>
                         </View>
                       ))}
+
+                      {/* Total Rincian */}
+                      <View className="flex-row justify-between items-center px-4 py-2.5 rounded-xl border mt-1" style={{ backgroundColor: colors.bg, borderColor: colors.border + '15' }}>
+                        <Text className="text-[10px] font-black uppercase" style={{ color: colors.textMuted }}>Total Rincian:</Text>
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {detailSubNotes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0).toLocaleString('id-ID')}</Text>
+                      </View>
+
                       <View className="flex-row justify-between items-center gap-2 pt-2">
                         <TouchableOpacity
                           onPress={() => setDetailSubNotes([...detailSubNotes, { description: '', amount: '' }])}

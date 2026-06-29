@@ -920,6 +920,12 @@ export default function CashFlowReportPage() {
                                     </button>
                                 </div>
                             ))}
+
+                            {/* Total Rincian */}
+                            <div className="flex justify-between items-center px-4 py-3 bg-app-surface/60 border border-app-border/40 rounded-2xl mt-1">
+                                <span className="text-[10px] font-black uppercase text-app-text-muted">Total Rincian:</span>
+                                <span className="text-xs font-black text-foreground">Rp {detailSubNotes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0).toLocaleString('id-ID')}</span>
+                            </div>
                             
                             <div className="flex justify-between items-center gap-2 pt-2">
                                 <button
