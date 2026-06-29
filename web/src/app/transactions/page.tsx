@@ -1472,7 +1472,7 @@ export default function TransactionsPage() {
                        <span>TOTAL</span>
                        <span>Rp {(viewingReceipt.total || 0).toLocaleString('id-ID')}</span>
                     </div>
-                    {viewingReceipt.paymentStatus === 'paid' && (
+                    {viewingReceipt.paymentStatus === 'paid' ? (
                       <>
                         <div className="flex justify-between text-slate-600">
                            <span>{viewingReceipt.cashReceived ? 'UANG DITERIMA' : 'DIBAYAR'}</span>
@@ -1484,6 +1484,17 @@ export default function TransactionsPage() {
                               <span className="font-bold text-slate-900">Rp {(viewingReceipt.change || 0).toLocaleString('id-ID')}</span>
                            </div>
                         )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-slate-600">
+                           <span>DIBAYAR (DP)</span>
+                           <span className="font-bold text-slate-900">Rp {(viewingReceipt.paidAmount || (viewingReceipt.total - (viewingReceipt.debtAmount || 0))).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="flex justify-between text-rose-600 font-black">
+                           <span>SISA BAYAR (UTANG)</span>
+                           <span className="font-bold">Rp {(viewingReceipt.debtAmount || 0).toLocaleString('id-ID')}</span>
+                        </div>
                       </>
                     )}
                  </div>

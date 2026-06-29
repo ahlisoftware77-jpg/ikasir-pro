@@ -908,6 +908,24 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                         </View>
                       </>
                     )}
+
+                    {selectedTrx.paymentStatus !== 'paid' && selectedTrx.debtAmount !== undefined && (
+                      <>
+                        <View className="border-t border-dashed my-3" style={{ borderColor: colors.bg + '25' }} />
+                        <View className="flex-row justify-between items-center">
+                          <View className="flex-row items-center gap-1">
+                            <Text className="text-[9px] font-bold uppercase tracking-wider" style={{ color: colors.bg, opacity: 0.7 }}>Telah Dibayar (DP):</Text>
+                            <Text className="text-[10px] font-black" style={{ color: colors.bg }}>
+                              Rp {(selectedTrx.paidAmount || (selectedTrx.total - selectedTrx.debtAmount)).toLocaleString('id-ID')}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center gap-1 bg-rose-500/20 px-2.5 py-1 rounded-xl">
+                            <Text className="text-[9px] font-black text-rose-400 uppercase tracking-wider">Sisa Bayar:</Text>
+                            <Text className="text-[10px] font-black text-rose-400">Rp {selectedTrx.debtAmount.toLocaleString('id-ID')}</Text>
+                          </View>
+                        </View>
+                      </>
+                    )}
                   </View>
 
                 </ScrollView>
