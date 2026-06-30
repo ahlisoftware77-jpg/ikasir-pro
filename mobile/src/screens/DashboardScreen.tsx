@@ -97,6 +97,7 @@ export default function DashboardScreen({ navigation }: any) {
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any>(null);
 
   const [brandingData, setBrandingData] = useState<any>({
     pkg_1m_price: 30000,
@@ -464,7 +465,14 @@ export default function DashboardScreen({ navigation }: any) {
               )}
             </View>
 
-            <View className="flex-col gap-4 z-10">
+            <TouchableOpacity 
+              activeOpacity={0.9} 
+              onPress={() => {
+                Vibration.vibrate(10);
+                setSelectedAnnouncement(activeBroadcasts[currentSlide]);
+              }}
+              className="flex-col gap-4 z-10"
+            >
               <View className="space-y-2 flex-1">
                 <View className="px-2.5 py-0.5 rounded-lg border w-fit bg-white/10 border-white/10">
                   <Text className="text-[8px] font-black uppercase tracking-wider text-emerald-300">
@@ -484,10 +492,6 @@ export default function DashboardScreen({ navigation }: any) {
                     <Text 
                       style={{ textDecorationLine: 'underline' }} 
                       className="text-emerald-400 font-black"
-                      onPress={() => {
-                        Vibration.vibrate(5);
-                        Linking.openURL(activeBroadcasts[currentSlide].data.link);
-                      }}
                     >
                       {' '}disini
                     </Text>
@@ -506,7 +510,7 @@ export default function DashboardScreen({ navigation }: any) {
                   />
                 </View>
               )}
-            </View>
+            </TouchableOpacity>
 
             {/* Dots Indicator */}
             {activeBroadcasts.length > 1 && (
@@ -1026,6 +1030,90 @@ export default function DashboardScreen({ navigation }: any) {
               <Text className="text-xs font-black text-white uppercase tracking-wider">
                 KONFIRMASI KOSONGKAN SALDO
               </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Detail Announcement Modal */}
+      <Modal
+        visible={!!selectedAnnouncement}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedAnnouncement(null)}
+      >
+        <Pressable 
+          className="flex-1 justify-end p-0 bg-black/80 justify-center"
+          onPress={() => setSelectedAnnouncement(null)}
+        >
+          <Pressable 
+            className="w-full rounded-t-[2.5rem] p-6 space-y-6"
+            style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.border }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="flex-row justify-between items-center pb-3 border-b" style={{ borderColor: colors.border }}>
+              <View className="flex-row items-center gap-2">
+                <Text className="text-base">📢</Text>
+                <Text className="text-[10px] font-black uppercase tracking-widest" style={{ color: colors.accent }}>Detail Pengumuman</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setSelectedAnnouncement(null)}
+                className="w-8 h-8 rounded-full items-center justify-center bg-black/10"
+              >
+                <Text className="text-sm font-black" style={{ color: colors.textMuted }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedAnnouncement && (
+              <ScrollView className="max-h-[50vh] space-y-4" showsVerticalScrollIndicator={false}>
+                <View className="space-y-1">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-emerald-400">
+                    {new Date(selectedAnnouncement.createdAt || Date.now()).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                  <Text className="text-lg font-black tracking-tight" style={{ color: colors.text }}>
+                    {selectedAnnouncement.title}
+                  </Text>
+                </View>
+
+                {selectedAnnouncement.data?.imageUrl && (
+                  <View className="w-full aspect-[16/9] rounded-2xl overflow-hidden border mt-2" style={{ borderColor: colors.border }}>
+                    <Image 
+                      source={{ uri: selectedAnnouncement.data.imageUrl }} 
+                      className="w-full h-full"
+                      style={{ resizeMode: 'cover' }}
+                    />
+                  </View>
+                )}
+
+                <Text className="text-xs font-bold leading-relaxed text-slate-300 mt-3">
+                  {selectedAnnouncement.message}
+                </Text>
+
+                {selectedAnnouncement.data?.link && (
+                  <TouchableOpacity 
+                    onPress={() => {
+                      Vibration.vibrate(5);
+                      Linking.openURL(selectedAnnouncement.data.link);
+                    }}
+                    className="w-full py-4 rounded-2xl items-center justify-center mt-5 flex-row gap-2"
+                    style={{ backgroundColor: colors.accent }}
+                  >
+                    <Text className="text-xs font-black text-white uppercase tracking-widest">Buka Tautan / Info Lanjut</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity 
+              onPress={() => setSelectedAnnouncement(null)}
+              className="w-full py-4 rounded-2xl items-center justify-center border mt-2"
+              style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+            >
+              <Text className="text-xs font-black uppercase tracking-widest" style={{ color: colors.textMuted }}>Tutup</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
