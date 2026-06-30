@@ -37,6 +37,25 @@ const checkSubscriptionExpired = async (storeId: string | null | undefined): Pro
   }
 };
 
+const fetchProductsMap = async (storeId: string | null | undefined): Promise<Record<string, any>> => {
+  if (!storeId) return {};
+  const pMap: Record<string, any> = {};
+  try {
+    const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+    const prodsSnap = await getDocs(qProds);
+    prodsSnap.forEach((d) => {
+      const data = d.data();
+      pMap[d.id] = data;
+      if (data.name) {
+        pMap[data.name] = data;
+      }
+    });
+  } catch (err) {
+    console.warn("Failed to fetch products for dynamic warranty:", err);
+  }
+  return pMap;
+};
+
 const urlToBase64 = (url: string): Promise<string> => {
   return new Promise((resolve) => {
     if (!url || url.startsWith('data:')) return resolve(url);
@@ -88,6 +107,17 @@ const urlToBase64 = (url: string): Promise<string> => {
 };
 
 export const printReceipt = async (trx: Transaction, storeSettings: any, branding?: any) => {
+  const productsMap = await fetchProductsMap(trx.storeId);
+  
+  let wStartDate: Date | null = null;
+  const trxDate = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date();
+  if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+    const sorted = [...trx.paymentHistory].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    wStartDate = new Date(sorted[0].date);
+  } else if ((trx.paidAmount ?? trx.cashReceived ?? 0) > 0 || trx.paymentStatus === 'paid') {
+    wStartDate = trxDate;
+  }
+
   const isExpired = await checkSubscriptionExpired(trx.storeId);
   const is80mm = storeSettings.paperSize === '80mm';
   const paperWidth = is80mm ? '300px' : '220px'; // Approx width for browser
@@ -213,9 +243,41 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
          text += ` + ${ext.optionName} ${ext.price > 0 ? `(Rp${ext.price})` : ''}\n`;
       });
     }
+    // Resolve dynamic warranty duration/unit from catalog
+    const prodId = item.productId;
+    const prodName = item.productName || (item as any).name;
+    let catalogProduct = null;
+    if (prodId && productsMap[prodId]) {
+      catalogProduct = productsMap[prodId];
+    } else if (prodName && productsMap[prodName]) {
+      catalogProduct = productsMap[prodName];
+    }
+
+    let duration = 0;
+    let unit = 'months';
+    if (catalogProduct && catalogProduct.warrantyDuration) {
+      duration = catalogProduct.warrantyDuration;
+      unit = catalogProduct.warrantyUnit || 'months';
+    } else {
+      duration = (item as any).warrantyDuration || 0;
+      unit = (item as any).warrantyUnit || 'months';
+    }
+
+    let expiryStr = '';
     if (item.warrantyExpiry) {
-      const wDate = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
-      text += ` [Garansi s/d: ${wDate}]\n`;
+      expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
+    } else if (duration > 0 && wStartDate) {
+      const expDate = new Date(wStartDate);
+      if (unit === 'days') expDate.setDate(expDate.getDate() + duration);
+      else if (unit === 'months') expDate.setMonth(expDate.getMonth() + duration);
+      else if (unit === 'years') expDate.setFullYear(expDate.getFullYear() + duration);
+      expiryStr = expDate.toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
+    }
+
+    if (expiryStr) {
+      text += ` [Garansi s/d: ${expiryStr}]\n`;
+    } else if (duration > 0) {
+      text += ` [Garansi: ${duration} ${unit === 'days' ? 'Hr' : unit === 'months' ? 'Bln' : 'Thn'} (Non-aktif)]\n`;
     }
     if (item.note) text += `${wrapCenter(`( ${item.note} )`, width)}\n`;
     
@@ -566,13 +628,56 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
               </td>
             </tr>
           `).join('') || ''}
-          ${item.warrantyExpiry ? `
-            <tr>
-              <td colspan="2" style="font-size: calc(${fontSize} - 3px); color: #000; padding-left: 10px; font-style: italic;">
-                🛡 Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'})}
-              </td>
-            </tr>
-          ` : ''}
+          ${(() => {
+            const prodId = item.productId;
+            const prodName = item.productName || (item as any).name;
+            let catalogProduct = null;
+            if (prodId && productsMap[prodId]) {
+              catalogProduct = productsMap[prodId];
+            } else if (prodName && productsMap[prodName]) {
+              catalogProduct = productsMap[prodName];
+            }
+
+            let duration = 0;
+            let unit = 'months';
+            if (catalogProduct && catalogProduct.warrantyDuration) {
+              duration = catalogProduct.warrantyDuration;
+              unit = catalogProduct.warrantyUnit || 'months';
+            } else {
+              duration = (item as any).warrantyDuration || 0;
+              unit = (item as any).warrantyUnit || 'months';
+            }
+
+            let expiryStr = '';
+            if (item.warrantyExpiry) {
+              expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'});
+            } else if (duration > 0 && wStartDate) {
+              const expDate = new Date(wStartDate);
+              if (unit === 'days') expDate.setDate(expDate.getDate() + duration);
+              else if (unit === 'months') expDate.setMonth(expDate.getMonth() + duration);
+              else if (unit === 'years') expDate.setFullYear(expDate.getFullYear() + duration);
+              expiryStr = expDate.toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'});
+            }
+
+            if (expiryStr) {
+              return `
+                <tr>
+                  <td colspan="2" style="font-size: calc(${fontSize} - 3px); color: #000; padding-left: 10px; font-style: italic;">
+                    🛡 Garansi s/d: ${expiryStr}
+                  </td>
+                </tr>
+              `;
+            } else if (duration > 0) {
+              return `
+                <tr>
+                  <td colspan="2" style="font-size: calc(${fontSize} - 3px); color: #666; padding-left: 10px; font-style: italic;">
+                    🛡 Garansi: ${duration} ${unit === 'days' ? 'Hari' : unit === 'months' ? 'Bulan' : 'Tahun'} (Belum Aktif)
+                  </td>
+                </tr>
+              `;
+            }
+            return '';
+          })()}
           ${item.note ? `
             <tr>
               <td colspan="2" class="item-note">

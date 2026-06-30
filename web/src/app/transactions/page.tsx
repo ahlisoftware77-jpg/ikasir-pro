@@ -61,6 +61,7 @@ export default function TransactionsPage() {
   const [viewingReceipt, setViewingReceipt] = useState<any>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [search, setSearch] = useState('');
+  const [productsMap, setProductsMap] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTrx, setSelectedTrx] = useState<Transaction | null>(null);
   const [storeSettings, setStoreSettings] = useState<any>({});
@@ -97,6 +98,19 @@ export default function TransactionsPage() {
       setIsLoading(false);
     });
 
+    const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+    const unsubProds = onSnapshot(qProds, (snap) => {
+      const pMap: Record<string, any> = {};
+      snap.forEach(d => {
+        const data = d.data();
+        pMap[d.id] = data;
+        if (data.name) {
+          pMap[data.name] = data;
+        }
+      });
+      setProductsMap(pMap);
+    }, (err) => console.error("Error loading products snapshot:", err));
+
     const fetchSettings = async () => {
       try {
         const docSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
@@ -109,7 +123,10 @@ export default function TransactionsPage() {
     };
     fetchSettings();
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubProds();
+    };
   }, [storeId, filterTab]);
 
   // --- ANDROID BACK BUTTON SUPPORT ---
@@ -551,17 +568,71 @@ export default function TransactionsPage() {
   };
 
   const handleClaimWarranty = (item: any, trx: Transaction) => {
-    if (!item.warrantyExpiry) return;
+    const prodId = item.productId;
+    const prodName = item.productName || (item as any).name;
+    let catalogProduct = null;
+    if (prodId && productsMap[prodId]) {
+      catalogProduct = productsMap[prodId];
+    } else if (prodName && productsMap[prodName]) {
+      catalogProduct = productsMap[prodName];
+    }
+
+    let wInfo = null;
+    if (catalogProduct && catalogProduct.warrantyDuration) {
+      wInfo = {
+        duration: catalogProduct.warrantyDuration,
+        unit: catalogProduct.warrantyUnit || 'months'
+      };
+    } else if ((item as any).warrantyDuration) {
+      wInfo = {
+        duration: (item as any).warrantyDuration,
+        unit: (item as any).warrantyUnit || 'months'
+      };
+    }
+
+    let wStartDate: Date | null = null;
+    if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+      const sorted = [...trx.paymentHistory].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      wStartDate = new Date(sorted[0].date);
+    } else if ((trx.paidAmount ?? trx.cashReceived ?? 0) > 0 || trx.paymentStatus === 'paid') {
+      wStartDate = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date(trx.timestamp);
+    }
+
+    let computedExpiryDate: Date | null = null;
+    if (item.warrantyExpiry) {
+      computedExpiryDate = new Date(item.warrantyExpiry);
+    } else if (wStartDate && wInfo) {
+      const expiry = new Date(wStartDate);
+      const dur = wInfo.duration;
+      const u = wInfo.unit;
+      if (u === 'days') {
+        expiry.setDate(expiry.getDate() + dur);
+      } else if (u === 'months') {
+        expiry.setMonth(expiry.getMonth() + dur);
+      } else if (u === 'years') {
+        expiry.setFullYear(expiry.getFullYear() + dur);
+      }
+      computedExpiryDate = expiry;
+    }
+
+    if (!computedExpiryDate) {
+      toast.error(`Klaim Ditolak: Garansi belum aktif karena belum ada pembayaran DP/Lunas.`, {
+        duration: 5000,
+        icon: '⚠️'
+      });
+      return;
+    }
     
-    const isExpired = new Date(item.warrantyExpiry) < new Date();
+    const isExpired = computedExpiryDate < new Date();
+    const expiryStr = computedExpiryDate.toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
     
     if (isExpired) {
-      toast.error(`Klaim Ditolak: Masa garansi untuk ${item.productName} telah berakhir pada ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}.`, {
+      toast.error(`Klaim Ditolak: Masa garansi untuk ${item.productName || (item as any).name} telah berakhir pada ${expiryStr}.`, {
         duration: 5000,
         icon: '⚠️'
       });
     } else {
-      toast.success(`Klaim Valid: Produk ${item.productName} masih dalam masa garansi hingga ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'})}. Silakan proses perbaikan/penggantian.`, {
+      toast.success(`Klaim Valid: Produk ${item.productName || (item as any).name} masih dalam masa garansi hingga ${expiryStr}. Silakan proses perbaikan/penggantian.`, {
         duration: 5000,
         icon: '✅'
       });
@@ -1170,23 +1241,87 @@ export default function TransactionsPage() {
                               ))}
                             </div>
                           )}
-                          {item.warrantyExpiry && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <ShieldCheck size={14} className={new Date(item.warrantyExpiry) > new Date() ? "text-emerald-500" : "text-rose-500"} />
-                              <span className={`text-[10px] font-black uppercase tracking-wider ${new Date(item.warrantyExpiry) > new Date() ? "text-emerald-500" : "text-rose-500"}`}>
-                                Garansi {new Date(item.warrantyExpiry) > new Date() ? "Aktif" : "Habis"}
-                                <span className="ml-1 opacity-70">
-                                  • {new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
-                                </span>
-                              </span>
-                              <button 
-                                onClick={() => handleClaimWarranty(item, selectedTrx)}
-                                className="ml-auto text-[9px] bg-background border border-app-border hover:border-accent px-2 py-1 rounded font-black text-app-text-muted hover:text-accent transition-all"
-                              >
-                                CLAIM
-                              </button>
-                            </div>
-                          )}
+                          {(() => {
+                            const prodId = item.productId;
+                            const prodName = item.productName || (item as any).name;
+                            let catalogProduct = null;
+                            if (prodId && productsMap[prodId]) {
+                              catalogProduct = productsMap[prodId];
+                            } else if (prodName && productsMap[prodName]) {
+                              catalogProduct = productsMap[prodName];
+                            }
+
+                            let wInfo = null;
+                            if (catalogProduct && catalogProduct.warrantyDuration) {
+                              wInfo = {
+                                duration: catalogProduct.warrantyDuration,
+                                unit: catalogProduct.warrantyUnit || 'months'
+                              };
+                            } else if ((item as any).warrantyDuration) {
+                              wInfo = {
+                                duration: (item as any).warrantyDuration,
+                                unit: (item as any).warrantyUnit || 'months'
+                              };
+                            }
+
+                            let wStartDate: Date | null = null;
+                            if (selectedTrx) {
+                              if (selectedTrx.paymentHistory && selectedTrx.paymentHistory.length > 0) {
+                                const sorted = [...selectedTrx.paymentHistory].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                wStartDate = new Date(sorted[0].date);
+                              } else if ((selectedTrx.paidAmount ?? selectedTrx.cashReceived ?? 0) > 0 || selectedTrx.paymentStatus === 'paid') {
+                                wStartDate = selectedTrx.timestamp?.toDate ? selectedTrx.timestamp.toDate() : new Date(selectedTrx.timestamp);
+                              }
+                            }
+
+                            let expiryDate: Date | null = null;
+                            if (item.warrantyExpiry) {
+                              expiryDate = new Date(item.warrantyExpiry);
+                            } else if (wStartDate && wInfo) {
+                              const expiry = new Date(wStartDate);
+                              const dur = wInfo.duration;
+                              const u = wInfo.unit;
+                              if (u === 'days') {
+                                expiry.setDate(expiry.getDate() + dur);
+                              } else if (u === 'months') {
+                                expiry.setMonth(expiry.getMonth() + dur);
+                              } else if (u === 'years') {
+                                expiry.setFullYear(expiry.getFullYear() + dur);
+                              }
+                              expiryDate = expiry;
+                            }
+
+                            if (!wInfo && !expiryDate) return null;
+
+                            return (
+                              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                {expiryDate ? (
+                                  <>
+                                    <ShieldCheck size={14} className={expiryDate > new Date() ? "text-emerald-500" : "text-rose-500"} />
+                                    <span className={`text-[10px] font-black uppercase tracking-wider ${expiryDate > new Date() ? "text-emerald-500" : "text-rose-500"}`}>
+                                      Garansi {expiryDate > new Date() ? "Aktif" : "Habis"}
+                                      <span className="ml-1 opacity-70">
+                                        • {expiryDate.toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+                                      </span>
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShieldCheck size={14} className="text-blue-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-500">
+                                      Garansi: {wInfo?.duration} {wInfo?.unit === 'days' ? 'Hari' : wInfo?.unit === 'months' ? 'Bulan' : 'Tahun'} (Menunggu Pembayaran DP/Lunas)
+                                    </span>
+                                  </>
+                                )}
+                                <button 
+                                  onClick={() => handleClaimWarranty(item, selectedTrx!)}
+                                  className="ml-auto text-[9px] bg-background border border-app-border hover:border-accent px-2 py-1 rounded font-black text-app-text-muted hover:text-accent transition-all"
+                                >
+                                  CLAIM
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                         <p className="text-foreground font-black text-sm tabular-nums">
                           Rp {item.subtotal?.toLocaleString('id-ID')}
@@ -1428,18 +1563,79 @@ export default function TransactionsPage() {
                     {viewingReceipt.items?.map((item: any, i: number) => (
                       <div key={i} className="space-y-1">
                          <div className="flex justify-between text-slate-900 font-bold uppercase">
-                            <span className="flex-1 mr-4">{item.productName || item.name}</span>
+                            <span className="flex-1 mr-4">{item.productName || (item as any).name}</span>
                             <span>Rp {(item.subtotal || (item.price * (item.qty || item.cartQty)) || 0).toLocaleString('id-ID')}</span>
                          </div>
                          <div className="flex justify-between text-slate-500">
                             <span>{item.qty || item.cartQty} x {(item.price || 0).toLocaleString('id-ID')}</span>
                             <div className="flex flex-col items-end">
                                {item.note && <span className="text-[9px] italic">({item.note})</span>}
-                               {item.warrantyExpiry && (
-                                 <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-0.5">
-                                   🛡 Garansi s/d: {new Date(item.warrantyExpiry).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'})}
-                                 </span>
-                               )}
+                               {(() => {
+                                 const prodId = item.productId;
+                                 const prodName = item.productName || (item as any).name;
+                                 let catalogProduct = null;
+                                 if (prodId && productsMap[prodId]) {
+                                   catalogProduct = productsMap[prodId];
+                                 } else if (prodName && productsMap[prodName]) {
+                                   catalogProduct = productsMap[prodName];
+                                 }
+
+                                 let wInfo = null;
+                                 if (catalogProduct && catalogProduct.warrantyDuration) {
+                                   wInfo = {
+                                     duration: catalogProduct.warrantyDuration,
+                                     unit: catalogProduct.warrantyUnit || 'months'
+                                   };
+                                 } else if ((item as any).warrantyDuration) {
+                                   wInfo = {
+                                     duration: (item as any).warrantyDuration,
+                                     unit: (item as any).warrantyUnit || 'months'
+                                   };
+                                 }
+
+                                 let wStartDate: Date | null = null;
+                                 if (selectedTrx) {
+                                   if (selectedTrx.paymentHistory && selectedTrx.paymentHistory.length > 0) {
+                                     const sorted = [...selectedTrx.paymentHistory].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                     wStartDate = new Date(sorted[0].date);
+                                   } else if ((selectedTrx.paidAmount ?? selectedTrx.cashReceived ?? 0) > 0 || selectedTrx.paymentStatus === 'paid') {
+                                     wStartDate = selectedTrx.timestamp?.toDate ? selectedTrx.timestamp.toDate() : new Date(selectedTrx.timestamp);
+                                   }
+                                 }
+
+                                 let expiryDate: Date | null = null;
+                                 if (item.warrantyExpiry) {
+                                   expiryDate = new Date(item.warrantyExpiry);
+                                 } else if (wStartDate && wInfo) {
+                                   const expiry = new Date(wStartDate);
+                                   const dur = wInfo.duration;
+                                   const u = wInfo.unit;
+                                   if (u === 'days') {
+                                     expiry.setDate(expiry.getDate() + dur);
+                                   } else if (u === 'months') {
+                                     expiry.setMonth(expiry.getMonth() + dur);
+                                   } else if (u === 'years') {
+                                     expiry.setFullYear(expiry.getFullYear() + dur);
+                                   }
+                                   expiryDate = expiry;
+                                 }
+
+                                 if (!wInfo && !expiryDate) return null;
+
+                                 if (expiryDate) {
+                                   return (
+                                     <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-0.5">
+                                       🛡 Garansi s/d: {expiryDate.toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'})}
+                                     </span>
+                                   );
+                                 } else {
+                                   return (
+                                     <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mt-0.5">
+                                       🛡 Garansi: {wInfo?.duration} {wInfo?.unit === 'days' ? 'Hari' : wInfo?.unit === 'months' ? 'Bulan' : 'Tahun'} (Non-aktif)
+                                     </span>
+                                   );
+                                 }
+                               })()}
                             </div>
                          </div>
                          {item.selectedExtras?.length > 0 && (

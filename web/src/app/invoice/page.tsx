@@ -33,6 +33,7 @@ function InvoiceA4Content() {
   const [isLogoReady, setIsLogoReady] = useState(false);
   const [isExpired, setIsExpired] = useState(true);
   const [branding, setBranding] = useState<any>(null);
+  const [productsMap, setProductsMap] = useState<Record<string, any>>({});
 
   // Effect to fetch and convert logo to Base64
   useEffect(() => {
@@ -121,6 +122,23 @@ function InvoiceA4Content() {
               }
             } catch (err) {
               console.warn("Failed to fetch branding:", err);
+            }
+
+            // Fetch products for dynamic warranty lookup
+            try {
+              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+              const prodsSnap = await getDocs(qProds);
+              const pMap: Record<string, any> = {};
+              prodsSnap.forEach(d => {
+                const data = d.data();
+                pMap[d.id] = data;
+                if (data.name) {
+                  pMap[data.name] = data;
+                }
+              });
+              setProductsMap(pMap);
+            } catch (err) {
+              console.warn("Failed to fetch products for dynamic warranty in invoice page:", err);
             }
           }
         }
@@ -358,11 +376,70 @@ function InvoiceA4Content() {
                  <tr key={idx} className="font-bold align-top">
                     <td className="p-2 py-3">
                        <p className="text-slate-900 text-[11px] font-black tracking-tight leading-tight">{item.productName || item.name}</p>
-                       {item.warrantyExpiry && (
-                         <p className="text-[8px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
-                           🛡 Garansi s/d: {new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                         </p>
-                       )}
+                        {(() => {
+                          const prodId = item.productId;
+                          const prodName = item.productName || item.name;
+                          let catalogProduct = null;
+                          if (prodId && productsMap[prodId]) {
+                            catalogProduct = productsMap[prodId];
+                          } else if (prodName && productsMap[prodName]) {
+                            catalogProduct = productsMap[prodName];
+                          }
+
+                          let wInfo = null;
+                          if (catalogProduct && catalogProduct.warrantyDuration) {
+                            wInfo = {
+                              duration: catalogProduct.warrantyDuration,
+                              unit: catalogProduct.warrantyUnit || 'months'
+                            };
+                          } else if (item.warrantyDuration) {
+                            wInfo = {
+                              duration: item.warrantyDuration,
+                              unit: item.warrantyUnit || 'months'
+                            };
+                          }
+
+                          let wStartDate: Date | null = null;
+                          if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+                            const sorted = [...trx.paymentHistory].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                            wStartDate = new Date(sorted[0].date);
+                          } else if ((trx.paidAmount ?? trx.cashReceived ?? 0) > 0 || trx.paymentStatus === 'paid') {
+                            wStartDate = trx.timestamp?.toDate ? trx.timestamp.toDate() : new Date(trx.timestamp);
+                          }
+
+                          let expiryDate: Date | null = null;
+                          if (item.warrantyExpiry) {
+                            expiryDate = new Date(item.warrantyExpiry);
+                          } else if (wStartDate && wInfo) {
+                            const expiry = new Date(wStartDate);
+                            const dur = wInfo.duration;
+                            const u = wInfo.unit;
+                            if (u === 'days') {
+                              expiry.setDate(expiry.getDate() + dur);
+                            } else if (u === 'months') {
+                              expiry.setMonth(expiry.getMonth() + dur);
+                            } else if (u === 'years') {
+                              expiry.setFullYear(expiry.getFullYear() + dur);
+                            }
+                            expiryDate = expiry;
+                          }
+
+                          if (!wInfo && !expiryDate) return null;
+
+                          if (expiryDate) {
+                            return (
+                              <p className="text-[8px] text-emerald-600 font-bold mt-1 flex items-center gap-1">
+                                🛡 Garansi s/d: {expiryDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              </p>
+                            );
+                          } else {
+                            return (
+                              <p className="text-[8px] text-blue-600 font-bold mt-1 flex items-center gap-1">
+                                🛡 Garansi: {wInfo?.duration} {wInfo?.unit === 'days' ? 'Hari' : wInfo?.unit === 'months' ? 'Bulan' : 'Tahun'} (Belum Aktif)
+                              </p>
+                            );
+                          }
+                        })()}
                        {item.selectedExtras && item.selectedExtras.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                              {item.selectedExtras.map((ext: any, eIdx: number) => (
