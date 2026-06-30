@@ -16,7 +16,7 @@ import {
 import { 
   Plus, Play, Search, Calculator, CreditCard, History, Package, Home, PlusCircle, 
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
-  Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, 
+  Users, Lock, Clock, UserCheck, ClipboardList, AlertTriangle, ShieldCheck, Shield,
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
