@@ -2799,6 +2799,35 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   };
 
+  const handleDeleteDebt = async () => {
+    if (!selectedDebt || !selectedDebt.id) return;
+    
+    Alert.alert(
+      'Hapus Catatan Piutang?',
+      'Aksi ini akan menghapus data piutang ini secara permanen dari catatan transaksi toko Anda.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Ya, Hapus', 
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await deleteDoc(doc(db, 'transactions', selectedDebt.id));
+              setSelectedDebt(null);
+              Alert.alert('Sukses', 'Catatan piutang berhasil dihapus.');
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat menghapus: ' + err.message);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handlePayInstallment = async () => {
     if (!selectedDebt || !selectedDebt.id) return;
     const amount = parseFloat(debtPaymentAmount) || 0;
@@ -7116,6 +7145,19 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   {isSubmittingDebtPayment && <ActivityIndicator size="small" color="#ffffff" />}
                   <Text className="font-black text-white text-xs uppercase tracking-widest">
                     {isSubmittingDebtPayment ? 'Menyimpan...' : 'Simpan Pembayaran'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedDebt && (
+                <TouchableOpacity
+                  onPress={handleDeleteDebt}
+                  activeOpacity={0.8}
+                  className="w-full py-4 rounded-2xl items-center justify-center flex-row gap-2 border border-rose-500/30 bg-rose-500/10 mt-3"
+                >
+                  <Trash2 size={16} color="#f43f5e" />
+                  <Text className="font-black text-rose-500 text-xs uppercase tracking-widest">
+                    Hapus Piutang
                   </Text>
                 </TouchableOpacity>
               )}
