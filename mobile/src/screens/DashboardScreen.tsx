@@ -521,7 +521,7 @@ export default function DashboardScreen({ navigation }: any) {
                 ))}
               </View>
             )}
-          </div>
+          </View>
         )}
 
         {/* SECTION: PRICING CARD - PREMIUM DESIGN */}
