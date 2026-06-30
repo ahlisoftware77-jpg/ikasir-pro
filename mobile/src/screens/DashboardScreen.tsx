@@ -400,6 +400,42 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* PROMO SPESIAL LANGGANAN (AKAN MUNCUL JIKA MASA AKTIF < 2 MINGGU) */}
+        {sisaHari !== null && sisaHari <= 14 && (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (
+          <TouchableOpacity
+            onPress={() => {
+              Vibration.vibrate(10);
+              navigation.navigate('Lainnya', { openSubscription: true });
+            }}
+            activeOpacity={0.9}
+            className="mb-6 p-5 rounded-[2rem] border relative overflow-hidden"
+            style={{ 
+              borderColor: '#8b5cf6',
+              backgroundColor: '#2e1065', // Premium dark purple/violet
+            }}
+          >
+            {/* Subtle glow effect */}
+            <View className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 rounded-full filter blur-xl pointer-events-none" style={{ position: 'absolute' }} />
+            
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <View className="bg-amber-400 px-2.5 py-0.5 rounded-full self-start mb-2">
+                  <Text className="text-[8px] font-black uppercase tracking-wider text-slate-900">🔥 PROMO SPESIAL</Text>
+                </View>
+                <Text className="text-sm font-black text-white leading-tight">
+                  Perpanjang Langganan Lebih Awal!
+                </Text>
+                <Text className="text-[10px] font-bold text-purple-200 mt-1 leading-relaxed">
+                  Masa aktif toko tersisa <Text className="text-amber-400 font-extrabold">{sisaHari} hari</Text>. Dapatkan potongan harga eksklusif hari ini.
+                </Text>
+              </View>
+              <View className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 items-center justify-center">
+                <Text className="text-xl">🎁</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* WARNING BANNER FOR EXPIRING SUBSCRIPTION */}
         {sisaHari !== null && sisaHari <= 7 && !isSubscriptionExpired && (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (
           <TouchableOpacity
