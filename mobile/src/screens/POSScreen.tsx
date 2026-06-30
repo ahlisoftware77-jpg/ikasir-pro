@@ -2290,6 +2290,11 @@ export default function POSScreen({ route, navigation }: any) {
                   
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: catColors.catText }}>{item.category || 'Umum'}</Text>
                   <Text className="text-sm font-black mt-0.5 mb-2" style={{ color: catColors.text }} numberOfLines={2}>{item.name}</Text>
+                  {item.warrantyDuration ? (
+                    <Text className="text-[8px] font-black text-blue-500 uppercase tracking-wider mb-2">
+                      🛡️ Garansi: {item.warrantyDuration} {item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}
+                    </Text>
+                  ) : null}
                   
                   <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.15)' }}>
                     <View>
@@ -2329,7 +2334,9 @@ export default function POSScreen({ route, navigation }: any) {
                 >
                   <View className="flex-1 pr-4">
                     <Text className="text-xs font-bold" style={{ color: catColors.text }} numberOfLines={1}>{item.name}</Text>
-                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: catColors.catText }}>{item.category || 'Umum'}</Text>
+                    <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: catColors.catText }}>
+                      {item.category || 'Umum'} {item.warrantyDuration ? `| 🛡️ Garansi: ${item.warrantyDuration} ${item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}` : ''}
+                    </Text>
                   </View>
                   <View className="items-end shrink-0">
                     <Text className="font-black text-xs" style={{ color: '#15803d' }}>
@@ -2378,6 +2385,11 @@ export default function POSScreen({ route, navigation }: any) {
                 <View className="flex-1 min-w-0">
                   <Text className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: catColors.catText }}>{item.category || 'Umum'}</Text>
                   <Text className="text-sm font-black mb-1 truncate" style={{ color: catColors.text }}>{item.name}</Text>
+                  {item.warrantyDuration ? (
+                    <Text className="text-[8px] font-black text-blue-500 uppercase tracking-wider mb-1">
+                      🛡️ Garansi: {item.warrantyDuration} {item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}
+                    </Text>
+                  ) : null}
                   <View className="flex-row items-center gap-2">
                     <Text className="font-black text-xs" style={{ color: '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
@@ -3126,6 +3138,12 @@ export default function POSScreen({ route, navigation }: any) {
                             Extras: {item.selectedExtras.map(e => `${e.optionName}`).join(', ')}
                           </Text>
                         )}
+                        
+                        {item.warrantyDuration ? (
+                          <Text className="text-[9px] text-blue-500 font-bold mt-1">
+                            🛡️ Garansi: {item.warrantyDuration} {item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}
+                          </Text>
+                        ) : null}
                         
                         {item.discountName && (
                           <Text className="text-[9px] text-emerald-500 font-bold mt-1">

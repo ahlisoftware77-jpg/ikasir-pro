@@ -1075,6 +1075,11 @@ export default function ProductsScreen({ navigation }: any) {
                     <Text className="text-[10px] text-slate-500 font-bold">
                       Produk Ekstra <Text className="font-black" style={{ color: colors.text }}>{item.hasExtras ? 'Ya' : 'Tidak'}</Text>
                     </Text>
+                    {item.warrantyDuration ? (
+                      <Text className="text-[10px] text-slate-500 font-bold">
+                        Garansi <Text className="font-black text-blue-500">{item.warrantyDuration} {item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}</Text>
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
 
