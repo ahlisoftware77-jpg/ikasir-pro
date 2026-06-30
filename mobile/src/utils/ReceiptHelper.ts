@@ -108,21 +108,53 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
   const address = storeSettings?.address || '';
   const phone = storeSettings?.phone || '';
 
-  const itemsHtml = (transaction.items || []).map((item: any) => `
-    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-      <div style="flex: 1;">
-        <div style="font-weight: bold;">${item.productName || item.name}</div>
-        <div style="font-size: 10px; color: #666;">${item.qty || 1} x Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
-        ${item.selectedExtras?.map((e: any) => `<div style="font-size: 9px; margin-left: 10px;">+ ${e.optionName || e.name} (Rp ${(e.price || 0).toLocaleString('id-ID')})</div>`).join('') || ''}
-        ${item.warrantyExpiry ? `
-          <div style="font-size: 9px; color: #10b981; font-weight: bold; margin-top: 2px;">
-            🛡️ Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
-        ` : ''}
+  let wStartDate: Date | null = null;
+  if (transaction.paymentHistory && transaction.paymentHistory.length > 0) {
+    const sorted = [...transaction.paymentHistory].sort((a: any, b: any) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      return timeA - timeB;
+    });
+    wStartDate = new Date(sorted[0].date);
+  } else if ((transaction.paidAmount ?? transaction.cashReceived ?? 0) > 0 || transaction.paymentStatus === 'paid') {
+    wStartDate = date;
+  }
+
+  const itemsHtml = (transaction.items || []).map((item: any) => {
+    let expiryStr = '';
+    let duration = item.warrantyDuration || 0;
+    let unit = item.warrantyUnit || 'months';
+    
+    if (item.warrantyExpiry) {
+      expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    } else if (duration > 0 && wStartDate) {
+      const expDate = new Date(wStartDate);
+      if (unit === 'days') expDate.setDate(expDate.getDate() + duration);
+      else if (unit === 'months') expDate.setMonth(expDate.getMonth() + duration);
+      else if (unit === 'years') expDate.setFullYear(expDate.getFullYear() + duration);
+      expiryStr = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    return `
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <div style="flex: 1;">
+          <div style="font-weight: bold;">${item.productName || item.name}</div>
+          <div style="font-size: 10px; color: #666;">${item.qty || 1} x Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
+          ${item.selectedExtras?.map((e: any) => `<div style="font-size: 9px; margin-left: 10px;">+ ${e.optionName || e.name} (Rp ${(e.price || 0).toLocaleString('id-ID')})</div>`).join('') || ''}
+          ${expiryStr ? `
+            <div style="font-size: 9px; color: #10b981; font-weight: bold; margin-top: 2px;">
+              🛡️ Garansi s/d: ${expiryStr} (Mulai ${wStartDate ? wStartDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''})
+            </div>
+          ` : duration > 0 ? `
+            <div style="font-size: 9px; color: #3b82f6; font-weight: bold; margin-top: 2px;">
+              🛡️ Garansi: ${duration} ${unit === 'days' ? 'Hari' : unit === 'months' ? 'Bulan' : 'Tahun'} (Belum Aktif - Menunggu Pembayaran DP/Lunas)
+            </div>
+          ` : ''}
+        </div>
+        <div style="font-weight: bold;">Rp ${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</div>
       </div>
-      <div style="font-weight: bold;">Rp ${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   return `
     <html>
@@ -317,23 +349,55 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
   const phone = storeSettings?.phone || '';
   const storeNpwp = storeSettings?.npwp ? `<p class="store-info">NPWP: ${storeSettings.npwp}</p>` : '';
   
-  const itemsHtml = (trx.items || []).map((item: any) => `
-    <tr style="border-bottom: 1px solid #eee;">
-      <td style="padding: 10px; text-align: left;">
-        <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
-        ${item.warrantyExpiry ? `
-          <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
-            🛡️ Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
-        ` : ''}
-        ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
-        ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
-      </td>
-      <td style="padding: 10px; text-align: center; color: #64748b;">Rp ${(item.price || 0).toLocaleString('id-ID')}</td>
-      <td style="padding: 10px; text-align: center; color: #1e293b; font-weight: bold;">${item.qty || 1} pcs</td>
-      <td style="padding: 10px; text-align: right; color: #1e293b; font-weight: bold;">Rp ${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</td>
-    </tr>
-  `).join('');
+  let wStartDate: Date | null = null;
+  if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+    const sorted = [...trx.paymentHistory].sort((a: any, b: any) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      return timeA - timeB;
+    });
+    wStartDate = new Date(sorted[0].date);
+  } else if ((trx.paidAmount ?? trx.cashReceived ?? 0) > 0 || trx.paymentStatus === 'paid') {
+    wStartDate = date;
+  }
+
+  const itemsHtml = (trx.items || []).map((item: any) => {
+    let expiryStr = '';
+    let duration = item.warrantyDuration || 0;
+    let unit = item.warrantyUnit || 'months';
+    
+    if (item.warrantyExpiry) {
+      expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    } else if (duration > 0 && wStartDate) {
+      const expDate = new Date(wStartDate);
+      if (unit === 'days') expDate.setDate(expDate.getDate() + duration);
+      else if (unit === 'months') expDate.setMonth(expDate.getMonth() + duration);
+      else if (unit === 'years') expDate.setFullYear(expDate.getFullYear() + duration);
+      expiryStr = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    return `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px; text-align: left;">
+          <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+          ${expiryStr ? `
+            <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+              🛡️ Garansi s/d: ${expiryStr} (Mulai ${wStartDate ? wStartDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''})
+            </div>
+          ` : duration > 0 ? `
+            <div style="font-size: 10px; color: #3b82f6; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+              🛡️ Garansi: ${duration} ${unit === 'days' ? 'Hari' : unit === 'months' ? 'Bulan' : 'Tahun'} (Belum Aktif - Menunggu Pembayaran DP/Lunas)
+            </div>
+          ` : ''}
+          ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
+          ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
+        </td>
+        <td style="padding: 10px; text-align: center; color: #64748b;">Rp ${(item.price || 0).toLocaleString('id-ID')}</td>
+        <td style="padding: 10px; text-align: center; color: #1e293b; font-weight: bold;">${item.qty || 1} pcs</td>
+        <td style="padding: 10px; text-align: right; color: #1e293b; font-weight: bold;">Rp ${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</td>
+      </tr>
+    `;
+  }).join('');
 
   const docType = isEstimation ? 'PENAWARAN' : 'INVOICE';
   const docId = (trx.id || '').substring(0, 10).toUpperCase();
@@ -890,6 +954,19 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     await BluetoothEscposPrinter.printText(`Antr: #${trx.queueNumber}\n\r`, {});
   }
 
+  let wStartDate: Date | null = null;
+  const trxDate = trx.timestamp?.seconds ? new Date(trx.timestamp.seconds * 1000) : (trx.timestamp?.toDate ? trx.timestamp.toDate() : (trx.timestamp ? new Date(trx.timestamp) : new Date()));
+  if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+    const sorted = [...trx.paymentHistory].sort((a: any, b: any) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      return timeA - timeB;
+    });
+    wStartDate = new Date(sorted[0].date);
+  } else if ((trx.paidAmount ?? trx.cashReceived ?? 0) > 0 || trx.paymentStatus === 'paid') {
+    wStartDate = trxDate;
+  }
+
   await BluetoothEscposPrinter.printText(`${divider}\n\r`, {});
 
   // ─── ITEMS ──────────────────────────────────────────────────────
@@ -923,9 +1000,23 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     await BluetoothEscposPrinter.printText(`${lr(left, right)}\n\r`, {});
 
     // Garansi
+    let expiryStr = '';
+    let duration = item.warrantyDuration || 0;
+    let unit = item.warrantyUnit || 'months';
     if (item.warrantyExpiry) {
-      const wDate = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
-      await BluetoothEscposPrinter.printText(` [Garansi s/d: ${wDate}]\n\r`, {});
+      expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    } else if (duration > 0 && wStartDate) {
+      const expDate = new Date(wStartDate);
+      if (unit === 'days') expDate.setDate(expDate.getDate() + duration);
+      else if (unit === 'months') expDate.setMonth(expDate.getMonth() + duration);
+      else if (unit === 'years') expDate.setFullYear(expDate.getFullYear() + duration);
+      expiryStr = expDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    }
+
+    if (expiryStr) {
+      await BluetoothEscposPrinter.printText(` [Garansi s/d: ${expiryStr}]\n\r`, {});
+    } else if (duration > 0) {
+      await BluetoothEscposPrinter.printText(` [Garansi: ${duration} ${unit === 'days' ? 'Hr' : unit === 'months' ? 'Bln' : 'Thn'} (Non-aktif)]\n\r`, {});
     }
   }
 
@@ -1282,22 +1373,54 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
   const address = storeSettings?.address || '';
   const phone = storeSettings?.phone || '';
   
-  const itemsHtml = (trx.items || []).map((item: any, idx: number) => `
-    <tr style="border-bottom: 1px solid #eee;">
-      <td style="padding: 10px; text-align: left; color: #64748b;">${idx + 1}</td>
-      <td style="padding: 10px; text-align: left;">
-        <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
-        ${item.warrantyExpiry ? `
-          <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
-            🛡️ Garansi s/d: ${new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
-        ` : ''}
-        ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
-        ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
-      </td>
-      <td style="padding: 10px; text-align: center; color: #1e293b; font-weight: bold;">${item.qty || 1} ${item.unit || 'pcs'}</td>
-    </tr>
-  `).join('');
+  let wStartDate: Date | null = null;
+  if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+    const sorted = [...trx.paymentHistory].sort((a: any, b: any) => {
+      const timeA = a.date ? new Date(a.date).getTime() : 0;
+      const timeB = b.date ? new Date(b.date).getTime() : 0;
+      return timeA - timeB;
+    });
+    wStartDate = new Date(sorted[0].date);
+  } else if ((trx.paidAmount ?? trx.cashReceived ?? 0) > 0 || trx.paymentStatus === 'paid') {
+    wStartDate = date;
+  }
+
+  const itemsHtml = (trx.items || []).map((item: any, idx: number) => {
+    let expiryStr = '';
+    let duration = item.warrantyDuration || 0;
+    let unit = item.warrantyUnit || 'months';
+    
+    if (item.warrantyExpiry) {
+      expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    } else if (duration > 0 && wStartDate) {
+      const expDate = new Date(wStartDate);
+      if (unit === 'days') expDate.setDate(expDate.getDate() + duration);
+      else if (unit === 'months') expDate.setMonth(expDate.getMonth() + duration);
+      else if (unit === 'years') expDate.setFullYear(expDate.getFullYear() + duration);
+      expiryStr = expDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    return `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px; text-align: left; color: #64748b;">${idx + 1}</td>
+        <td style="padding: 10px; text-align: left;">
+          <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+          ${expiryStr ? `
+            <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+              🛡️ Garansi s/d: ${expiryStr} (Mulai ${wStartDate ? wStartDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''})
+            </div>
+          ` : duration > 0 ? `
+            <div style="font-size: 10px; color: #3b82f6; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
+              🛡️ Garansi: ${duration} ${unit === 'days' ? 'Hari' : unit === 'months' ? 'Bulan' : 'Tahun'} (Belum Aktif - Menunggu Pembayaran DP/Lunas)
+            </div>
+          ` : ''}
+          ${item.note ? `<div style="font-size: 10px; color: #f59e0b; font-style: italic; margin-top: 2px;">Catatan: ${item.note}</div>` : ''}
+          ${item.selectedExtras?.map((e: any) => `<span style="font-size: 9px; background-color: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 2px 4px; border-radius: 4px; margin-right: 4px; margin-top: 4px; display: inline-block;">+ ${e.optionName || e.name}</span>`).join('') || ''}
+        </td>
+        <td style="padding: 10px; text-align: center; color: #1e293b; font-weight: bold;">${item.qty || 1} ${item.unit || 'pcs'}</td>
+      </tr>
+    `;
+  }).join('');
 
   return `
     <!DOCTYPE html>
