@@ -5093,31 +5093,184 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
         );
 
       case 'lap_terlaris':
+        const MONTHS_LIST_TERLARIS = [
+          { id: 'all', name: 'Semua Bulan' },
+          { id: '0', name: 'Januari' },
+          { id: '1', name: 'Februari' },
+          { id: '2', name: 'Maret' },
+          { id: '3', name: 'April' },
+          { id: '4', name: 'Mei' },
+          { id: '5', name: 'Juni' },
+          { id: '6', name: 'Juli' },
+          { id: '7', name: 'Agustus' },
+          { id: '8', name: 'September' },
+          { id: '9', name: 'Oktober' },
+          { id: '10', name: 'November' },
+          { id: '11', name: 'Desember' }
+        ];
+
         return (
-          <FlatList
-            data={salesSummary}
-            keyExtractor={item => item.id}
-            renderItem={({ item, index }) => (
-              <View className="p-4 rounded-2xl border mb-3 flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                <View className="flex-row items-center gap-3">
-                  <View className="w-8 h-8 rounded-lg items-center justify-center bg-amber-500/10 border border-amber-500/30">
-                    <Text className="font-black text-amber-500 text-xs">#{index + 1}</Text>
+          <View className="flex-1">
+            {/* Filter Section */}
+            <View className="flex-row items-center gap-2 mb-4">
+              <View className="flex-1 flex-row border rounded-xl overflow-hidden" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+                <TouchableOpacity 
+                  onPress={() => { Vibration.vibrate(10); setShowMonthDropdown(true); }}
+                  activeOpacity={0.7}
+                  className="flex-1 border-r px-4 justify-center relative py-4" 
+                  style={{ borderColor: colors.border }}
+                >
+                  <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Bulan</Text>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <Text className="font-black text-xs" style={{ color: colors.text }}>
+                      {MONTHS_LIST_TERLARIS.find(m => m.id === soldMonthFilter)?.name || 'Semua Bulan'}
+                    </Text>
+                    <ListFilter size={14} color={colors.textMuted} />
                   </View>
-                  <View>
-                    <Text className="text-sm font-black" style={{ color: colors.text }}>{item.name}</Text>
-                    <Text className="text-[10px] font-bold text-slate-400 mt-1">Total terjual: {item.qty} pcs</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  onPress={() => { Vibration.vibrate(10); setShowYearDropdown(true); }}
+                  activeOpacity={0.7}
+                  className="flex-1 px-4 justify-center relative py-4"
+                >
+                  <Text className="absolute top-1.5 left-4 text-[8px] font-black uppercase text-slate-400 z-10">Tahun</Text>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <Text className="font-black text-xs" style={{ color: colors.text }}>
+                      {soldYearFilter}
+                    </Text>
+                    <ListFilter size={14} color={colors.textMuted} />
                   </View>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setSoldMonthFilter('all');
+                  setSoldYearFilter(new Date().getFullYear().toString());
+                  setSoldTimeFilter('all');
+                }}
+                className="w-12 h-12 rounded-xl items-center justify-center bg-rose-500/10 border border-rose-500/20"
+              >
+                <RefreshCw size={18} color="#f43f5e" />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={salesSummary}
+              keyExtractor={item => item.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item, index }) => (
+                <View className="p-4 rounded-2xl border mb-3 flex-row justify-between items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="flex-row items-center gap-3 flex-1 pr-2">
+                    <View className="w-8 h-8 rounded-lg items-center justify-center bg-amber-500/10 border border-amber-500/30">
+                      <Text className="font-black text-amber-500 text-xs">#{index + 1}</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={1}>{item.name}</Text>
+                      <Text className="text-[10px] font-bold text-slate-400 mt-1">Total terjual: {item.qty} pcs</Text>
+                    </View>
+                  </View>
+                  <Text className="text-sm font-black text-emerald-400">Rp {item.sales.toLocaleString('id-ID')}</Text>
                 </View>
-                <Text className="text-sm font-black text-emerald-400">Rp {item.sales.toLocaleString('id-ID')}</Text>
-              </View>
-            )}
-            ListEmptyComponent={
-              <View className="items-center py-20 opacity-30">
-                <Flame color={colors.textMuted} size={48} />
-                <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada histori penjualan</Text>
-              </View>
-            }
-          />
+              )}
+              ListEmptyComponent={
+                <View className="items-center py-20 opacity-30">
+                  <Flame color={colors.textMuted} size={48} />
+                  <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada histori penjualan</Text>
+                </View>
+              }
+            />
+
+            {/* Modal Dropdown Bulan */}
+            <Modal visible={showMonthDropdown} transparent animationType="fade" onRequestClose={() => setShowMonthDropdown(false)}>
+              <TouchableOpacity 
+                activeOpacity={1} 
+                onPress={() => setShowMonthDropdown(false)}
+                className="flex-1 justify-center items-center px-6" 
+                style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <View className="w-full max-h-[70%] rounded-3xl p-6 shadow-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <Text className="text-sm font-black mb-4 uppercase tracking-wider" style={{ color: colors.text }}>Pilih Bulan</Text>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View className="flex gap-2">
+                      {MONTHS_LIST_TERLARIS.map((m) => {
+                        const isSelected = soldMonthFilter === m.id;
+                        return (
+                          <TouchableOpacity 
+                            key={m.id} 
+                            onPress={() => {
+                              Vibration.vibrate(10);
+                              setSoldMonthFilter(m.id);
+                              if (m.id === 'all') {
+                                setSoldTimeFilter('yearly');
+                              } else {
+                                setSoldTimeFilter('monthly');
+                              }
+                              setShowMonthDropdown(false);
+                            }}
+                            className="p-3.5 rounded-xl border flex-row items-center justify-between"
+                            style={{ 
+                              backgroundColor: isSelected ? colors.accent + '10' : colors.bg,
+                              borderColor: isSelected ? colors.accent : colors.border
+                            }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: isSelected ? colors.accent : colors.text }}>{m.name}</Text>
+                            {isSelected && <Check size={14} color={colors.accent} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </Modal>
+
+            {/* Modal Dropdown Tahun */}
+            <Modal visible={showYearDropdown} transparent animationType="fade" onRequestClose={() => setShowYearDropdown(false)}>
+              <TouchableOpacity 
+                activeOpacity={1} 
+                onPress={() => setShowYearDropdown(false)}
+                className="flex-1 justify-center items-center px-6" 
+                style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              >
+                <View className="w-full max-h-[50%] rounded-3xl p-6 shadow-2xl border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <Text className="text-sm font-black mb-4 uppercase tracking-wider" style={{ color: colors.text }}>Pilih Tahun</Text>
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    <View className="flex gap-2">
+                      {soldAvailableYears.map((year) => {
+                        const isSelected = soldYearFilter === year;
+                        return (
+                          <TouchableOpacity 
+                            key={year} 
+                            onPress={() => {
+                              Vibration.vibrate(10);
+                              setSoldYearFilter(year);
+                              if (soldMonthFilter === 'all') {
+                                setSoldTimeFilter('yearly');
+                              } else {
+                                setSoldTimeFilter('monthly');
+                              }
+                              setShowYearDropdown(false);
+                            }}
+                            className="p-3.5 rounded-xl border flex-row items-center justify-between"
+                            style={{ 
+                              backgroundColor: isSelected ? colors.accent + '10' : colors.bg,
+                              borderColor: isSelected ? colors.accent : colors.border
+                            }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: isSelected ? colors.accent : colors.text }}>{year}</Text>
+                            {isSelected && <Check size={14} color={colors.accent} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </Modal>
+          </View>
         );
 
       case 'arus_kas':
