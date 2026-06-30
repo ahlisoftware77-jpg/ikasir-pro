@@ -2267,7 +2267,27 @@ export default function FeatureScreen({ route, navigation }: any) {
   };
 
   const sendDebtReminder = async (item: any) => {
-    if (!item.customerPhone || item.customerPhone === '-') {
+    let phoneNum = item.customerPhone;
+    
+    // If not directly present on transaction, search the customers collection by name
+    if (!phoneNum || phoneNum === '-') {
+      try {
+        const qCust = query(
+          collection(db, 'customers'),
+          where('storeId', '==', storeId),
+          where('name', '==', item.customerName)
+        );
+        const snap = await getDocs(qCust);
+        if (!snap.empty) {
+          const custData = snap.docs[0].data();
+          phoneNum = custData.phone;
+        }
+      } catch (err) {
+        console.error("Error searching customer phone:", err);
+      }
+    }
+
+    if (!phoneNum || phoneNum === '-') {
       Alert.alert('Info', 'Nomor WhatsApp pelanggan tidak terdaftar.');
       return;
     }
@@ -2279,7 +2299,7 @@ export default function FeatureScreen({ route, navigation }: any) {
 
     const message = `Halo Kak ${item.customerName || ''},\n\nKami ingin menginformasikan tagihan Anda sebesar *Rp ${remaining.toLocaleString('id-ID')}* terkait transaksi nomor nota *#${item.id.substring(0, 8)}* yang jatuh tempo pada tanggal *${formattedDate}*.\n\nMohon segera melakukan pembayaran. Terima kasih atas kerja samanya. 🙏\n\n- ${storeSettingsData?.storeName || 'Kasir Pro'}`;
 
-    let cleaned = item.customerPhone.replace(/[^0-9]/g, '');
+    let cleaned = phoneNum.replace(/[^0-9]/g, '');
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
     } else if (cleaned.startsWith('8')) {
