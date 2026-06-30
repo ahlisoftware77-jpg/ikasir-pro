@@ -2261,6 +2261,7 @@ export default function FeatureScreen({ route, navigation }: any) {
       } catch (e) {
         Alert.alert('Gagal', 'Tidak dapat membuka aplikasi WhatsApp.');
       }
+    }
   };
 
   const sendDebtReminder = async (item: any) => {
