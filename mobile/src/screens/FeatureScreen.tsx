@@ -708,6 +708,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [salesAnalyticsClearedAt, setSalesAnalyticsClearedAt] = useState<Date | null>(null);
   const [soldMonthFilter, setSoldMonthFilter] = useState<string>(new Date().getMonth().toString());
   const [soldYearFilter, setSoldYearFilter] = useState<string>(new Date().getFullYear().toString());
+  const [storeSettingsData, setStoreSettingsData] = useState<any>(null);
   const [isResettingSold, setIsResettingSold] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
@@ -867,6 +868,13 @@ export default function FeatureScreen({ route, navigation }: any) {
           break;
 
         case 'piutang':
+          // Fetch settings for store name
+          getDoc(doc(db, 'settings', `store_${storeId}`)).then(docSnap => {
+            if (docSnap.exists()) {
+              setStoreSettingsData(docSnap.data());
+            }
+          });
+
           q = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
           unsubscribe = onSnapshot(q, (snapshot) => {
             const docs: any[] = [];
@@ -2240,6 +2248,40 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
     const waUrl = `whatsapp://send?phone=${cleaned}`;
     const webUrl = `https://wa.me/${cleaned}`;
+    try {
+      const supported = await Linking.canOpenURL(waUrl);
+      if (supported) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Linking.openURL(webUrl);
+      }
+    } catch (err) {
+      try {
+        await Linking.openURL(webUrl);
+      } catch (e) {
+        Alert.alert('Gagal', 'Tidak dapat membuka aplikasi WhatsApp.');
+      }
+  };
+
+  const sendDebtReminder = async (item: any) => {
+    if (!item.customerPhone || item.customerPhone === '-') {
+      Alert.alert('Info', 'Nomor WhatsApp pelanggan tidak terdaftar.');
+      return;
+    }
+    
+    const remaining = item.total - (item.paidAmount ?? item.cashReceived ?? 0);
+    const formattedDate = item.dueDate 
+      ? new Date(item.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '-';
+
+    const message = `Halo Kak ${item.customerName || ''},\n\nKami ingin menginformasikan tagihan Anda sebesar *Rp ${remaining.toLocaleString('id-ID')}* terkait transaksi nomor nota *#${item.id.substring(0, 8)}* yang jatuh tempo pada tanggal *${formattedDate}*.\n\nMohon segera melakukan pembayaran. Terima kasih atas kerja samanya. 🙏\n\n- ${storeSettingsData?.storeName || 'Kasir Pro'}`;
+
+    let cleaned = item.customerPhone.replace(/[^0-9]/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '62' + cleaned.substring(1);
+    }
+    const waUrl = `whatsapp://send?phone=${cleaned}&text=${encodeURIComponent(message)}`;
+    const webUrl = `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;
     try {
       const supported = await Linking.canOpenURL(waUrl);
       if (supported) {
@@ -4002,8 +4044,18 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                         className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1"
                         style={{ backgroundColor: colors.bg, borderColor: colors.border }}
                       >
-                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Rincian & Cicilan</Text>
-                        <ChevronRight size={12} color={colors.text} />
+                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Detail</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Vibration.vibrate(10);
+                          sendDebtReminder(item);
+                        }}
+                        activeOpacity={0.8}
+                        className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1.5"
+                        style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)', borderColor: 'rgba(37, 211, 102, 0.2)' }}
+                      >
+                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: '#25d366' }}>Kirim WA</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => {
@@ -4014,7 +4066,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                         className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1.5"
                         style={{ backgroundColor: colors.accent + '10', borderColor: colors.accent + '20' }}
                       >
-                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>Bagikan Link TTD</Text>
+                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>Link TTD</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
