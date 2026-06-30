@@ -2245,6 +2245,8 @@ export default function FeatureScreen({ route, navigation }: any) {
     let cleaned = phone.replace(/[^0-9]/g, '');
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8')) {
+      cleaned = '62' + cleaned;
     }
     const waUrl = `whatsapp://send?phone=${cleaned}`;
     const webUrl = `https://wa.me/${cleaned}`;
@@ -2280,6 +2282,8 @@ export default function FeatureScreen({ route, navigation }: any) {
     let cleaned = item.customerPhone.replace(/[^0-9]/g, '');
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8')) {
+      cleaned = '62' + cleaned;
     }
     const waUrl = `whatsapp://send?phone=${cleaned}&text=${encodeURIComponent(message)}`;
     const webUrl = `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;
@@ -2503,14 +2507,21 @@ export default function FeatureScreen({ route, navigation }: any) {
             Alert.alert('Eror', 'Harap isi semua kolom');
             return;
           }
-          await addDoc(collection(db, 'customers'), {
+          const customerData = {
             storeId,
             name: formName,
             phone: formPhone,
             points: parseInt(formPoints) || 0,
             orders: parseInt(formOrders) || 0,
-            createdAt: new Date().toISOString()
-          });
+          };
+          if (editId) {
+            await updateDoc(doc(db, 'customers', editId), customerData);
+          } else {
+            await addDoc(collection(db, 'customers'), {
+              ...customerData,
+              createdAt: new Date().toISOString()
+            });
+          }
           break;
 
         case 'staff':
