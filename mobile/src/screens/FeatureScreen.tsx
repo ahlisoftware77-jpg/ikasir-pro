@@ -7071,7 +7071,8 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                               </TouchableOpacity>
                             </View>
                           </View>
-                        ))}
+                        );
+                      })}
                       </View>
                     </View>
 
