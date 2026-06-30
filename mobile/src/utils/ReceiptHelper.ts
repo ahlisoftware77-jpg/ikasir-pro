@@ -86,7 +86,28 @@ const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean
   }
 };
 
-export const generateReceiptHtml = (transaction: any, storeSettings?: any, branding?: any, isExpired = true) => {
+const fetchProductsMap = async (storeId: string | null): Promise<Record<string, any>> => {
+  if (!storeId) return {};
+  const pMap: Record<string, any> = {};
+  try {
+    const { db } = require('../lib/firebase');
+    const { collection, query, where, getDocs } = require('firebase/firestore');
+    const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+    const prodsSnap = await getDocs(qProds);
+    prodsSnap.forEach((d: any) => {
+      const data = d.data();
+      pMap[d.id] = data;
+      if (data.name) {
+        pMap[data.name] = data;
+      }
+    });
+  } catch (err) {
+    console.warn("Failed to fetch products for dynamic warranty:", err);
+  }
+  return pMap;
+};
+
+export const generateReceiptHtml = (transaction: any, storeSettings?: any, branding?: any, isExpired = true, productsMap?: Record<string, any>) => {
   const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
   let date: Date;
   if (transaction.timestamp?.seconds) {
@@ -121,9 +142,29 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
   }
 
   const itemsHtml = (transaction.items || []).map((item: any) => {
+    // Resolve warranty dynamically from productsMap if available
+    const prodId = item.productId;
+    const prodName = item.productName || item.name;
+    let catalogProduct = null;
+    if (productsMap) {
+      if (prodId && productsMap[prodId]) {
+        catalogProduct = productsMap[prodId];
+      } else if (prodName && productsMap[prodName]) {
+        catalogProduct = productsMap[prodName];
+      }
+    }
+
+    let duration = 0;
+    let unit = 'months';
+    if (catalogProduct && catalogProduct.warrantyDuration) {
+      duration = catalogProduct.warrantyDuration;
+      unit = catalogProduct.warrantyUnit || 'months';
+    } else {
+      duration = item.warrantyDuration || 0;
+      unit = item.warrantyUnit || 'months';
+    }
+
     let expiryStr = '';
-    let duration = item.warrantyDuration || 0;
-    let unit = item.warrantyUnit || 'months';
     
     if (item.warrantyExpiry) {
       expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -280,7 +321,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
   `;
 };
 
-export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
+export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, isExpired = true, productsMap?: Record<string, any>) => {
   const baseUrl = storeSettings?.webBaseUrl || 'https://ikasir.my.id';
   const terbilang = (nilai: number): string => {
     const bilangan = [
@@ -362,9 +403,29 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
   }
 
   const itemsHtml = (trx.items || []).map((item: any) => {
+    // Resolve warranty dynamically from productsMap if available
+    const prodId = item.productId;
+    const prodName = item.productName || item.name;
+    let catalogProduct = null;
+    if (productsMap) {
+      if (prodId && productsMap[prodId]) {
+        catalogProduct = productsMap[prodId];
+      } else if (prodName && productsMap[prodName]) {
+        catalogProduct = productsMap[prodName];
+      }
+    }
+
+    let duration = 0;
+    let unit = 'months';
+    if (catalogProduct && catalogProduct.warrantyDuration) {
+      duration = catalogProduct.warrantyDuration;
+      unit = catalogProduct.warrantyUnit || 'months';
+    } else {
+      duration = item.warrantyDuration || 0;
+      unit = item.warrantyUnit || 'months';
+    }
+
     let expiryStr = '';
-    let duration = item.warrantyDuration || 0;
-    let unit = item.warrantyUnit || 'months';
     
     if (item.warrantyExpiry) {
       expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -738,7 +799,7 @@ const BluetoothManager = hasBluetoothNativeModule
   ? require('react-native-bluetooth-escpos-printer')?.BluetoothManager
   : null;
 
-export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, branding?: any, isExpired = true, isShort = false) => {
+export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, branding?: any, isExpired = true, isShort = false, productsMap?: Record<string, any>) => {
   if (!BluetoothEscposPrinter) {
     throw new Error('Bluetooth printer module is not available');
   }
@@ -1003,6 +1064,23 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
     let expiryStr = '';
     let duration = item.warrantyDuration || 0;
     let unit = item.warrantyUnit || 'months';
+
+    // Resolve dynamic warranty duration/unit from catalog
+    const prodId = item.productId;
+    const prodName = item.productName || item.name;
+    let catalogProduct = null;
+    if (productsMap) {
+      if (prodId && productsMap[prodId]) {
+        catalogProduct = productsMap[prodId];
+      } else if (prodName && productsMap[prodName]) {
+        catalogProduct = productsMap[prodName];
+      }
+    }
+    if (catalogProduct && catalogProduct.warrantyDuration) {
+      duration = catalogProduct.warrantyDuration;
+      unit = catalogProduct.warrantyUnit || 'months';
+    }
+
     if (item.warrantyExpiry) {
       expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' });
     } else if (duration > 0 && wStartDate) {
@@ -1167,7 +1245,8 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
           console.warn('Bluetooth auto-connection failed, trying to print anyway:', connErr);
         }
         
-        await printReceiptViaBluetooth(transaction, settings, branding, isExpired, isShort);
+        const productsMap = await fetchProductsMap(transaction?.storeId);
+        await printReceiptViaBluetooth(transaction, settings, branding, isExpired, isShort, productsMap);
         
         if (Platform.OS === 'android') {
           ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
@@ -1180,7 +1259,8 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
           ToastAndroid.show('Mencetak struk...', ToastAndroid.SHORT);
         }
         // Fallback for older installations that only saved printer name
-        await printReceiptViaBluetooth(transaction, settings, branding, isExpired, isShort);
+        const productsMap = await fetchProductsMap(transaction?.storeId);
+        await printReceiptViaBluetooth(transaction, settings, branding, isExpired, isShort, productsMap);
         
         if (Platform.OS === 'android') {
           ToastAndroid.show('Struk berhasil dicetak!', ToastAndroid.SHORT);
@@ -1223,7 +1303,8 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
       finalSettings = { ...finalSettings, logoUrl: base64Logo };
     }
 
-    const html = generateReceiptHtml(transaction, finalSettings, branding, isExpired);
+    const productsMap = await fetchProductsMap(transaction?.storeId);
+    const html = generateReceiptHtml(transaction, finalSettings, branding, isExpired, productsMap);
     await Print.printAsync({
       html,
     });
@@ -1283,7 +1364,8 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
   }
 
   try {
-    const html = generateA4Html(trx, settings, branding, isExpired);
+    const productsMap = await fetchProductsMap(trx?.storeId);
+    const html = generateA4Html(trx, settings, branding, isExpired, productsMap);
     
     Alert.alert(
       'Pilih Aksi Dokumen A4',
@@ -1348,7 +1430,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
   }
 };
 
-export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?: any, isExpired = true) => {
+export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?: any, isExpired = true, productsMap?: Record<string, any>) => {
   let date: Date;
   if (trx.timestamp?.seconds) {
     date = new Date(trx.timestamp.seconds * 1000);
@@ -1386,9 +1468,29 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
   }
 
   const itemsHtml = (trx.items || []).map((item: any, idx: number) => {
+    // Resolve warranty dynamically from productsMap if available
+    const prodId = item.productId;
+    const prodName = item.productName || item.name;
+    let catalogProduct = null;
+    if (productsMap) {
+      if (prodId && productsMap[prodId]) {
+        catalogProduct = productsMap[prodId];
+      } else if (prodName && productsMap[prodName]) {
+        catalogProduct = productsMap[prodName];
+      }
+    }
+
+    let duration = 0;
+    let unit = 'months';
+    if (catalogProduct && catalogProduct.warrantyDuration) {
+      duration = catalogProduct.warrantyDuration;
+      unit = catalogProduct.warrantyUnit || 'months';
+    } else {
+      duration = item.warrantyDuration || 0;
+      unit = item.warrantyUnit || 'months';
+    }
+
     let expiryStr = '';
-    let duration = item.warrantyDuration || 0;
-    let unit = item.warrantyUnit || 'months';
     
     if (item.warrantyExpiry) {
       expiryStr = new Date(item.warrantyExpiry).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -1584,7 +1686,8 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
   }
 
   try {
-    const html = generateA4DeliveryHtml(trx, settings, branding, isExpired);
+    const productsMap = await fetchProductsMap(trx?.storeId);
+    const html = generateA4DeliveryHtml(trx, settings, branding, isExpired, productsMap);
     
     Alert.alert(
       'Pilih Aksi Surat Jalan',
