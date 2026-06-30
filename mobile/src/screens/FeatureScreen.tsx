@@ -709,6 +709,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [soldMonthFilter, setSoldMonthFilter] = useState<string>(new Date().getMonth().toString());
   const [soldYearFilter, setSoldYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [storeSettingsData, setStoreSettingsData] = useState<any>(null);
+  const [productsMap, setProductsMap] = useState<Record<string, any>>({});
   const [isResettingSold, setIsResettingSold] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showYearDropdown, setShowYearDropdown] = useState(false);
@@ -875,8 +876,22 @@ export default function FeatureScreen({ route, navigation }: any) {
             }
           });
 
+          // Fetch all products to resolve warranty dynamically
+          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const unsubProds = onSnapshot(qProds, (snap) => {
+            const pMap: Record<string, any> = {};
+            snap.forEach(d => {
+              const data = d.data();
+              pMap[d.id] = data;
+              if (data.name) {
+                pMap[data.name] = data;
+              }
+            });
+            setProductsMap(pMap);
+          }, (err) => console.error("Error loading products snapshot:", err));
+
           q = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
-          unsubscribe = onSnapshot(q, (snapshot) => {
+          const unsubDebts = onSnapshot(q, (snapshot) => {
             const docs: any[] = [];
             snapshot.forEach((doc) => {
               const data = doc.data();
@@ -896,6 +911,11 @@ export default function FeatureScreen({ route, navigation }: any) {
             console.error("Error loading debts:", err);
             setLoading(false);
           });
+
+          unsubscribe = () => {
+            unsubProds();
+            unsubDebts();
+          };
           break;
 
         case 'gudang':
@@ -6957,17 +6977,75 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     <View>
                       <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-black/5 pb-1">Item Terbeli</Text>
                       <View className="flex gap-1.5">
-                        {selectedDebt.items?.map((item: any, idx: number) => (
-                          <View key={idx} className="p-3 rounded-xl border border-black/5 mb-1.5" style={{ backgroundColor: colors.surface, elevation: 1, shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2 }}>
-                            <View className="flex-row justify-between items-start">
-                              <View className="flex-1 pr-2">
-                                <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.qty}x {item.productName}</Text>
-                                {item.note && <Text className="text-[9px] font-bold text-slate-400 mt-0.5">{item.note}</Text>}
+                        {selectedDebt.items?.map((item: any, idx: number) => {
+                          // 1. Resolve warranty dynamically from products catalog
+                          const prodId = item.productId;
+                          const prodName = item.productName;
+                          let catalogProduct = null;
+                          if (prodId && productsMap[prodId]) {
+                            catalogProduct = productsMap[prodId];
+                          } else if (prodName && productsMap[prodName]) {
+                            catalogProduct = productsMap[prodName];
+                          }
+
+                          let wInfo = null;
+                          if (catalogProduct && catalogProduct.warrantyDuration) {
+                            wInfo = {
+                              duration: catalogProduct.warrantyDuration,
+                              unit: catalogProduct.warrantyUnit || 'months'
+                            };
+                          } else if (item.warrantyDuration) {
+                            wInfo = {
+                              duration: item.warrantyDuration,
+                              unit: item.warrantyUnit || 'months'
+                            };
+                          }
+
+                          // 2. Determine start date (DP / down payment or full payment)
+                          let wStartDate: Date | null = null;
+                          if (selectedDebt.paymentHistory && selectedDebt.paymentHistory.length > 0) {
+                            const sorted = [...selectedDebt.paymentHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                            wStartDate = new Date(sorted[0].date);
+                          } else if ((selectedDebt.paidAmount ?? selectedDebt.cashReceived ?? 0) > 0 || selectedDebt.paymentStatus === 'paid') {
+                            wStartDate = selectedDebt.timestamp?.toDate ? selectedDebt.timestamp.toDate() : new Date(selectedDebt.timestamp);
+                          }
+
+                          // 3. Calculate expiry
+                          let formattedExpiryDate = '';
+                          if (wStartDate && wInfo) {
+                            const expiry = new Date(wStartDate);
+                            const dur = wInfo.duration;
+                            const u = wInfo.unit;
+                            if (u === 'days') {
+                              expiry.setDate(expiry.getDate() + dur);
+                            } else if (u === 'months') {
+                              expiry.setMonth(expiry.getMonth() + dur);
+                            } else if (u === 'years') {
+                              expiry.setFullYear(expiry.getFullYear() + dur);
+                            }
+                            formattedExpiryDate = expiry.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                          }
+
+                          return (
+                            <View key={idx} className="p-3 rounded-xl border border-black/5 mb-1.5" style={{ backgroundColor: colors.surface, elevation: 1, shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2 }}>
+                              <View className="flex-row justify-between items-start">
+                                <View className="flex-1 pr-2">
+                                  <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.qty}x {item.productName}</Text>
+                                  {item.note && <Text className="text-[9px] font-bold text-slate-400 mt-0.5">{item.note}</Text>}
+                                  {wInfo && (
+                                    <View className="flex-row items-center gap-1 mt-1.5 bg-blue-500/10 self-start px-2 py-0.5 rounded flex-wrap">
+                                      <Shield size={10} color="#3b82f6" />
+                                      <Text className="text-[8px] font-bold text-blue-500">
+                                        Garansi: {wInfo.duration} {wInfo.unit === 'days' ? 'Hari' : wInfo.unit === 'months' ? 'Bulan' : 'Tahun'}
+                                        {wStartDate ? ` (Aktif s/d ${formattedExpiryDate})` : ' (Belum Aktif - Menunggu Pembayaran DP/Lunas)'}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <View className="items-end">
+                                  <Text className="text-[11px] font-black text-emerald-500">Rp {item.subtotal?.toLocaleString('id-ID')}</Text>
+                                </View>
                               </View>
-                              <View className="items-end">
-                                <Text className="text-[11px] font-black text-emerald-500">Rp {item.subtotal?.toLocaleString('id-ID')}</Text>
-                              </View>
-                            </View>
                             <View className="flex-row justify-end gap-2 mt-3 pt-3 border-t border-black/5">
                               <TouchableOpacity 
                                 onPress={() => {
