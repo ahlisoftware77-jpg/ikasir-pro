@@ -151,6 +151,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
+  const [broadcastsList, setBroadcastsList] = useState<any[]>([]);
   
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -407,6 +408,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     let unsubMaint: any = () => {};
     let unsubFeedback: any = () => {};
     let unsubRegistrations: any = () => {};
+    let unsubBroadcasts: any = () => {};
 
     // Always fetch branding for potential preview checks
     unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
@@ -546,6 +548,21 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       });
     }
 
+    if (featureId === 'superAdminBroadcast') {
+      unsubBroadcasts = onSnapshot(collection(db, 'broadcasts'), (snapshot) => {
+        const list: any[] = [];
+        snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        list.sort((a, b) => {
+          const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return timeB - timeA;
+        });
+        setBroadcastsList(list);
+      }, (err) => {
+        console.error("Error listening to broadcasts in SuperAdminScreen:", err);
+      });
+    }
+
     return () => {
       unsubUsers();
       unsubStores();
@@ -556,6 +573,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       unsubMaint();
       unsubFeedback();
       unsubRegistrations();
+      unsubBroadcasts();
     };
   }, [featureId]);
 
@@ -1666,6 +1684,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             } catch (err: any) {
               console.error(err);
               Alert.alert('Gagal', 'Gagal menghapus: ' + err.message);
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteBroadcast = async (id: string) => {
+    Alert.alert(
+      'Hapus Broadcast',
+      'Apakah Anda yakin ingin menghapus riwayat broadcast ini?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Hapus', 
+          style: 'destructive',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              await deleteDoc(doc(db, 'broadcasts', id));
+              Alert.alert('Sukses', 'Broadcast berhasil dihapus.');
+            } catch (err: any) {
+              console.error(err);
+              Alert.alert('Gagal', 'Gagal menghapus broadcast: ' + err.message);
             } finally {
               setIsSaving(false);
             }
@@ -3330,6 +3374,62 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   </View>
                 ) : (
                   <Text className="text-[9px] font-bold text-center italic py-4" style={{ color: colors.textMuted }}>Silakan isi form untuk melihat pratinjau banner.</Text>
+                )}
+              </View>
+
+              {/* Riwayat Broadcast */}
+              <View className="space-y-4">
+                <Text className="text-[10px] font-black uppercase tracking-[2px] mb-1 ml-2" style={{ color: colors.textMuted }}>
+                  📢 Riwayat Broadcast ({broadcastsList.length})
+                </Text>
+                
+                {broadcastsList.map((bc) => (
+                  <View 
+                    key={bc.id} 
+                    className="p-5 rounded-3xl border mb-3 space-y-3" 
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                  >
+                    <View className="flex-row justify-between items-start">
+                      <View className="flex-1 pr-2">
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>
+                          {bc.title}
+                        </Text>
+                        <Text className="text-[9px] font-bold text-slate-500 mt-0.5">
+                          {bc.createdAt ? (bc.createdAt.toDate ? bc.createdAt.toDate().toLocaleString('id-ID') : new Date(bc.createdAt).toLocaleString('id-ID')) : '-'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteBroadcast(bc.id)}
+                        disabled={isSaving}
+                        className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl"
+                      >
+                        <Trash2 size={14} color="#f43f5e" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <Text className="text-[11px] font-bold text-slate-300 leading-relaxed">
+                      {bc.message}
+                    </Text>
+
+                    {bc.data?.link ? (
+                      <View className="bg-blue-500/10 border border-blue-500/20 p-2.5 rounded-xl">
+                        <Text className="text-[9px] font-black text-blue-400">🔗 Tautan: {bc.data.link}</Text>
+                      </View>
+                    ) : null}
+
+                    {bc.data?.imageUrl ? (
+                      <View className="w-full aspect-[2/1] rounded-2xl overflow-hidden border bg-black/10 border-white/10 mt-2">
+                        <Image source={{ uri: bc.data.imageUrl }} className="w-full h-full" resizeMode="cover" />
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+
+                {broadcastsList.length === 0 && (
+                  <View className="p-8 rounded-3xl border border-dashed items-center justify-center" style={{ borderColor: colors.border }}>
+                    <Bell size={24} color={colors.textMuted} />
+                    <Text className="text-xs font-bold mt-2" style={{ color: colors.textMuted }}>Belum ada riwayat broadcast.</Text>
+                  </View>
                 )}
               </View>
             </View>
