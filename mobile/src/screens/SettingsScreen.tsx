@@ -1379,14 +1379,22 @@ export default function SettingsScreen({ navigation, route }: any) {
           style={{ backgroundColor: colors.surface, borderColor: colors.border }}
         >
           <View className="flex-row items-center gap-4 flex-1">
-            <View 
-              className="w-12 h-12 rounded-full items-center justify-center"
-              style={{ backgroundColor: colors.accent + '20' }}
-            >
-              <Text className="text-lg font-black" style={{ color: colors.accent }}>
-                {user?.email?.[0].toUpperCase()}
-              </Text>
-            </View>
+            {user?.photoURL || user?.photoUrl ? (
+              <Image 
+                source={{ uri: user.photoURL || user.photoUrl }} 
+                className="w-12 h-12 rounded-full border-2"
+                style={{ borderColor: colors.accent }}
+              />
+            ) : (
+              <View 
+                className="w-12 h-12 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.accent + '20' }}
+              >
+                <Text className="text-lg font-black" style={{ color: colors.accent }}>
+                  {(user?.name || user?.email || 'U')?.[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
             <View className="flex-1 pr-2">
               <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={1}>
                 {user?.name || user?.email?.split('@')[0]}
