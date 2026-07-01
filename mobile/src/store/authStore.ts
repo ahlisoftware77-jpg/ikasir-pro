@@ -50,7 +50,10 @@ export const useAuthStore = create<AuthState>()(
       expiredDisabledMenus: null,
       login: (payload: LoginPayload) => {
         // Atomic set: all auth fields updated in ONE call to prevent
-        // race conditions where UI renders with stale persisted state
+        // race conditions where UI renders with stale persisted state.
+        // NOTE: expiredDisabledMenus is NOT reset here — it's a global
+        // branding setting loaded by a one-time onSnapshot listener.
+        // Resetting it would wipe the data and the listener won't re-fire.
         set({
           user: payload.user,
           role: payload.role,
@@ -58,9 +61,8 @@ export const useAuthStore = create<AuthState>()(
           subscriptionUntil: payload.subscriptionUntil,
           isSubscriptionExpired: payload.isSubscriptionExpired,
           permissions: payload.permissions || null,
-          // Reset store-level fields; they will be loaded by App.tsx listeners
+          // Reset per-store field; will be reloaded by App.tsx user listener
           disabledMenus: null,
-          expiredDisabledMenus: null,
         });
       },
       setUser: (user) => set({ user }),
@@ -73,7 +75,9 @@ export const useAuthStore = create<AuthState>()(
       setDisabledMenus: (disabledMenus) => set({ disabledMenus }),
       setExpiredDisabledMenus: (expiredDisabledMenus) => set({ expiredDisabledMenus }),
       logout: () => {
-        // Reset all state atomically
+        // Reset per-user state atomically.
+        // NOTE: expiredDisabledMenus is preserved — it's a global branding
+        // setting that the onSnapshot listener won't reload after reset.
         set({ 
           user: null, 
           role: null, 
@@ -81,8 +85,7 @@ export const useAuthStore = create<AuthState>()(
           storeId: null, 
           subscriptionUntil: null, 
           isSubscriptionExpired: false, 
-          disabledMenus: null, 
-          expiredDisabledMenus: null 
+          disabledMenus: null,
         });
         // Sign out from Firebase Auth
         signOut(auth).catch((err) => console.error("Firebase signOut error:", err));

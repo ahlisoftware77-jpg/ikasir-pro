@@ -57,7 +57,12 @@ export default function LoginScreen() {
         }
 
         const now = new Date();
-        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        // Handle date-only format from SuperAdmin ("2025-07-15") vs ISO string
+        let validUntil: Date | null = null;
+        if (userData.validUntil) {
+          const raw = String(userData.validUntil);
+          validUntil = raw.includes('T') ? new Date(raw) : new Date(raw + 'T23:59:59');
+        }
 
         // Atomic login: set ALL auth state in a single call to prevent
         // stale persisted state from showing features as active
@@ -231,7 +236,11 @@ export default function LoginScreen() {
         }
 
         const now = new Date();
-        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
+        let validUntil: Date | null = null;
+        if (userData.validUntil) {
+          const raw = String(userData.validUntil);
+          validUntil = raw.includes('T') ? new Date(raw) : new Date(raw + 'T23:59:59');
+        }
 
         login({
           user: {

@@ -402,6 +402,15 @@ function NavigationRoot() {
     if (!user?.uid) return;
     let unsubSuperadminNotifications: (() => void) | null = null;
 
+    // Force re-read branding data on user change, ensuring
+    // expiredDisabledMenus is always available for the new session
+    getDoc(doc(db, 'system_settings', 'branding')).then((brandSnap) => {
+      if (brandSnap.exists()) {
+        const brandData = brandSnap.data();
+        useAuthStore.getState().setExpiredDisabledMenus(brandData.expiredDisabledMenus || []);
+      }
+    }).catch(err => console.error("Error re-reading branding on login:", err));
+
     const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
@@ -413,8 +422,20 @@ function NavigationRoot() {
         }
 
         const now = new Date();
-        const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
-        if (validUntil) {
+        // Handle both ISO string ("2025-07-15T00:00:00Z") and date-only 
+        // format ("2025-07-15") from SuperAdmin edit. For date-only,
+        // treat as end-of-day local time to avoid timezone edge-case.
+        let validUntil: Date | null = null;
+        if (userData.validUntil) {
+          const raw = String(userData.validUntil);
+          if (raw.includes('T')) {
+            validUntil = new Date(raw);
+          } else {
+            // Date-only: "2025-07-15" → treat as end of that day in local time
+            validUntil = new Date(raw + 'T23:59:59');
+          }
+        }
+        if (validUntil && !isNaN(validUntil.getTime())) {
           useAuthStore.getState().setSubscriptionUntil(userData.validUntil);
           useAuthStore.getState().setIsSubscriptionExpired(now > validUntil);
 
