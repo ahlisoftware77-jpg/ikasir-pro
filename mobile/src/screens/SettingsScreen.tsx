@@ -1407,7 +1407,14 @@ export default function SettingsScreen({ navigation, route }: any) {
           <TouchableOpacity 
             onPress={() => {
               Vibration.vibrate(15);
-              logout();
+              Alert.alert(
+                'Konfirmasi Keluar',
+                'Apakah Anda yakin ingin keluar dari akun ini?',
+                [
+                  { text: 'Batal', style: 'cancel' },
+                  { text: 'Keluar', style: 'destructive', onPress: () => logout() }
+                ]
+              );
             }}
             className="w-10 h-10 rounded-xl bg-rose-500/10 items-center justify-center border border-rose-500/20"
           >

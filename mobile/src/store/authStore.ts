@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut } from 'firebase/auth';
-import { clearIndexedDbPersistence } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 
 interface AuthState {
   user: any | null; // Storing minimal user info for persistence
@@ -60,14 +59,8 @@ export const useAuthStore = create<AuthState>()(
           disabledMenus: null, 
           expiredDisabledMenus: null 
         });
-        
         // Sign out from Firebase Auth
         signOut(auth).catch((err) => console.error("Firebase signOut error:", err));
-
-        // Clear local Firestore persistent cache to prevent data leakage between users
-        clearIndexedDbPersistence(db).catch((err) => {
-          console.warn("Firestore cache clear warning:", err);
-        });
       },
     }),
     {

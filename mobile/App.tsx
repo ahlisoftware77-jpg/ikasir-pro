@@ -823,7 +823,16 @@ function NavigationRoot() {
 
           <View className="flex-row gap-3">
             <TouchableOpacity
-              onPress={() => logout()}
+              onPress={() => {
+                Alert.alert(
+                  'Konfirmasi Keluar',
+                  'Apakah Anda yakin ingin keluar dari akun ini?',
+                  [
+                    { text: 'Batal', style: 'cancel' },
+                    { text: 'Keluar', style: 'destructive', onPress: () => logout() }
+                  ]
+                );
+              }}
               activeOpacity={0.8}
               className="flex-1 h-14 rounded-2xl items-center justify-center border flex-row gap-2"
               style={{ borderColor: colors.border }}
