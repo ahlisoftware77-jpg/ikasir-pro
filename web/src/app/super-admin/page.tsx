@@ -652,22 +652,18 @@ export default function SuperAdminPage() {
       const settingsRef = doc(db, 'settings', "store_" + store.id);
       const settingsSnap = await getDoc(settingsRef);
       let qrisUrl = '';
-      let hideBackupRestore = false;
       if (settingsSnap.exists()) {
         qrisUrl = settingsSnap.data().qrisUrl || '';
-        hideBackupRestore = settingsSnap.data().hideBackupRestore === true;
       }
       setEditingStore({
         ...store,
-        qrisUrl,
-        hideBackupRestore
+        qrisUrl
       });
     } catch (err: any) {
       console.error('Gagal mengambil pengaturan toko:', err);
       setEditingStore({
         ...store,
-        qrisUrl: '',
-        hideBackupRestore: false
+        qrisUrl: ''
       });
     } finally {
       setIsSaving(false);
@@ -734,8 +730,7 @@ export default function SuperAdminPage() {
       // SYNC to Settings for Receipt/Invoice
       await setDoc(doc(db, 'settings', "store_" + editingStore.id), {
         storeName: editingStore.name,
-        qrisUrl: editingStore.qrisUrl || '',
-        hideBackupRestore: editingStore.hideBackupRestore === true
+        qrisUrl: editingStore.qrisUrl || ''
       }, { merge: true });
 
       alert('Detail toko berhasil diperbarui!');
@@ -830,6 +825,7 @@ export default function SuperAdminPage() {
     pkg_12m_discount_type: 'none',
     pkg_12m_discount_val: 0,
     expiredDisabledMenus: [],
+    hideBackupRestore: false
   });
 
   const [infraData, setInfraData] = useState<any>({
@@ -870,6 +866,7 @@ export default function SuperAdminPage() {
           pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
           pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
           expiredDisabledMenus: data.expiredDisabledMenus || [],
+          hideBackupRestore: data.hideBackupRestore ?? false
         });
       }
     });
@@ -2255,7 +2252,21 @@ export default function SuperAdminPage() {
                     >
                        <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${brandingData.showWatermark ? 'left-7' : 'left-1'}`} />
                     </button>
-                 </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-background border border-app-border rounded-2xl">
+                    <div>
+                       <p className="text-xs font-black text-foreground">Sembunyikan Backup & Restore Toko (Global)</p>
+                       <p className="text-[9px] text-app-text-muted">Sembunyikan menu Backup & Restore Data di seluruh toko.</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setBrandingData({...brandingData, hideBackupRestore: !brandingData.hideBackupRestore})}
+                      className={`w-14 h-8 rounded-full transition-all relative ${brandingData.hideBackupRestore ? 'bg-accent' : 'bg-app-border'}`}
+                    >
+                       <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${brandingData.hideBackupRestore ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
 
                  <button 
                    type="submit" 
@@ -4208,20 +4219,6 @@ export default function SuperAdminPage() {
                     </div>
                  </div>
 
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Keamanan & Data</label>
-                    <div className="bg-background/50 border border-app-border p-4 rounded-2xl">
-                       <label className="flex items-center gap-3 cursor-pointer text-xs font-bold text-foreground">
-                          <input
-                            type="checkbox"
-                            checked={editingStore.hideBackupRestore === true}
-                            onChange={(e) => setEditingStore({ ...editingStore, hideBackupRestore: e.target.checked })}
-                            className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent"
-                          />
-                          Sembunyikan Menu Backup & Restore Data Toko
-                       </label>
-                    </div>
-                 </div>
 
                  <button 
                    type="submit" 

@@ -325,7 +325,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
     a4DebtNote: '',
     storeBanks: [] as any[],
     storeEwallets: [] as any[],
-    hideBackupRestore: false
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -386,6 +385,22 @@ export default function StoreSettingsScreen({ navigation }: any) {
     fb_messaging_sender_id: '',
     fb_app_id: ''
   });
+
+  const [globalBranding, setGlobalBranding] = useState<any>({
+    hideBackupRestore: false,
+  });
+
+  useEffect(() => {
+    const unsubBrandingGlobal = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setGlobalBranding({
+          hideBackupRestore: data.hideBackupRestore === true,
+        });
+      }
+    });
+    return () => unsubBrandingGlobal();
+  }, []);
   
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
@@ -1332,7 +1347,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
               a4DebtNote: data.a4DebtNote || '',
               storeBanks: data.storeBanks || [],
               storeEwallets: data.storeEwallets || [],
-              hideBackupRestore: data.hideBackupRestore === true
             });
           }
         } catch (err) {
@@ -2383,7 +2397,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                   </View>
 
                   {/* Backup & Restore Data Section */}
-                  {!storeSettings.hideBackupRestore && (
+                  {!globalBranding.hideBackupRestore && (
                     <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
                       <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Backup & Restore Data</Text>
                       

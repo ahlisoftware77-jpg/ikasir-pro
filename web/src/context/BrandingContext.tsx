@@ -41,6 +41,7 @@ interface BrandingData {
   pkg_12m_discount_type: 'none' | 'percent' | 'nominal';
   pkg_12m_discount_val: number;
   expiredDisabledMenus?: string[];
+  hideBackupRestore?: boolean;
 }
 
 interface BrandingContextType {
@@ -69,6 +70,7 @@ const defaultBranding: BrandingData = {
   pkg_12m_price: 306000,
   pkg_12m_discount_type: 'none',
   pkg_12m_discount_val: 0,
+  hideBackupRestore: false,
 };
 
 const getCachedBranding = (): BrandingData => {
@@ -124,6 +126,7 @@ export const BrandingProvider = ({ children }: { children: React.ReactNode }) =>
           pkg_12m_discount_type: data.pkg_12m_discount_type || defaultBranding.pkg_12m_discount_type,
           pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? defaultBranding.pkg_12m_discount_val),
           expiredDisabledMenus: data.expiredDisabledMenus || [],
+          hideBackupRestore: data.hideBackupRestore ?? false,
         };
         setBranding(newBranding);
         useAuthStore.getState().setExpiredDisabledMenus(data.expiredDisabledMenus || []);

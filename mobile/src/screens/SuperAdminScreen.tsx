@@ -374,6 +374,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     pkg_12m_discount_type: 'none',
     pkg_12m_discount_val: 0,
     expiredDisabledMenus: [],
+    hideBackupRestore: false,
   });
 
   const [newBankName, setNewBankName] = useState('');
@@ -437,6 +438,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           pkg_12m_discount_type: data.pkg_12m_discount_type || 'none',
           pkg_12m_discount_val: Number(data.pkg_12m_discount_val ?? 0),
           expiredDisabledMenus: data.expiredDisabledMenus || [],
+          hideBackupRestore: data.hideBackupRestore ?? false,
         });
       }
     });
@@ -1016,21 +1018,13 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const handleEditStore = async (s: any) => {
     setIsSaving(true);
     try {
-      const settingsRef = doc(db, 'settings', "store_" + s.id);
-      const settingsSnap = await getDoc(settingsRef);
-      let hideBackupRestore = false;
-      if (settingsSnap.exists()) {
-        hideBackupRestore = settingsSnap.data().hideBackupRestore === true;
-      }
       setEditingStore({
-        ...s,
-        hideBackupRestore
+        ...s
       });
     } catch (err: any) {
       console.error('Gagal mengambil pengaturan toko:', err);
       setEditingStore({
-        ...s,
-        hideBackupRestore: false
+        ...s
       });
     } finally {
       setIsSaving(false);
@@ -1049,8 +1043,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       });
       
       await setDoc(doc(db, 'settings', "store_" + editingStore.id), {
-        storeName: editingStore.name,
-        hideBackupRestore: editingStore.hideBackupRestore === true
+        storeName: editingStore.name
       }, { merge: true }).catch(() => {});
 
       Alert.alert('Sukses', 'Detail toko berhasil diperbarui!');
@@ -2054,25 +2047,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               </ScrollView>
             </View>
 
-            {/* Keamanan & Data */}
-            <View className="space-y-1">
-              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Keamanan & Data</Text>
-              <View 
-                className="p-4 rounded-2xl border flex-row items-center justify-between"
-                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-              >
-                <View className="flex-1 pr-4">
-                  <Text className="text-xs font-bold" style={{ color: colors.text }}>Sembunyikan Menu Backup & Restore</Text>
-                  <Text className="text-[9px] text-slate-400 mt-1">Sembunyikan tombol backup & restore data agar tidak disalahgunakan staff/kasir.</Text>
-                </View>
-                <Switch
-                  value={editingStore.hideBackupRestore === true}
-                  onValueChange={(val) => setEditingStore({ ...editingStore, hideBackupRestore: val })}
-                  trackColor={{ false: colors.border, true: colors.accent }}
-                  thumbColor="#ffffff"
-                />
-              </View>
-            </View>
 
             {/* Save Changes */}
             <TouchableOpacity
@@ -2445,6 +2419,20 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   <Switch
                     value={brandingData.showWatermark}
                     onValueChange={(val) => setBrandingData({ ...brandingData, showWatermark: val })}
+                    trackColor={{ false: colors.border, true: colors.accent }}
+                    thumbColor="#ffffff"
+                  />
+                </View>
+
+                {/* hideBackupRestore Switch */}
+                <View className="flex-row justify-between items-center p-4 rounded-2xl border mb-2" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                  <View className="flex-1 pr-4">
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>Sembunyikan Backup & Restore (Global)</Text>
+                    <Text className="text-[8px] font-bold text-slate-400">Sembunyikan menu Backup & Restore Data di seluruh toko</Text>
+                  </View>
+                  <Switch
+                    value={brandingData.hideBackupRestore === true}
+                    onValueChange={(val) => setBrandingData({ ...brandingData, hideBackupRestore: val })}
                     trackColor={{ false: colors.border, true: colors.accent }}
                     thumbColor="#ffffff"
                   />

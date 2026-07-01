@@ -1958,7 +1958,7 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {!settings.hideBackupRestore && (
+      {!branding.hideBackupRestore && (
         <div className="bg-surface border border-app-border rounded-3xl overflow-hidden mt-6 p-5 md:p-8 shadow-xl shadow-black/20 transition-colors duration-300">
           <div className="space-y-6">
             <h2 className="text-lg font-black text-foreground flex items-center gap-3 uppercase tracking-wider">

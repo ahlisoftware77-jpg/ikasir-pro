@@ -438,7 +438,6 @@ export default function SettingsScreen({ navigation, route }: any) {
     qrisUrl: '',
     storeBanks: [] as any[],
     storeEwallets: [] as any[],
-    hideBackupRestore: false
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -1193,7 +1192,6 @@ export default function SettingsScreen({ navigation, route }: any) {
               qrisUrl: data.qrisUrl || '',
               storeBanks: data.storeBanks || [],
               storeEwallets: data.storeEwallets || [],
-              hideBackupRestore: data.hideBackupRestore === true
             });
           }
         } catch (err) {
@@ -2738,7 +2736,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                   </View>
 
                   {/* Backup & Restore Data Section */}
-                  {!storeSettings.hideBackupRestore && (
+                  {!brandingData.hideBackupRestore && (
                     <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
                       <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Backup & Restore Data</Text>
                       
