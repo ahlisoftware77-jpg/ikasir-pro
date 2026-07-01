@@ -437,7 +437,8 @@ export default function SettingsScreen({ navigation, route }: any) {
     a4DebtNote: '',
     qrisUrl: '',
     storeBanks: [] as any[],
-    storeEwallets: [] as any[]
+    storeEwallets: [] as any[],
+    hideBackupRestore: false
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -1191,7 +1192,8 @@ export default function SettingsScreen({ navigation, route }: any) {
               a4DebtNote: data.a4DebtNote || '',
               qrisUrl: data.qrisUrl || '',
               storeBanks: data.storeBanks || [],
-              storeEwallets: data.storeEwallets || []
+              storeEwallets: data.storeEwallets || [],
+              hideBackupRestore: data.hideBackupRestore === true
             });
           }
         } catch (err) {
@@ -2736,66 +2738,68 @@ export default function SettingsScreen({ navigation, route }: any) {
                   </View>
 
                   {/* Backup & Restore Data Section */}
-                  <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
-                    <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Backup & Restore Data</Text>
-                    
-                    <View className="p-4 rounded-3xl border space-y-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                      <Text className="text-[10px] font-bold leading-normal text-slate-400">
-                        Simpan cadangan seluruh data toko Anda ke dalam file JSON atau pulihkan data dari file cadangan sebelumnya.
-                      </Text>
+                  {!storeSettings.hideBackupRestore && (
+                    <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
+                      <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Backup & Restore Data</Text>
+                      
+                      <View className="p-4 rounded-3xl border space-y-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                        <Text className="text-[10px] font-bold leading-normal text-slate-400">
+                          Simpan cadangan seluruh data toko Anda ke dalam file JSON atau pulihkan data dari file cadangan sebelumnya.
+                        </Text>
 
-                      <View className="flex-row gap-3">
-                        <TouchableOpacity
-                          onPress={handleExportJSONMobile}
-                          disabled={isBackuping || isRestoring}
-                          className="flex-1 py-4 rounded-xl items-center justify-center flex-row gap-2"
-                          style={{ backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1 }}
-                        >
-                          {isBackuping ? (
-                            <ActivityIndicator size="small" color={colors.text} />
-                          ) : (
-                            <>
-                              <Download color={colors.text} size={14} />
-                              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Unduh Backup</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                        <View className="flex-row gap-3">
+                          <TouchableOpacity
+                            onPress={handleExportJSONMobile}
+                            disabled={isBackuping || isRestoring}
+                            className="flex-1 py-4 rounded-xl items-center justify-center flex-row gap-2"
+                            style={{ backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1 }}
+                          >
+                            {isBackuping ? (
+                              <ActivityIndicator size="small" color={colors.text} />
+                            ) : (
+                              <>
+                                <Download color={colors.text} size={14} />
+                                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Unduh Backup</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
 
-                        <TouchableOpacity
-                          onPress={handleImportJSONMobile}
-                          disabled={isBackuping || isRestoring}
-                          className="flex-1 py-4 rounded-xl items-center justify-center flex-row gap-2"
-                          style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '30', borderWidth: 1 }}
-                        >
-                          {isRestoring ? (
-                            <ActivityIndicator size="small" color={colors.accent} />
-                          ) : (
-                            <>
-                              <UploadCloud color={colors.accent} size={14} />
-                              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>Unggah Backup</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-
-                      {isRestoring && (
-                        <View className="space-y-1.5 items-center">
-                          <Text className="text-[9px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">Memulihkan... {restoreProgress}%</Text>
+                          <TouchableOpacity
+                            onPress={handleImportJSONMobile}
+                            disabled={isBackuping || isRestoring}
+                            className="flex-1 py-4 rounded-xl items-center justify-center flex-row gap-2"
+                            style={{ backgroundColor: colors.accent + '15', borderColor: colors.accent + '30', borderWidth: 1 }}
+                          >
+                            {isRestoring ? (
+                              <ActivityIndicator size="small" color={colors.accent} />
+                            ) : (
+                              <>
+                                <UploadCloud color={colors.accent} size={14} />
+                                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>Unggah Backup</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
                         </View>
-                      )}
 
-                      <View className="p-3.5 rounded-2xl flex-row items-start gap-2 bg-amber-500/10 border border-amber-500/20">
-                        <AlertCircle color="#f59e0b" size={16} style={{ marginTop: 2 }} />
-                        <View className="flex-1">
-                          <Text className="text-[8px] font-black text-amber-500 uppercase tracking-wider mb-0.5">Penting</Text>
-                          <Text className="text-[8px] font-bold text-amber-500 leading-normal">
-                            Proses restore data akan menggabungkan data dari file backup dengan data saat ini di Cloud. Dokumen dengan ID yang sama akan diperbarui nilainya.
-                          </Text>
+                        {isRestoring && (
+                          <View className="space-y-1.5 items-center">
+                            <Text className="text-[9px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">Memulihkan... {restoreProgress}%</Text>
+                          </View>
+                        )}
+
+                        <View className="p-3.5 rounded-2xl flex-row items-start gap-2 bg-amber-500/10 border border-amber-500/20">
+                          <AlertCircle color="#f59e0b" size={16} style={{ marginTop: 2 }} />
+                          <View className="flex-1">
+                            <Text className="text-[8px] font-black text-amber-500 uppercase tracking-wider mb-0.5">Penting</Text>
+                            <Text className="text-[8px] font-bold text-amber-500 leading-normal">
+                              Proses restore data akan menggabungkan data dari file backup dengan data saat ini di Cloud. Dokumen dengan ID yang sama akan diperbarui nilainya.
+                            </Text>
+                          </View>
                         </View>
-                      </View>
 
+                      </View>
                     </View>
-                  </View>
+                  )}
                   <TouchableOpacity
                     onPress={handleSaveStoreSettings}
                     disabled={isSavingSettings}

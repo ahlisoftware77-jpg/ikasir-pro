@@ -142,7 +142,8 @@ export default function SettingsPage() {
     thermalLogoUrl: '',
     qrisUrl: '',
     storeBanks: [] as any[],
-    storeEwallets: [] as any[]
+    storeEwallets: [] as any[],
+    hideBackupRestore: false
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -207,7 +208,8 @@ export default function SettingsPage() {
             thermalLogoUrl: data.thermalLogoUrl || '',
             qrisUrl: data.qrisUrl || '',
             storeBanks: data.storeBanks || [],
-            storeEwallets: data.storeEwallets || []
+            storeEwallets: data.storeEwallets || [],
+            hideBackupRestore: data.hideBackupRestore === true
           });
           setLogoPreview(data.logoUrl || null);
           setLogoUrl(data.logoUrl || null);
@@ -259,6 +261,7 @@ export default function SettingsPage() {
             qrisUrl: '',
             storeBanks: [],
             storeEwallets: [],
+            hideBackupRestore: false,
           });
         }
       } catch (err) {
@@ -1483,6 +1486,19 @@ export default function SettingsPage() {
                       <p className="text-[10px] text-app-text-muted font-medium">Pelanggan bisa memesan untuk dikirim ke rumah.</p>
                     </div>
                   </div>
+
+                  <div 
+                    className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
+                    onClick={() => setSettings(prev => ({ ...prev, hideBackupRestore: !prev.hideBackupRestore }))}
+                  >
+                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.hideBackupRestore ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
+                      <Check size={14} className="stroke-[4]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground cursor-pointer select-none">Sembunyikan Menu Backup & Restore</p>
+                      <p className="text-[10px] text-app-text-muted font-medium">Sembunyikan tombol backup & restore data agar tidak disalahgunakan staff/kasir.</p>
+                    </div>
+                  </div>
                </div>
 
                {settings.allowDelivery && (
@@ -1955,78 +1971,80 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      <div className="bg-surface border border-app-border rounded-3xl overflow-hidden mt-6 p-5 md:p-8 shadow-xl shadow-black/20 transition-colors duration-300">
-        <div className="space-y-6">
-          <h2 className="text-lg font-black text-foreground flex items-center gap-3 uppercase tracking-wider">
-            <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <Database size={18} className="text-accent" />
-            </div>
-            Backup & Restore Data
-          </h2>
-          
-          <p className="text-xs font-bold text-app-text-muted leading-relaxed max-w-2xl">
-            Simpan cadangan seluruh data toko Anda ke dalam file JSON atau pulihkan data dari file cadangan sebelumnya. 
-            <span className="text-amber-500 ml-1">Pastikan Anda tidak mengedit isi file backup secara manual.</span>
-          </p>
+      {!settings.hideBackupRestore && (
+        <div className="bg-surface border border-app-border rounded-3xl overflow-hidden mt-6 p-5 md:p-8 shadow-xl shadow-black/20 transition-colors duration-300">
+          <div className="space-y-6">
+            <h2 className="text-lg font-black text-foreground flex items-center gap-3 uppercase tracking-wider">
+              <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                <Database size={18} className="text-accent" />
+              </div>
+              Backup & Restore Data
+            </h2>
+            
+            <p className="text-xs font-bold text-app-text-muted leading-relaxed max-w-2xl">
+              Simpan cadangan seluruh data toko Anda ke dalam file JSON atau pulihkan data dari file cadangan sebelumnya. 
+              <span className="text-amber-500 ml-1">Pastikan Anda tidak mengedit isi file backup secara manual.</span>
+            </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-            <div className="p-6 bg-background/50 border border-app-border rounded-[2rem] space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+              <div className="p-6 bg-background/50 border border-app-border rounded-[2rem] space-y-4">
+                 <div>
+                    <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-1">Export Data</h4>
+                    <p className="text-[10px] font-bold text-app-text-muted italic">Unduh file cadangan semua koleksi data.</p>
+                 </div>
+                 <button 
+                  onClick={handleExport}
+                  disabled={isBackuping || isRestoring}
+                  className="w-full flex items-center justify-center gap-3 py-4 bg-surface hover:bg-background border border-app-border rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                 >
+                    {isBackuping ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download size={18} />}
+                    {isBackuping ? 'MENYIAPKAN...' : 'DOWNLOAD BACKUP (JSON)'}
+                 </button>
+              </div>
+
+              <div className="p-6 bg-background/50 border border-app-border rounded-[2rem] space-y-4 border-dashed relative">
+                 <div>
+                    <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-1">Restore Data</h4>
+                    <p className="text-[10px] font-bold text-rose-500 italic">Peringatan: Data yang ada mungkin akan tertimpa.</p>
+                 </div>
+                 
+                 {isRestoring ? (
+                    <div className="space-y-3">
+                       <div className="h-2 w-full bg-surface rounded-full overflow-hidden border border-app-border">
+                          <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${restoreProgress}%` }}></div>
+                       </div>
+                       <p className="text-[10px] text-center font-black text-emerald-500 animate-pulse uppercase tracking-[0.2em]">Memulihkan... {restoreProgress}%</p>
+                    </div>
+                 ) : (
+                    <div className="relative">
+                      <input 
+                        type="file" 
+                        accept=".json"
+                        onChange={handleImport}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        disabled={isBackuping || isRestoring}
+                      />
+                      <button className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+                         <UploadCloud size={18} />
+                         IMPORT FILE BACKUP
+                      </button>
+                    </div>
+                 )}
+              </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-4">
+               <AlertTriangle className="text-amber-500 mt-1" size={20} />
                <div>
-                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-1">Export Data</h4>
-                  <p className="text-[10px] font-bold text-app-text-muted italic">Unduh file cadangan semua koleksi data.</p>
+                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Penting</p>
+                  <p className="text-[10px] font-bold text-amber-500/80 leading-relaxed italic">
+                     Proses restore data akan menggabungkan data dari file backup dengan data saat ini di Cloud. Dokumen dengan ID yang sama akan diperbarui nilainya.
+                  </p>
                </div>
-               <button 
-                onClick={handleExport}
-                disabled={isBackuping || isRestoring}
-                className="w-full flex items-center justify-center gap-3 py-4 bg-surface hover:bg-background border border-app-border rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
-               >
-                  {isBackuping ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download size={18} />}
-                  {isBackuping ? 'MENYIAPKAN...' : 'DOWNLOAD BACKUP (JSON)'}
-               </button>
             </div>
-
-            <div className="p-6 bg-background/50 border border-app-border rounded-[2rem] space-y-4 border-dashed relative">
-               <div>
-                  <h4 className="text-sm font-black text-foreground uppercase tracking-widest mb-1">Restore Data</h4>
-                  <p className="text-[10px] font-bold text-rose-500 italic">Peringatan: Data yang ada mungkin akan tertimpa.</p>
-               </div>
-               
-               {isRestoring ? (
-                  <div className="space-y-3">
-                     <div className="h-2 w-full bg-surface rounded-full overflow-hidden border border-app-border">
-                        <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${restoreProgress}%` }}></div>
-                     </div>
-                     <p className="text-[10px] text-center font-black text-emerald-500 animate-pulse uppercase tracking-[0.2em]">Memulihkan... {restoreProgress}%</p>
-                  </div>
-               ) : (
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      accept=".json"
-                      onChange={handleImport}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      disabled={isBackuping || isRestoring}
-                    />
-                    <button className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-                       <UploadCloud size={18} />
-                       IMPORT FILE BACKUP
-                    </button>
-                  </div>
-               )}
-            </div>
-          </div>
-
-          <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-4">
-             <AlertTriangle className="text-amber-500 mt-1" size={20} />
-             <div>
-                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Penting</p>
-                <p className="text-[10px] font-bold text-amber-500/80 leading-relaxed italic">
-                   Proses restore data akan menggabungkan data dari file backup dengan data saat ini di Cloud. Dokumen dengan ID yang sama akan diperbarui nilainya.
-                </p>
-             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
