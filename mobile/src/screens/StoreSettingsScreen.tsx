@@ -2083,22 +2083,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
                       />
                     </View>
 
-                    {/* hideBackupRestore Toggle */}
-                    <View 
-                      className="p-4 rounded-2xl border flex-row items-center justify-between"
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                    >
-                      <View className="flex-1 pr-4">
-                        <Text className="text-xs font-bold" style={{ color: colors.text }}>Sembunyikan Menu Backup & Restore</Text>
-                        <Text className="text-[9px] text-slate-400 mt-1">Sembunyikan tombol backup & restore data agar tidak disalahgunakan staff.</Text>
-                      </View>
-                      <Switch
-                        value={storeSettings.hideBackupRestore}
-                        onValueChange={(val) => setStoreSettings(prev => ({ ...prev, hideBackupRestore: val }))}
-                        trackColor={{ false: colors.border, true: colors.accent }}
-                        thumbColor="#ffffff"
-                      />
-                    </View>
 
                     {/* deliveryFee Input */}
                     {storeSettings.allowDelivery && (

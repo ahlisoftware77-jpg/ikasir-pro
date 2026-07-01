@@ -1013,6 +1013,30 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     );
   };
 
+  const handleEditStore = async (s: any) => {
+    setIsSaving(true);
+    try {
+      const settingsRef = doc(db, 'settings', "store_" + s.id);
+      const settingsSnap = await getDoc(settingsRef);
+      let hideBackupRestore = false;
+      if (settingsSnap.exists()) {
+        hideBackupRestore = settingsSnap.data().hideBackupRestore === true;
+      }
+      setEditingStore({
+        ...s,
+        hideBackupRestore
+      });
+    } catch (err: any) {
+      console.error('Gagal mengambil pengaturan toko:', err);
+      setEditingStore({
+        ...s,
+        hideBackupRestore: false
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleUpdateStoreDetails = async () => {
     if (!editingStore) return;
     setIsSaving(true);
@@ -1024,9 +1048,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         disabledMenus: editingStore.disabledMenus || []
       });
       
-      await updateDoc(doc(db, 'settings', "store_" + editingStore.id), {
-        storeName: editingStore.name
-      }).catch(() => {});
+      await setDoc(doc(db, 'settings', "store_" + editingStore.id), {
+        storeName: editingStore.name,
+        hideBackupRestore: editingStore.hideBackupRestore === true
+      }, { merge: true }).catch(() => {});
 
       Alert.alert('Sukses', 'Detail toko berhasil diperbarui!');
       setEditingStore(null);
@@ -2029,6 +2054,26 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               </ScrollView>
             </View>
 
+            {/* Keamanan & Data */}
+            <View className="space-y-1">
+              <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Keamanan & Data</Text>
+              <View 
+                className="p-4 rounded-2xl border flex-row items-center justify-between"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                <View className="flex-1 pr-4">
+                  <Text className="text-xs font-bold" style={{ color: colors.text }}>Sembunyikan Menu Backup & Restore</Text>
+                  <Text className="text-[9px] text-slate-400 mt-1">Sembunyikan tombol backup & restore data agar tidak disalahgunakan staff/kasir.</Text>
+                </View>
+                <Switch
+                  value={editingStore.hideBackupRestore === true}
+                  onValueChange={(val) => setEditingStore({ ...editingStore, hideBackupRestore: val })}
+                  trackColor={{ false: colors.border, true: colors.accent }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            </View>
+
             {/* Save Changes */}
             <TouchableOpacity
               onPress={handleUpdateStoreDetails}
@@ -2288,7 +2333,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                           </View>
                           <View className="flex-row gap-2">
                             <TouchableOpacity 
-                              onPress={() => setEditingStore(s)}
+                              onPress={() => handleEditStore(s)}
                               className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl"
                             >
                               <Pencil size={14} color="#3b82f6" />

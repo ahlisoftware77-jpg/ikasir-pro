@@ -1486,19 +1486,6 @@ export default function SettingsPage() {
                       <p className="text-[10px] text-app-text-muted font-medium">Pelanggan bisa memesan untuk dikirim ke rumah.</p>
                     </div>
                   </div>
-
-                  <div 
-                    className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
-                    onClick={() => setSettings(prev => ({ ...prev, hideBackupRestore: !prev.hideBackupRestore }))}
-                  >
-                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.hideBackupRestore ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
-                      <Check size={14} className="stroke-[4]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground cursor-pointer select-none">Sembunyikan Menu Backup & Restore</p>
-                      <p className="text-[10px] text-app-text-muted font-medium">Sembunyikan tombol backup & restore data agar tidak disalahgunakan staff/kasir.</p>
-                    </div>
-                  </div>
                </div>
 
                {settings.allowDelivery && (

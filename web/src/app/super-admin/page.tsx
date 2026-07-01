@@ -652,18 +652,22 @@ export default function SuperAdminPage() {
       const settingsRef = doc(db, 'settings', "store_" + store.id);
       const settingsSnap = await getDoc(settingsRef);
       let qrisUrl = '';
+      let hideBackupRestore = false;
       if (settingsSnap.exists()) {
         qrisUrl = settingsSnap.data().qrisUrl || '';
+        hideBackupRestore = settingsSnap.data().hideBackupRestore === true;
       }
       setEditingStore({
         ...store,
-        qrisUrl
+        qrisUrl,
+        hideBackupRestore
       });
     } catch (err: any) {
       console.error('Gagal mengambil pengaturan toko:', err);
       setEditingStore({
         ...store,
-        qrisUrl: ''
+        qrisUrl: '',
+        hideBackupRestore: false
       });
     } finally {
       setIsSaving(false);
@@ -730,7 +734,8 @@ export default function SuperAdminPage() {
       // SYNC to Settings for Receipt/Invoice
       await setDoc(doc(db, 'settings', "store_" + editingStore.id), {
         storeName: editingStore.name,
-        qrisUrl: editingStore.qrisUrl || ''
+        qrisUrl: editingStore.qrisUrl || '',
+        hideBackupRestore: editingStore.hideBackupRestore === true
       }, { merge: true });
 
       alert('Detail toko berhasil diperbarui!');
@@ -4200,6 +4205,21 @@ export default function SuperAdminPage() {
                           </label>
                         );
                       })}
+                    </div>
+                 </div>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-app-text-muted uppercase tracking-widest ml-1">Keamanan & Data</label>
+                    <div className="bg-background/50 border border-app-border p-4 rounded-2xl">
+                       <label className="flex items-center gap-3 cursor-pointer text-xs font-bold text-foreground">
+                          <input
+                            type="checkbox"
+                            checked={editingStore.hideBackupRestore === true}
+                            onChange={(e) => setEditingStore({ ...editingStore, hideBackupRestore: e.target.checked })}
+                            className="w-4 h-4 rounded border-app-border text-accent focus:ring-accent"
+                          />
+                          Sembunyikan Menu Backup & Restore Data Toko
+                       </label>
                     </div>
                  </div>
 
