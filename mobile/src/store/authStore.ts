@@ -4,8 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
+interface LoginPayload {
+  user: any;
+  role: 'admin' | 'cashier' | 'super-admin' | 'superadmin';
+  storeId: string;
+  subscriptionUntil: string | null;
+  isSubscriptionExpired: boolean;
+  permissions?: any | null;
+}
+
 interface AuthState {
-  user: any | null; // Storing minimal user info for persistence
+  user: any | null;
   role: 'admin' | 'cashier' | 'super-admin' | 'superadmin' | null;
   permissions: any | null;
   storeId: string | null;
@@ -14,6 +23,7 @@ interface AuthState {
   isSubscriptionExpired: boolean;
   disabledMenus: string[] | null;
   expiredDisabledMenus: string[] | null;
+  login: (payload: LoginPayload) => void;
   setUser: (user: any | null) => void;
   setRole: (role: 'admin' | 'cashier' | 'super-admin' | 'superadmin' | null) => void;
   setPermissions: (permissions: any | null) => void;
@@ -38,6 +48,21 @@ export const useAuthStore = create<AuthState>()(
       isSubscriptionExpired: false,
       disabledMenus: null,
       expiredDisabledMenus: null,
+      login: (payload: LoginPayload) => {
+        // Atomic set: all auth fields updated in ONE call to prevent
+        // race conditions where UI renders with stale persisted state
+        set({
+          user: payload.user,
+          role: payload.role,
+          storeId: payload.storeId,
+          subscriptionUntil: payload.subscriptionUntil,
+          isSubscriptionExpired: payload.isSubscriptionExpired,
+          permissions: payload.permissions || null,
+          // Reset store-level fields; they will be loaded by App.tsx listeners
+          disabledMenus: null,
+          expiredDisabledMenus: null,
+        });
+      },
       setUser: (user) => set({ user }),
       setRole: (role) => set({ role }),
       setPermissions: (permissions) => set({ permissions }),
@@ -48,7 +73,7 @@ export const useAuthStore = create<AuthState>()(
       setDisabledMenus: (disabledMenus) => set({ disabledMenus }),
       setExpiredDisabledMenus: (expiredDisabledMenus) => set({ expiredDisabledMenus }),
       logout: () => {
-        // Set Zustand state to null synchronously first
+        // Reset all state atomically
         set({ 
           user: null, 
           role: null, 

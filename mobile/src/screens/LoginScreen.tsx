@@ -17,7 +17,7 @@ GoogleSignin.configure({
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { setUser, setRole, setStoreId, setSubscriptionUntil, setIsSubscriptionExpired } = useAuthStore();
+  const { login } = useAuthStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -58,26 +58,29 @@ export default function LoginScreen() {
 
         const now = new Date();
         const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
-        if (validUntil) {
-          setSubscriptionUntil(userData.validUntil);
-          setIsSubscriptionExpired(now > validUntil);
-        } else {
-          setSubscriptionUntil(null);
-          setIsSubscriptionExpired(false);
-        }
 
-        setRole(userData.role);
-        setStoreId(userData.storeId || 'default-store');
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          name: userData.name,
-          photoURL: userData.photoURL || userData.photoUrl || user.photoURL || ''
+        // Atomic login: set ALL auth state in a single call to prevent
+        // stale persisted state from showing features as active
+        login({
+          user: {
+            uid: user.uid,
+            email: user.email,
+            name: userData.name,
+            photoURL: userData.photoURL || userData.photoUrl || user.photoURL || ''
+          },
+          role: userData.role,
+          storeId: userData.storeId || 'default-store',
+          subscriptionUntil: validUntil ? userData.validUntil : null,
+          isSubscriptionExpired: validUntil ? now > validUntil : false,
         });
       } else {
-        setRole('cashier');
-        setStoreId('default-store');
-        setUser({ uid: user.uid, email: user.email });
+        login({
+          user: { uid: user.uid, email: user.email },
+          role: 'cashier',
+          storeId: 'default-store',
+          subscriptionUntil: null,
+          isSubscriptionExpired: false,
+        });
       }
     } catch (err: any) {
       console.error(err);
@@ -167,9 +170,13 @@ export default function LoginScreen() {
         registrationId: storeIdStr
       });
 
-      setRole('admin');
-      setStoreId(storeIdStr);
-      setUser({ uid: user.uid, email: user.email, name: name });
+      login({
+        user: { uid: user.uid, email: user.email, name: name },
+        role: 'admin',
+        storeId: storeIdStr,
+        subscriptionUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        isSubscriptionExpired: false,
+      });
 
     } catch (err: any) {
       console.error(err);
@@ -225,21 +232,18 @@ export default function LoginScreen() {
 
         const now = new Date();
         const validUntil = userData.validUntil ? new Date(userData.validUntil) : null;
-        if (validUntil) {
-          setSubscriptionUntil(userData.validUntil);
-          setIsSubscriptionExpired(now > validUntil);
-        } else {
-          setSubscriptionUntil(null);
-          setIsSubscriptionExpired(false);
-        }
 
-        setRole(userData.role);
-        setStoreId(userData.storeId || 'default-store');
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          name: userData.name,
-          photoURL: userData.photoURL || userData.photoUrl || user.photoURL || ''
+        login({
+          user: {
+            uid: user.uid,
+            email: user.email,
+            name: userData.name,
+            photoURL: userData.photoURL || userData.photoUrl || user.photoURL || ''
+          },
+          role: userData.role,
+          storeId: userData.storeId || 'default-store',
+          subscriptionUntil: validUntil ? userData.validUntil : null,
+          isSubscriptionExpired: validUntil ? now > validUntil : false,
         });
       } else {
         setGoogleUser(user);
@@ -336,9 +340,13 @@ export default function LoginScreen() {
       });
 
       setShowGoogleModal(false);
-      setRole('admin');
-      setStoreId(storeIdStr);
-      setUser({ uid: googleUser.uid, email: googleUser.email, name: displayName, photoURL: googleUser.photoURL || '' });
+      login({
+        user: { uid: googleUser.uid, email: googleUser.email, name: displayName, photoURL: googleUser.photoURL || '' },
+        role: 'admin',
+        storeId: storeIdStr,
+        subscriptionUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        isSubscriptionExpired: false,
+      });
     } catch (err: any) {
       console.error(err);
       Alert.alert('Error', 'Gagal mendaftarkan toko: ' + err.message);
