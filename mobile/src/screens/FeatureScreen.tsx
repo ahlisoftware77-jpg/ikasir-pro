@@ -233,6 +233,46 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [serviceFormNotes, setServiceFormNotes] = useState('');
   const [serviceFormWarrantyDuration, setServiceFormWarrantyDuration] = useState('');
   const [serviceFormWarrantyUnit, setServiceFormWarrantyUnit] = useState('days');
+  const [serviceFormCategory, setServiceFormCategory] = useState('HP');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+  
+  // Custom category addition
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatEmoji, setNewCatEmoji] = useState('📱');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+
+  const getCategories = () => {
+    return storeSettingsData?.serviceCategories || [
+      { name: 'HP', emoji: '📱' },
+      { name: 'Laptop', emoji: '💻' },
+      { name: 'Printer', emoji: '🖨️' },
+      { name: 'PC Desktop', emoji: '🖥️' },
+      { name: 'Lainnya', emoji: '⚙️' }
+    ];
+  };
+
+  const handleAddCategoryMobile = async () => {
+    if (!newCatName.trim()) return;
+    const currentCats = getCategories();
+    if (currentCats.some((c: any) => c.name.toLowerCase() === newCatName.trim().toLowerCase())) {
+      Alert.alert('Eror', 'Kategori sudah ada!');
+      return;
+    }
+    const updatedCats = [...currentCats, { name: newCatName.trim(), emoji: newCatEmoji }];
+    try {
+      await updateDoc(doc(db, 'settings', `store_${storeId}`), {
+        serviceCategories: updatedCats
+      });
+      setStoreSettingsData((prev: any) => ({ ...prev, serviceCategories: updatedCats }));
+      setServiceFormCategory(newCatName.trim());
+      setNewCatName('');
+      setIsAddingCategory(false);
+      Alert.alert('Sukses', 'Kategori berhasil ditambahkan!');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Eror', 'Gagal menambahkan kategori');
+    }
+  };
 
 
   const fetchAndShowTransaction = async (trxId: string) => {
@@ -2387,6 +2427,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             customerName: formCustomer,
             customerPhone: formPhone || '-',
             deviceModel: formName,
+            deviceCategory: serviceFormCategory || 'HP',
             serialNumber: serviceFormSerial || '-',
             damageDescription: serviceFormDamage,
             estimatedCost: estPrice,
@@ -2429,6 +2470,7 @@ export default function FeatureScreen({ route, navigation }: any) {
           setServiceFormNotes('');
           setServiceFormWarrantyDuration('');
           setServiceFormWarrantyUnit('days');
+          setServiceFormCategory('HP');
           break;
 
         case 'estimasi':
@@ -3136,6 +3178,91 @@ export default function FeatureScreen({ route, navigation }: any) {
             </View>
             {renderTextInput('Nama Pelanggan *', formCustomer, setFormCustomer, 'e.g. Budi Raharjo')}
             {renderTextInput('Nomor Telepon', formPhone, setFormPhone, 'e.g. 08123456789', 'phone-pad')}
+
+            {/* Category selection */}
+            <View className="mb-4">
+              <View className="flex-row justify-between items-center mb-1.5 pl-1">
+                <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kategori Perangkat *</Text>
+                <TouchableOpacity onPress={() => setIsAddingCategory(true)}>
+                  <Text className="text-[10px] font-black text-accent uppercase">+ Kategori Baru</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row flex-wrap gap-2 mb-2">
+                {getCategories().map((cat: any) => {
+                  const isSelected = serviceFormCategory === cat.name;
+                  return (
+                    <TouchableOpacity
+                      key={cat.name}
+                      onPress={() => {
+                        Vibration.vibrate(10);
+                        setServiceFormCategory(cat.name);
+                      }}
+                      activeOpacity={0.8}
+                      className="px-3.5 py-2.5 rounded-2xl border flex-row items-center gap-1.5"
+                      style={{
+                        backgroundColor: isSelected ? colors.accent + '20' : colors.bg,
+                        borderColor: isSelected ? colors.accent : colors.border
+                      }}
+                    >
+                      <Text className="text-base">{cat.emoji}</Text>
+                      <Text className="text-xs font-black uppercase tracking-wider" style={{ color: isSelected ? colors.accent : colors.text }}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Custom Category Input section */}
+            {isAddingCategory && (
+              <View className="p-4 rounded-3xl border mb-4 space-y-3" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                <View className="flex-row justify-between items-center mb-1">
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Tambah Kategori Baru</Text>
+                  <TouchableOpacity onPress={() => setIsAddingCategory(false)} className="p-1 bg-black/10 rounded-full">
+                    <X size={12} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Nama Kategori</Text>
+                    <TextInput
+                      value={newCatName}
+                      onChangeText={setNewCatName}
+                      placeholder="e.g. Smartwatch"
+                      placeholderTextColor={colors.textMuted}
+                      className="px-3 py-2.5 rounded-xl border font-bold text-xs"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }}
+                    />
+                  </View>
+                  <View className="w-32">
+                    <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Pilih Emoji</Text>
+                    <View className="rounded-xl border overflow-hidden" style={{ borderColor: colors.border }}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row p-1" style={{ backgroundColor: colors.surface }}>
+                        {['📱', '💻', '🖨️', '🖥️', '📟', '⌚', '🎮', '📺', '📸', '🎧', '🔌', '⚙️'].map(emo => (
+                          <TouchableOpacity
+                            key={emo}
+                            onPress={() => setNewCatEmoji(emo)}
+                            className="p-1 rounded"
+                            style={{ backgroundColor: newCatEmoji === emo ? colors.accent + '30' : 'transparent' }}
+                          >
+                            <Text className="text-lg">{emo}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={handleAddCategoryMobile}
+                  className="py-3 bg-accent rounded-2xl items-center justify-center"
+                >
+                  <Text className="text-xs font-black text-white uppercase tracking-wider">Simpan Kategori</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {renderTextInput('Model / Perangkat *', formName, setFormName, 'e.g. iPhone 13 Pro')}
             {renderTextInput('S/N atau IMEI', serviceFormSerial, setServiceFormSerial, 'e.g. SN8291039832')}
             <View className="flex-row justify-between items-center mb-1 mt-2">
@@ -3655,22 +3782,83 @@ export default function FeatureScreen({ route, navigation }: any) {
             (t.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.deviceModel || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.serialNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.ticketNo || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.customerPhone || '').includes(search);
             
-          if (serviceStatusFilter === 'all') return matchesSearch;
+          const matchesCategory = selectedCategoryFilter === 'all' || t.deviceCategory === selectedCategoryFilter;
+            
+          if (serviceStatusFilter === 'all') return matchesSearch && matchesCategory;
           if (serviceStatusFilter === 'active') {
-            return matchesSearch && ['received', 'checking', 'pending_part', 'repairing'].includes(t.status);
+            return matchesSearch && matchesCategory && ['received', 'checking', 'pending_part', 'repairing'].includes(t.status);
           }
-          return matchesSearch && t.status === serviceStatusFilter;
+          return matchesSearch && matchesCategory && t.status === serviceStatusFilter;
         });
 
         return (
           <View className="flex-1">
-            {/* Filter Tabs Scrollable */}
+            {/* Search Input with Premium Emoji */}
+            <View className="mb-3">
+              <View 
+                className="flex-row items-center px-4 py-3 rounded-2xl border"
+                style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+              >
+                <Text className="text-base mr-2">✨🔍</Text>
+                <TextInput
+                  placeholder="Cari nama pelanggan, nomor tiket, S/N..."
+                  placeholderTextColor={colors.textMuted}
+                  value={search}
+                  onChangeText={setSearch}
+                  className="flex-1 font-bold text-xs"
+                  style={{ color: colors.text }}
+                />
+              </View>
+            </View>
+
+            {/* Category Filter Horizontal Scroll */}
+            <View className="h-12 mb-2">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => setSelectedCategoryFilter('all')}
+                  activeOpacity={0.8}
+                  className="px-4 py-2 rounded-xl justify-center items-center mr-1"
+                  style={{ 
+                    backgroundColor: selectedCategoryFilter === 'all' ? colors.accent : colors.surface, 
+                    borderWidth: 1, 
+                    borderColor: colors.border,
+                    height: 38
+                  }}
+                >
+                  <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: selectedCategoryFilter === 'all' ? '#ffffff' : colors.text }}>
+                    📁 Semua Kategori
+                  </Text>
+                </TouchableOpacity>
+                {getCategories().map((cat: any) => (
+                  <TouchableOpacity
+                    key={cat.name}
+                    onPress={() => setSelectedCategoryFilter(cat.name)}
+                    activeOpacity={0.8}
+                    className="px-4 py-2 rounded-xl justify-center items-center mr-1 flex-row gap-1"
+                    style={{ 
+                      backgroundColor: selectedCategoryFilter === cat.name ? colors.accent : colors.surface, 
+                      borderWidth: 1, 
+                      borderColor: colors.border,
+                      height: 38
+                    }}
+                  >
+                    <Text className="text-xs">{cat.emoji}</Text>
+                    <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: selectedCategoryFilter === cat.name ? '#ffffff' : colors.text }}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Filter Status Tabs Scrollable */}
             <View className="h-12 mb-2">
               <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2">
                 {[
-                  { label: 'Semua', val: 'all' },
+                  { label: 'Semua Status', val: 'all' },
                   { label: 'Aktif', val: 'active' },
                   { label: 'Selesai', val: 'completed' },
                   { label: 'Sudah Diambil', val: 'taken' },
@@ -3726,7 +3914,10 @@ export default function FeatureScreen({ route, navigation }: any) {
                     </View>
 
                     <Text className="text-sm font-black mb-0.5" style={{ color: colors.text }}>
-                      {item.deviceModel}
+                      {(() => {
+                        const cat = getCategories().find((c: any) => c.name === item.deviceCategory);
+                        return cat ? `${cat.emoji} ${item.deviceModel}` : `🔌 ${item.deviceModel}`;
+                      })()}
                     </Text>
                     <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>
                       S/N: {item.serialNumber}
@@ -7819,7 +8010,12 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 <View className="p-4 rounded-3xl border space-y-2.5" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
                   <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Model Perangkat</Text>
-                    <Text className="text-xs font-black" style={{ color: colors.text }}>{selectedServiceTicket.deviceModel}</Text>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>
+                      {(() => {
+                        const cat = getCategories().find((c: any) => c.name === selectedServiceTicket.deviceCategory);
+                        return cat ? `${cat.emoji} ${selectedServiceTicket.deviceModel}` : `🔌 ${selectedServiceTicket.deviceModel}`;
+                      })()}
+                    </Text>
                   </View>
                   <View className="flex-row justify-between items-center pb-2 border-b" style={{ borderColor: colors.border + '15' }}>
                     <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No Seri / IMEI</Text>

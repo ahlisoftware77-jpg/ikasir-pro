@@ -26,6 +26,8 @@ interface Product {
   sku?: string;
   barcode?: string;
   hasExtras?: boolean;
+  warrantyDuration?: number;
+  warrantyUnit?: string;
   createdAt?: any;
 }
 
