@@ -312,7 +312,19 @@ export default function ServiceTrackPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center bg-slate-950/30 p-2.5 rounded-xl border border-slate-800">
                   <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">MODEL UNIT</span>
-                  <span className="font-bold text-white">{ticket.deviceModel}</span>
+                  <span className="font-bold text-white">
+                    {(() => {
+                      const emojis: Record<string, string> = {
+                        'HP': '📱',
+                        'Laptop': '💻',
+                        'Printer': '🖨️',
+                        'PC Desktop': '🖥️',
+                        'Lainnya': '⚙️'
+                      };
+                      const emoji = ticket.deviceCategory ? (emojis[ticket.deviceCategory] || '🔌') : '🔌';
+                      return `${emoji} ${ticket.deviceModel}`;
+                    })()}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center bg-slate-950/30 p-2.5 rounded-xl border border-slate-800">
                   <span className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">S/N ATAU IMEI</span>

@@ -12,7 +12,8 @@ import {
   deleteDoc, 
   orderBy,
   getDoc,
-  getDocs
+  getDocs,
+  setDoc
 } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -76,9 +77,48 @@ export default function ServicesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   // Modals
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [storeSettings, setStoreSettings] = useState<any>(null);
+  
+  // Category management
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatEmoji, setNewCatEmoji] = useState('📱');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+
+  const getCategories = () => {
+    return storeSettings?.serviceCategories || [
+      { name: 'HP', emoji: '📱' },
+      { name: 'Laptop', emoji: '💻' },
+      { name: 'Printer', emoji: '🖨️' },
+      { name: 'PC Desktop', emoji: '🖥️' },
+      { name: 'Lainnya', emoji: '⚙️' }
+    ];
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCatName.trim()) return;
+    const currentCats = getCategories();
+    if (currentCats.some((c: any) => c.name.toLowerCase() === newCatName.trim().toLowerCase())) {
+      toast.error('Kategori sudah ada!');
+      return;
+    }
+    const updatedCats = [...currentCats, { name: newCatName.trim(), emoji: newCatEmoji }];
+    try {
+      await setDoc(doc(db, 'settings', `store_${storeId}`), {
+        serviceCategories: updatedCats
+      }, { merge: true });
+      setStoreSettings((prev: any) => ({ ...prev, serviceCategories: updatedCats }));
+      setAddForm(prev => ({ ...prev, deviceCategory: newCatName.trim() }));
+      setNewCatName('');
+      setIsAddingCategory(false);
+      toast.success('Kategori berhasil ditambahkan!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menambahkan kategori');
+    }
+  };
   
   // Add Form
   const [addForm, setAddForm] = useState({
@@ -90,7 +130,8 @@ export default function ServicesPage() {
     estimatedCost: '',
     notes: '',
     warrantyDuration: '',
-    warrantyUnit: 'days'
+    warrantyUnit: 'days',
+    deviceCategory: 'HP'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -99,6 +140,21 @@ export default function ServicesPage() {
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const [searchCustQuery, setSearchCustQuery] = useState('');
   const [searchProdQuery, setSearchProdQuery] = useState('');
+
+  useEffect(() => {
+    if (!storeId) return;
+    const fetchSettings = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+        if (docSnap.exists()) {
+          setStoreSettings(docSnap.data());
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchSettings();
+  }, [storeId]);
 
   // Real-time Customers & Products Listener
   useEffect(() => {
@@ -228,6 +284,7 @@ export default function ServicesPage() {
         customerName: addForm.customerName,
         customerPhone: addForm.customerPhone || '-',
         deviceModel: addForm.deviceModel,
+        deviceCategory: addForm.deviceCategory || 'HP',
         serialNumber: addForm.serialNumber || '-',
         damageDescription: addForm.damageDescription,
         estimatedCost: estPrice,
@@ -277,7 +334,8 @@ export default function ServicesPage() {
         estimatedCost: '',
         notes: '',
         warrantyDuration: '',
-        warrantyUnit: 'days'
+        warrantyUnit: 'days',
+        deviceCategory: 'HP'
       });
     } catch (err: any) {
       console.error(err);
@@ -696,7 +754,12 @@ export default function ServicesPage() {
                     </span>
                   </div>
 
-                  <h3 className="text-base font-black text-foreground mb-1 group-hover:text-accent transition-colors">{ticket.deviceModel}</h3>
+                  <h3 className="text-base font-black text-foreground mb-1 group-hover:text-accent transition-colors">
+                    {(() => {
+                      const cat = getCategories().find((c: any) => c.name === ticket.deviceCategory);
+                      return cat ? `${cat.emoji} ${ticket.deviceModel}` : `🔌 ${ticket.deviceModel}`;
+                    })()}
+                  </h3>
                   <p className="text-[10px] text-app-text-muted font-bold uppercase tracking-wider mb-4">S/N: {ticket.serialNumber}</p>
                   
                   <div className="space-y-2 border-t border-app-border/40 pt-4 mb-4">
@@ -789,6 +852,96 @@ export default function ServicesPage() {
                   />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center pl-1">
+                  <label className="text-[9px] font-black text-app-text-muted uppercase tracking-wider block">Kategori Perangkat *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingCategory(true)}
+                    className="text-[9px] font-black uppercase text-accent hover:underline flex items-center gap-1"
+                  >
+                    + Kategori Baru
+                  </button>
+                </div>
+                
+                {/* Category Grid Selection with Premium Emojis */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {getCategories().map((cat: any) => {
+                    const isSelected = addForm.deviceCategory === cat.name;
+                    return (
+                      <button
+                        key={cat.name}
+                        type="button"
+                        onClick={() => setAddForm({ ...addForm, deviceCategory: cat.name })}
+                        className={`p-3 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                          isSelected 
+                            ? 'bg-accent/15 border-accent text-accent shadow-sm' 
+                            : 'bg-background border-app-border text-foreground hover:border-accent/40'
+                        }`}
+                      >
+                        <span className="text-xl filter drop-shadow">{cat.emoji}</span>
+                        <span className="text-[10px] font-black uppercase tracking-wider leading-none text-center">{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {isAddingCategory && (
+                <div className="p-4 bg-background border border-app-border rounded-3xl space-y-4 animate-in fade-in slide-in-from-top duration-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-foreground uppercase tracking-widest">Tambah Kategori Baru</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCategory(false)}
+                      className="p-1 bg-surface border border-app-border rounded-full text-app-text-muted hover:text-foreground"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-app-text-muted uppercase pl-1">Nama Kategori</label>
+                      <input
+                        type="text"
+                        value={newCatName}
+                        onChange={(e) => setNewCatName(e.target.value)}
+                        placeholder="e.g. Smartwatch"
+                        className="w-full px-4 py-2 bg-surface border border-app-border rounded-xl text-xs font-bold focus:outline-none focus:border-accent"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-app-text-muted uppercase pl-1">Pilih Emoji Premium</label>
+                      <select
+                        value={newCatEmoji}
+                        onChange={(e) => setNewCatEmoji(e.target.value)}
+                        className="w-full px-4 py-2 bg-surface border border-app-border rounded-xl text-xs font-bold focus:outline-none focus:border-accent"
+                      >
+                        <option value="📱">📱 HP / Smartphone</option>
+                        <option value="💻">💻 Laptop / Notebook</option>
+                        <option value="🖨️">🖨️ Printer / Scanner</option>
+                        <option value="🖥️">🖥️ PC Desktop / Monitor</option>
+                        <option value="📟">📟 Tablet / iPad</option>
+                        <option value="⌚">⌚ Smartwatch / Jam</option>
+                        <option value="🎮">🎮 Game Console / PlayStation</option>
+                        <option value="📺">📺 TV / Televisi</option>
+                        <option value="📸">📸 Kamera / Handycam</option>
+                        <option value="🎧">🎧 Headphone / Speaker</option>
+                        <option value="🔌">🔌 Charger / Adaptor</option>
+                        <option value="⚙️">⚙️ Aksesoris / Lainnya</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    className="w-full py-2 bg-accent text-white rounded-xl text-xs font-black uppercase hover:bg-accent-hover transition-colors"
+                  >
+                    Simpan Kategori
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1000,7 +1153,12 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
                       <p className="text-[9px] font-black text-app-text-muted uppercase">Model / Perangkat</p>
-                      <p className="font-bold text-foreground mt-0.5">{selectedTicket.deviceModel}</p>
+                      <p className="font-bold text-foreground mt-0.5">
+                        {(() => {
+                          const cat = getCategories().find((c: any) => c.name === selectedTicket.deviceCategory);
+                          return cat ? `${cat.emoji} ${selectedTicket.deviceModel}` : `🔌 ${selectedTicket.deviceModel}`;
+                        })()}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-app-text-muted uppercase">Nomor Seri / IMEI</p>
