@@ -163,6 +163,17 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [discountIsActive, setDiscountIsActive] = useState(true);
   const [discountDatePicker, setDiscountDatePicker] = useState<{ visible: boolean; field: 'startDate' | 'endDate' | null }>({ visible: false, field: null });
 
+  // --- FLASH SALE STATES ---
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [flashFormName, setFlashFormName] = useState('');
+  const [flashFormStartTime, setFlashFormStartTime] = useState('');
+  const [flashFormEndTime, setFlashFormEndTime] = useState('');
+  const [flashFormProducts, setFlashFormProducts] = useState<{ productId: string, productName: string, flashPrice: number, flashStock: number, soldCount: number }[]>([]);
+  const [flashFormIsActive, setFlashFormIsActive] = useState(true);
+  const [isFlashProductModalVisible, setIsFlashProductModalVisible] = useState(false);
+  const [flashProductSearch, setFlashProductSearch] = useState('');
+  const [flashDatePicker, setFlashDatePicker] = useState<{ visible: boolean; field: 'startTime' | 'endTime' | null }>({ visible: false, field: null });
+
   // --- SYNCED FINANCE AND TRANSACTION STATES ---
   // Arus Kas States
   const [cashFlowTab, setCashFlowTab] = useState<'all' | 'income' | 'expense'>('all');
@@ -734,6 +745,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [extras, setExtras] = useState<any[]>([]);
   const [discounts, setDiscounts] = useState<any[]>([]);
+  const [isFlashSelectorVisible, setIsFlashSelectorVisible] = useState(false);
   const [rawSoldTransactions, setRawSoldTransactions] = useState<any[]>([]);
   const [stockLogs, setStockLogs] = useState<any[]>([]);
   const [expiredItems, setExpiredItems] = useState<any[]>([]);
@@ -1020,6 +1032,42 @@ export default function FeatureScreen({ route, navigation }: any) {
 
           unsubscribe = () => {
             unsubDisc();
+            unsubProds();
+          };
+          break;
+        }
+
+        case 'flashsale': {
+          q = query(collection(db, 'flash_sales'), where('storeId', '==', storeId));
+          const unsubFlash = onSnapshot(q, (snapshot) => {
+            const docs: any[] = [];
+            snapshot.forEach((doc) => {
+              docs.push({ id: doc.id, ...doc.data() });
+            });
+            setFlashSales(docs);
+          }, (err) => {
+            console.error("Error loading flash sales:", err);
+          });
+
+          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const unsubProds = onSnapshot(qProds, (snapshot) => {
+            const prods: any[] = [];
+            const cats = new Set<string>();
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              prods.push({ id: doc.id, ...data });
+              if (data.category) cats.add(data.category);
+            });
+            setAllProducts(prods);
+            setAllCategories(Array.from(cats).sort());
+            setLoading(false);
+          }, (err) => {
+            console.error("Error loading products for flash sales:", err);
+            setLoading(false);
+          });
+
+          unsubscribe = () => {
+            unsubFlash();
             unsubProds();
           };
           break;
@@ -1897,6 +1945,12 @@ export default function FeatureScreen({ route, navigation }: any) {
         setDiscountEndDate(item.endDate || '');
         setDiscountIsActive(item.isActive ?? true);
         setTempSelectedProductIds(item.appliedProductIds || []);
+      } else if (featureId === 'flashsale') {
+        setFlashFormName(item.name || '');
+        setFlashFormStartTime(item.startTime || new Date().toISOString());
+        setFlashFormEndTime(item.endTime || new Date(Date.now() + 3600000).toISOString());
+        setFlashFormProducts(item.products || []);
+        setFlashFormIsActive(item.isActive ?? true);
       } else {
         setFormBaseCost(item.baseCost?.toString() || '');
         setFormPrice(item.price?.toString() || '');
@@ -1960,6 +2014,13 @@ export default function FeatureScreen({ route, navigation }: any) {
       setDiscountEndDate('');
       setDiscountIsActive(true);
       setTempSelectedProductIds([]);
+
+      // Flash Sale defaults
+      setFlashFormName('');
+      setFlashFormStartTime(new Date().toISOString());
+      setFlashFormEndTime(new Date(Date.now() + 3600000).toISOString());
+      setFlashFormProducts([]);
+      setFlashFormIsActive(true);
     }
     setIsAddModalVisible(true);
   };
@@ -2102,6 +2163,7 @@ export default function FeatureScreen({ route, navigation }: any) {
               else if (colName === 'tutup_buku') col = 'cashier_sessions';
               else if (colName === 'stok') col = 'stock_history';
               else if (colName === 'expired') col = 'products';
+              else if (colName === 'flashsale') col = 'flash_sales';
               
               if (col) {
                 if (colName === 'piutang' || colName === 'estimasi') {
@@ -2553,6 +2615,37 @@ export default function FeatureScreen({ route, navigation }: any) {
             await updateDoc(doc(db, 'product_extras', editId), extraData);
           } else {
             await addDoc(collection(db, 'product_extras'), extraData);
+          }
+          break;
+
+        case 'flashsale':
+          if (!flashFormName.trim()) {
+            Alert.alert('Eror', 'Harap isi nama promo Flash Sale');
+            return;
+          }
+          if (flashFormProducts.length === 0) {
+            Alert.alert('Eror', 'Harap pilih minimal 1 produk target Flash Sale');
+            return;
+          }
+          const flashSaleData = {
+            storeId,
+            name: flashFormName.trim(),
+            startTime: flashFormStartTime,
+            endTime: flashFormEndTime,
+            isActive: flashFormIsActive,
+            products: flashFormProducts.map(p => ({
+              productId: p.productId,
+              productName: p.productName,
+              flashPrice: Number(p.flashPrice) || 0,
+              flashStock: Number(p.flashStock) || 0,
+              soldCount: p.soldCount || 0
+            }))
+          };
+
+          if (editId) {
+            await updateDoc(doc(db, 'flash_sales', editId), flashSaleData);
+          } else {
+            await addDoc(collection(db, 'flash_sales'), flashSaleData);
           }
           break;
 
@@ -3572,6 +3665,101 @@ export default function FeatureScreen({ route, navigation }: any) {
             )}
           </View>
         );
+      case 'flashsale':
+        return (
+          <View className="flex gap-4">
+            {renderTextInput('Nama Promo Flash Sale', flashFormName, setFlashFormName, 'e.g. Flash Sale Spesial')}
+            {renderTextInput('Waktu Mulai (Format: YYYY-MM-DDTHH:MM)', flashFormStartTime, setFlashFormStartTime, 'e.g. 2026-06-25T12:00:00')}
+            {renderTextInput('Waktu Selesai (Format: YYYY-MM-DDTHH:MM)', flashFormEndTime, setFlashFormEndTime, 'e.g. 2026-06-25T15:00:00')}
+
+            <View className="flex-row items-center justify-between border-t border-b py-4" style={{ borderColor: colors.border + '15' }}>
+              <View>
+                <Text className="text-xs font-black" style={{ color: colors.text }}>Status Flash Sale Aktif</Text>
+                <Text className="text-[8px] font-bold" style={{ color: colors.textMuted }}>Kupon/Fitur flash sale dapat diakses di POS</Text>
+              </View>
+              <Switch
+                value={flashFormIsActive}
+                onValueChange={setFlashFormIsActive}
+                trackColor={{ false: colors.border, true: '#10b981' }}
+                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+              />
+            </View>
+
+            <View className="mt-2">
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setIsFlashSelectorVisible(true);
+                }}
+                activeOpacity={0.8}
+                className="p-4 rounded-2xl border-2 border-dashed flex-row items-center justify-between"
+                style={{
+                  borderColor: flashFormProducts.length > 0 ? colors.accent : colors.border,
+                  backgroundColor: flashFormProducts.length > 0 ? colors.accent + '10' : 'transparent'
+                }}
+              >
+                <View className="flex-row items-center gap-3">
+                  <View className="p-2 rounded-xl" style={{ backgroundColor: flashFormProducts.length > 0 ? colors.accent : colors.bg }}>
+                    <Package size={18} color={flashFormProducts.length > 0 ? '#ffffff' : colors.textMuted} />
+                  </View>
+                  <View>
+                    <Text className="text-[10px] font-black uppercase tracking-widest" style={{ color: flashFormProducts.length > 0 ? colors.accent : colors.textMuted }}>Target Produk Flash Sale</Text>
+                    <Text className="text-sm font-bold" style={{ color: colors.text }}>
+                      {flashFormProducts.length === 0 ? 'Pilih Produk Flash Sale' : `${flashFormProducts.length} Produk Dipilih`}
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              {flashFormProducts.length > 0 && (
+                <View className="mt-4 gap-3">
+                  <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Atur Harga & Stok Promo</Text>
+                  {flashFormProducts.map((p, idx) => (
+                    <View key={p.productId} className="p-4 rounded-2xl border mb-2 bg-black/5" style={{ borderColor: colors.border }}>
+                      <Text className="text-xs font-black mb-2" style={{ color: colors.text }}>{p.productName}</Text>
+                      <View className="flex-row gap-3">
+                        <View className="flex-1">
+                          <Text className="text-[9px] font-bold text-slate-400 uppercase mb-1">Harga Promo (Rp)</Text>
+                          <TextInput
+                            keyboardType="numeric"
+                            value={String(p.flashPrice || '')}
+                            onChangeText={(val) => {
+                              const newProds = [...flashFormProducts];
+                              newProds[idx].flashPrice = Number(val) || 0;
+                              setFlashFormProducts(newProds);
+                            }}
+                            placeholder="0"
+                            placeholderTextColor={colors.textMuted}
+                            className="p-2.5 rounded-xl border text-xs font-bold bg-white"
+                            style={{ borderColor: colors.border, color: colors.text }}
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-[9px] font-bold text-slate-400 uppercase mb-1">Stok Promo (Qty)</Text>
+                          <TextInput
+                            keyboardType="numeric"
+                            value={String(p.flashStock || '')}
+                            onChangeText={(val) => {
+                              const newProds = [...flashFormProducts];
+                              newProds[idx].flashStock = Number(val) || 0;
+                              setFlashFormProducts(newProds);
+                            }}
+                            placeholder="0"
+                            placeholderTextColor={colors.textMuted}
+                            className="p-2.5 rounded-xl border text-xs font-bold bg-white"
+                            style={{ borderColor: colors.border, color: colors.text }}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        );
+
       case 'pelanggan':
         return (
           <>
@@ -4472,6 +4660,94 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               <View className="items-center py-20 opacity-30">
                 <PlusCircle color={colors.textMuted} size={48} />
                 <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada produk ekstra</Text>
+              </View>
+            }
+          />
+        );
+
+      case 'flashsale':
+        return (
+          <FlatList
+            data={flashSales.filter(fs => fs.name.toLowerCase().includes(search.toLowerCase()))}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => {
+              const getStatus = (fs: any) => {
+                if (!fs.isActive) return { label: 'Nonaktif', color: '#64748b', bg: '#64748b15', border: '#64748b30' };
+                const today = new Date();
+                const start = new Date(fs.startTime);
+                const end = new Date(fs.endTime);
+
+                if (start > today) return { label: 'Mendatang', color: '#3b82f6', bg: '#3b82f615', border: '#3b82f630' };
+                if (end < today) return { label: 'Selesai', color: '#f43f5e', bg: '#f43f5e15', border: '#f43f5e30' };
+                return { label: 'Berjalan', color: '#10b981', bg: '#10b98115', border: '#10b98130' };
+              };
+
+              const status = getStatus(item);
+              const formatTime = (isoStr: string) => {
+                try {
+                  const d = new Date(isoStr);
+                  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                } catch {
+                  return isoStr;
+                }
+              };
+              const formattedPeriod = `${formatTime(item.startTime)} - ${formatTime(item.endTime)}`;
+
+              return (
+                <View className="p-4 rounded-2xl border mb-3 flex gap-3.5" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                  <View className="flex-row justify-between items-start">
+                    <View className="flex-1 pr-3">
+                      <Text className="text-sm font-black" style={{ color: colors.text }}>⚡ {item.name}</Text>
+                      <Text className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                        Periode: {formattedPeriod}
+                      </Text>
+                    </View>
+                    <View className="px-2 py-0.5 rounded-lg border" style={{ backgroundColor: status.bg, borderColor: status.border }}>
+                      <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: status.color }}>
+                        {status.label}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="mt-1 bg-black/5 rounded-xl p-3">
+                    <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-black/5 pb-1">Daftar Produk ({item.products?.length || 0})</Text>
+                    {item.products?.map((p: any) => (
+                      <View key={p.productId} className="flex-row justify-between items-center py-1">
+                        <Text className="text-xs font-bold text-slate-500" style={{ color: colors.text }} numberOfLines={1}>
+                          • {p.productName}
+                        </Text>
+                        <Text className="text-[10px] font-black text-emerald-500">
+                          Rp {p.flashPrice?.toLocaleString('id-ID')} <Text className="text-[8px] font-bold text-slate-400"> (Sisa: {p.flashStock - (p.soldCount || 0)}/{p.flashStock})</Text>
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Actions */}
+                  <View className="flex-row gap-2 pt-3 border-t" style={{ borderColor: colors.border + '15' }}>
+                    <TouchableOpacity
+                      onPress={() => openFormModal(item)}
+                      className="flex-1 py-2 rounded-xl border flex-row items-center justify-center gap-1.5"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                    >
+                      <Edit2 size={12} color={colors.textMuted} />
+                      <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item.id, 'flashsale')}
+                      className="flex-1 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-center gap-1.5"
+                    >
+                      <Trash2 size={12} color="#f43f5e" />
+                      <Text className="text-[10px] font-black uppercase tracking-wider text-rose-500">Hapus</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            }}
+            ListEmptyComponent={
+              <View className="items-center py-20 opacity-30">
+                <Flame color={colors.textMuted} size={48} />
+                <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada program Flash Sale</Text>
               </View>
             }
           />
@@ -7114,6 +7390,99 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 style={{ backgroundColor: colors.accent }}
               >
                 <Text className="font-black text-white text-xs uppercase tracking-widest">Konfirmasi Pilihan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* PRODUCT SELECTOR MODAL FOR FLASH SALES */}
+      <Modal visible={isFlashSelectorVisible} animationType="slide" transparent onRequestClose={() => setIsFlashSelectorVisible(false)}>
+        <SafeAreaView className="flex-1 bg-black/80 justify-end items-center" edges={['top', 'bottom']}>
+          <View className="w-full max-w-xl rounded-t-[40px] p-6 pb-8 flex-1" style={{ backgroundColor: colors.surface }}>
+            {/* Header */}
+            <View className="flex-row justify-between items-start mb-6">
+              <View>
+                <Text className="text-xl font-black" style={{ color: colors.text }}>Pilih Produk Flash Sale</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Pilih produk-produk target Flash Sale</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsFlashSelectorVisible(false)}
+                className="w-10 h-10 rounded-full bg-black/10 items-center justify-center"
+              >
+                <X color={colors.text} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input */}
+            <View className="relative mb-4">
+              <View className="flex-row items-center px-4 py-3 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                <Search size={16} color={colors.textMuted} />
+                <TextInput
+                  placeholder="Cari barang..."
+                  placeholderTextColor={colors.textMuted}
+                  value={selectorSearch}
+                  onChangeText={setSelectorSearch}
+                  className="flex-1 ml-3 font-bold text-xs"
+                  style={{ color: colors.text }}
+                />
+              </View>
+            </View>
+
+            {/* Selector List */}
+            <FlatList
+              data={allProducts.filter(p => !selectorSearch || p.name.toLowerCase().includes(selectorSearch.toLowerCase()))}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const isSelected = flashFormProducts.some(p => p.productId === item.id);
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Vibration.vibrate(10);
+                      if (isSelected) {
+                        setFlashFormProducts(prev => prev.filter(p => p.productId !== item.id));
+                      } else {
+                        setFlashFormProducts(prev => [...prev, {
+                          productId: item.id,
+                          productName: item.name,
+                          flashPrice: item.price || 0,
+                          flashStock: 10,
+                          soldCount: 0
+                        }]);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                    className="flex-row items-center justify-between p-4 rounded-2xl border mb-2"
+                    style={{
+                      backgroundColor: isSelected ? colors.accent + '0d' : colors.bg,
+                      borderColor: isSelected ? colors.accent : colors.border
+                    }}
+                  >
+                    <View className="flex-row items-center gap-3 flex-1">
+                      <View className="p-1 rounded-md" style={{ backgroundColor: isSelected ? colors.accent : 'transparent' }}>
+                        <CheckCircle size={16} color={isSelected ? '#ffffff' : colors.textMuted} />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-black" style={{ color: colors.text }} numberOfLines={1}>{item.name}</Text>
+                        <Text className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-tight">
+                          {item.category || 'Umum'} • Rp {item.price?.toLocaleString('id-ID')}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            {/* Footer Actions */}
+            <View className="flex-row items-center justify-between pt-4 border-t gap-4 mt-auto" style={{ borderColor: colors.border + '15' }}>
+              <TouchableOpacity
+                onPress={() => setIsFlashSelectorVisible(false)}
+                activeOpacity={0.8}
+                className="flex-1 py-4 rounded-2xl items-center justify-center"
+                style={{ backgroundColor: colors.accent }}
+              >
+                <Text className="font-black text-white text-xs uppercase tracking-widest">Konfirmasi Pilihan ({flashFormProducts.length})</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1515,6 +1515,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'diskon', title: 'Kelola Diskon' });
             }, false, false, 0, '/products')}
+            {renderMenuItem('Flash Sale', '⚡', '#ef4444', () => {
+              Vibration.vibrate(10);
+              navigation.navigate('FeatureDetails', { featureId: 'flashsale', title: 'Kelola Flash Sale' });
+            }, false, false, 0, '/products')}
             {renderMenuItem('Terjual', '🛍️', '#10b981', () => {
               Vibration.vibrate(10);
               navigation.navigate('FeatureDetails', { featureId: 'terjual', title: 'Analitik Terjual' });

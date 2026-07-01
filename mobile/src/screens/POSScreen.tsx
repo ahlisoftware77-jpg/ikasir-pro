@@ -577,6 +577,14 @@ export default function POSScreen({ route, navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [lastScannedItem, setLastScannedItem] = useState<{name: string, price: number} | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Bluetooth Printer states
   const [isBluetoothModalVisible, setIsBluetoothModalVisible] = useState(false);
@@ -1042,10 +1050,30 @@ export default function POSScreen({ route, navigation }: any) {
       setDiscounts(items);
     });
 
+    // Active & upcoming Flash Sales fetch
+    const qFlash = query(
+      collection(db, 'flash_sales'),
+      where('storeId', '==', storeId),
+      where('isActive', '==', true)
+    );
+    const unsubscribeFlash = onSnapshot(qFlash, (snapshot) => {
+      const items: any[] = [];
+      snapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+      // Import store dynamically or via React state
+      // We will set this directly to flashSaleStore
+      const { setFlashSales } = require('../store/flashSaleStore').useFlashSaleStore.getState();
+      setFlashSales(items);
+    }, (err) => {
+      console.error("Error loading flash sales in POS:", err);
+    });
+
     return () => {
       unsubscribeProd();
       unsubscribeDisc();
       unsubscribeSettings();
+      unsubscribeFlash();
     };
   }, [storeId]);
 
@@ -1171,6 +1199,38 @@ export default function POSScreen({ route, navigation }: any) {
   });
 
   const getEffectivePrice = (product: Product) => {
+    // 1. Check active Flash Sale
+    const { flashSales } = require('../store/flashSaleStore').useFlashSaleStore.getState();
+    const now = new Date();
+    const activeFlashSale = (flashSales as any[]).find(fs => {
+      if (!fs.isActive) return false;
+      const start = new Date(fs.startTime);
+      const end = new Date(fs.endTime);
+      if (now < start || now > end) return false;
+
+      const fsProd = fs.products?.find((p: any) => p.productId === product.id);
+      if (!fsProd) return false;
+
+      // Check if stock has not been fully claimed
+      return (fsProd.soldCount || 0) < (fsProd.flashStock || 0);
+    });
+
+    if (activeFlashSale) {
+      const fsProd = activeFlashSale.products.find((p: any) => p.productId === product.id);
+      return {
+        price: fsProd.flashPrice,
+        discountInfo: {
+          name: `⚡ ${activeFlashSale.name}`,
+          originalPrice: product.price,
+          isFlashSale: true,
+          soldCount: fsProd.soldCount || 0,
+          flashStock: fsProd.flashStock || 0,
+          endTime: activeFlashSale.endTime
+        }
+      };
+    }
+
+    // 2. Regular Discount fallback
     const applicable = discounts.filter(d => d.appliedProductIds?.includes(product.id!));
     if (applicable.length === 0) return { price: product.price, discountInfo: null };
 
@@ -1222,6 +1282,16 @@ export default function POSScreen({ route, navigation }: any) {
 
     const uniqueId = product.id!;
     const { price: displayPrice, discountInfo } = getEffectivePrice(product);
+
+    if (discountInfo?.isFlashSale) {
+      const remainingFlashStock = discountInfo.flashStock - discountInfo.soldCount;
+      const existing = cart.find(item => item.uniqueId === uniqueId);
+      const currentQty = existing ? existing.cartQty : 0;
+      if (currentQty >= remainingFlashStock) {
+        Alert.alert('Batas Flash Sale', `Jumlah pembelian melebihi sisa stok Flash Sale (${remainingFlashStock} pcs).`);
+        return;
+      }
+    }
 
     Vibration.vibrate(15);
     setCart(prev => {
@@ -1301,6 +1371,16 @@ export default function POSScreen({ route, navigation }: any) {
     const extrasKey = selectedExtras.map(e => `${e.groupName}:${e.optionName}`).sort().join('|');
     const uniqueId = `${activeExtrasProduct.id}-${extrasKey}`;
 
+    if (discountInfo?.isFlashSale) {
+      const remainingFlashStock = discountInfo.flashStock - discountInfo.soldCount;
+      const existing = cart.find(item => item.uniqueId === uniqueId);
+      const currentQty = existing ? existing.cartQty : 0;
+      if (currentQty >= remainingFlashStock) {
+        Alert.alert('Batas Flash Sale', `Jumlah pembelian melebihi sisa stok Flash Sale (${remainingFlashStock} pcs).`);
+        return;
+      }
+    }
+
     Vibration.vibrate(15);
     setCart(prev => {
       const existing = prev.find(item => item.uniqueId === uniqueId);
@@ -1337,6 +1417,17 @@ export default function POSScreen({ route, navigation }: any) {
             Alert.alert('Batas', 'Stok tidak mencukupi!');
             return item;
           }
+
+          // Check Flash Sale limits
+          const { price: _, discountInfo } = getEffectivePrice(item);
+          if (discountInfo?.isFlashSale) {
+            const remainingFlashStock = discountInfo.flashStock - discountInfo.soldCount;
+            if (newQty > remainingFlashStock) {
+              Alert.alert('Batas Flash Sale', `Jumlah pembelian melebihi sisa stok Flash Sale (${remainingFlashStock} pcs).`);
+              return item;
+            }
+          }
+
           return { ...item, cartQty: newQty };
         }
         return item;
@@ -1651,7 +1742,42 @@ export default function POSScreen({ route, navigation }: any) {
     }
   };
 
-    // Checkout execution
+    const updateFlashSaleSoldCount = async (items: CartItem[]) => {
+    try {
+      const { flashSales } = require('../store/flashSaleStore').useFlashSaleStore.getState();
+      const now = new Date();
+      const activeFlashSale = (flashSales as any[]).find(fs => {
+        if (!fs.isActive) return false;
+        const start = new Date(fs.startTime);
+        const end = new Date(fs.endTime);
+        return now >= start && now <= end;
+      });
+
+      if (!activeFlashSale) return;
+
+      const fsDocRef = doc(db, 'flash_sales', activeFlashSale.id);
+      const fsSnap = await getDoc(fsDocRef);
+      if (!fsSnap.exists()) return;
+
+      const fsData = fsSnap.data();
+      const updatedProducts = (fsData.products || []).map((p: any) => {
+        const cartItem = items.find(item => item.id === p.productId);
+        if (cartItem && cartItem.discountName?.startsWith('⚡')) {
+          return {
+            ...p,
+            soldCount: (p.soldCount || 0) + cartItem.cartQty
+          };
+        }
+        return p;
+      });
+
+      await updateDoc(fsDocRef, { products: updatedProducts });
+    } catch (err) {
+      console.error("Gagal memperbarui stok Flash Sale:", err);
+    }
+  };
+
+  // Checkout execution
   const handleCheckout = async (signatureBase64?: string) => {
     if (cart.length === 0) return;
 
@@ -1804,6 +1930,7 @@ export default function POSScreen({ route, navigation }: any) {
         }
 
         await updateDoc(orderRef, updateData);
+        await updateFlashSaleSoldCount(cart);
 
         Vibration.vibrate([0, 15, 80, 15]);
         setSuccessTrx({ id: selectedOrderToMerge, ...existingData, items: mergedItems, total: newTotal, paymentCategory: 'merge' });
@@ -1937,6 +2064,7 @@ export default function POSScreen({ route, navigation }: any) {
         }
 
         await batch.commit();
+        await updateFlashSaleSoldCount(cart);
 
         Vibration.vibrate([0, 15, 80, 15]);
         setSuccessTrx({ id: finalDocId, ...transactionData });
@@ -1963,6 +2091,7 @@ export default function POSScreen({ route, navigation }: any) {
       }
 
       await batch.commit();
+      await updateFlashSaleSoldCount(cart);
 
       Vibration.vibrate([0, 15, 80, 15]);
       setSuccessTrx({ id: finalDocId, ...transactionData });
@@ -2218,6 +2347,54 @@ export default function POSScreen({ route, navigation }: any) {
         </ScrollView>
       </View>
 
+      {/* Flash Sale Banner */}
+      {(() => {
+        const { flashSales } = require('../store/flashSaleStore').useFlashSaleStore.getState();
+        const activeFlash = (flashSales as any[]).find(fs => {
+          if (!fs.isActive) return false;
+          const start = new Date(fs.startTime);
+          const end = new Date(fs.endTime);
+          return currentTime >= start && currentTime <= end;
+        });
+
+        if (!activeFlash) return null;
+
+        const end = new Date(activeFlash.endTime);
+        const diff = end.getTime() - currentTime.getTime();
+        if (diff <= 0) return null;
+
+        const hrs = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        const timeStr = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        // Calculate progress
+        const totalStock = activeFlash.products?.reduce((acc: number, p: any) => acc + (p.flashStock || 0), 0) || 0;
+        const totalSold = activeFlash.products?.reduce((acc: number, p: any) => acc + (p.soldCount || 0), 0) || 0;
+        const percent = totalStock > 0 ? (totalSold / totalStock) * 100 : 0;
+
+        return (
+          <View className="mx-4 mt-3 p-4 rounded-3xl bg-red-600 border border-red-500 shadow-sm flex flex-col gap-2">
+            <View className="flex-row justify-between items-center">
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-white text-base">⚡</Text>
+                <Text className="text-white font-black text-xs uppercase tracking-wider">FLASH SALE AKTIF</Text>
+              </View>
+              <View className="bg-white/20 px-2.5 py-1 rounded-xl">
+                <Text className="text-white font-mono font-black text-xs">{timeStr}</Text>
+              </View>
+            </View>
+            <View className="flex-row justify-between items-center mt-1">
+              <Text className="text-red-100 text-[10px] font-bold uppercase">{activeFlash.name}</Text>
+              <Text className="text-red-100 text-[10px] font-black">{Math.round(percent)}% Terjual</Text>
+            </View>
+            <View className="w-full h-1.5 bg-red-800 rounded-full overflow-hidden">
+              <View className="h-full bg-yellow-400 rounded-full" style={{ width: `${percent}%` }} />
+            </View>
+          </View>
+        );
+      })()}
+
       {/* Product Grid */}
       {loading ? (
         <LoadingSkeleton type="card" count={6} />
@@ -2276,8 +2453,13 @@ export default function POSScreen({ route, navigation }: any) {
                     )}
 
                     {!isOutOfStock && hasPromo && (
-                      <View className="absolute top-2 left-2 bg-emerald-500 px-2 py-0.5 rounded-lg">
-                        <Text className="text-[8px] font-black text-white uppercase">PROMO</Text>
+                      <View 
+                        className="absolute top-2 left-2 px-2 py-0.5 rounded-lg"
+                        style={{ backgroundColor: discountInfo?.isFlashSale ? '#dc2626' : '#10b981' }}
+                      >
+                        <Text className="text-[8px] font-black text-white uppercase">
+                          {discountInfo?.isFlashSale ? '⚡ FLASH' : 'PROMO'}
+                        </Text>
                       </View>
                     )}
 
@@ -2295,6 +2477,23 @@ export default function POSScreen({ route, navigation }: any) {
                       🛡️ Garansi: {item.warrantyDuration} {item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}
                     </Text>
                   ) : null}
+
+                  {discountInfo?.isFlashSale && (
+                    <View className="mb-2">
+                      <View className="flex-row justify-between mb-1">
+                        <Text className="text-[8px] text-slate-400 font-bold">Stok Promo</Text>
+                        <Text className="text-[8px] text-red-500 font-black">
+                          Sisa {discountInfo.flashStock - discountInfo.soldCount}
+                        </Text>
+                      </View>
+                      <View className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <View 
+                          className="h-full bg-red-500" 
+                          style={{ width: `${((discountInfo.flashStock - discountInfo.soldCount) / discountInfo.flashStock) * 100}%` }}
+                        />
+                      </View>
+                    </View>
+                  )}
                   
                   <View className="flex-row justify-between items-end mt-auto pt-2 border-t" style={{ borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(15,23,42,0.15)' }}>
                     <View>
@@ -2303,7 +2502,7 @@ export default function POSScreen({ route, navigation }: any) {
                           Rp {item.price.toLocaleString('id-ID')}
                         </Text>
                       )}
-                      <Text className="font-black text-xs" style={{ color: '#15803d' }}>
+                      <Text className="font-black text-xs" style={{ color: discountInfo?.isFlashSale ? '#dc2626' : '#15803d' }}>
                         Rp {displayPrice.toLocaleString('id-ID')}
                       </Text>
                     </View>
@@ -2333,13 +2532,20 @@ export default function POSScreen({ route, navigation }: any) {
                   }}
                 >
                   <View className="flex-1 pr-4">
-                    <Text className="text-xs font-bold" style={{ color: catColors.text }} numberOfLines={1}>{item.name}</Text>
+                    <View className="flex-row items-center gap-1.5">
+                      <Text className="text-xs font-bold" style={{ color: catColors.text }} numberOfLines={1}>{item.name}</Text>
+                      {discountInfo?.isFlashSale && (
+                        <View className="bg-red-600 px-1 rounded">
+                          <Text className="text-[7px] font-black text-white">⚡ FLASH</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text className="text-[9px] font-bold mt-0.5 uppercase tracking-wider" style={{ color: catColors.catText }}>
                       {item.category || 'Umum'} {item.warrantyDuration ? `| 🛡️ Garansi: ${item.warrantyDuration} ${item.warrantyUnit === 'days' ? 'Hari' : item.warrantyUnit === 'months' ? 'Bulan' : 'Tahun'}` : ''}
                     </Text>
                   </View>
                   <View className="items-end shrink-0">
-                    <Text className="font-black text-xs" style={{ color: '#15803d' }}>
+                    <Text className="font-black text-xs" style={{ color: discountInfo?.isFlashSale ? '#dc2626' : '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.manageStock !== false && (
@@ -2380,6 +2586,12 @@ export default function POSScreen({ route, navigation }: any) {
                       <Text className="text-[8px] font-black text-rose-500 uppercase tracking-widest">HABIS</Text>
                     </View>
                   )}
+
+                  {!isOutOfStock && discountInfo?.isFlashSale && (
+                    <View className="absolute top-1 left-1 bg-red-600 px-1 rounded">
+                      <Text className="text-[6px] font-black text-white">⚡ FLASH</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View className="flex-1 min-w-0">
@@ -2391,7 +2603,7 @@ export default function POSScreen({ route, navigation }: any) {
                     </Text>
                   ) : null}
                   <View className="flex-row items-center gap-2">
-                    <Text className="font-black text-xs" style={{ color: '#15803d' }}>
+                    <Text className="font-black text-xs" style={{ color: discountInfo?.isFlashSale ? '#dc2626' : '#15803d' }}>
                       Rp {displayPrice.toLocaleString('id-ID')}
                     </Text>
                     {item.sku && (
