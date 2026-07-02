@@ -558,35 +558,68 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         )}
       </main>
 
-      {/* Floating Mobile Bottom Action Bar (Shopee Style) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between gap-4 lg:hidden">
-        <div className="flex-1">
-          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
-          <span className="text-lg font-black text-orange-500 dark:text-orange-400 block leading-tight">
-            Rp {product.price.toLocaleString('id-ID')}
-          </span>
-        </div>
-        <button
-          onClick={() => {
-            if (product.manageStock !== false && (product.stock || 0) <= 0) return;
-            handleWhatsAppRedirect(product);
-          }}
-          disabled={product.manageStock !== false && (product.stock || 0) <= 0}
-          className={`flex-1 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg ${
-            product.manageStock !== false && (product.stock || 0) <= 0
-              ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
-              : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
-          }`}
-        >
-          {product.manageStock !== false && (product.stock || 0) <= 0 ? (
-            <span>Stok Habis</span>
-          ) : (
+        {(() => {
+          const ep = getEffectivePrice(product);
+          return (
             <>
-              <MessageSquare size={16} className="stroke-[2.5]" />
-              <span>Chat Sekarang</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
+                {ep.isFlashSale ? (
+                  <div className="flex flex-col">
+                    <span className="text-lg font-black text-rose-600 dark:text-rose-450 block leading-tight">
+                      Rp {ep.price.toLocaleString('id-ID')}
+                    </span>
+                    <span className="text-[10px] line-through text-slate-400 font-bold block leading-none mt-0.5">
+                      Rp {ep.originalPrice.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-lg font-black text-orange-500 dark:text-orange-400 block leading-tight">
+                    Rp {ep.price.toLocaleString('id-ID')}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  if (product.manageStock !== false && (product.stock || 0) <= 0) return;
+                  
+                  // Gunakan harga flash sale untuk pesan WA jika aktif
+                  const rawPhone = storePhone || '';
+                  let formattedPhone = rawPhone.replace(/[^0-9]/g, '');
+                  if (formattedPhone.startsWith('0')) {
+                    formattedPhone = '62' + formattedPhone.slice(1);
+                  }
+                  
+                  if (!formattedPhone) {
+                    alert("Toko ini belum menyantumkan nomor WhatsApp yang valid di pengaturannya.");
+                    return;
+                  }
+                  
+                  const activePrice = ep.isFlashSale ? ep.price : product.price;
+                  const message = `Halo ${product.storeName || 'Toko'}, saya tertarik dengan produk Anda di Marketplace iKasir:\n\n*${product.name}*\nHarga: Rp ${activePrice.toLocaleString('id-ID')}${ep.isFlashSale ? ' (Harga Promo Flash Sale)' : ''}\n\nApakah produk ini masih tersedia?`;
+                  const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+                  window.open(url, '_blank');
+                }}
+                disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+                className={`flex-1 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg ${
+                  product.manageStock !== false && (product.stock || 0) <= 0
+                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+                    : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
+                }`}
+              >
+                {product.manageStock !== false && (product.stock || 0) <= 0 ? (
+                  <span>Stok Habis</span>
+                ) : (
+                  <>
+                    <MessageSquare size={16} className="stroke-[2.5]" />
+                    <span>Chat Sekarang</span>
+                  </>
+                )}
+              </button>
             </>
-          )}
-        </button>
+          );
+        })()}
       </div>
 
       {/* Fullscreen Media Preview Modal (Lightbox) - Bounded Size with Arrows */}
