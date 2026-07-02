@@ -17,6 +17,8 @@ interface Product {
   videoUrl?: string;
   storeId: string;
   storeName?: string;
+  stock?: number;
+  manageStock?: boolean;
 }
 
 interface MediaItem {
@@ -62,6 +64,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
             videoUrl: data.videoUrl || '',
             storeId: data.storeId || '',
             storeName: data.storeName || 'Toko Mitra',
+            stock: data.stock !== undefined ? data.stock : 0,
+            manageStock: data.manageStock !== undefined ? data.manageStock : true,
           };
           setProduct(prodObj);
 
@@ -248,6 +252,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           {/* Left: Product Images & Video (Shopee style Media Display) */}
           <div className="lg:col-span-6 space-y-4">
             <div className="relative aspect-square w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden flex items-center justify-center shadow-md animate-in fade-in duration-300">
+              {product.manageStock !== false && (product.stock || 0) <= 0 && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center z-20 p-2 text-center">
+                  <span className="text-xs font-black text-white uppercase tracking-widest bg-rose-600 px-3 py-1 rounded-md shadow-lg shadow-rose-600/30 animate-pulse">Terjual</span>
+                  <span className="text-[10px] font-bold text-slate-350 mt-1 uppercase">Stok Kosong</span>
+                </div>
+              )}
               {activeMedia && activeMedia.url ? (
                 activeMedia.type === 'video' ? (
                   <video 
@@ -316,7 +326,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           {/* Right: Info Section */}
           <div className="lg:col-span-6 space-y-6">
             <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-4 shadow-sm">
-              <span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+              <span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-450 text-[10px] font-black uppercase tracking-wider">
                 {product.category}
               </span>
               
@@ -325,15 +335,30 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
               </h1>
               
               {/* Shopee-style Price Panel */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-100 dark:border-slate-800/40">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Harga Spesial</span>
-                <div className="text-2xl lg:text-4xl font-black text-orange-500 dark:text-orange-400 mt-1">
-                  Rp {product.price.toLocaleString('id-ID')}
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-100 dark:border-slate-800/40 flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Harga Spesial</span>
+                  <div className="text-2xl lg:text-4xl font-black text-orange-500 dark:text-orange-400 mt-1">
+                    Rp {product.price.toLocaleString('id-ID')}
+                  </div>
                 </div>
+                {product.manageStock !== false && (product.stock || 0) <= 0 && (
+                  <span className="px-3.5 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-450 text-xs font-black uppercase tracking-wider animate-pulse">
+                    Stok Habis
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Store Panel */}
+            {/* Description Panel */}
+            <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-3">
+              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">Deskripsi Produk</h3>
+              <p className="text-slate-600 dark:text-slate-350 text-xs md:text-sm leading-relaxed font-medium whitespace-pre-line">
+                {product.description || 'Tidak ada deskripsi produk.'}
+              </p>
+            </div>
+
+            {/* Store Panel - Wrapped at the bottom like Shopee */}
             <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl overflow-hidden bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm shrink-0">
@@ -371,14 +396,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   </a>
                 )}
               </div>
-            </div>
-
-            {/* Description Panel */}
-            <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-3">
-              <h3 className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">Deskripsi Produk</h3>
-              <p className="text-slate-600 dark:text-slate-350 text-xs md:text-sm leading-relaxed font-medium whitespace-pre-line">
-                {product.description || 'Tidak ada deskripsi produk.'}
-              </p>
             </div>
           </div>
         </div>
@@ -425,11 +442,25 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           </span>
         </div>
         <button
-          onClick={() => handleWhatsAppRedirect(product)}
-          className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-450 text-slate-950 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
+          onClick={() => {
+            if (product.manageStock !== false && (product.stock || 0) <= 0) return;
+            handleWhatsAppRedirect(product);
+          }}
+          disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+          className={`flex-1 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg ${
+            product.manageStock !== false && (product.stock || 0) <= 0
+              ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+              : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
+          }`}
         >
-          <MessageSquare size={16} className="stroke-[2.5]" />
-          <span>Chat Sekarang</span>
+          {product.manageStock !== false && (product.stock || 0) <= 0 ? (
+            <span>Stok Habis</span>
+          ) : (
+            <>
+              <MessageSquare size={16} className="stroke-[2.5]" />
+              <span>Chat Sekarang</span>
+            </>
+          )}
         </button>
       </div>
 

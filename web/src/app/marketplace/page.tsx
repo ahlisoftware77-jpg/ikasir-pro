@@ -17,6 +17,8 @@ interface Product {
   videoUrl?: string;
   storeId: string;
   storeName?: string;
+  stock?: number;
+  manageStock?: boolean;
 }
 
 function MarketplaceContent() {
@@ -73,6 +75,8 @@ function MarketplaceContent() {
             videoUrl: data.videoUrl || '',
             storeId: data.storeId || '',
             storeName: data.storeName || 'Toko Mitra',
+            stock: data.stock !== undefined ? data.stock : 0,
+            manageStock: data.manageStock !== undefined ? data.manageStock : true,
           });
           if (data.storeId) {
             uniqueStoreIds.add(data.storeId);
@@ -263,6 +267,12 @@ function MarketplaceContent() {
                 >
                   {/* Image */}
                   <div className="relative aspect-square w-full bg-slate-100 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800/60 overflow-hidden flex items-center justify-center">
+                    {prod.manageStock !== false && (prod.stock || 0) <= 0 && (
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center z-10 p-1 text-center">
+                        <span className="text-[9px] font-black text-white uppercase tracking-widest bg-rose-600 px-2 py-0.5 rounded-md shadow-lg shadow-rose-600/20 animate-pulse">Terjual</span>
+                        <span className="text-[8px] font-bold text-slate-300 mt-1 uppercase leading-none">Stok Kosong</span>
+                      </div>
+                    )}
                     {prod.imageUrl ? (
                       <img 
                         src={prod.imageUrl} 
