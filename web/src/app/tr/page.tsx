@@ -1050,9 +1050,109 @@ function PublicOrderContent() {
                    {cat}
                  </button>
                ))}
-            </div>
+             </div>
 
-            <div className="grid grid-cols-1 gap-5">
+             {/* Active Flash Sale Banner */}
+             {(() => {
+               const activeFses = flashSales.filter(fs => {
+                 if (!fs.isActive) return false;
+                 const start = new Date(fs.startTime);
+                 const end = new Date(fs.endTime);
+                 return currentTime >= start && currentTime <= end;
+               });
+
+               if (activeFses.length === 0) return null;
+
+               return (
+                 <div className="space-y-3 mt-4">
+                   {activeFses.map(fs => {
+                     const end = new Date(fs.endTime);
+                     const diffMs = end.getTime() - currentTime.getTime();
+                     
+                     let countdownText = '00:00:00';
+                     if (diffMs > 0) {
+                       const secs = Math.floor((diffMs / 1000) % 60);
+                       const mins = Math.floor((diffMs / (1000 * 60)) % 60);
+                       const hrs = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+                       const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                       const totalHrs = hrs + (days * 24);
+                       countdownText = `${String(totalHrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                     }
+
+                     return (
+                       <div 
+                         key={fs.id} 
+                         className="bg-rose-50 border border-rose-100 rounded-3xl p-5 text-slate-800 shadow-sm relative overflow-hidden"
+                       >
+                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-rose-100">
+                           <div className="flex items-center gap-2.5">
+                             <span className="text-xl animate-bounce">⚡</span>
+                             <div>
+                               <h4 className="font-black text-xs uppercase tracking-wider text-rose-600">FLASH SALE SEDANG BERLANGSUNG</h4>
+                               <p className="text-sm font-extrabold text-slate-800">{fs.name}</p>
+                             </div>
+                           </div>
+                           <div className="bg-rose-600 text-white font-mono px-3 py-1.5 rounded-2xl text-xs font-black shadow-md shadow-rose-600/20">
+                             Selesai: {countdownText}
+                           </div>
+                         </div>
+
+                         {/* Products Horizontal Scroll */}
+                         {fs.products && fs.products.length > 0 && (
+                           <div className="pt-4">
+                             <p className="text-[10px] font-black uppercase text-rose-600/70 mb-3 tracking-widest">Produk Flash Sale (Ketuk untuk filter):</p>
+                             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                               {fs.products.map((fsProd: any) => {
+                                 const prod = products.find(p => p.id === fsProd.productId);
+                                 if (!prod) return null;
+
+                                 const sold = fsProd.soldCount || 0;
+                                 const stock = fsProd.flashStock || 0;
+                                 const pct = stock > 0 ? Math.min(100, (sold / stock) * 100) : 0;
+                                 const isSoldOut = sold >= stock;
+
+                                 return (
+                                   <button
+                                     key={fsProd.productId}
+                                     onClick={() => setSearch(prod.name)}
+                                     className="flex-shrink-0 bg-white border border-rose-100 hover:border-rose-300 rounded-2xl p-3 w-44 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden shadow-sm"
+                                   >
+                                     <h5 className="font-extrabold text-xs truncate text-slate-800 leading-snug">{prod.name}</h5>
+                                     <div className="flex items-baseline gap-1.5 mt-1.5">
+                                       <span className="text-xs font-black text-rose-600">Rp {fsProd.flashPrice?.toLocaleString('id-ID')}</span>
+                                       <span className="text-[10px] line-through text-slate-400">Rp {prod.price?.toLocaleString('id-ID')}</span>
+                                     </div>
+                                     <div className="mt-2.5">
+                                       <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-500 mb-1">
+                                         <span>Terjual {sold}/{stock}</span>
+                                         <span>{Math.round(pct)}%</span>
+                                       </div>
+                                       <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                         <div 
+                                           className="h-full bg-rose-600 rounded-full" 
+                                           style={{ width: `${pct}%` }} 
+                                         />
+                                       </div>
+                                     </div>
+                                     {isSoldOut && (
+                                       <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                                         <span className="bg-rose-600 text-white text-[8px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wider shadow-sm">Habis</span>
+                                       </div>
+                                     )}
+                                   </button>
+                                 );
+                               })}
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                     );
+                   })}
+                 </div>
+               );
+             })()}
+
+             <div className="grid grid-cols-1 gap-5 mt-4">
                {filteredProducts.map(p => {
                  const isHighlighted = p.id === highlightedProductId;
                  const isOutOfStock = p.manageStock !== false && (p.stock === undefined || p.stock === null || p.stock <= 0);
