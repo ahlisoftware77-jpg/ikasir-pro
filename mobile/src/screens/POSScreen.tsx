@@ -2391,6 +2391,34 @@ export default function POSScreen({ route, navigation }: any) {
             <View className="w-full h-1.5 bg-red-800 rounded-full overflow-hidden">
               <View className="h-full bg-yellow-400 rounded-full" style={{ width: `${percent}%` }} />
             </View>
+
+            {/* List of flash sale products */}
+            <View className="mt-2 pt-2 border-t border-white/10">
+              <Text className="text-[8px] font-black text-red-200 uppercase tracking-widest mb-1.5">Daftar Produk Promo (Ketuk untuk cari)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View className="flex-row gap-2">
+                  {activeFlash.products?.map((p: any) => {
+                    const sisa = (p.flashStock || 0) - (p.soldCount || 0);
+                    return (
+                      <TouchableOpacity
+                        key={p.productId}
+                        onPress={() => {
+                          Vibration.vibrate(10);
+                          setSearch(p.productName);
+                        }}
+                        activeOpacity={0.8}
+                        className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/10"
+                      >
+                        <Text className="text-white text-[10px] font-black" numberOfLines={1}>{p.productName}</Text>
+                        <Text className="text-yellow-300 text-[9px] font-black mt-0.5">
+                          Rp {p.flashPrice?.toLocaleString('id-ID')} <Text className="text-white/60 text-[8px] font-bold">(Sisa: {sisa})</Text>
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
           </View>
         );
       })()}
