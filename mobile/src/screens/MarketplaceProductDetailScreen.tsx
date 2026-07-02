@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, Alert, FlatList } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Store, MessageCircle, ShoppingBag } from 'lucide-react-native';
@@ -72,7 +73,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   if (loading) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.bg }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -82,7 +83,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       <View style={[styles.centerContainer, { backgroundColor: colors.bg }]}>
         <Text style={{ color: colors.text }}>Produk tidak ditemukan.</Text>
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 20 }}>
-          <Text style={{ color: colors.primary }}>Kembali</Text>
+          <Text style={{ color: colors.accent }}>Kembali</Text>
         </TouchableOpacity>
       </View>
     );
@@ -102,16 +103,49 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={[styles.imageContainer, { backgroundColor: colors.surface }]}>
-          {product.imageUrl ? (
-            <Image source={{ uri: product.imageUrl }} style={styles.image} resizeMode="contain" />
-          ) : (
-            <ShoppingBag color={colors.border} size={64} opacity={0.5} />
-          )}
+          {(() => {
+            const mediaItems = [];
+            if (product.videoUrl) mediaItems.push({ type: 'video', url: product.videoUrl });
+            if (product.imageUrls && product.imageUrls.length > 0) {
+              product.imageUrls.forEach((url: string) => mediaItems.push({ type: 'image', url }));
+            } else if (product.imageUrl) {
+              mediaItems.push({ type: 'image', url: product.imageUrl });
+            }
+
+            if (mediaItems.length === 0) {
+              return <ShoppingBag color={colors.border} size={64} opacity={0.5} />;
+            }
+
+            return (
+              <FlatList
+                data={mediaItems}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={true}
+                keyExtractor={(item, index) => `${item.type}-${index}`}
+                renderItem={({ item }) => (
+                  <View style={{ width: width, height: width, justifyContent: 'center', alignItems: 'center' }}>
+                    {item.type === 'video' ? (
+                      <Video
+                        style={{ width: '100%', height: '100%' }}
+                        source={{ uri: item.url }}
+                        useNativeControls
+                        resizeMode={ResizeMode.CONTAIN}
+                        isLooping
+                      />
+                    ) : (
+                      <Image source={{ uri: item.url }} style={styles.image} resizeMode="contain" />
+                    )}
+                  </View>
+                )}
+              />
+            );
+          })()}
         </View>
 
         <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
           <Text style={[styles.productName, { color: colors.text }]}>{product.name}</Text>
-          <Text style={[styles.productPrice, { color: colors.primary }]}>
+          <Text style={[styles.productPrice, { color: colors.accent }]}>
             Rp {product.price.toLocaleString('id-ID')}
           </Text>
 
@@ -131,12 +165,21 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
       <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom || 16 }]}>
         <TouchableOpacity 
-          style={[styles.actionBtn, { backgroundColor: '#25D366' }]} 
+          style={[
+            styles.actionBtn, 
+            { backgroundColor: outOfStock ? colors.border : '#25D366' }
+          ]} 
           onPress={handleWhatsApp}
           activeOpacity={0.8}
+          disabled={outOfStock}
         >
-          <MessageCircle color="#fff" size={20} />
-          <Text style={styles.actionBtnText}>Tanya / Beli via WA</Text>
+          <MessageCircle color={outOfStock ? colors.textMuted : "#fff"} size={20} />
+          <Text style={[
+            styles.actionBtnText, 
+            { color: outOfStock ? colors.textMuted : '#fff' }
+          ]}>
+            {outOfStock ? 'STOK HABIS' : 'Tanya / Beli via WA'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

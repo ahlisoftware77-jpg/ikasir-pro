@@ -135,7 +135,7 @@ export default function MarketplaceScreen() {
           <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
-          <Text style={[styles.productPrice, { color: colors.primary }]}>
+          <Text style={[styles.productPrice, { color: colors.accent }]}>
             Rp {item.price.toLocaleString('id-ID')}
           </Text>
 
@@ -143,8 +143,8 @@ export default function MarketplaceScreen() {
             {storeLogos[item.storeId] ? (
               <Image source={{ uri: storeLogos[item.storeId] }} style={styles.storeLogo} />
             ) : (
-              <View style={[styles.storeLogoFallback, { backgroundColor: colors.primary + '20' }]}>
-                <Store color={colors.primary} size={10} />
+              <View style={[styles.storeLogoFallback, { backgroundColor: colors.accent + '20' }]}>
+                <Store color={colors.accent} size={10} />
               </View>
             )}
             <Text style={[styles.storeName, { color: colors.text }]} numberOfLines={1}>
@@ -161,7 +161,7 @@ export default function MarketplaceScreen() {
       <View style={[styles.header, { backgroundColor: colors.surface, paddingTop: insets.top + 10, borderBottomColor: colors.border }]}>
         {/* Search Bar */}
         <View style={[styles.searchContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-          <Search color={colors.primary} size={20} />
+          <Search color={colors.accent} size={20} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
             placeholder="Cari produk atau toko..."
@@ -186,8 +186,8 @@ export default function MarketplaceScreen() {
                   style={[
                     styles.categoryChip,
                     { 
-                      backgroundColor: isSelected ? colors.primary : colors.bg,
-                      borderColor: isSelected ? colors.primary : colors.border
+                      backgroundColor: isSelected ? colors.accent : colors.bg,
+                      borderColor: isSelected ? colors.accent : colors.border
                     }
                   ]}
                   onPress={() => setSelectedCategory(item)}
@@ -207,7 +207,7 @@ export default function MarketplaceScreen() {
 
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : filteredProducts.length === 0 ? (
         <View style={styles.centerContainer}>
