@@ -680,13 +680,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!isLoading) {
       const isTrRoute = pathname === '/tr' || pathname?.startsWith('/tr/');
+      const isMarketplaceRoute = pathname === '/marketplace' || pathname?.startsWith('/marketplace/');
       const isInvoiceRoute = pathname?.startsWith('/invoice');
       const isDeliveryRoute = pathname?.startsWith('/delivery');
       const isSignRoute = pathname?.startsWith('/sign');
       const publicRoutes = ['/login', '/register', '/demo'];
       const permissions = useAuthStore.getState().permissions;
 
-      const isAdminRoute = !publicRoutes.includes(pathname) && !isTrRoute && !isInvoiceRoute && !isDeliveryRoute && !isSignRoute;
+      const isAdminRoute = !publicRoutes.includes(pathname) && !isTrRoute && !isMarketplaceRoute && !isInvoiceRoute && !isDeliveryRoute && !isSignRoute;
 
       // 1. Protection for Admin Routes: Only allow admin/cashier/super-admin roles
       if (isAdminRoute && (!user || (role as string) === 'customer')) {
@@ -776,14 +777,15 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const isInvoicePage = pathname?.startsWith('/invoice');
   const isDeliveryPage = pathname?.startsWith('/delivery');
   const isTrPage = pathname === '/tr' || pathname?.startsWith('/tr/');
+  const isMarketplacePage = pathname === '/marketplace' || pathname?.startsWith('/marketplace/');
   const isSignPage = pathname?.startsWith('/sign');
   const publicRoutes = ['/login', '/register', '/tr'];
   
-  if (publicRoutes.includes(pathname) || isTrPage || isInvoicePage || isDeliveryPage || isSignPage) {
+  if (publicRoutes.includes(pathname) || isTrPage || isMarketplacePage || isInvoicePage || isDeliveryPage || isSignPage) {
     return (
       <div className="min-h-screen bg-background text-foreground relative">
         {children}
-        {(!isInvoicePage && !isDeliveryPage && !isTrPage) && <PWAInstallButton />}
+        {(!isInvoicePage && !isDeliveryPage && !isTrPage && !isMarketplacePage) && <PWAInstallButton />}
       </div>
     );
   }

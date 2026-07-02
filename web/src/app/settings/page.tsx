@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History, Plus, Wallet, Landmark } from 'lucide-react';
 import { getInfraConfig } from '@/lib/infraConfig';
-import { doc, getDoc, setDoc, writeBatch, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, writeBatch, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, auth, primaryDb } from '@/lib/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { handleExportJSON } from '@/lib/backupUtils';
@@ -143,7 +143,8 @@ export default function SettingsPage() {
     qrisUrl: '',
     storeBanks: [] as any[],
     storeEwallets: [] as any[],
-    hideBackupRestore: false
+    hideBackupRestore: false,
+    joinMarketplace: false
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -209,7 +210,8 @@ export default function SettingsPage() {
             qrisUrl: data.qrisUrl || '',
             storeBanks: data.storeBanks || [],
             storeEwallets: data.storeEwallets || [],
-            hideBackupRestore: data.hideBackupRestore === true
+            hideBackupRestore: data.hideBackupRestore === true,
+            joinMarketplace: data.joinMarketplace === true
           });
           setLogoPreview(data.logoUrl || null);
           setLogoUrl(data.logoUrl || null);
@@ -262,6 +264,7 @@ export default function SettingsPage() {
             storeBanks: [],
             storeEwallets: [],
             hideBackupRestore: false,
+            joinMarketplace: false,
           });
         }
       } catch (err) {
@@ -476,6 +479,24 @@ export default function SettingsPage() {
       }
 
       await setDoc(settingsRef, finalSettings);
+
+      // Update joinMarketplace and storeName in all products of this store
+      if (storeId) {
+        try {
+          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const snapProds = await getDocs(qProds);
+          const batch = writeBatch(db);
+          snapProds.forEach((d) => {
+            batch.update(doc(db, 'products', d.id), {
+              joinMarketplace: finalSettings.joinMarketplace === true,
+              storeName: finalSettings.storeName || ''
+            });
+          });
+          await batch.commit();
+        } catch (prodErr) {
+          console.error("Error updating products joinMarketplace on web settings:", prodErr);
+        }
+      }
       
       // SYNC back to Stores collection for Super Admin view
       if (storeId) {
@@ -1448,6 +1469,19 @@ export default function SettingsPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
+                  <div 
+                    className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer mb-2" 
+                    onClick={() => setSettings(prev => ({ ...prev, joinMarketplace: !prev.joinMarketplace }))}
+                  >
+                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.joinMarketplace ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
+                      <Check size={14} className="stroke-[4]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground cursor-pointer select-none">Gabung Marketplace Bersama</p>
+                      <p className="text-[10px] text-app-text-muted font-medium">Tampilkan produk Anda secara otomatis di halaman utama marketplace iKasir.</p>
+                    </div>
+                  </div>
+
                   <div 
                     className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
                     onClick={() => setSettings(prev => ({ ...prev, isOnlineStoreActive: !prev.isOnlineStoreActive }))}

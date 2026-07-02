@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Switch, Vibration } from 'react-native';
-import { addDoc, collection, doc, updateDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
@@ -280,6 +280,28 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
       const finalImageUrl = finalImageUrls[0] || '';
 
+      // Get settings to copy joinMarketplace and storeName
+      let joinMarketplace = false;
+      let storeName = '';
+      if (storeId) {
+        try {
+          const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+          if (settingsSnap.exists()) {
+            const settingsData = settingsSnap.data();
+            joinMarketplace = settingsData.joinMarketplace === true;
+            storeName = settingsData.storeName || '';
+          }
+          if (!storeName) {
+            const storeSnap = await getDoc(doc(db, 'stores', storeId));
+            if (storeSnap.exists()) {
+              storeName = storeSnap.data().name || '';
+            }
+          }
+        } catch (settingsErr) {
+          console.error("Error reading store settings for product:", settingsErr);
+        }
+      }
+
       const productData = {
         name: formData.name,
         price: Number(formData.price) || 0,
@@ -302,6 +324,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
         warrantyDuration: hasWarranty ? Number(formData.warrantyDuration) || 0 : 0,
         warrantyUnit: hasWarranty ? formData.warrantyUnit : 'months',
         storeId: storeId || 'default-store',
+        joinMarketplace,
+        storeName,
         updatedAt: new Date()
       };
 
