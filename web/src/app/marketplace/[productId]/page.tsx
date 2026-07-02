@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, ArrowLeft, Share2, ChevronLeft, ChevronRight, X, Play } from 'lucide-react';
+import { ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, ArrowLeft, Share2, ChevronLeft, ChevronRight, X, Play, Zap } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -42,6 +42,16 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
   // Fullscreen Media Preview Lightbox state (index based for navigation)
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
+
+  // Flash Sale state
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  // 1-second timer for flash sale countdown
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     async function loadProductDetails() {
@@ -101,6 +111,23 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
               }
             });
             setOtherProducts(list.slice(0, 4));
+
+            // Fetch flash sales for this store
+            try {
+              const fsQuery = query(
+                collection(db, 'flash_sales'),
+                where('storeId', '==', data.storeId),
+                where('isActive', '==', true)
+              );
+              const fsSnap = await getDocs(fsQuery);
+              const fsList: any[] = [];
+              fsSnap.forEach((fsDoc) => {
+                fsList.push({ id: fsDoc.id, ...fsDoc.data() });
+              });
+              setFlashSales(fsList);
+            } catch (fsErr) {
+              console.error('Error fetching flash sales:', fsErr);
+            }
           }
         }
       } catch (err) {
@@ -149,6 +176,52 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
   const handleStoreClick = (storeId: string, storeName: string) => {
     router.push(`/marketplace?storeId=${storeId}&storeName=${encodeURIComponent(storeName)}`);
+  };
+
+  // Flash Sale: get effective price for a product
+  const getEffectivePrice = (prod: Product) => {
+    const activeFs = flashSales.find(fs => {
+      if (!fs.isActive) return false;
+      const start = new Date(fs.startTime);
+      const end = new Date(fs.endTime);
+      return currentTime >= start && currentTime <= end;
+    });
+
+    if (activeFs && activeFs.products) {
+      const fsProd = activeFs.products.find((p: any) => p.productId === prod.id);
+      if (fsProd && (fsProd.flashStock || 0) > (fsProd.soldCount || 0)) {
+        const end = new Date(activeFs.endTime);
+        const diffMs = end.getTime() - currentTime.getTime();
+        let countdownText = '00:00:00';
+        if (diffMs > 0) {
+          const secs = Math.floor((diffMs / 1000) % 60);
+          const mins = Math.floor((diffMs / (1000 * 60)) % 60);
+          const hrs = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+          const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          const totalHrs = hrs + (days * 24);
+          countdownText = `${String(totalHrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+        return {
+          price: fsProd.flashPrice as number,
+          originalPrice: prod.price,
+          isFlashSale: true,
+          flashStock: fsProd.flashStock,
+          soldCount: fsProd.soldCount || 0,
+          countdown: countdownText,
+          flashSaleName: activeFs.name || 'Flash Sale',
+        };
+      }
+    }
+
+    return {
+      price: prod.price,
+      originalPrice: prod.price,
+      isFlashSale: false,
+      flashStock: 0,
+      soldCount: 0,
+      countdown: '',
+      flashSaleName: '',
+    };
   };
 
   const isVideoUrl = (url: string): boolean => {
@@ -258,6 +331,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   <span className="text-[10px] font-bold text-slate-350 mt-1 uppercase">Stok Kosong</span>
                 </div>
               )}
+              {getEffectivePrice(product).isFlashSale && (
+                <span className="absolute top-4 right-4 z-10 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/30 animate-pulse">
+                  <Zap size={11} className="fill-white" /> Flash Sale
+                </span>
+              )}
               {activeMedia && activeMedia.url ? (
                 activeMedia.type === 'video' ? (
                   <video 
@@ -335,19 +413,66 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
               </h1>
               
               {/* Shopee-style Price Panel */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-100 dark:border-slate-800/40 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Harga Spesial</span>
-                  <div className="text-2xl lg:text-4xl font-black text-orange-500 dark:text-orange-400 mt-1">
-                    Rp {product.price.toLocaleString('id-ID')}
+              {(() => {
+                const ep = getEffectivePrice(product);
+                return (
+                  <div className={`p-4 rounded-2xl border flex-wrap ${ep.isFlashSale ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40' : 'bg-slate-50 dark:bg-slate-900/80 border-slate-100 dark:border-slate-800/40'}`}>
+                    {ep.isFlashSale && (
+                      <div className="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-rose-200 dark:border-rose-900/40">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg animate-bounce">⚡</span>
+                          <div>
+                            <h4 className="font-black text-[10px] uppercase tracking-wider text-rose-600 dark:text-rose-400">Flash Sale Aktif</h4>
+                            <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">{ep.flashSaleName}</p>
+                          </div>
+                        </div>
+                        <div className="bg-rose-600 text-white font-mono px-2.5 py-1 rounded-xl text-[10px] font-black shadow-md shadow-rose-600/20 shrink-0">
+                          {ep.countdown}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                          {ep.isFlashSale ? 'Harga Flash Sale' : 'Harga Spesial'}
+                        </span>
+                        <div className={`text-2xl lg:text-4xl font-black mt-1 ${ep.isFlashSale ? 'text-rose-600 dark:text-rose-400' : 'text-orange-500 dark:text-orange-400'}`}>
+                          Rp {ep.price.toLocaleString('id-ID')}
+                        </div>
+                        {ep.isFlashSale && (
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-sm line-through text-slate-400 font-bold">
+                              Rp {ep.originalPrice.toLocaleString('id-ID')}
+                            </span>
+                            <span className="text-[9px] font-black bg-rose-600 text-white px-1.5 py-0.5 rounded-md uppercase">
+                              -{Math.round(((ep.originalPrice - ep.price) / ep.originalPrice) * 100)}%
+                            </span>
+                          </div>
+                        )}
+                        {ep.isFlashSale && (
+                          <div className="mt-2.5 w-48">
+                            <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 mb-1">
+                              <span>Terjual {ep.soldCount}/{ep.flashStock}</span>
+                              <span>{ep.flashStock > 0 ? Math.round((ep.soldCount / ep.flashStock) * 100) : 0}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-rose-200 dark:bg-rose-900/40 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-rose-600 rounded-full transition-all"
+                                style={{ width: `${ep.flashStock > 0 ? Math.min(100, (ep.soldCount / ep.flashStock) * 100) : 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {product.manageStock !== false && (product.stock || 0) <= 0 && (
+                        <span className="px-3.5 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-450 text-xs font-black uppercase tracking-wider animate-pulse">
+                          Stok Habis
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {product.manageStock !== false && (product.stock || 0) <= 0 && (
-                  <span className="px-3.5 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-450 text-xs font-black uppercase tracking-wider animate-pulse">
-                    Stok Habis
-                  </span>
-                )}
-              </div>
+                );
+              })()}
             </div>
 
             {/* Description Panel */}

@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -39,9 +39,19 @@ function MarketplaceContent() {
   const [storeAddresses, setStoreAddresses] = useState<Record<string, string>>({});
   const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
   
+  // Flash Sale state
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
   // Storefront navigation state
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null);
+
+  // 1-second timer for flash sale countdown
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (storeIdParam) {
@@ -105,6 +115,25 @@ function MarketplaceContent() {
         setStorePhones(phonesMap);
         setStoreAddresses(addressMap);
         setStoreLogos(logosMap);
+
+        // Fetch flash sales for all stores in marketplace
+        const allFlashSales: any[] = [];
+        for (const sId of Array.from(uniqueStoreIds)) {
+          try {
+            const fsQuery = query(
+              collection(db, 'flash_sales'),
+              where('storeId', '==', sId),
+              where('isActive', '==', true)
+            );
+            const fsSnap = await getDocs(fsQuery);
+            fsSnap.forEach((fsDoc) => {
+              allFlashSales.push({ id: fsDoc.id, ...fsDoc.data() });
+            });
+          } catch (fsErr) {
+            console.error(`Error fetching flash sales for store ${sId}:`, fsErr);
+          }
+        }
+        setFlashSales(allFlashSales);
       } catch (err) {
         console.error("Error fetching marketplace products:", err);
       } finally {
@@ -157,6 +186,37 @@ function MarketplaceContent() {
 
   const handleStoreClick = (storeId: string, storeName: string) => {
     router.push(`/marketplace?storeId=${storeId}&storeName=${encodeURIComponent(storeName)}`);
+  };
+
+  // Flash Sale: get effective price for a product
+  const getEffectivePrice = (product: Product) => {
+    const activeFs = flashSales.find(fs => {
+      if (!fs.isActive) return false;
+      const start = new Date(fs.startTime);
+      const end = new Date(fs.endTime);
+      return currentTime >= start && currentTime <= end;
+    });
+
+    if (activeFs && activeFs.products) {
+      const fsProd = activeFs.products.find((p: any) => p.productId === product.id);
+      if (fsProd && (fsProd.flashStock || 0) > (fsProd.soldCount || 0)) {
+        return {
+          price: fsProd.flashPrice as number,
+          originalPrice: product.price,
+          isFlashSale: true,
+          flashStock: fsProd.flashStock,
+          soldCount: fsProd.soldCount || 0,
+        };
+      }
+    }
+
+    return {
+      price: product.price,
+      originalPrice: product.price,
+      isFlashSale: false,
+      flashStock: 0,
+      soldCount: 0,
+    };
   };
 
   return (
@@ -240,6 +300,104 @@ function MarketplaceContent() {
           ))}
         </div>
 
+        {/* Active Flash Sale Banners */}
+        {(() => {
+          const activeFses = flashSales.filter(fs => {
+            if (!fs.isActive) return false;
+            const start = new Date(fs.startTime);
+            const end = new Date(fs.endTime);
+            return currentTime >= start && currentTime <= end;
+          });
+
+          if (activeFses.length === 0) return null;
+
+          return (
+            <div className="space-y-4 mb-8">
+              {activeFses.map(fs => {
+                const end = new Date(fs.endTime);
+                const diffMs = end.getTime() - currentTime.getTime();
+                let countdownText = '00:00:00';
+                if (diffMs > 0) {
+                  const secs = Math.floor((diffMs / 1000) % 60);
+                  const mins = Math.floor((diffMs / (1000 * 60)) % 60);
+                  const hrs = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+                  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                  const totalHrs = hrs + (days * 24);
+                  countdownText = `${String(totalHrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                }
+
+                return (
+                  <div
+                    key={fs.id}
+                    className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-3xl p-5 shadow-sm relative overflow-hidden"
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-rose-200 dark:border-rose-900/40">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl animate-bounce">⚡</span>
+                        <div>
+                          <h4 className="font-black text-xs uppercase tracking-wider text-rose-600 dark:text-rose-400">Flash Sale Sedang Berlangsung</h4>
+                          <p className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{fs.name}</p>
+                        </div>
+                      </div>
+                      <div className="bg-rose-600 text-white font-mono px-3 py-1.5 rounded-2xl text-xs font-black shadow-md shadow-rose-600/20">
+                        Selesai: {countdownText}
+                      </div>
+                    </div>
+
+                    {fs.products && fs.products.length > 0 && (
+                      <div className="pt-4">
+                        <p className="text-[10px] font-black uppercase text-rose-600/70 dark:text-rose-400/70 mb-3 tracking-widest">Produk Flash Sale:</p>
+                        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                          {fs.products.map((fsProd: any) => {
+                            const prod = products.find(p => p.id === fsProd.productId);
+                            if (!prod) return null;
+
+                            const sold = fsProd.soldCount || 0;
+                            const stock = fsProd.flashStock || 0;
+                            const pct = stock > 0 ? Math.min(100, (sold / stock) * 100) : 0;
+                            const isSoldOut = sold >= stock;
+
+                            return (
+                              <button
+                                key={fsProd.productId}
+                                onClick={() => router.push(`/marketplace/${prod.id}`)}
+                                className="flex-shrink-0 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-700 rounded-2xl p-3 w-44 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden shadow-sm"
+                              >
+                                <h5 className="font-extrabold text-xs truncate text-slate-800 dark:text-slate-200 leading-snug">{prod.name}</h5>
+                                <div className="flex items-baseline gap-1.5 mt-1.5">
+                                  <span className="text-xs font-black text-rose-600 dark:text-rose-400">Rp {fsProd.flashPrice?.toLocaleString('id-ID')}</span>
+                                  <span className="text-[10px] line-through text-slate-400">Rp {prod.price?.toLocaleString('id-ID')}</span>
+                                </div>
+                                <div className="mt-2.5">
+                                  <div className="flex justify-between items-center text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 mb-1">
+                                    <span>Terjual {sold}/{stock}</span>
+                                    <span>{Math.round(pct)}%</span>
+                                  </div>
+                                  <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-rose-600 rounded-full"
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                                {isSoldOut && (
+                                  <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 flex items-center justify-center">
+                                    <span className="bg-rose-600 text-white text-[8px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wider shadow-sm">Habis</span>
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {/* Loading Indicator */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -272,6 +430,11 @@ function MarketplaceContent() {
                         <span className="text-[9px] font-black text-white uppercase tracking-widest bg-rose-600 px-2 py-0.5 rounded-md shadow-lg shadow-rose-600/20 animate-pulse">Terjual</span>
                         <span className="text-[8px] font-bold text-slate-300 mt-1 uppercase leading-none">Stok Kosong</span>
                       </div>
+                    )}
+                    {getEffectivePrice(prod).isFlashSale && (
+                      <span className="absolute top-3 right-3 z-10 flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-600 text-white text-[8px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/30 animate-pulse">
+                        <Zap size={9} className="fill-white" /> Flash Sale
+                      </span>
                     )}
                     {prod.imageUrl ? (
                       <img 
@@ -325,12 +488,28 @@ function MarketplaceContent() {
                     </div>
 
                     <div className="pt-4 flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800/50 mt-4">
-                      <div className="space-y-0.5">
-                        <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
-                        <span className="text-sm font-black text-slate-800 dark:text-white">
-                          Rp {prod.price.toLocaleString('id-ID')}
-                        </span>
-                      </div>
+                      {(() => {
+                        const ep = getEffectivePrice(prod);
+                        return (
+                          <div className="space-y-0.5">
+                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
+                            {ep.isFlashSale ? (
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-sm font-black text-rose-600 dark:text-rose-400">
+                                  Rp {ep.price.toLocaleString('id-ID')}
+                                </span>
+                                <span className="text-[10px] line-through text-slate-400">
+                                  Rp {ep.originalPrice.toLocaleString('id-ID')}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm font-black text-slate-800 dark:text-white">
+                                Rp {ep.price.toLocaleString('id-ID')}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
