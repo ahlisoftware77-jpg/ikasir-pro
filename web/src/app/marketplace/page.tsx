@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, ArrowLeft, Share2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, ArrowLeft, Share2, ChevronLeft, ChevronRight, X, Play } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -13,8 +13,14 @@ interface Product {
   imageUrl?: string;
   imageUrls?: string[];
   description?: string;
+  videoUrl?: string;
   storeId: string;
   storeName?: string;
+}
+
+interface MediaItem {
+  type: 'image' | 'video';
+  url: string;
 }
 
 export default function MarketplacePage() {
@@ -38,6 +44,9 @@ export default function MarketplacePage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null);
 
+  // Fullscreen Preview Lightbox state
+  const [previewMedia, setPreviewMedia] = useState<MediaItem | null>(null);
+
   useEffect(() => {
     async function fetchMarketplaceData() {
       setLoading(true);
@@ -57,6 +66,7 @@ export default function MarketplacePage() {
             imageUrl: data.imageUrl || '',
             imageUrls: data.imageUrls || [],
             description: data.description || '',
+            videoUrl: data.videoUrl || '',
             storeId: data.storeId || '',
             storeName: data.storeName || 'Toko Mitra',
           });
@@ -166,22 +176,30 @@ export default function MarketplacePage() {
     ? products.filter(p => p.storeId === selectedProduct.storeId && p.id !== selectedProduct.id).slice(0, 4)
     : [];
 
-  // Determine image gallery list
-  const getProductImageGallery = (prod: Product) => {
-    const list: string[] = [];
-    if (prod.imageUrl) list.push(prod.imageUrl);
+  // Determine media gallery list (with video support)
+  const getProductMediaGallery = (prod: Product): MediaItem[] => {
+    const list: MediaItem[] = [];
+    if (prod.videoUrl) {
+      list.push({ type: 'video', url: prod.videoUrl });
+    }
+    if (prod.imageUrl) {
+      list.push({ type: 'image', url: prod.imageUrl });
+    }
     if (prod.imageUrls && prod.imageUrls.length > 0) {
       prod.imageUrls.forEach(url => {
-        if (url && url !== prod.imageUrl) list.push(url);
+        if (url && url !== prod.imageUrl) {
+          list.push({ type: 'image', url });
+        }
       });
     }
-    return list.length > 0 ? list : [''];
+    return list.length > 0 ? list : [{ type: 'image', url: '' }];
   };
 
   if (selectedProduct) {
-    const gallery = getProductImageGallery(selectedProduct);
+    const gallery = getProductMediaGallery(selectedProduct);
     const waLink = getWhatsAppLink(selectedProduct);
     const storeLogo = storeLogos[selectedProduct.storeId];
+    const activeMedia = gallery[currentImageIndex];
 
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 pb-24 lg:pb-8">
@@ -210,19 +228,28 @@ export default function MarketplacePage() {
         <main className="max-w-6xl mx-auto px-4 lg:px-8 py-8 w-full flex-1">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Left: Product Images (Shopee style Carousel) */}
+            {/* Left: Product Images & Video (Shopee style Media Display) */}
             <div className="lg:col-span-6 space-y-4">
               <div className="relative aspect-square w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden flex items-center justify-center shadow-md">
-                {gallery[currentImageIndex] ? (
-                  <img 
-                    src={gallery[currentImageIndex]} 
-                    alt={selectedProduct.name} 
-                    className="object-cover w-full h-full"
-                  />
+                {activeMedia && activeMedia.url ? (
+                  activeMedia.type === 'video' ? (
+                    <video 
+                      src={activeMedia.url} 
+                      controls 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <img 
+                      src={activeMedia.url} 
+                      alt={selectedProduct.name} 
+                      onClick={() => setPreviewMedia(activeMedia)}
+                      className="object-cover w-full h-full cursor-pointer hover:scale-[1.01] transition-transform duration-300"
+                    />
+                  )
                 ) : (
                   <div className="text-slate-400 flex flex-col items-center">
                     <ShoppingBag size={64} />
-                    <span className="text-xs font-black uppercase tracking-widest mt-4">No Image Available</span>
+                    <span className="text-xs font-black uppercase tracking-widest mt-4">No Media Available</span>
                   </div>
                 )}
 
@@ -231,13 +258,13 @@ export default function MarketplacePage() {
                   <>
                     <button 
                       onClick={() => setCurrentImageIndex(prev => (prev === 0 ? gallery.length - 1 : prev - 1))}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 flex items-center justify-center shadow-lg hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 flex items-center justify-center shadow-lg hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all z-10"
                     >
                       <ChevronLeft size={20} />
                     </button>
                     <button 
                       onClick={() => setCurrentImageIndex(prev => (prev === gallery.length - 1 ? 0 : prev + 1))}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 flex items-center justify-center shadow-lg hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 flex items-center justify-center shadow-lg hover:bg-emerald-500 dark:hover:bg-emerald-500 hover:text-white transition-all z-10"
                     >
                       <ChevronRight size={20} />
                     </button>
@@ -248,13 +275,20 @@ export default function MarketplacePage() {
               {/* Thumbnails */}
               {gallery.length > 1 && (
                 <div className="flex gap-3 overflow-x-auto py-2">
-                  {gallery.map((url, idx) => (
+                  {gallery.map((media, idx) => (
                     <button
                       key={idx}
                       onClick={() => setCurrentImageIndex(idx)}
-                      className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${currentImageIndex === idx ? 'border-emerald-500 scale-105 shadow-md' : 'border-slate-200 dark:border-slate-800'}`}
+                      className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${currentImageIndex === idx ? 'border-emerald-500 scale-105 shadow-md' : 'border-slate-200 dark:border-slate-800'}`}
                     >
-                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      {media.type === 'video' ? (
+                        <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white">
+                          <Play size={20} className="fill-white" />
+                          <span className="absolute bottom-1 right-1 text-[8px] bg-black/60 px-1 rounded text-slate-300 font-bold uppercase tracking-wider">VIDEO</span>
+                        </div>
+                      ) : (
+                        <img src={media.url} alt="" className="w-full h-full object-cover" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -382,6 +416,40 @@ export default function MarketplacePage() {
             <span>Chat Sekarang</span>
           </button>
         </div>
+
+        {/* Fullscreen Media Preview Modal (Lightbox) */}
+        {previewMedia && (
+          <div 
+            onClick={() => setPreviewMedia(null)}
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200 cursor-zoom-out"
+          >
+            <button 
+              onClick={() => setPreviewMedia(null)}
+              className="absolute top-6 right-6 text-white hover:text-emerald-400 p-2 transition-colors z-50 bg-black/40 rounded-full"
+            >
+              <X size={24} />
+            </button>
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              className="relative max-w-full max-h-[90vh] flex items-center justify-center"
+            >
+              {previewMedia.type === 'video' ? (
+                <video 
+                  src={previewMedia.url} 
+                  controls 
+                  autoPlay
+                  className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                />
+              ) : (
+                <img 
+                  src={previewMedia.url} 
+                  alt="" 
+                  className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+                />
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
