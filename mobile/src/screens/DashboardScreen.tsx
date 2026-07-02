@@ -193,7 +193,9 @@ export default function DashboardScreen({ navigation }: any) {
   };
 
   const [joinMarketplace, setJoinMarketplace] = useState(false);
+  const [isOnlineStoreActive, setIsOnlineStoreActive] = useState(false);
   const [isUpdatingMarketplace, setIsUpdatingMarketplace] = useState(false);
+  const [isUpdatingOnlineStore, setIsUpdatingOnlineStore] = useState(false);
 
   const handleToggleMarketplaceMobile = async (newVal: boolean) => {
     if (!storeId || isUpdatingMarketplace) return;
@@ -244,6 +246,26 @@ export default function DashboardScreen({ navigation }: any) {
     }
   };
 
+  const handleToggleOnlineStoreMobile = async (newVal: boolean) => {
+    if (!storeId || isUpdatingOnlineStore) return;
+    setIsUpdatingOnlineStore(true);
+
+    const { doc, updateDoc } = await import('firebase/firestore');
+
+    try {
+      const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      await updateDoc(settingsRef, {
+        isOnlineStoreActive: newVal
+      });
+      Alert.alert('Sukses', newVal ? 'Outlet Toko Online berhasil DIAKTIFKAN!' : 'Outlet Toko Online berhasil DINONAKTIFKAN!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal mengubah status outlet online: ' + err.message);
+    } finally {
+      setIsUpdatingOnlineStore(false);
+    }
+  };
+
   useEffect(() => {
     if (!storeId) return;
 
@@ -252,6 +274,7 @@ export default function DashboardScreen({ navigation }: any) {
     const unsubSettings = onSnapshot(doc(db, 'settings', `store_${storeId}`), (docSnap) => {
       if (docSnap.exists()) {
         setJoinMarketplace(docSnap.data().joinMarketplace === true);
+        setIsOnlineStoreActive(docSnap.data().isOnlineStoreActive !== false);
       }
     });
 
@@ -538,6 +561,94 @@ export default function DashboardScreen({ navigation }: any) {
                   className="flex-1 py-2.5 bg-emerald-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-emerald-500/10"
                 >
                   <Globe size={12} color="#ffffff" />
+                  <Text className="text-[10px] font-black uppercase tracking-wider text-white">
+                    Buka Toko
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Outlet Toko Online Mandiri Panel */}
+        {storeId && (
+          <View 
+            className="mb-6 p-5 rounded-[2rem] border relative overflow-hidden"
+            style={{ 
+              backgroundColor: colors.surface, 
+              borderColor: colors.border 
+            }}
+          >
+            <View className="flex-row items-start gap-3">
+              <View 
+                className="w-11 h-11 rounded-2xl items-center justify-center border"
+                style={{
+                  backgroundColor: isOnlineStoreActive ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                  borderColor: isOnlineStoreActive ? 'rgba(59, 130, 246, 0.2)' : 'rgba(148, 163, 184, 0.2)'
+                }}
+              >
+                <ShoppingBag size={20} color={isOnlineStoreActive ? '#3b82f6' : '#94a3b8'} />
+              </View>
+              <View className="flex-1 min-w-0">
+                <View 
+                  className="px-2 py-0.5 rounded-md self-start mb-1"
+                  style={{ backgroundColor: isOnlineStoreActive ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)' }}
+                >
+                  <Text className="text-[7px] font-black uppercase tracking-wider" style={{ color: isOnlineStoreActive ? '#3b82f6' : '#94a3b8' }}>
+                    {isOnlineStoreActive ? 'Toko Online Buka' : 'Toko Online Tutup'}
+                  </Text>
+                </View>
+                <Text className="text-xs font-black" style={{ color: colors.text }}>
+                  Outlet Online Mandiri
+                </Text>
+                <Text className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 leading-snug">
+                  {isOnlineStoreActive ? 'Toko online Anda aktif menerima pesanan langsung dari pelanggan publik.' : 'Nonaktifkan untuk sementara menutup pemesanan dari luar.'}
+                </Text>
+                {isOnlineStoreActive && (
+                  <Text className="text-[9px] font-bold text-blue-600 dark:text-blue-450 truncate mt-1.5 bg-blue-500/5 dark:bg-blue-950/20 px-2 py-1 rounded-lg self-start border border-blue-500/10">
+                    {`https://ikasir.my.id/tr?storeId=${storeId}`}
+                  </Text>
+                )}
+              </View>
+
+              <View className="items-center justify-center shrink-0">
+                <Switch
+                  value={isOnlineStoreActive}
+                  disabled={isUpdatingOnlineStore}
+                  onValueChange={(val) => {
+                    Vibration.vibrate(10);
+                    handleToggleOnlineStoreMobile(val);
+                  }}
+                  trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            </View>
+
+            {isOnlineStoreActive && (
+              <View className="flex-row gap-2.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    Clipboard.setString(`https://ikasir.my.id/tr?storeId=${storeId}`);
+                    Alert.alert('Sukses', 'Link Toko Online berhasil disalin!');
+                  }}
+                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 dark:border-slate-700"
+                >
+                  <Copy size={12} color={colors.text} />
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                    Salin Link
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    Linking.openURL(`https://ikasir.my.id/tr?storeId=${storeId}`);
+                  }}
+                  className="flex-1 py-2.5 bg-blue-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-blue-500/10"
+                >
+                  <ShoppingBag size={12} color="#ffffff" />
                   <Text className="text-[10px] font-black uppercase tracking-wider text-white">
                     Buka Toko
                   </Text>
