@@ -26,7 +26,9 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [joinMarketplace, setJoinMarketplace] = useState(false);
+  const [isOnlineStoreActive, setIsOnlineStoreActive] = useState(false);
   const [isUpdatingMarketplace, setIsUpdatingMarketplace] = useState(false);
+  const [isUpdatingOnlineStore, setIsUpdatingOnlineStore] = useState(false);
 
   const SUBSCRIPTION_PACKAGES = useMemo(() => {
     const pkgs = [
@@ -157,12 +159,32 @@ export default function Home() {
         await batch.commit();
       }
 
-      toast.success(newVal ? 'Marketplace Bersama berhasil DIATIFKAN!' : 'Marketplace Bersama berhasil DINONAKTIFKAN!');
+      toast.success(newVal ? 'Marketplace Bersama berhasil DIAKTIFKAN!' : 'Marketplace Bersama berhasil DINONAKTIFKAN!');
     } catch (err: any) {
       console.error(err);
       toast.error('Gagal mengubah status marketplace: ' + err.message);
     } finally {
       setIsUpdatingMarketplace(false);
+    }
+  };
+
+  const handleToggleOnlineStore = async (newVal: boolean) => {
+    if (!storeId || isUpdatingOnlineStore) return;
+    setIsUpdatingOnlineStore(true);
+
+    const { doc, updateDoc } = await import('firebase/firestore');
+
+    try {
+      const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      await updateDoc(settingsRef, {
+        isOnlineStoreActive: newVal
+      });
+      toast.success(newVal ? 'Outlet Toko Online berhasil DIAKTIFKAN!' : 'Outlet Toko Online berhasil DINONAKTIFKAN!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal mengubah status outlet online: ' + err.message);
+    } finally {
+      setIsUpdatingOnlineStore(false);
     }
   };
 
@@ -174,6 +196,7 @@ export default function Home() {
     const unsubSettings = onSnapshot(doc(db, 'settings', `store_${storeId}`), (docSnap: any) => {
       if (docSnap.exists()) {
         setJoinMarketplace(docSnap.data().joinMarketplace === true);
+        setIsOnlineStoreActive(docSnap.data().isOnlineStoreActive !== false);
       }
     });
 
@@ -198,6 +221,8 @@ export default function Home() {
 
     return () => { unsubSettings(); unsubTrx(); unsubCust(); };
   }, [storeId]);
+
+
 
   // Load announcements (broadcasts)
   useEffect(() => {
@@ -277,67 +302,133 @@ export default function Home() {
           <p className="text-xs md:text-sm text-app-text-muted mt-2 font-medium">Selamat datang kembali, <span className="text-accent font-bold">{user?.email}</span> 👋</p>
         </div>
 
-        {/* Panel Link Marketplace Bersama */}
+        {/* Panel Link Marketplace & Outlet Online Bersama */}
         {storeId && (
-          <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-2xl">
-            <div className="flex items-start gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${joinMarketplace ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 border-emerald-250 dark:border-emerald-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                <Globe size={24} />
-              </div>
-              <div className="min-w-0">
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1.5 ${joinMarketplace ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-450' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
-                  {joinMarketplace ? 'Marketplace Aktif' : 'Marketplace Nonaktif'}
-                </span>
-                <h3 className="font-extrabold text-sm text-slate-950 dark:text-white leading-snug">
-                  Marketplace Bersama iKasir
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
-                  {joinMarketplace ? 'Toko Anda aktif dan tampil di halaman pencarian marketplace bersama.' : 'Aktifkan untuk menampilkan produk Anda di marketplace bersama.'}
-                </p>
-                {joinMarketplace && (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate mt-2 bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/10">
-                    {`Tautan: ${window.location.origin}/marketplace?storeId=${storeId}`}
+          <div className="flex flex-col lg:flex-row gap-6 max-w-5xl">
+            {/* Panel Marketplace */}
+            <div className="flex-1 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${joinMarketplace ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 border-emerald-250 dark:border-emerald-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+                  <Globe size={24} />
+                </div>
+                <div className="min-w-0">
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1.5 ${joinMarketplace ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-450' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                    {joinMarketplace ? 'Marketplace Aktif' : 'Marketplace Nonaktif'}
+                  </span>
+                  <h3 className="font-extrabold text-sm text-slate-950 dark:text-white leading-snug">
+                    Marketplace Bersama iKasir
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
+                    {joinMarketplace ? 'Toko Anda aktif dan tampil di halaman pencarian marketplace bersama.' : 'Aktifkan untuk menampilkan produk Anda di marketplace bersama.'}
                   </p>
+                  {joinMarketplace && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate mt-2 bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/10">
+                      {`Tautan: ${window.location.origin}/marketplace?storeId=${storeId}`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex flex-col xs:flex-row md:flex-col gap-2 shrink-0 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between md:justify-end gap-3 bg-slate-50 dark:bg-slate-950/50 px-4 py-2.5 rounded-2xl border border-slate-150 dark:border-slate-850">
+                  <span className="text-xs font-black text-slate-700 dark:text-slate-350">Status</span>
+                  <button
+                    type="button"
+                    disabled={isUpdatingMarketplace}
+                    onClick={() => handleToggleMarketplace(!joinMarketplace)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${joinMarketplace ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${joinMarketplace ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
+
+                {joinMarketplace && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/marketplace?storeId=${storeId}`);
+                        toast.success("Link Toko Marketplace berhasil disalin!");
+                      }}
+                      className="flex-1 px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5"
+                    >
+                      <Copy size={13} />
+                      Salin
+                    </button>
+                    <Link
+                      href={`/marketplace?storeId=${storeId}`}
+                      className="flex-1 px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+                    >
+                      <ExternalLink size={13} />
+                      Buka
+                    </Link>
+                  </div>
                 )}
               </div>
             </div>
-            
-            <div className="flex flex-col xs:flex-row md:flex-col gap-2 shrink-0 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between md:justify-end gap-3 bg-slate-50 dark:bg-slate-950/50 px-4 py-2.5 rounded-2xl border border-slate-150 dark:border-slate-850">
-                <span className="text-xs font-black text-slate-700 dark:text-slate-350">Status</span>
-                <button
-                  type="button"
-                  disabled={isUpdatingMarketplace}
-                  onClick={() => handleToggleMarketplace(!joinMarketplace)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${joinMarketplace ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${joinMarketplace ? 'translate-x-5' : 'translate-x-0'}`}
-                  />
-                </button>
-              </div>
 
-              {joinMarketplace && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/marketplace?storeId=${storeId}`);
-                      toast.success("Link Toko Marketplace berhasil disalin!");
-                    }}
-                    className="flex-1 px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5"
-                  >
-                    <Copy size={13} />
-                    Salin
-                  </button>
-                  <Link
-                    href={`/marketplace?storeId=${storeId}`}
-                    className="flex-1 px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
-                  >
-                    <ExternalLink size={13} />
-                    Buka
-                  </Link>
+            {/* Panel Outlet Toko Online */}
+            <div className="flex-1 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${isOnlineStoreActive ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-600 border-blue-250 dark:border-blue-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+                  <ShoppingBag size={24} />
                 </div>
-              )}
+                <div className="min-w-0">
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1.5 ${isOnlineStoreActive ? 'bg-blue-100 dark:bg-blue-950/50 text-blue-650 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                    {isOnlineStoreActive ? 'Toko Online Buka' : 'Toko Online Tutup'}
+                  </span>
+                  <h3 className="font-extrabold text-sm text-slate-950 dark:text-white leading-snug">
+                    Outlet Online Mandiri
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
+                    {isOnlineStoreActive ? 'Toko online Anda aktif menerima pesanan langsung dari pelanggan publik.' : 'Nonaktifkan untuk sementara menutup pemesanan dari luar.'}
+                  </p>
+                  {isOnlineStoreActive && (
+                    <p className="text-[10px] text-blue-650 dark:text-blue-400 font-bold truncate mt-2 bg-blue-500/5 px-2.5 py-1 rounded-lg border border-blue-500/10">
+                      {`Tautan: ${window.location.origin}/tr?storeId=${storeId}`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex flex-col xs:flex-row md:flex-col gap-2 shrink-0 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between md:justify-end gap-3 bg-slate-50 dark:bg-slate-950/50 px-4 py-2.5 rounded-2xl border border-slate-150 dark:border-slate-850">
+                  <span className="text-xs font-black text-slate-700 dark:text-slate-350">Status</span>
+                  <button
+                    type="button"
+                    disabled={isUpdatingOnlineStore}
+                    onClick={() => handleToggleOnlineStore(!isOnlineStoreActive)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${isOnlineStoreActive ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isOnlineStoreActive ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
+
+                {isOnlineStoreActive && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/tr?storeId=${storeId}`);
+                        toast.success("Link Toko Online berhasil disalin!");
+                      }}
+                      className="flex-1 px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5"
+                    >
+                      <Copy size={13} />
+                      Salin
+                    </button>
+                    <Link
+                      href={`/tr?storeId=${storeId}`}
+                      className="flex-1 px-3.5 py-2.5 bg-blue-500 hover:bg-blue-450 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-blue-500/10"
+                    >
+                      <ExternalLink size={13} />
+                      Buka
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
