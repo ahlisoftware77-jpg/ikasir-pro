@@ -357,46 +357,46 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 {product.description || 'Tidak ada deskripsi produk.'}
               </p>
             </div>
+          </div>
+        </div>
 
-            {/* Store Panel - Wrapped at the bottom like Shopee */}
-            <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm shrink-0">
-                  {storeLogo ? (
-                    <img src={storeLogo} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <Store size={22} />
-                  )}
-                </div>
-                <div>
-                  <h3 
-                    onClick={() => handleStoreClick(product.storeId, product.storeName || 'Toko Mitra')}
-                    className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-wider cursor-pointer hover:text-emerald-500 transition-colors flex items-center gap-1"
-                  >
-                    {product.storeName || 'Toko Mitra'}
-                  </h3>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate max-w-xs">{storeAddress || 'Mitra Penjual Resmi iKasir'}</p>
-                </div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button 
-                  onClick={() => handleStoreClick(product.storeId, product.storeName || 'Toko Mitra')}
-                  className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700"
-                >
-                  Kunjungi Toko
-                </button>
-                {waLink && (
-                  <a 
-                    href={waLink} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
-                  >
-                    <MessageSquare size={14} className="stroke-[2.5]" /> Hubungi
-                  </a>
-                )}
-              </div>
+        {/* Store Panel - Outside main grid, aligned with bounds */}
+        <div className="mt-8 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm shrink-0">
+              {storeLogo ? (
+                <img src={storeLogo} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <Store size={22} />
+              )}
             </div>
+            <div>
+              <h3 
+                onClick={() => handleStoreClick(product.storeId, product.storeName || 'Toko Mitra')}
+                className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-wider cursor-pointer hover:text-emerald-500 transition-colors flex items-center gap-1"
+              >
+                {product.storeName || 'Toko Mitra'}
+              </h3>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate max-w-xs">{storeAddress || 'Mitra Penjual Resmi iKasir'}</p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button 
+              onClick={() => handleStoreClick(product.storeId, product.storeName || 'Toko Mitra')}
+              className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700"
+            >
+              Kunjungi Toko
+            </button>
+            {waLink && (
+              <a 
+                href={waLink} 
+                target="_blank" 
+                rel="noreferrer"
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+              >
+                <MessageSquare size={14} className="stroke-[2.5]" /> Hubungi
+              </a>
+            )}
           </div>
         </div>
 
