@@ -531,7 +531,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
             <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Store size={18} className="text-emerald-500" /> Produk Lainnya Dari Toko Ini
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {otherProducts.map(prod => (
                 <div 
                   key={prod.id} 
@@ -544,12 +544,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                     {prod.imageUrl ? (
                       <img src={prod.imageUrl} alt="" className="object-cover w-full h-full" />
                     ) : (
-                      <ShoppingBag size={24} className="text-slate-300" />
+                      <ShoppingBag size={20} className="text-slate-350 dark:text-slate-700" />
                     )}
                   </div>
-                  <div className="p-3 space-y-1">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs line-clamp-1 leading-snug">{prod.name}</h4>
-                    <p className="text-orange-500 text-xs font-black">Rp {prod.price.toLocaleString('id-ID')}</p>
+                  <div className="p-2.5 sm:p-3 space-y-1">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-[11px] sm:text-xs line-clamp-1 leading-snug">{prod.name}</h4>
+                    <p className="text-orange-500 text-[11px] sm:text-xs font-black">Rp {prod.price.toLocaleString('id-ID')}</p>
                   </div>
                 </div>
               ))}
