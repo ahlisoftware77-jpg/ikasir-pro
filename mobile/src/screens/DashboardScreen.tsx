@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput, Image, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput, Image, Linking, Switch } from 'react-native';
 import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -192,10 +192,68 @@ export default function DashboardScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
+  const [joinMarketplace, setJoinMarketplace] = useState(false);
+  const [isUpdatingMarketplace, setIsUpdatingMarketplace] = useState(false);
+
+  const handleToggleMarketplaceMobile = async (newVal: boolean) => {
+    if (!storeId || isUpdatingMarketplace) return;
+    setIsUpdatingMarketplace(true);
+    
+    const { doc, getDoc, updateDoc, writeBatch } = await import('firebase/firestore');
+
+    try {
+      const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      const settingsSnap = await getDoc(settingsRef);
+      const storeName = settingsSnap.exists() ? (settingsSnap.data().storeName || '') : '';
+
+      // 1. Update settings
+      await updateDoc(settingsRef, {
+        joinMarketplace: newVal
+      });
+
+      // 2. Update products
+      const prodQuery = query(collection(db, 'products'), where('storeId', '==', storeId));
+      const prodSnap = await getDocs(prodQuery);
+      
+      let batch = writeBatch(db);
+      let count = 0;
+      
+      prodSnap.docs.forEach((docSnap) => {
+        batch.update(docSnap.ref, {
+          joinMarketplace: newVal,
+          storeName: storeName
+        });
+        count++;
+        if (count === 400) {
+          batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      });
+      
+      if (count > 0) {
+        await batch.commit();
+      }
+
+      Alert.alert('Sukses', newVal ? 'Marketplace Bersama berhasil DIAKTIFKAN!' : 'Marketplace Bersama berhasil DINONAKTIFKAN!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal mengubah status marketplace: ' + err.message);
+    } finally {
+      setIsUpdatingMarketplace(false);
+    }
+  };
+
   useEffect(() => {
     if (!storeId) return;
 
     setLoading(true);
+
+    const unsubSettings = onSnapshot(doc(db, 'settings', `store_${storeId}`), (docSnap) => {
+      if (docSnap.exists()) {
+        setJoinMarketplace(docSnap.data().joinMarketplace === true);
+      }
+    });
 
     const qTrx = query(
       collection(db, 'transactions'),
@@ -227,6 +285,7 @@ export default function DashboardScreen({ navigation }: any) {
     });
 
     return () => {
+      unsubSettings();
       unsubTrx();
       unsubCust();
     };
@@ -409,53 +468,82 @@ export default function DashboardScreen({ navigation }: any) {
               borderColor: colors.border 
             }}
           >
-            <View className="flex-row items-center gap-3">
-              <View className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center">
-                <Globe size={18} color="#10b981" />
+            <View className="flex-row items-start gap-3">
+              <View 
+                className="w-11 h-11 rounded-2xl items-center justify-center border"
+                style={{
+                  backgroundColor: joinMarketplace ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                  borderColor: joinMarketplace ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.2)'
+                }}
+              >
+                <Globe size={20} color={joinMarketplace ? '#10b981' : '#94a3b8'} />
               </View>
               <View className="flex-1 min-w-0">
-                <View className="bg-emerald-500/10 px-2 py-0.5 rounded-md self-start mb-1">
-                  <Text className="text-[7px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    iKasir Marketplace
+                <View 
+                  className="px-2 py-0.5 rounded-md self-start mb-1"
+                  style={{ backgroundColor: joinMarketplace ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)' }}
+                >
+                  <Text className="text-[7px] font-black uppercase tracking-wider" style={{ color: joinMarketplace ? '#10b981' : '#94a3b8' }}>
+                    {joinMarketplace ? 'Marketplace Aktif' : 'Marketplace Nonaktif'}
                   </Text>
                 </View>
                 <Text className="text-xs font-black" style={{ color: colors.text }}>
-                  Toko Anda Aktif di Marketplace Bersama
+                  Marketplace Bersama iKasir
                 </Text>
-                <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate mt-0.5">
-                  {`https://ikasir.my.id/marketplace?storeId=${storeId}`}
+                <Text className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5 leading-snug">
+                  {joinMarketplace ? 'Toko Anda aktif dan tampil di halaman utama pencarian marketplace.' : 'Aktifkan untuk menampilkan produk Anda di marketplace bersama.'}
                 </Text>
+                {joinMarketplace && (
+                  <Text className="text-[9px] font-bold text-emerald-600 dark:text-emerald-450 truncate mt-1.5 bg-emerald-500/5 dark:bg-emerald-950/20 px-2 py-1 rounded-lg self-start border border-emerald-500/10">
+                    {`https://ikasir.my.id/marketplace?storeId=${storeId}`}
+                  </Text>
+                )}
+              </View>
+
+              <View className="items-center justify-center shrink-0">
+                <Switch
+                  value={joinMarketplace}
+                  disabled={isUpdatingMarketplace}
+                  onValueChange={(val) => {
+                    Vibration.vibrate(10);
+                    handleToggleMarketplaceMobile(val);
+                  }}
+                  trackColor={{ false: '#cbd5e1', true: '#10b981' }}
+                  thumbColor="#ffffff"
+                />
               </View>
             </View>
 
-            <View className="flex-row gap-2.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <TouchableOpacity
-                onPress={() => {
-                  Vibration.vibrate(10);
-                  Clipboard.setString(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
-                  Alert.alert('Sukses', 'Link Marketplace toko Anda berhasil disalin!');
-                }}
-                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 dark:border-slate-700"
-              >
-                <Copy size={12} color={colors.text} />
-                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
-                  Salin Link
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={() => {
-                  Vibration.vibrate(10);
-                  Linking.openURL(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
-                }}
-                className="flex-1 py-2.5 bg-emerald-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-emerald-500/10"
-              >
-                <Globe size={12} color="#ffffff" />
-                <Text className="text-[10px] font-black uppercase tracking-wider text-white">
-                  Buka Toko
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {joinMarketplace && (
+              <View className="flex-row gap-2.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    Clipboard.setString(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
+                    Alert.alert('Sukses', 'Link Marketplace toko Anda berhasil disalin!');
+                  }}
+                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 dark:border-slate-700"
+                >
+                  <Copy size={12} color={colors.text} />
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                    Salin Link
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    Linking.openURL(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
+                  }}
+                  className="flex-1 py-2.5 bg-emerald-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-emerald-500/10"
+                >
+                  <Globe size={12} color="#ffffff" />
+                  <Text className="text-[10px] font-black uppercase tracking-wider text-white">
+                    Buka Toko
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 
