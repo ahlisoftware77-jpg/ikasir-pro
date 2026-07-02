@@ -180,11 +180,49 @@ function PublicOrderContent() {
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'account'>('menu');
   const [products, setProducts] = useState<Product[]>([]);
   const [storeSettings, setStoreSettings] = useState<any>(null);
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(catParam || 'Semua');
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
   const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const getEffectivePrice = (product: Product) => {
+    const activeFs = flashSales.find(fs => {
+      if (!fs.isActive) return false;
+      const start = new Date(fs.startTime);
+      const end = new Date(fs.endTime);
+      return currentTime >= start && currentTime <= end;
+    });
+
+    if (activeFs && activeFs.products) {
+      const fsProd = activeFs.products.find((p: any) => p.productId === product.id);
+      if (fsProd && (fsProd.flashStock || 0) > (fsProd.soldCount || 0)) {
+        return {
+          price: fsProd.flashPrice as number,
+          discountInfo: {
+            isFlashSale: true,
+            flashPrice: fsProd.flashPrice,
+            flashStock: fsProd.flashStock,
+            soldCount: fsProd.soldCount
+          }
+        };
+      }
+    }
+
+    return {
+      price: product.price,
+      discountInfo: null
+    };
+  };
 
   // Sync category if URL parameter changes
   useEffect(() => {
@@ -375,6 +413,21 @@ function PublicOrderContent() {
       setIsLoading(false);
     });
 
+    const qFlash = query(
+      collection(db, 'flash_sales'),
+      where('storeId', '==', storeId),
+      where('isActive', '==', true)
+    );
+    const unsubscribeFlash = onSnapshot(qFlash, (snapshot) => {
+      const items: any[] = [];
+      snapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+      setFlashSales(items);
+    }, (err) => {
+      console.error("Error loading flash sales in online store:", err);
+    });
+
     const savedGuestId = localStorage.getItem('guest_id') || ('guest_' + Math.random().toString(36).substring(2, 9));
     const savedOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
 
@@ -385,7 +438,10 @@ function PublicOrderContent() {
       localStorage.setItem('guest_id', savedGuestId);
     }
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeFlash();
+    };
   }, [storeId]);
 
   // Persist storeId to avoid losing it during auth redirects
@@ -528,6 +584,7 @@ function PublicOrderContent() {
       return;
     }
 
+    const { price: effectivePrice } = getEffectivePrice(product);
     const uniqueId = product.id!;
     setCart(prev => {
       const existing = prev.find(item => item.uniqueId === uniqueId);
@@ -539,7 +596,7 @@ function PublicOrderContent() {
         uniqueId, 
         cartQty: 1, 
         selectedExtras: [], 
-        displayPrice: product.price, 
+        displayPrice: effectivePrice, 
         originalPrice: product.price,
         note: '' 
       }];
@@ -564,7 +621,8 @@ function PublicOrderContent() {
         extrasTotal += opt.price;
       });
     });
-    const finalPrice = activeExtrasProduct.price + extrasTotal;
+    const { price: effectivePrice } = getEffectivePrice(activeExtrasProduct);
+    const finalPrice = effectivePrice + extrasTotal;
     const extrasKey = selectedExtras.map(e => e.groupName + ":" + e.optionName).sort().join("|");
     const uniqueId = activeExtrasProduct.id + "-" + extrasKey;
 
@@ -825,6 +883,35 @@ function PublicOrderContent() {
         orderData.id = finalId;
         orderData.queueNumber = currentCounter;
 
+        // Deduct flash sale stock if applicable
+        for (const item of cart) {
+          const activeFs = flashSales.find(fs => {
+            if (!fs.isActive) return false;
+            const start = new Date(fs.startTime);
+            const end = new Date(fs.endTime);
+            return currentTime >= start && currentTime <= end;
+          });
+
+          if (activeFs) {
+            const hasProduct = activeFs.products?.some((p: any) => p.productId === item.id);
+            if (hasProduct) {
+              const fsRef = doc(db, 'flash_sales', activeFs.id);
+              const fsDoc = await transaction.get(fsRef);
+              if (fsDoc.exists()) {
+                const fsData = fsDoc.data();
+                const updatedProducts = (fsData.products || []).map((p: any) => {
+                  if (p.productId === item.id) {
+                    const newSoldCount = (p.soldCount || 0) + item.cartQty;
+                    return { ...p, soldCount: Math.min(p.flashStock || 0, newSoldCount) };
+                  }
+                  return p;
+                });
+                transaction.update(fsRef, { products: updatedProducts });
+              }
+            }
+          }
+        }
+
         transaction.set(doc(db, 'transactions', finalId), orderData);
         transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
       });
@@ -969,6 +1056,7 @@ function PublicOrderContent() {
                {filteredProducts.map(p => {
                  const isHighlighted = p.id === highlightedProductId;
                  const isOutOfStock = p.manageStock !== false && (p.stock === undefined || p.stock === null || p.stock <= 0);
+                 const { price: effectivePrice, discountInfo } = getEffectivePrice(p);
                  return (
                    <div 
                      key={p.id} 
@@ -1050,7 +1138,17 @@ function PublicOrderContent() {
                            )}
                         </div>
                         <div className="mt-4 flex flex-col gap-2">
-                           <p className="font-black text-base text-slate-900 tracking-tighter">Rp {(p.price || 0).toLocaleString('id-ID')}</p>
+                           <div className="flex flex-col">
+                              {discountInfo && (
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <span className="bg-rose-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-pulse">⚡ FLASH</span>
+                                  <span className="text-[10px] line-through text-slate-400">Rp {p.price?.toLocaleString('id-ID')}</span>
+                                </div>
+                              )}
+                              <p className="font-black text-base text-slate-900 tracking-tighter">
+                                Rp {(effectivePrice || 0).toLocaleString('id-ID')}
+                              </p>
+                           </div>
                            <div className="flex items-center gap-1.5 w-full">
                              <button
                                onClick={() => askAboutProduct(p)}
