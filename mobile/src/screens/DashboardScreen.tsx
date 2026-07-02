@@ -545,7 +545,7 @@ export default function DashboardScreen({ navigation }: any) {
                     Clipboard.setString(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
                     Alert.alert('Sukses', 'Link Marketplace toko Anda berhasil disalin!');
                   }}
-                  className="flex-1 py-2.5 bg-slate-200/80 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-300 dark:border-slate-700"
+                  className="flex-1 py-2.5 bg-white dark:bg-slate-900 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-300 dark:border-slate-700 shadow-sm"
                 >
                   <Copy size={12} color={colors.text} />
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
@@ -633,7 +633,7 @@ export default function DashboardScreen({ navigation }: any) {
                     Clipboard.setString(`https://ikasir.my.id/tr?storeId=${storeId}`);
                     Alert.alert('Sukses', 'Link Toko Online berhasil disalin!');
                   }}
-                  className="flex-1 py-2.5 bg-slate-200/80 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-300 dark:border-slate-700"
+                  className="flex-1 py-2.5 bg-white dark:bg-slate-900 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-300 dark:border-slate-700 shadow-sm"
                 >
                   <Copy size={12} color={colors.text} />
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
