@@ -131,12 +131,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       if (user) {
         setAuthUser(user);
         setCustomerName(user.displayName || '');
-        // Fetch phone if exists in user metadata
-        getDoc(doc(db, 'users', user.uid)).then(snap => {
-          if (snap.exists() && snap.data().phone) {
-            setCustomerPhone(snap.data().phone);
-          }
-        });
+        if (user && user.uid) {
+          getDoc(doc(db, 'users', user.uid)).then(snap => {
+            if (snap.exists() && snap.data().phone) {
+              setCustomerPhone(snap.data().phone);
+            }
+          }).catch(err => console.error("Error fetching user doc:", err));
+        }
       } else {
         setAuthUser(null);
         setCustomerName(localStorage.getItem('customer_name') || '');
