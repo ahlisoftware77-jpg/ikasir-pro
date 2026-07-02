@@ -3666,11 +3666,107 @@ export default function FeatureScreen({ route, navigation }: any) {
           </View>
         );
       case 'flashsale':
+        const getStartDay = () => {
+          if (!flashFormStartTime) return new Date().toISOString().split('T')[0];
+          return flashFormStartTime.split('T')[0];
+        };
+        const getStartTime = () => {
+          if (!flashFormStartTime) return '12:00';
+          if (flashFormStartTime.includes('T')) {
+            const timePart = flashFormStartTime.split('T')[1];
+            return timePart.substring(0, 5);
+          }
+          return '12:00';
+        };
+
+        const getEndDay = () => {
+          if (!flashFormEndTime) return new Date().toISOString().split('T')[0];
+          return flashFormEndTime.split('T')[0];
+        };
+        const getEndTime = () => {
+          if (!flashFormEndTime) return '13:00';
+          if (flashFormEndTime.includes('T')) {
+            const timePart = flashFormEndTime.split('T')[1];
+            return timePart.substring(0, 5);
+          }
+          return '13:00';
+        };
+
         return (
           <View className="flex gap-4">
             {renderTextInput('Nama Promo Flash Sale', flashFormName, setFlashFormName, 'e.g. Flash Sale Spesial')}
-            {renderTextInput('Waktu Mulai (Format: YYYY-MM-DDTHH:MM)', flashFormStartTime, setFlashFormStartTime, 'e.g. 2026-06-25T12:00:00')}
-            {renderTextInput('Waktu Selesai (Format: YYYY-MM-DDTHH:MM)', flashFormEndTime, setFlashFormEndTime, 'e.g. 2026-06-25T15:00:00')}
+            
+            {/* Waktu Mulai Picker & Input Jam */}
+            <View className="mb-1">
+              <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Waktu Mulai Promo</Text>
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setFlashDatePicker({ visible: true, field: 'startTime' });
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-[2] px-4 py-3.5 rounded-2xl border flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-xs" style={{ color: colors.text }}>
+                    {getStartDay()}
+                  </Text>
+                  <CalendarRange size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View className="flex-1 relative">
+                  <TextInput
+                    placeholder="12:00"
+                    placeholderTextColor={colors.textMuted}
+                    maxLength={5}
+                    value={getStartTime()}
+                    onChangeText={(val) => {
+                      setFlashFormStartTime(`${getStartDay()}T${val}:00`);
+                    }}
+                    className="p-3.5 rounded-2xl border text-xs font-bold text-center"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                  <Text className="absolute right-3.5 top-4.5 text-[8px] font-black text-slate-400">JAM</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Waktu Selesai Picker & Input Jam */}
+            <View className="mb-1">
+              <Text className="text-[10px] font-black uppercase mb-1.5" style={{ color: colors.textMuted }}>Waktu Selesai Promo</Text>
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setFlashDatePicker({ visible: true, field: 'endTime' });
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-[2] px-4 py-3.5 rounded-2xl border flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-xs" style={{ color: colors.text }}>
+                    {getEndDay()}
+                  </Text>
+                  <CalendarRange size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View className="flex-1 relative">
+                  <TextInput
+                    placeholder="13:00"
+                    placeholderTextColor={colors.textMuted}
+                    maxLength={5}
+                    value={getEndTime()}
+                    onChangeText={(val) => {
+                      setFlashFormEndTime(`${getEndDay()}T${val}:00`);
+                    }}
+                    className="p-3.5 rounded-2xl border text-xs font-bold text-center"
+                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                  />
+                  <Text className="absolute right-3.5 top-4.5 text-[8px] font-black text-slate-400">JAM</Text>
+                </View>
+              </View>
+            </View>
 
             <View className="flex-row items-center justify-between border-t border-b py-4" style={{ borderColor: colors.border + '15' }}>
               <View>
@@ -7960,6 +8056,63 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     setDiscountEndDate(day.dateString);
                   }
                   setDiscountDatePicker({ visible: false, field: null });
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+      {/* CALENDAR DATE PICKER MODAL FOR FLASH SALES */}
+      {flashDatePicker.visible && (
+        <Modal visible={true} animationType="fade" transparent onRequestClose={() => setFlashDatePicker({ visible: false, field: null })}>
+          <View className="flex-1 bg-black/80 justify-center items-center p-6">
+            <View className="w-full max-w-sm rounded-[36px] overflow-hidden" style={{ backgroundColor: colors.surface }}>
+              <View className="flex-row justify-between items-center p-6 border-b" style={{ borderColor: colors.border + '30' }}>
+                <Text className="text-base font-black" style={{ color: colors.text }}>
+                  {flashDatePicker.field === 'startTime' ? 'Pilih Tanggal Mulai' : 'Pilih Tanggal Selesai'}
+                </Text>
+                <TouchableOpacity onPress={() => setFlashDatePicker({ visible: false, field: null })}>
+                  <X size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <RNCalendar
+                theme={{
+                  backgroundColor: colors.surface,
+                  calendarBackground: colors.surface,
+                  textSectionTitleColor: colors.textMuted,
+                  selectedDayBackgroundColor: colors.accent,
+                  selectedDayTextColor: '#ffffff',
+                  todayTextColor: colors.accent,
+                  dayTextColor: colors.text,
+                  textDisabledColor: colors.textMuted + '50',
+                  monthTextColor: colors.text,
+                  arrowColor: colors.accent,
+                  textDayFontWeight: 'bold',
+                  textMonthFontWeight: '900',
+                  textDayHeaderFontWeight: '800'
+                }}
+                current={
+                  flashDatePicker.field === 'startTime'
+                    ? (flashFormStartTime ? flashFormStartTime.split('T')[0] : undefined)
+                    : (flashFormEndTime ? flashFormEndTime.split('T')[0] : undefined)
+                }
+                markedDates={{
+                  [(flashDatePicker.field === 'startTime' ? flashFormStartTime : flashFormEndTime)?.split('T')[0] || '']: {
+                    selected: true,
+                    disableTouchEvent: true,
+                    selectedColor: colors.accent,
+                    selectedTextColor: '#ffffff'
+                  }
+                }}
+                onDayPress={(day: any) => {
+                  if (flashDatePicker.field === 'startTime') {
+                    const timePart = flashFormStartTime && flashFormStartTime.includes('T') ? flashFormStartTime.split('T')[1] : '12:00:00';
+                    setFlashFormStartTime(`${day.dateString}T${timePart}`);
+                  } else {
+                    const timePart = flashFormEndTime && flashFormEndTime.includes('T') ? flashFormEndTime.split('T')[1] : '13:00:00';
+                    setFlashFormEndTime(`${day.dateString}T${timePart}`);
+                  }
+                  setFlashDatePicker({ visible: false, field: null });
                 }}
               />
             </View>
