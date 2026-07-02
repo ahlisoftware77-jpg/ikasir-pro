@@ -162,7 +162,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
   useEffect(() => {
     async function loadProductDetails() {
-      if (!productId) return;
+      if (!productId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const productRef = doc(db, 'products', productId);
@@ -351,6 +354,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       let finalId = '';
       
       await runTransaction(db, async (transaction) => {
+        if (!product.storeId) {
+          throw new Error("Store ID tidak valid.");
+        }
         const settingsRef = doc(db, 'settings', `store_${product.storeId}`);
         const settingsSnap = await transaction.get(settingsRef);
         
@@ -380,7 +386,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
             return currentTime >= start && currentTime <= end;
           });
 
-          if (activeFs) {
+          if (activeFs && activeFs.id) {
             const fsRef = doc(db, 'flash_sales', activeFs.id);
             const fsDoc = await transaction.get(fsRef);
             if (fsDoc.exists()) {
@@ -397,6 +403,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           }
         }
 
+        if (!finalId) {
+          throw new Error("ID Transaksi tidak valid.");
+        }
         transaction.set(doc(db, 'transactions', finalId), orderData);
         transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
       });

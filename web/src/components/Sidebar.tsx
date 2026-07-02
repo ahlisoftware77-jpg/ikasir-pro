@@ -134,7 +134,10 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
       try {
         // We need storeId. Get it from current user's profile if possible or from auth store.
         // For simplicity, we can fetch it once here or get it from context.
-        const userDoc = await getDoc(doc(db, 'users', user?.uid || ''));
+        if (!user?.uid) {
+          throw new Error('User UID tidak valid untuk backup.');
+        }
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
         const storeId = userDoc.data()?.storeId || 'default-store';
         
         await handleExportJSON(storeId);

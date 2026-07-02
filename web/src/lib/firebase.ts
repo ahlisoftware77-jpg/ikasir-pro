@@ -52,15 +52,30 @@ export const isDynamicConfig = !!dynamicConfig;
 export const auth = getAuth(primaryApp);
 
 // Export DB and STORAGE from DATA project (Dynamic Tenancy)
-export const db: Firestore = initializeFirestore(dataApp, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  }),
-  experimentalForceLongPolling: true // Jauh lebih stabil untuk jaringan selular/mobiles agar tidak telat notifikasi
-});
+// Menggunakan try/catch agar aman dari re-inisialisasi oleh HMR/Turbopack
+// (initializeFirestore() akan error jika dipanggil dua kali pada app yang sama)
+let _db: Firestore;
+try {
+  _db = initializeFirestore(dataApp, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    }),
+    experimentalForceLongPolling: true // Jauh lebih stabil untuk jaringan selular/mobiles agar tidak telat notifikasi
+  });
+} catch {
+  // Sudah diinisialisasi sebelumnya (HMR / module reload) — ambil instance yang sudah ada
+  _db = getFirestore(dataApp);
+}
+export const db: Firestore = _db;
 
 // HARUS SELALU MENUJU KE PRIMARY DB UNTUK AUTH & SUBSCRIPTION
-export const primaryDb: Firestore = dataApp === primaryApp ? db : getFirestore(primaryApp);
+export const primaryDb: Firestore = dataApp === primaryApp ? db : (() => {
+  try {
+    return getFirestore(primaryApp);
+  } catch {
+    return db;
+  }
+})();
 
 export const storage = getStorage(dataApp);
 

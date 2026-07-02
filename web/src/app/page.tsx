@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '@/store/auth';
-import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit } from 'firebase/firestore';
+import { collection, doc, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit } from 'firebase/firestore';
 import { db, primaryDb } from '@/lib/firebase';
 import { DollarSign, Package, ShoppingBag, TrendingUp, Users, Copy, Share2, ExternalLink, X, Loader2, Download, ChevronLeft, ChevronRight, Sparkles, CheckCircle, CreditCard, Globe, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -192,7 +192,6 @@ export default function Home() {
     if (!storeId) return;
 
     // Listen to store settings change
-    const { doc } = require('firebase/firestore');
     const unsubSettings = onSnapshot(doc(db, 'settings', `store_${storeId}`), (docSnap: any) => {
       if (docSnap.exists()) {
         setJoinMarketplace(docSnap.data().joinMarketplace === true);

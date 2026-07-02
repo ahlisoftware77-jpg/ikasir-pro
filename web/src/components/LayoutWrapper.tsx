@@ -800,7 +800,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     if (backupFirst) {
       setIsBackuping(true);
       try {
-        const userDoc = await getDoc(doc(db, 'users', user?.uid || ''));
+        if (!user?.uid) {
+          throw new Error('User UID tidak valid untuk backup.');
+        }
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
         const storeId = userDoc.data()?.storeId || 'default-store';
         await handleExportJSON(storeId);
       } catch (err) {
