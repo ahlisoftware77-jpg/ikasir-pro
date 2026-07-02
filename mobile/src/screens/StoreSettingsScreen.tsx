@@ -299,6 +299,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     allowDelivery: true,
     deliveryFee: 0,
     isOnlineStoreActive: true,
+    joinMarketplace: false,
     
     trxPrefix: 'TRX-',
     trxPadding: 4,
@@ -1321,6 +1322,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               allowDelivery: data.allowDelivery !== false,
               deliveryFee: data.deliveryFee || 0,
               isOnlineStoreActive: data.isOnlineStoreActive !== false,
+              joinMarketplace: data.joinMarketplace === true,
               
               trxPrefix: data.trxPrefix || 'TRX-',
               trxPadding: data.trxPadding || 4,
@@ -1381,6 +1383,22 @@ export default function StoreSettingsScreen({ navigation }: any) {
       };
 
       await setDoc(settingsRef, finalSettings, { merge: true });
+
+      // Update joinMarketplace and storeName in all products of this store
+      try {
+        const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+        const snapProds = await getDocs(qProds);
+        const batch = writeBatch(db);
+        snapProds.forEach((d) => {
+          batch.update(doc(db, 'products', d.id), {
+            joinMarketplace: storeSettings.joinMarketplace === true,
+            storeName: storeSettings.storeName || ''
+          });
+        });
+        await batch.commit();
+      } catch (prodErr) {
+        console.error("Error updating products joinMarketplace on store admin:", prodErr);
+      }
       
       // Sync back to stores collection if name changed
       await updateDoc(doc(db, 'stores', storeId), {
@@ -2054,6 +2072,25 @@ export default function StoreSettingsScreen({ navigation }: any) {
                   {/* Konfigurasi Pemesanan Online Section */}
                   <View className="space-y-4 pt-4 border-t" style={{ borderColor: colors.border }}>
                     <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Konfigurasi Pemesanan Online</Text>
+
+                    {/* joinMarketplace Toggle */}
+                    <View 
+                      className="p-4 rounded-2xl border flex-row items-center justify-between mb-3"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    >
+                      <View className="flex-1 pr-4">
+                        <Text className="text-xs font-black" style={{ color: colors.text }}>Gabung Marketplace Bersama</Text>
+                        <Text className="text-[9px] font-bold text-slate-400 mt-0.5 leading-normal">
+                          Tampilkan produk Anda secara otomatis di halaman utama marketplace iKasir.
+                        </Text>
+                      </View>
+                      <Switch
+                        value={storeSettings.joinMarketplace}
+                        onValueChange={(val) => setStoreSettings(prev => ({ ...prev, joinMarketplace: val }))}
+                        trackColor={{ false: colors.border, true: colors.accent }}
+                        thumbColor="#ffffff"
+                      />
+                    </View>
 
                     {/* isOnlineStoreActive Toggle */}
                     <View 
