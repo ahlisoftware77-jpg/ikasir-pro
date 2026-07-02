@@ -370,14 +370,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 <Store size={22} />
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 
                 onClick={() => handleStoreClick(product.storeId, product.storeName || 'Toko Mitra')}
                 className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-wider cursor-pointer hover:text-emerald-500 transition-colors flex items-center gap-1"
               >
                 {product.storeName || 'Toko Mitra'}
               </h3>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate max-w-xs">{storeAddress || 'Mitra Penjual Resmi iKasir'}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold break-words">{storeAddress || 'Mitra Penjual Resmi iKasir'}</p>
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
