@@ -30,9 +30,14 @@ import {
   Truck, 
   Banknote, 
   CreditCard, 
-  QrCode 
+  QrCode,
+  CheckCircle,
+  Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useCart } from '@/context/CartContext';
+import CartButton from '@/components/CartButton';
+import CartDrawer from '@/components/CartDrawer';
 import { getInfraConfig } from '@/lib/infraConfig';
 
 interface Product {
@@ -79,6 +84,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 export default function ProductDetailPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params);
   const router = useRouter();
+  const { addToCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [otherProducts, setOtherProducts] = useState<Product[]>([]);
@@ -806,11 +812,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
               })()}
 
               {/* Desktop Checkout / Buy Action Buttons */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
                 <button
                   disabled={product.manageStock !== false && (product.stock || 0) <= 0}
                   onClick={() => handleOpenCheckout()}
-                  className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md ${
+                  className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md ${
                     product.manageStock !== false && (product.stock || 0) <= 0
                       ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
                       : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
@@ -819,12 +825,38 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   <ShoppingBag size={16} />
                   <span>Beli Sekarang</span>
                 </button>
+                <button
+                  disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+                  onClick={() => {
+                    const ep = getEffectivePrice(product);
+                    addToCart({
+                      productId: product.id,
+                      productName: product.name,
+                      price: ep.price,
+                      storeId: product.storeId,
+                      storeName: product.storeName || 'Toko Mitra',
+                      storePhone: storePhone,
+                      qty: 1,
+                      imageUrl: product.imageUrl,
+                      isFlashSale: ep.isFlashSale
+                    });
+                    toast.success('Ditambahkan ke keranjang!');
+                  }}
+                  className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
+                    product.manageStock !== false && (product.stock || 0) <= 0
+                      ? 'border-slate-300 dark:border-slate-800 text-slate-400 cursor-not-allowed'
+                      : 'border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30'
+                  }`}
+                >
+                  <Plus size={16} className="stroke-[3]" />
+                  <span>+ Keranjang</span>
+                </button>
                 {waLink && (
                   <a
                     href={waLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="px-5 py-4 border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900/60 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
+                    className="flex-none px-5 py-4 border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900/60 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
                   >
                     <MessageSquare size={16} />
                   </a>
@@ -1439,6 +1471,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           </div>
         </div>
       )}
+
+      <CartButton />
+      <CartDrawer />
     </div>
   );
 }

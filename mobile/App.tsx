@@ -87,6 +87,7 @@ import { useNotificationStore } from './src/store/notificationStore';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
+import MarketplaceScreen from './src/screens/MarketplaceScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import POSScreen from './src/screens/POSScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
@@ -276,9 +277,17 @@ function TabNavigator() {
         }
       }}
     >
+      <Tab.Screen 
+        name="Beranda" 
+        component={MarketplaceScreen} 
+        options={{
+          ...getTabOptions('MARKETPLACE', '/marketplace', '🛍️'),
+          // Make sure it's accessible for everyone, no need to check disabledMenus unless specifically blocked
+        }}
+      />
       {isBerandaVisible && (
         <Tab.Screen 
-          name="Beranda" 
+          name="Dasbor" 
           component={DashboardScreen} 
           options={getTabOptions('DASBOR UTAMA', '/reports', '📊')}
         />

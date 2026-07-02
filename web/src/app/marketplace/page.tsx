@@ -4,7 +4,11 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useCart } from '@/context/CartContext';
+import CartButton from '@/components/CartButton';
+import CartDrawer from '@/components/CartDrawer';
 
 interface Product {
   id: string;
@@ -23,6 +27,7 @@ interface Product {
 
 function MarketplaceContent() {
   const router = useRouter();
+  const { addToCart } = useCart();
   const searchParams = useSearchParams();
   const storeIdParam = searchParams.get('storeId');
   const storeNameParam = searchParams.get('storeName');
@@ -510,16 +515,40 @@ function MarketplaceContent() {
                           </div>
                         );
                       })()}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleWhatsAppRedirect(prod);
-                        }}
-                        className="w-full xs:w-auto px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
-                      >
-                        <MessageSquare size={11} className="stroke-[2.5] sm:w-[13px] sm:h-[13px]" />
-                        <span>Chat</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 w-full xs:w-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleWhatsAppRedirect(prod);
+                          }}
+                          className="flex-1 xs:flex-none px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center transition-all"
+                          title="Chat via WhatsApp"
+                        >
+                          <MessageSquare size={14} className="stroke-[2.5]" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const ep = getEffectivePrice(prod);
+                            addToCart({
+                              productId: prod.id,
+                              productName: prod.name,
+                              price: ep.price,
+                              storeId: prod.storeId,
+                              storeName: prod.storeName || 'Toko Mitra',
+                              storePhone: storePhones[prod.storeId] || '',
+                              qty: 1,
+                              imageUrl: prod.imageUrl,
+                              isFlashSale: ep.isFlashSale
+                            });
+                            toast.success('Ditambahkan ke keranjang!');
+                          }}
+                          className="flex-[2] xs:flex-none px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+                        >
+                          <Plus size={12} className="stroke-[3]" />
+                          <span>Keranjang</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -535,6 +564,9 @@ function MarketplaceContent() {
           &copy; {new Date().getFullYear()} iKasir Pro. Seluruh hak cipta dilindungi.
         </p>
       </footer>
+
+      <CartButton />
+      <CartDrawer />
     </div>
   );
 }

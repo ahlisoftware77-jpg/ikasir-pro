@@ -4,6 +4,7 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import NavigationGuard from "@/components/NavigationGuard";
+import { CartProvider } from "@/context/CartContext";
 
 const inter = Inter({ subsets: ["latin"] });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });
@@ -38,14 +39,16 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <BrandingProvider>
-            <AuthProvider>
-              <BlockingModal />
-              <NavigationGuard />
-              <Toaster position="top-right" toastOptions={{ duration: 3000 }} containerStyle={{ zIndex: 99999 }} />
-              <LayoutWrapper>
-                {children}
-              </LayoutWrapper>
-            </AuthProvider>
+            <CartProvider>
+              <AuthProvider>
+                <BlockingModal />
+                <NavigationGuard />
+                <Toaster position="top-right" toastOptions={{ duration: 3000 }} containerStyle={{ zIndex: 99999 }} />
+                <LayoutWrapper>
+                  {children}
+                </LayoutWrapper>
+              </AuthProvider>
+            </CartProvider>
           </BrandingProvider>
         </ThemeProvider>
       </body>
