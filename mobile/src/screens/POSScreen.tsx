@@ -2287,6 +2287,17 @@ export default function POSScreen({ route, navigation }: any) {
               className="flex-1 ml-2.5 font-bold text-xs"
               style={{ color: colors.text }}
             />
+            {search.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(5);
+                  setSearch('');
+                }}
+                className="p-2"
+              >
+                <Text className="text-xs">❌</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity 
               onPress={() => startScanning('cart')}
               className="p-2 -mr-2"
