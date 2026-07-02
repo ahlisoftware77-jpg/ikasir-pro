@@ -38,8 +38,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   const [storeAddress, setStoreAddress] = useState('');
   const [storeLogo, setStoreLogo] = useState('');
 
-  // Fullscreen Media Preview Lightbox state
-  const [previewMedia, setPreviewMedia] = useState<MediaItem | null>(null);
+  // Fullscreen Media Preview Lightbox state (index based for navigation)
+  const [previewIndex, setPreviewIndex] = useState<number>(-1);
 
   useEffect(() => {
     async function loadProductDetails() {
@@ -147,22 +147,46 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
     router.push(`/marketplace?storeId=${storeId}&storeName=${encodeURIComponent(storeName)}`);
   };
 
+  const isVideoUrl = (url: string): boolean => {
+    if (!url) return false;
+    const cleanUrl = url.split('?')[0].toLowerCase();
+    return (
+      cleanUrl.endsWith('.mp4') ||
+      cleanUrl.endsWith('.webm') ||
+      cleanUrl.endsWith('.ogg') ||
+      cleanUrl.endsWith('.mov') ||
+      cleanUrl.endsWith('.m4v') ||
+      url.includes('/video') ||
+      url.includes('video') ||
+      (url.includes('firebasestorage.googleapis.com') && url.toLowerCase().includes('type=video'))
+    );
+  };
+
   // Determine media gallery list (with video support)
   const getProductMediaGallery = (prod: Product): MediaItem[] => {
     const list: MediaItem[] = [];
+    
+    const addMedia = (url: string) => {
+      if (!url) return;
+      if (list.some(item => item.url === url)) return;
+      
+      if (isVideoUrl(url)) {
+        list.push({ type: 'video', url });
+      } else {
+        list.push({ type: 'image', url });
+      }
+    };
+
     if (prod.videoUrl) {
-      list.push({ type: 'video', url: prod.videoUrl });
+      addMedia(prod.videoUrl);
     }
     if (prod.imageUrl) {
-      list.push({ type: 'image', url: prod.imageUrl });
+      addMedia(prod.imageUrl);
     }
     if (prod.imageUrls && prod.imageUrls.length > 0) {
-      prod.imageUrls.forEach(url => {
-        if (url && url !== prod.imageUrl) {
-          list.push({ type: 'image', url });
-        }
-      });
+      prod.imageUrls.forEach(url => addMedia(url));
     }
+    
     return list.length > 0 ? list : [{ type: 'image', url: '' }];
   };
 
@@ -193,6 +217,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   const gallery = getProductMediaGallery(product);
   const waLink = getWhatsAppLink(product);
   const activeMedia = gallery[currentImageIndex];
+  const previewMedia = previewIndex !== -1 ? gallery[previewIndex] : null;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 pb-24 lg:pb-8">
@@ -228,13 +253,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   <video 
                     src={activeMedia.url} 
                     controls 
+                    playsInline
                     className="w-full h-full object-contain"
                   />
                 ) : (
                   <img 
                     src={activeMedia.url} 
                     alt={product.name} 
-                    onClick={() => setPreviewMedia(activeMedia)}
+                    onClick={() => setPreviewIndex(currentImageIndex)}
                     className="object-cover w-full h-full cursor-pointer hover:scale-[1.01] transition-transform duration-300"
                   />
                 )
@@ -327,7 +353,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate max-w-xs">{storeAddress || 'Mitra Penjual Resmi iKasir'}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <button 
                   onClick={() => handleStoreClick(product.storeId, product.storeName || 'Toko Mitra')}
                   className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700"
@@ -407,35 +433,62 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         </button>
       </div>
 
-      {/* Fullscreen Media Preview Modal (Lightbox) */}
+      {/* Fullscreen Media Preview Modal (Lightbox) - Bounded Size with Arrows */}
       {previewMedia && (
         <div 
-          onClick={() => setPreviewMedia(null)}
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200 cursor-zoom-out"
+          onClick={() => setPreviewIndex(-1)}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200 cursor-zoom-out"
         >
           <button 
-            onClick={() => setPreviewMedia(null)}
-            className="absolute top-6 right-6 text-white hover:text-emerald-400 p-2 transition-colors z-50 bg-black/40 rounded-full"
+            onClick={() => setPreviewIndex(-1)}
+            className="absolute top-6 right-6 text-white hover:text-emerald-450 p-2.5 transition-colors z-55 bg-slate-900/60 rounded-full"
           >
             <X size={24} />
           </button>
+          
           <div 
             onClick={(e) => e.stopPropagation()} 
-            className="relative max-w-full max-h-[90vh] flex items-center justify-center"
+            className="relative max-w-4xl max-h-[85vh] w-11/12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 flex items-center justify-center shadow-2xl overflow-hidden cursor-default"
           >
             {previewMedia.type === 'video' ? (
               <video 
+                key={previewMedia.url}
                 src={previewMedia.url} 
                 controls 
                 autoPlay
-                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                playsInline
+                className="max-w-full max-h-[75vh] object-contain rounded-2xl"
               />
             ) : (
               <img 
                 src={previewMedia.url} 
                 alt="" 
-                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+                className="max-w-full max-h-[75vh] object-contain rounded-2xl animate-in zoom-in-95 duration-200"
               />
+            )}
+
+            {/* Lightbox Navigation Arrows */}
+            {gallery.length > 1 && (
+              <>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewIndex(prev => (prev === 0 ? gallery.length - 1 : prev - 1));
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-slate-100/80 dark:bg-slate-800/80 hover:bg-emerald-500 text-slate-800 dark:text-white flex items-center justify-center shadow-lg transition-all z-10"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewIndex(prev => (prev === gallery.length - 1 ? 0 : prev + 1));
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-slate-100/80 dark:bg-slate-800/80 hover:bg-emerald-500 text-slate-800 dark:text-white flex items-center justify-center shadow-lg transition-all z-10"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
             )}
           </div>
         </div>
