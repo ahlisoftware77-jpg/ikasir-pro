@@ -940,8 +940,17 @@ function PublicOrderContent() {
                  placeholder="Cari menu favorit..."
                  value={search}
                  onChange={e => setSearch(e.target.value)}
-                 className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:outline-none focus:border-tr transition-all font-sans shadow-sm"
+                 className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-12 text-sm font-bold focus:outline-none focus:border-tr transition-all font-sans shadow-sm"
                />
+               {search && (
+                 <button
+                   onClick={() => setSearch('')}
+                   className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:opacity-80 transition-opacity"
+                   title="Hapus pencarian"
+                 >
+                   ❌
+                 </button>
+               )}
             </div>
 
             <div className="flex gap-3 overflow-x-auto no-scrollbar py-1">

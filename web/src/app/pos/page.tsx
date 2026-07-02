@@ -155,9 +155,19 @@ export default function POSPage() {
   const { branding } = useBranding();
   const [products, setProducts] = useState<Product[]>([]);
   const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Interval update untuk countdown flash sale
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   // New States for Expanded POS Features
   const [paymentCategory, setPaymentCategory] = useState<'direct' | 'debt' | 'order' | 'merge'>('direct');
@@ -531,9 +541,26 @@ export default function POSPage() {
     };
     fetchSettings();
 
+    // Fetch Flash Sales
+    const qFlash = query(
+      collection(db, 'flash_sales'),
+      where('storeId', '==', storeId),
+      where('isActive', '==', true)
+    );
+    const unsubscribeFlash = onSnapshot(qFlash, (snapshot) => {
+      const items: any[] = [];
+      snapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() });
+      });
+      setFlashSales(items);
+    }, (err) => {
+      console.error("Error loading flash sales in POS web:", err);
+    });
+
     return () => {
       unsubscribe();
       unsubscribeDisc();
+      unsubscribeFlash();
     };
   }, [storeId]);
 
@@ -560,7 +587,36 @@ export default function POSPage() {
   });
 
   const getEffectivePrice = (product: Product) => {
-    // Find discounts applicable to this product
+    // 1. Check active Flash Sale
+    const activeFlash = flashSales.find(fs => {
+      if (!fs.isActive) return false;
+      const start = new Date(fs.startTime);
+      const end = new Date(fs.endTime);
+      if (currentTime < start || currentTime > end) return false;
+
+      const fsProd = fs.products?.find((p: any) => p.productId === product.id);
+      if (!fsProd) return false;
+
+      // Check if stock has not been fully claimed
+      return (fsProd.soldCount || 0) < (fsProd.flashStock || 0);
+    });
+
+    if (activeFlash) {
+      const fsProd = activeFlash.products.find((p: any) => p.productId === product.id);
+      return {
+        price: fsProd.flashPrice,
+        discountInfo: {
+          name: `⚡ ${activeFlash.name}`,
+          originalPrice: product.price,
+          isFlashSale: true,
+          soldCount: fsProd.soldCount || 0,
+          flashStock: fsProd.flashStock || 0,
+          endTime: activeFlash.endTime
+        }
+      };
+    }
+
+    // 2. Fallback to normal discounts
     const applicable = discounts.filter(d => d.appliedProductIds?.includes(product.id!));
     
     if (applicable.length === 0) return { price: product.price, discountInfo: null };
@@ -1043,6 +1099,31 @@ export default function POSPage() {
               if (item.manageStock !== false) {
                 t.update(doc(db, 'products', item.id!), { stock: increment(-item.cartQty) });
               }
+
+              // Update Flash Sale soldCount if applicable
+              const activeFs = flashSales.find(fs => {
+                if (!fs.isActive) return false;
+                const start = new Date(fs.startTime);
+                const end = new Date(fs.endTime);
+                if (currentTime < start || currentTime > end) return false;
+                return fs.products?.some((p: any) => p.productId === item.id);
+              });
+
+              if (activeFs) {
+                const fsRef = doc(db, 'flash_sales', activeFs.id);
+                const fsDoc = await t.get(fsRef);
+                if (fsDoc.exists()) {
+                  const fsData = fsDoc.data();
+                  const updatedProducts = (fsData.products || []).map((p: any) => {
+                    if (p.productId === item.id) {
+                      const newSoldCount = (p.soldCount || 0) + item.cartQty;
+                      return { ...p, soldCount: Math.min(p.flashStock || 0, newSoldCount) };
+                    }
+                    return p;
+                  });
+                  t.update(fsRef, { products: updatedProducts });
+                }
+              }
             }
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500))
@@ -1398,8 +1479,17 @@ export default function POSPage() {
                 placeholder="Cari produk..." 
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-background border border-app-border rounded-xl text-foreground focus:outline-none focus:border-accent transition-all"
+                className="w-full pl-10 pr-16 py-3 bg-background border border-app-border rounded-xl text-foreground focus:outline-none focus:border-accent transition-all"
               />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-10 top-1/2 -translate-y-1/2 p-2 hover:opacity-80 transition-opacity"
+                  title="Hapus pencarian"
+                >
+                  ❌
+                </button>
+              )}
               <button 
                 onClick={() => setShowScanner(true)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-app-text-muted hover:text-accent transition-colors"
@@ -1452,12 +1542,114 @@ export default function POSPage() {
 
 
         <div className="flex-1 overflow-y-auto p-4">
+          {/* Active Flash Sale Banner */}
+          {(() => {
+            const activeFses = flashSales.filter(fs => {
+              if (!fs.isActive) return false;
+              const start = new Date(fs.startTime);
+              const end = new Date(fs.endTime);
+              return currentTime >= start && currentTime <= end;
+            });
+
+            if (activeFses.length === 0) return null;
+
+            return (
+              <div className="mb-4 space-y-3">
+                {activeFses.map(fs => {
+                  const end = new Date(fs.endTime);
+                  const diffMs = end.getTime() - currentTime.getTime();
+                  
+                  let countdownText = '00:00:00';
+                  if (diffMs > 0) {
+                    const secs = Math.floor((diffMs / 1000) % 60);
+                    const mins = Math.floor((diffMs / (1000 * 60)) % 60);
+                    const hrs = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+                    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    const totalHrs = hrs + (days * 24);
+                    countdownText = `${String(totalHrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                  }
+
+                  return (
+                    <div 
+                      key={fs.id} 
+                      className="bg-rose-500/10 border-2 border-rose-500/30 rounded-2xl p-4 text-foreground shadow-md transition-all duration-300 relative overflow-hidden"
+                    >
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-rose-500/20">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl animate-bounce">⚡</span>
+                          <div>
+                            <h4 className="font-extrabold text-sm uppercase tracking-tight text-rose-500">FLASH SALE AKTIF</h4>
+                            <p className="text-xs font-bold text-app-text-muted">{fs.name}</p>
+                          </div>
+                        </div>
+                        <div className="bg-rose-500 text-white font-mono px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg shadow-rose-500/20">
+                          Selesai dalam: {countdownText}
+                        </div>
+                      </div>
+
+                      {/* Products Horizontal Scroll */}
+                      {fs.products && fs.products.length > 0 && (
+                        <div className="pt-3">
+                          <p className="text-[10px] font-black uppercase text-rose-500/70 mb-2 tracking-widest">Produk Promo (Klik untuk Cari):</p>
+                          <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                            {fs.products.map((fsProd: any) => {
+                              const prod = products.find(p => p.id === fsProd.productId);
+                              if (!prod) return null;
+
+                              const sold = fsProd.soldCount || 0;
+                              const stock = fsProd.flashStock || 0;
+                              const pct = stock > 0 ? Math.min(100, (sold / stock) * 100) : 0;
+                              const isSoldOut = sold >= stock;
+
+                              return (
+                                <button
+                                  key={fsProd.productId}
+                                  onClick={() => setSearch(prod.name)}
+                                  className="flex-shrink-0 bg-background border border-rose-500/20 hover:border-rose-500 rounded-xl p-2.5 w-40 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden"
+                                >
+                                  <h5 className="font-extrabold text-[11px] truncate text-foreground leading-snug">{prod.name}</h5>
+                                  <div className="flex items-baseline gap-1 mt-1">
+                                    <span className="text-[10px] font-black text-rose-500">Rp {fsProd.flashPrice?.toLocaleString('id-ID')}</span>
+                                    <span className="text-[8px] line-through text-app-text-muted">Rp {prod.price?.toLocaleString('id-ID')}</span>
+                                  </div>
+                                  <div className="mt-2">
+                                    <div className="flex justify-between items-center text-[7px] font-black uppercase text-app-text-muted mb-1">
+                                      <span>Terjual {sold}/{stock}</span>
+                                      <span>{Math.round(pct)}%</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-surface rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-rose-500 rounded-full" 
+                                        style={{ width: `${pct}%` }} 
+                                      />
+                                    </div>
+                                  </div>
+                                  {isSoldOut && (
+                                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                                      <span className="bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">Habis</span>
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           <div className={
             viewMode === 'tiles' 
               ? "grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4" 
               : "flex flex-col gap-2"
           }>
             {filteredProducts.map(product => {
+              const { price: displayPrice, discountInfo } = getEffectivePrice(product);
+              const isFlash = !!(discountInfo && (discountInfo as any).isFlashSale);
               const isOutOfStock = product.manageStock !== false && product.stock <= 0;
               
               if (viewMode === 'tiles') {
@@ -1466,8 +1658,13 @@ export default function POSPage() {
                     key={product.id}
                     onClick={() => addToCart(product)}
                     disabled={isOutOfStock}
-                    className="flex flex-col text-left bg-background border border-app-border hover:border-accent rounded-xl p-4 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className={"flex flex-col text-left bg-background border rounded-xl p-4 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden " + (isFlash ? "border-rose-500/40 hover:border-rose-500" : "border-app-border hover:border-accent")}
                   >
+                    {isFlash && (
+                      <div className="absolute top-0 right-0 bg-rose-500 text-white font-black text-[7px] uppercase px-2 py-0.5 rounded-bl-lg tracking-widest z-10 animate-pulse">
+                        ⚡ FLASH
+                      </div>
+                    )}
                     <div className="w-full aspect-square bg-surface rounded-lg mb-3 flex items-center justify-center relative overflow-hidden shadow-inner">
                       {product.imageUrl || (product.imageUrls && product.imageUrls.length > 0 && product.imageUrls[0]) ? (
                         <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-500" style={{ backgroundImage: `url(${product.imageUrl || product.imageUrls?.[0]})` }}></div>
@@ -1484,8 +1681,19 @@ export default function POSPage() {
                       <p className="text-[10px] text-app-text-muted mb-1 font-bold uppercase tracking-wider">{product.category || 'Umum'}</p>
                       <h3 className="text-sm font-bold text-foreground leading-tight mb-2 line-clamp-2">{product.name}</h3>
                       <div className="flex items-center justify-between mt-auto">
-                        <p className="text-emerald-400 font-bold text-sm">Rp {product.price.toLocaleString('id-ID')}</p>
-                        {product.manageStock !== false && <p className="text-[10px] text-app-text-muted">Stok: {product.stock}</p>}
+                        <div>
+                          <p className="text-rose-500 font-bold text-sm">Rp {displayPrice.toLocaleString('id-ID')}</p>
+                          {isFlash && (
+                            <p className="text-[9px] line-through text-app-text-muted">Rp {product.price.toLocaleString('id-ID')}</p>
+                          )}
+                        </div>
+                        <div>
+                          {isFlash ? (
+                            <p className="text-[9px] font-black text-rose-500">Sisa: {((discountInfo as any).flashStock - (discountInfo as any).soldCount)}</p>
+                          ) : (
+                            product.manageStock !== false && <p className="text-[10px] text-app-text-muted">Stok: {product.stock}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </button>
@@ -1498,15 +1706,24 @@ export default function POSPage() {
                     key={product.id}
                     onClick={() => addToCart(product)}
                     disabled={isOutOfStock}
-                    className="flex items-center gap-4 text-left bg-background border border-app-border hover:border-accent rounded-xl p-3 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className={"flex items-center gap-4 text-left bg-background border rounded-xl p-3 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden " + (isFlash ? "border-rose-500/40 hover:border-rose-500" : "border-app-border hover:border-accent")}
                   >
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-foreground truncate">{product.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-foreground truncate">{product.name}</h3>
+                        {isFlash && (
+                          <span className="bg-rose-500 text-white font-black text-[7px] uppercase px-1.5 py-0.5 rounded tracking-widest shrink-0">⚡ FLASH</span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-app-text-muted font-bold uppercase tracking-wider">{product.category || 'Umum'}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-emerald-400 font-bold text-sm">Rp {product.price.toLocaleString('id-ID')}</p>
-                      {product.manageStock !== false && <p className="text-[10px] text-app-text-muted">Stok: {product.stock}</p>}
+                      <p className="text-rose-500 font-bold text-sm">Rp {displayPrice.toLocaleString('id-ID')}</p>
+                      {isFlash ? (
+                        <p className="text-[9px] font-black text-rose-500">Sisa Promo: {((discountInfo as any).flashStock - (discountInfo as any).soldCount)}</p>
+                      ) : (
+                        product.manageStock !== false && <p className="text-[10px] text-app-text-muted">Stok: {product.stock}</p>
+                      )}
                     </div>
                   </button>
                 );
@@ -1518,7 +1735,7 @@ export default function POSPage() {
                   key={product.id}
                   onClick={() => addToCart(product)}
                   disabled={isOutOfStock}
-                  className="flex items-center gap-4 text-left bg-background border border-app-border hover:border-accent rounded-xl p-4 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className={"flex items-center gap-4 text-left bg-background border rounded-xl p-4 transition-all focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden " + (isFlash ? "border-rose-500/40 hover:border-rose-500" : "border-app-border hover:border-accent")}
                 >
                   <div className="w-16 h-16 bg-surface rounded-lg flex items-center justify-center relative overflow-hidden shrink-0 shadow-inner">
                     {product.imageUrl || (product.imageUrls && product.imageUrls.length > 0 && product.imageUrls[0]) ? (
@@ -1534,17 +1751,31 @@ export default function POSPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[9px] text-app-text-muted font-black uppercase tracking-widest mb-0.5">{product.category || 'Umum'}</p>
-                    <h3 className="text-sm font-black text-foreground mb-1 truncate">{product.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-black text-foreground truncate">{product.name}</h3>
+                      {isFlash && (
+                        <span className="bg-rose-500 text-white font-black text-[7px] uppercase px-1.5 py-0.5 rounded tracking-widest shrink-0">⚡ FLASH</span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3">
-                      <p className="text-emerald-400 font-black text-sm">Rp {product.price.toLocaleString('id-ID')}</p>
+                      <p className="text-rose-500 font-black text-sm">Rp {displayPrice.toLocaleString('id-ID')}</p>
+                      {isFlash && (
+                        <p className="text-[10px] line-through text-app-text-muted font-mono">Rp {product.price.toLocaleString('id-ID')}</p>
+                      )}
                       {product.sku && <p className="text-[10px] text-app-text-muted font-mono">SKU: {product.sku}</p>}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    {product.manageStock !== false && (
-                      <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${product.stock > 10 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                        Stok: {product.stock}
+                    {isFlash ? (
+                      <div className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-500">
+                        Promo: {((discountInfo as any).flashStock - (discountInfo as any).soldCount)}
                       </div>
+                    ) : (
+                      product.manageStock !== false && (
+                        <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${product.stock > 10 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                          Stok: {product.stock}
+                        </div>
+                      )
                     )}
                   </div>
                 </button>
