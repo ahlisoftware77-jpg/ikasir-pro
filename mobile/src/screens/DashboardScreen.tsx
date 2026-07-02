@@ -545,7 +545,7 @@ export default function DashboardScreen({ navigation }: any) {
                     Clipboard.setString(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
                     Alert.alert('Sukses', 'Link Marketplace toko Anda berhasil disalin!');
                   }}
-                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 dark:border-slate-700"
+                  className="flex-1 py-2.5 bg-slate-200/80 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-300 dark:border-slate-700"
                 >
                   <Copy size={12} color={colors.text} />
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
@@ -633,7 +633,7 @@ export default function DashboardScreen({ navigation }: any) {
                     Clipboard.setString(`https://ikasir.my.id/tr?storeId=${storeId}`);
                     Alert.alert('Sukses', 'Link Toko Online berhasil disalin!');
                   }}
-                  className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 dark:border-slate-700"
+                  className="flex-1 py-2.5 bg-slate-200/80 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-300 dark:border-slate-700"
                 >
                   <Copy size={12} color={colors.text} />
                   <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
@@ -1119,53 +1119,6 @@ export default function DashboardScreen({ navigation }: any) {
             >
               <Plus size={14} color={colors.text} />
               <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Tambah Tiket</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ONLINE STORE EMBED SHARE CARD */}
-        <View 
-          className="p-6 rounded-[28px] border mb-6 shadow-xl"
-          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-        >
-          <View className="flex-row items-center gap-4 mb-4">
-            <View className="w-12 h-12 rounded-2xl items-center justify-center bg-blue-500/10 border border-blue-500/20">
-              <Text className="text-xl">🔗</Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm font-black" style={{ color: colors.text }}>Outlet Online Aktif</Text>
-              <Text className="text-[9px] font-bold mt-0.5" style={{ color: colors.textMuted }}>Link order instan mandiri untuk pelanggan Anda</Text>
-            </View>
-          </View>
-          
-          <View className="bg-black/30 border border-slate-800/80 rounded-xl px-4 py-3 mb-4 flex-row justify-between items-center">
-            <Text className="text-[10px] font-bold text-slate-400 select-all flex-1 mr-2" numberOfLines={1}>
-              {onlineStoreUrl}
-            </Text>
-            <TouchableOpacity onPress={handleCopyLink} className="p-1">
-              <Copy size={14} color={colors.accent} />
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row gap-3">
-            <TouchableOpacity 
-              onPress={handleCopyLink}
-              activeOpacity={0.85}
-              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl border"
-              style={{ borderColor: colors.border, backgroundColor: colors.bg + '20' }}
-            >
-              <Copy size={14} color={colors.text} />
-              <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>SALIN LINK</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              onPress={handleShareLink}
-              activeOpacity={0.855}
-              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl"
-              style={{ backgroundColor: colors.accent }}
-            >
-              <Share2 size={14} color="#ffffff" />
-              <Text className="text-[10px] font-black text-white uppercase tracking-wider">BAGIKAN</Text>
             </TouchableOpacity>
           </View>
         </View>
