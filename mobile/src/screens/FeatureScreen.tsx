@@ -173,6 +173,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [isFlashProductModalVisible, setIsFlashProductModalVisible] = useState(false);
   const [flashProductSearch, setFlashProductSearch] = useState('');
   const [flashDatePicker, setFlashDatePicker] = useState<{ visible: boolean; field: 'startTime' | 'endTime' | null }>({ visible: false, field: null });
+  const [flashTimePicker, setFlashTimePicker] = useState<{ visible: boolean; field: 'startTime' | 'endTime' | null }>({ visible: false, field: null });
 
   // --- SYNCED FINANCE AND TRANSACTION STATES ---
   // Arus Kas States
@@ -3715,20 +3716,20 @@ export default function FeatureScreen({ route, navigation }: any) {
                   <CalendarRange size={16} color={colors.textMuted} />
                 </TouchableOpacity>
 
-                <View className="flex-1 relative">
-                  <TextInput
-                    placeholder="12:00"
-                    placeholderTextColor={colors.textMuted}
-                    maxLength={5}
-                    value={getStartTime()}
-                    onChangeText={(val) => {
-                      setFlashFormStartTime(`${getStartDay()}T${val}:00`);
-                    }}
-                    className="p-3.5 rounded-2xl border text-xs font-bold text-center"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                  />
-                  <Text className="absolute right-3.5 top-4.5 text-[8px] font-black text-slate-400">JAM</Text>
-                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setFlashTimePicker({ visible: true, field: 'startTime' });
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-1 px-4 py-3.5 rounded-2xl border flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-xs text-center flex-1" style={{ color: colors.text }}>
+                    {getStartTime()}
+                  </Text>
+                  <Clock size={16} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -3751,20 +3752,20 @@ export default function FeatureScreen({ route, navigation }: any) {
                   <CalendarRange size={16} color={colors.textMuted} />
                 </TouchableOpacity>
 
-                <View className="flex-1 relative">
-                  <TextInput
-                    placeholder="13:00"
-                    placeholderTextColor={colors.textMuted}
-                    maxLength={5}
-                    value={getEndTime()}
-                    onChangeText={(val) => {
-                      setFlashFormEndTime(`${getEndDay()}T${val}:00`);
-                    }}
-                    className="p-3.5 rounded-2xl border text-xs font-bold text-center"
-                    style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
-                  />
-                  <Text className="absolute right-3.5 top-4.5 text-[8px] font-black text-slate-400">JAM</Text>
-                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    Vibration.vibrate(10);
+                    setFlashTimePicker({ visible: true, field: 'endTime' });
+                  }}
+                  activeOpacity={0.8}
+                  className="flex-1 px-4 py-3.5 rounded-2xl border flex-row items-center justify-between"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                >
+                  <Text className="font-bold text-xs text-center flex-1" style={{ color: colors.text }}>
+                    {getEndTime()}
+                  </Text>
+                  <Clock size={16} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -8118,7 +8119,141 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             </View>
           </View>
         </Modal>
-      )}
+      )}      {/* TIME PICKER MODAL FOR FLASH SALES */}
+      {flashTimePicker.visible && (() => {
+        const getActiveDateTime = () => {
+          return flashTimePicker.field === 'startTime' ? flashFormStartTime : flashFormEndTime;
+        };
+        const getActiveDatePart = () => {
+          const dt = getActiveDateTime();
+          if (!dt) return new Date().toISOString().split('T')[0];
+          return dt.split('T')[0];
+        };
+        const getActiveTimePart = () => {
+          const dt = getActiveDateTime();
+          if (!dt || !dt.includes('T')) {
+            return flashTimePicker.field === 'startTime' ? '12:00' : '13:00';
+          }
+          return dt.split('T')[1].substring(0, 5);
+        };
+        const currentHour = getActiveTimePart().split(':')[0];
+        const currentMinute = getActiveTimePart().split(':')[1];
+
+        const setTimeValue = (hour: string, minute: string) => {
+          const datePart = getActiveDatePart();
+          const newTime = `${datePart}T${hour}:${minute}:00`;
+          if (flashTimePicker.field === 'startTime') {
+            setFlashFormStartTime(newTime);
+          } else {
+            setFlashFormEndTime(newTime);
+          }
+        };
+
+        const hoursArray = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+        const minutesArray = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
+        return (
+          <Modal visible={true} animationType="fade" transparent onRequestClose={() => setFlashTimePicker({ visible: false, field: null })}>
+            <View className="flex-1 bg-black/80 justify-center items-center p-6">
+              <View className="w-full max-w-sm rounded-[36px] overflow-hidden" style={{ backgroundColor: colors.surface }}>
+                <View className="flex-row justify-between items-center p-6 border-b" style={{ borderColor: colors.border + '30' }}>
+                  <Text className="text-base font-black" style={{ color: colors.text }}>
+                    {flashTimePicker.field === 'startTime' ? 'Pilih Jam Mulai' : 'Pilih Jam Selesai'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setFlashTimePicker({ visible: false, field: null })}>
+                    <X size={20} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Jam & Menit Selector Columns */}
+                <View className="flex-row p-6 h-[260px] gap-4">
+                  {/* Kolom Jam */}
+                  <View className="flex-1">
+                    <Text className="text-[10px] font-black text-center uppercase mb-2" style={{ color: colors.textMuted }}>Jam</Text>
+                    <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+                      <View className="flex-row flex-wrap justify-center gap-1.5 pb-8">
+                        {hoursArray.map((hr) => {
+                          const isSelected = hr === currentHour;
+                          return (
+                            <TouchableOpacity
+                              key={hr}
+                              onPress={() => {
+                                Vibration.vibrate(5);
+                                setTimeValue(hr, currentMinute);
+                              }}
+                              className="w-10 h-10 rounded-full items-center justify-center"
+                              style={{
+                                backgroundColor: isSelected ? colors.accent : colors.bg,
+                                borderColor: isSelected ? colors.accent : colors.border,
+                                borderWidth: 1
+                              }}
+                            >
+                              <Text className="text-xs font-bold" style={{ color: isSelected ? '#ffffff' : colors.text }}>
+                                {hr}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
+                  </View>
+
+                  {/* Pembatas Kolom */}
+                  <View className="justify-center items-center">
+                    <Text className="text-lg font-black" style={{ color: colors.textMuted }}>:</Text>
+                  </View>
+
+                  {/* Kolom Menit */}
+                  <View className="flex-1">
+                    <Text className="text-[10px] font-black text-center uppercase mb-2" style={{ color: colors.textMuted }}>Menit</Text>
+                    <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+                      <View className="flex-row flex-wrap justify-center gap-1.5 pb-8">
+                        {minutesArray.map((mn) => {
+                          const isSelected = mn === currentMinute;
+                          // Untuk menghemat ruang, hanya tampilkan kelipatan 5 atau semua? 
+                          // Supaya user bisa memilih menit presisi dengan cepat, tampilkan kelipatan 5, 
+                          // namun sertakan tombol plus/minus atau tampilkan semua. Tampilkan semua di ScrollView sangat rapi.
+                          return (
+                            <TouchableOpacity
+                              key={mn}
+                              onPress={() => {
+                                Vibration.vibrate(5);
+                                setTimeValue(currentHour, mn);
+                              }}
+                              className="w-10 h-10 rounded-full items-center justify-center"
+                              style={{
+                                backgroundColor: isSelected ? colors.accent : colors.bg,
+                                borderColor: isSelected ? colors.accent : colors.border,
+                                borderWidth: 1
+                              }}
+                            >
+                              <Text className="text-xs font-bold" style={{ color: isSelected ? '#ffffff' : colors.text }}>
+                                {mn}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
+                  </View>
+                </View>
+
+                {/* Tombol Konfirmasi */}
+                <View className="p-6 pt-0">
+                  <TouchableOpacity
+                    onPress={() => setFlashTimePicker({ visible: false, field: null })}
+                    className="w-full py-4 rounded-2xl items-center justify-center"
+                    style={{ backgroundColor: colors.accent }}
+                  >
+                    <Text className="text-white font-black text-xs uppercase tracking-widest">Selesai</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
+
 
       {/* 6. MODAL DETAIL ARUS KAS */}
       <Modal 
