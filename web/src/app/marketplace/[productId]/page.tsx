@@ -2,9 +2,38 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, ArrowLeft, Share2, ChevronLeft, ChevronRight, X, Play, Zap } from 'lucide-react';
+import { db, auth } from '@/lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  doc, 
+  getDoc, 
+  runTransaction, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { 
+  ShoppingBag, 
+  MessageSquare, 
+  Store, 
+  AlertCircle, 
+  RefreshCw, 
+  ArrowLeft, 
+  Share2, 
+  ChevronLeft, 
+  ChevronRight, 
+  X, 
+  Play, 
+  Zap, 
+  Truck, 
+  Banknote, 
+  CreditCard, 
+  QrCode 
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import { getInfraConfig } from '@/lib/infraConfig';
 
 interface Product {
   id: string;
@@ -26,6 +55,27 @@ interface MediaItem {
   url: string;
 }
 
+const uploadToCloudinary = async (file: File): Promise<string> => {
+  const config = await getInfraConfig();
+  const uploadData = new FormData();
+  uploadData.append('file', file);
+  uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+
+  const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+  const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: 'POST',
+    body: uploadData
+  });
+
+  if (!uploadRes.ok) {
+    const errData = await uploadRes.json();
+    throw new Error(errData.error?.message || 'Gagal mengunggah ke Cloudinary');
+  }
+
+  const uploadResult = await uploadRes.json();
+  return uploadResult.secure_url;
+};
+
 export default function ProductDetailPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params);
   const router = useRouter();
@@ -39,6 +89,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   const [storePhone, setStorePhone] = useState('');
   const [storeAddress, setStoreAddress] = useState('');
   const [storeLogo, setStoreLogo] = useState('');
+  
+  // Store checkout settings
+  const [storeBanks, setStoreBanks] = useState<any[]>([]);
+  const [storeEwallets, setStoreEwallets] = useState<any[]>([]);
+  const [storeBankInfo, setStoreBankInfo] = useState('');
+  const [storeEwalletInfo, setStoreEwalletInfo] = useState('');
+  const [storeUseTax, setStoreUseTax] = useState(false);
+  const [storeTaxRate, setStoreTaxRate] = useState(0);
+  const [storeDeliveryFee, setStoreDeliveryFee] = useState(0);
+  const [storeAllowPickup, setStoreAllowPickup] = useState(true);
+  const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
 
   // Fullscreen Media Preview Lightbox state (index based for navigation)
   const [previewIndex, setPreviewIndex] = useState<number>(-1);
@@ -46,6 +107,51 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   // Flash Sale state
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  // Checkout state variables
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [fulfillmentType, setFulfillmentType] = useState<'pickup' | 'delivery'>('pickup');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'qris'>('cash');
+  const [selectedStoreBankId, setSelectedStoreBankId] = useState('');
+  const [selectedStoreEwalletId, setSelectedStoreEwalletId] = useState('');
+  const [paymentProofUrl, setPaymentProofUrl] = useState('');
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [downPayment, setDownPayment] = useState(0);
+  const [guestId, setGuestId] = useState('');
+  const [authUser, setAuthUser] = useState<any>(null);
+
+  // Sync Auth User & guest_id
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setAuthUser(user);
+        setCustomerName(user.displayName || '');
+        // Fetch phone if exists in user metadata
+        getDoc(doc(db, 'users', user.uid)).then(snap => {
+          if (snap.exists() && snap.data().phone) {
+            setCustomerPhone(snap.data().phone);
+          }
+        });
+      } else {
+        setAuthUser(null);
+        setCustomerName(localStorage.getItem('customer_name') || '');
+        setCustomerPhone(localStorage.getItem('customer_phone') || '');
+      }
+    });
+
+    const savedGuestId = localStorage.getItem('guest_id') || ('guest_' + Math.random().toString(36).substring(2, 9));
+    setGuestId(savedGuestId);
+    if (!localStorage.getItem('guest_id')) {
+      localStorage.setItem('guest_id', savedGuestId);
+    }
+
+    return () => unsubAuth();
+  }, []);
 
   // 1-second timer for flash sale countdown
   useEffect(() => {
@@ -83,9 +189,34 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           if (data.storeId) {
             const settingsSnap = await getDoc(doc(db, 'settings', `store_${data.storeId}`));
             if (settingsSnap.exists()) {
-              setStorePhone(settingsSnap.data().phone || '');
-              setStoreAddress(settingsSnap.data().address || '');
-              setStoreLogo(settingsSnap.data().logoUrl || '');
+              const sData = settingsSnap.data();
+              setStorePhone(sData.phone || '');
+              setStoreAddress(sData.address || '');
+              setStoreLogo(sData.logoUrl || '');
+              
+              // Load payment & fulfillment settings
+              setStoreBanks(sData.storeBanks || []);
+              setStoreEwallets(sData.storeEwallets || []);
+              setStoreBankInfo(sData.bankInfo || '');
+              setStoreEwalletInfo(sData.ewalletInfo || '');
+              setStoreUseTax(!!sData.useTax);
+              setStoreTaxRate(Number(sData.taxRate) || 0);
+              setStoreDeliveryFee(Number(sData.deliveryFee) || 0);
+              setStoreAllowPickup(sData.allowPickup !== false);
+              setStoreAllowDelivery(sData.allowDelivery !== false);
+              
+              if (sData.allowPickup === false && sData.allowDelivery !== false) {
+                setFulfillmentType('delivery');
+              } else {
+                setFulfillmentType('pickup');
+              }
+
+              if (sData.storeBanks && sData.storeBanks.length > 0) {
+                setSelectedStoreBankId(sData.storeBanks[0].id);
+              }
+              if (sData.storeEwallets && sData.storeEwallets.length > 0) {
+                setSelectedStoreEwalletId(sData.storeEwallets[0].id);
+              }
             }
 
             // Fetch other products from same store
@@ -140,42 +271,179 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
     loadProductDetails();
   }, [productId]);
 
-  const getWhatsAppLink = (prod: Product) => {
-    let formattedPhone = storePhone.replace(/[^0-9]/g, '');
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = '62' + formattedPhone.slice(1);
-    }
+  const handleOpenCheckout = () => {
+    if (!product) return;
+    setIsCheckoutOpen(true);
+    setQty(1);
+    setPaymentProofUrl('');
     
-    if (!formattedPhone) return null;
-
-    const message = `Halo ${prod.storeName || 'Toko'}, saya tertarik dengan produk Anda di Marketplace iKasir:\n\n*${prod.name}*\nHarga: Rp ${prod.price.toLocaleString('id-ID')}\n\nApakah produk ini masih tersedia?`;
-    return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    // Auto populate profile data if guest
+    if (!authUser) {
+      setCustomerName(localStorage.getItem('customer_name') || '');
+      setCustomerPhone(localStorage.getItem('customer_phone') || '');
+    }
   };
 
-  const handleWhatsAppRedirect = (prod: Product) => {
-    const link = getWhatsAppLink(prod);
-    if (!link) {
-      alert("Toko ini belum menyantumkan nomor WhatsApp yang valid di pengaturannya.");
+  const handleConfirmCheckout = async () => {
+    if (!product) return;
+
+    if (!customerName.trim()) {
+      alert("Harap lengkapi nama Anda.");
       return;
     }
-    window.open(link, '_blank');
-  };
-
-  const handleShareProduct = (prod: Product) => {
-    if (navigator.share) {
-      navigator.share({
-        title: prod.name,
-        text: `Lihat ${prod.name} dari ${prod.storeName} di iKasir Marketplace!`,
-        url: window.location.href,
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Tautan produk berhasil disalin!");
+    if (!customerPhone.trim()) {
+      alert("Harap isi nomor WhatsApp Anda.");
+      return;
     }
-  };
+    if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
+      alert("Harap lengkapi alamat pengiriman Anda.");
+      return;
+    }
 
-  const handleStoreClick = (storeId: string, storeName: string) => {
-    router.push(`/marketplace?storeId=${storeId}&storeName=${encodeURIComponent(storeName)}`);
+    setIsProcessing(true);
+    try {
+      const ep = getEffectivePrice(product);
+      const activePrice = ep.isFlashSale ? ep.price : product.price;
+      const sub = activePrice * qty;
+      const fee = fulfillmentType === 'delivery' ? storeDeliveryFee : 0;
+      const taxAmount = storeUseTax ? Math.round((sub * storeTaxRate) / 100) : 0;
+      const finalTotal = sub + taxAmount + fee;
+
+      const orderData: any = {
+        storeId: product.storeId,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        guestId: authUser?.uid || guestId,
+        items: [{
+          productId: product.id,
+          productName: product.name,
+          price: activePrice,
+          qty: qty,
+          subtotal: sub,
+          selectedExtras: [],
+          note: ''
+        }],
+        subtotal: sub,
+        tax: taxAmount,
+        deliveryFee: fee,
+        total: finalTotal,
+        paymentMethod: paymentMethod,
+        selectedPaymentDetails: paymentMethod === 'transfer' 
+          ? (storeBanks.find((b: any) => b.id === selectedStoreBankId) || storeBanks[0] || null)
+          : paymentMethod === 'qris' 
+            ? (storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0] || null)
+            : null,
+        paymentProofUrl: (paymentMethod === 'transfer' || paymentMethod === 'qris') ? paymentProofUrl : '',
+        orderStatus: 'new',
+        paymentStatus: 'pending',
+        paymentCategory: 'order',
+        deliveryType: fulfillmentType,
+        deliveryAddress: fulfillmentType === 'delivery' ? deliveryAddress : '',
+        orderType: 'online',
+        cashierName: 'Online (Sistem)',
+        cashierId: 'online',
+        paidAmount: 0,
+        debtAmount: finalTotal,
+        timestamp: serverTimestamp(),
+      };
+
+      let finalId = '';
+      
+      await runTransaction(db, async (transaction) => {
+        const settingsRef = doc(db, 'settings', `store_${product.storeId}`);
+        const settingsSnap = await transaction.get(settingsRef);
+        
+        let currentCounter = 0;
+        let prefix = 'TRX';
+        let padding = 4;
+        
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          currentCounter = Number(data.trxCounter) || 0;
+          prefix = data.trxPrefix || 'TRX';
+          padding = data.trxPadding || 4;
+        }
+        
+        currentCounter += 1;
+        finalId = `${prefix}${String(currentCounter).padStart(padding, '0')}`;
+        
+        orderData.id = finalId;
+        orderData.queueNumber = currentCounter;
+
+        // Deduct flash sale stock if active
+        if (ep.isFlashSale) {
+          const activeFs = flashSales.find(fs => {
+            if (!fs.isActive) return false;
+            const start = new Date(fs.startTime);
+            const end = new Date(fs.endTime);
+            return currentTime >= start && currentTime <= end;
+          });
+
+          if (activeFs) {
+            const fsRef = doc(db, 'flash_sales', activeFs.id);
+            const fsDoc = await transaction.get(fsRef);
+            if (fsDoc.exists()) {
+              const fsData = fsDoc.data();
+              const updatedProducts = (fsData.products || []).map((p: any) => {
+                if (p.productId === product.id) {
+                  const newSoldCount = (p.soldCount || 0) + qty;
+                  return { ...p, soldCount: Math.min(p.flashStock || 0, newSoldCount) };
+                }
+                return p;
+              });
+              transaction.update(fsRef, { products: updatedProducts });
+            }
+          }
+        }
+
+        transaction.set(doc(db, 'transactions', finalId), orderData);
+        transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
+      });
+
+      // Save customer profile defaults locally if guest
+      if (!authUser) {
+        localStorage.setItem('customer_name', customerName.trim());
+        localStorage.setItem('customer_phone', customerPhone.trim());
+      }
+
+      // Add to personal order history
+      const savedOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
+      const newOrders = [finalId, ...savedOrders].slice(0, 50);
+      localStorage.setItem('my_orders', JSON.stringify(newOrders));
+
+      // Trigger FCM Push Notification
+      fetch('/api/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId: product.storeId,
+          title: '🚨 PESANAN ONLINE BARU!',
+          message: `Ada pesanan baru masuk senilai Rp ${finalTotal.toLocaleString('id-ID')}.`,
+          data: { transactionId: finalId }
+        })
+      }).catch(e => console.error('Failed to trigger notification', e));
+
+      // Redirect to WA Chat to Toko
+      let formattedPhone = storePhone.replace(/[^0-9]/g, '');
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '62' + formattedPhone.slice(1);
+      }
+      if (formattedPhone) {
+        const textMsg = `Halo ${product.storeName || 'Toko'}, saya telah memesan produk via Marketplace iKasir.\n\n*Detail Pesanan:*\nID Pesanan: #${finalId}\nProduk: *${product.name}* (x${qty})\nTotal Bayar: Rp ${finalTotal.toLocaleString('id-ID')}\nMetode Pembayaran: ${paymentMethod.toUpperCase()}\nPengambilan: ${fulfillmentType === 'delivery' ? 'Kirim ke Alamat' : 'Ambil di Toko'}\n\nMohon konfirmasi pesanan saya, terima kasih!`;
+        window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(textMsg)}`, '_blank');
+      }
+
+      toast.success("Pesanan Anda berhasil dikirim!");
+      setIsCheckoutOpen(false);
+
+      // Redirect user to the Online Store `/tr?s=storeId` to view order list/status
+      router.push(`/tr?s=${product.storeId}&open_checkout=false`);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal memproses pesanan: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Flash Sale: get effective price for a product
@@ -237,6 +505,59 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       url.includes('video') ||
       (url.includes('firebasestorage.googleapis.com') && url.toLowerCase().includes('type=video'))
     );
+  };
+
+  const ep = product ? getEffectivePrice(product) : {
+    price: 0,
+    originalPrice: 0,
+    isFlashSale: false,
+    flashStock: 0,
+    soldCount: 0,
+    countdown: '',
+    flashSaleName: '',
+  };
+  const activePrice = ep.isFlashSale ? ep.price : (product?.price || 0);
+  const subtotalSum = activePrice * qty;
+  const taxAmount = storeUseTax ? Math.round((subtotalSum * storeTaxRate) / 100) : 0;
+  const deliveryFee = fulfillmentType === 'delivery' ? storeDeliveryFee : 0;
+  const totalWithFulfillment = subtotalSum + taxAmount + deliveryFee;
+
+  const getWhatsAppLink = (prod: Product) => {
+    let formattedPhone = storePhone.replace(/[^0-9]/g, '');
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '62' + formattedPhone.slice(1);
+    }
+    
+    if (!formattedPhone) return null;
+
+    const message = `Halo ${prod.storeName || 'Toko'}, saya tertarik dengan produk Anda di Marketplace iKasir:\n\n*${prod.name}*\nHarga: Rp ${prod.price.toLocaleString('id-ID')}\n\nApakah produk ini masih tersedia?`;
+    return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleWhatsAppRedirect = (prod: Product) => {
+    const link = getWhatsAppLink(prod);
+    if (!link) {
+      alert("Toko ini belum menyantumkan nomor WhatsApp yang valid di pengaturannya.");
+      return;
+    }
+    window.open(link, '_blank');
+  };
+
+  const handleShareProduct = (prod: Product) => {
+    if (navigator.share) {
+      navigator.share({
+        title: prod.name,
+        text: `Lihat ${prod.name} dari ${prod.storeName} di iKasir Marketplace!`,
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      alert("Tautan produk berhasil disalin!");
+    }
+  };
+
+  const handleStoreClick = (storeId: string, storeName: string) => {
+    router.push(`/marketplace?storeId=${storeId}&storeName=${encodeURIComponent(storeName)}`);
   };
 
   // Determine media gallery list (with video support)
@@ -311,7 +632,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         <div className="flex items-center gap-4">
           <button 
             onClick={() => handleShareProduct(product)}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-emerald-500 transition-colors"
+            className="p-2 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 rounded-xl transition-all shadow-sm flex items-center justify-center"
           >
             <Share2 size={18} />
           </button>
@@ -473,6 +794,32 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   </div>
                 );
               })()}
+
+              {/* Desktop Checkout / Buy Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+                  onClick={() => handleOpenCheckout()}
+                  className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md ${
+                    product.manageStock !== false && (product.stock || 0) <= 0
+                      ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+                      : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
+                  }`}
+                >
+                  <ShoppingBag size={16} />
+                  <span>Beli Sekarang</span>
+                </button>
+                {waLink && (
+                  <a
+                    href={waLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-5 py-4 border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900/60 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    <MessageSquare size={16} />
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* Description Panel */}
@@ -558,6 +905,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         )}
       </main>
 
+      {/* Bottom Bar for Mobile View */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between gap-4 lg:hidden">
         {(() => {
           const ep = getEffectivePrice(product);
@@ -581,26 +929,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 )}
               </div>
               <button
-                onClick={() => {
-                  if (product.manageStock !== false && (product.stock || 0) <= 0) return;
-                  
-                  // Gunakan harga flash sale untuk pesan WA jika aktif
-                  const rawPhone = storePhone || '';
-                  let formattedPhone = rawPhone.replace(/[^0-9]/g, '');
-                  if (formattedPhone.startsWith('0')) {
-                    formattedPhone = '62' + formattedPhone.slice(1);
-                  }
-                  
-                  if (!formattedPhone) {
-                    alert("Toko ini belum menyantumkan nomor WhatsApp yang valid di pengaturannya.");
-                    return;
-                  }
-                  
-                  const activePrice = ep.isFlashSale ? ep.price : product.price;
-                  const message = `Halo ${product.storeName || 'Toko'}, saya tertarik dengan produk Anda di Marketplace iKasir:\n\n*${product.name}*\nHarga: Rp ${activePrice.toLocaleString('id-ID')}${ep.isFlashSale ? ' (Harga Promo Flash Sale)' : ''}\n\nApakah produk ini masih tersedia?`;
-                  const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
-                  window.open(url, '_blank');
-                }}
+                onClick={() => handleOpenCheckout()}
                 disabled={product.manageStock !== false && (product.stock || 0) <= 0}
                 className={`flex-1 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg ${
                   product.manageStock !== false && (product.stock || 0) <= 0
@@ -612,8 +941,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   <span>Stok Habis</span>
                 ) : (
                   <>
-                    <MessageSquare size={16} className="stroke-[2.5]" />
-                    <span>Chat Sekarang</span>
+                    <ShoppingBag size={16} className="stroke-[2.5]" />
+                    <span>Beli Sekarang</span>
                   </>
                 )}
               </button>
@@ -679,6 +1008,424 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Fitur Checkout Modal (Premium Overlay) */}
+      {isCheckoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 dark:bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] w-full max-w-lg flex flex-col max-h-[90vh] shadow-2xl overflow-hidden my-8">
+            
+            {/* Modal Header */}
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white italic tracking-tight">Checkout Pemesanan</h3>
+                <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">{product.storeName}</p>
+              </div>
+              <button 
+                onClick={() => setIsCheckoutOpen(false)}
+                className="text-slate-400 hover:text-slate-950 dark:hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 text-slate-800 dark:text-slate-200 text-left">
+              
+              {/* Product Info Summary */}
+              <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-900 overflow-hidden shrink-0 border border-slate-300 dark:border-slate-800">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400 dark:text-slate-600">
+                      <ShoppingBag size={24} />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">{product.name}</h4>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">{product.category}</p>
+                  
+                  {/* Quantity Control */}
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs font-black text-emerald-500">Rp {activePrice.toLocaleString('id-ID')}</span>
+                    <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-xl shadow-inner scale-90">
+                      <button 
+                        onClick={() => setQty(prev => Math.max(1, prev - 1))}
+                        className="text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      >
+                        -
+                      </button>
+                      <span className="text-xs font-black text-slate-900 dark:text-white">{qty}</span>
+                      <button 
+                        onClick={() => {
+                          if (product.manageStock !== false && qty >= (product.stock || 0)) {
+                            alert("Stok terbatas!");
+                            return;
+                          }
+                          setQty(prev => prev + 1);
+                        }}
+                        className="text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 1: Customer Profile Details */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">1. Data Pelanggan</h4>
+                
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+                    <input 
+                      type="text"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      placeholder="Masukkan nama Anda..."
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Nomor WhatsApp</label>
+                    <input 
+                      type="tel"
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      placeholder="Contoh: 08123456789"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Fulfillment Type (Pickup vs Delivery) */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">2. Cara Pengambilan</h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setFulfillmentType('pickup')}
+                    className={`p-4 border rounded-2xl flex flex-col items-center gap-1.5 transition-all text-center ${
+                      fulfillmentType === 'pickup'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-450 font-black shadow-lg shadow-emerald-500/5'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-500/30'
+                    }`}
+                  >
+                    <Store size={18} />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Ambil Sendiri</span>
+                  </button>
+                  <button
+                    onClick={() => setFulfillmentType('delivery')}
+                    className={`p-4 border rounded-2xl flex flex-col items-center gap-1.5 transition-all text-center ${
+                      fulfillmentType === 'delivery'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-450 font-black shadow-lg shadow-emerald-500/5'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-500/30'
+                    }`}
+                  >
+                    <Truck size={18} />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Pengiriman</span>
+                  </button>
+                </div>
+
+                {fulfillmentType === 'delivery' && (
+                  <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-200">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Alamat Lengkap Pengiriman</label>
+                    <textarea 
+                      value={deliveryAddress}
+                      onChange={e => setDeliveryAddress(e.target.value)}
+                      placeholder="Masukkan alamat pengiriman lengkap Anda..."
+                      rows={3}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Step 3: Payment Method Selection */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">3. Metode Pembayaran</h4>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      setPaymentMethod('cash');
+                      setDownPayment(0);
+                    }}
+                    className={`p-3 border rounded-2xl flex flex-col items-center gap-1.5 transition-all text-center ${
+                      paymentMethod === 'cash'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-450 font-black shadow-lg shadow-emerald-500/5'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-500/30'
+                    }`}
+                  >
+                    <Banknote size={16} />
+                    <span className="text-[9px] font-black uppercase tracking-wider">Tunai / COD</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPaymentMethod('transfer');
+                      setDownPayment(0);
+                    }}
+                    className={`p-3 border rounded-2xl flex flex-col items-center gap-1.5 transition-all text-center ${
+                      paymentMethod === 'transfer'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-450 font-black shadow-lg shadow-emerald-500/5'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-500/30'
+                    }`}
+                  >
+                    <CreditCard size={16} />
+                    <span className="text-[9px] font-black uppercase tracking-wider">Transfer</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPaymentMethod('qris');
+                      setDownPayment(0);
+                    }}
+                    className={`p-3 border rounded-2xl flex flex-col items-center gap-1.5 transition-all text-center ${
+                      paymentMethod === 'qris'
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-450 font-black shadow-lg shadow-emerald-500/5'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-500/30'
+                    }`}
+                  >
+                    <QrCode size={16} />
+                    <span className="text-[9px] font-black uppercase tracking-wider">QRIS</span>
+                  </button>
+                </div>
+
+                {/* Sub-panels for payments details */}
+                {paymentMethod === 'transfer' && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 animate-in fade-in duration-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Informasi Bank Toko</p>
+                    
+                    {storeBanks.length > 0 ? (
+                      <div className="space-y-3">
+                        <select
+                          value={selectedStoreBankId}
+                          onChange={(e) => setSelectedStoreBankId(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+                        >
+                          {storeBanks.map((bank: any) => (
+                            <option key={bank.id} value={bank.id}>
+                              {bank.bankName} - {bank.accountNumber}
+                            </option>
+                          ))}
+                        </select>
+                        {(() => {
+                          const activeBank = storeBanks.find((b: any) => b.id === selectedStoreBankId) || storeBanks[0];
+                          return (
+                            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold space-y-1 text-slate-700 dark:text-slate-350 shadow-inner">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[8px] font-black text-slate-400 uppercase">Nama Bank:</span>
+                                <span className="font-extrabold text-slate-900 dark:text-white uppercase">{activeBank.bankName}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[8px] font-black text-slate-400 uppercase">No. Rekening:</span>
+                                <span className="font-extrabold text-slate-900 dark:text-white select-all">{activeBank.accountNumber}</span>
+                              </div>
+                              <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-850 pt-1.5">
+                                <span className="text-[8px] font-black text-slate-400 uppercase">Atas Nama:</span>
+                                <span className="font-black text-slate-900 dark:text-white">{activeBank.accountHolder}</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : storeBankInfo ? (
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-300 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 whitespace-pre-line text-center">{storeBankInfo}</p>
+                    ) : (
+                      <p className="text-[10px] text-slate-400 italic text-center">Toko belum menyantumkan rekening bank.</p>
+                    )}
+                  </div>
+                )}
+
+                {paymentMethod === 'qris' && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3 animate-in fade-in duration-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pembayaran QRIS Toko</p>
+                    
+                    {storeEwallets.length > 0 ? (
+                      <div className="space-y-3">
+                        <select
+                          value={selectedStoreEwalletId}
+                          onChange={(e) => setSelectedStoreEwalletId(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+                        >
+                          {storeEwallets.map((ew: any) => (
+                            <option key={ew.id} value={ew.id}>
+                              {ew.ewalletName} - {ew.phoneNumber}
+                            </option>
+                          ))}
+                        </select>
+                        {(() => {
+                          const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                          return (
+                            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold space-y-2 text-slate-700 dark:text-slate-350 shadow-inner flex flex-col items-center">
+                              {activeEw.qrCodeUrl && (
+                                <div className="w-40 h-40 border border-slate-200 dark:border-slate-700 bg-white p-2 rounded-xl mb-2">
+                                  <img src={activeEw.qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                                </div>
+                              )}
+                              <div className="w-full space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[8px] font-black text-slate-400 uppercase">Provider:</span>
+                                  <span className="font-extrabold text-slate-900 dark:text-white uppercase">{activeEw.ewalletName}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[8px] font-black text-slate-400 uppercase">No. HP/ID:</span>
+                                  <span className="font-extrabold text-slate-900 dark:text-white select-all">{activeEw.phoneNumber}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-850 pt-1.5">
+                                  <span className="text-[8px] font-black text-slate-400 uppercase">Nama:</span>
+                                  <span className="font-black text-slate-900 dark:text-white">{activeEw.accountHolder}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : storeEwalletInfo ? (
+                      <div className="flex flex-col items-center bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-center">
+                        <img src={storeEwalletInfo} alt="QRIS" className="w-40 h-40 object-contain rounded mb-2" />
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pindai kode QRIS Toko di atas</p>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-400 italic text-center">Toko belum menyantumkan e-wallet atau QRIS.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Upload Proof for non-cash orders */}
+                {(paymentMethod === 'transfer' || paymentMethod === 'qris') && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-850 flex flex-col gap-2.5 w-full text-left">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      Unggah Bukti Bayar (Opsional)
+                    </label>
+                    
+                    {paymentProofUrl ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-16 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 overflow-hidden shrink-0">
+                            <img src={paymentProofUrl} alt="Bukti" className="w-full h-full object-cover" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Bukti Pembayaran</p>
+                            <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                              <Zap size={10} className="fill-emerald-500 text-emerald-500" /> Berhasil diunggah
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentProofUrl('')}
+                          className="p-2 bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 text-rose-500 rounded-xl transition-all"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="relative flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-emerald-500/30 bg-white dark:bg-slate-950 p-5 rounded-2xl cursor-pointer transition-all active:scale-[0.99] group overflow-hidden">
+                        {isUploadingProof ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mengunggah...</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <RefreshCw className="text-slate-400 group-hover:text-emerald-500 transition-colors" size={24} />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Pilih Foto Bukti Transfer</span>
+                            <span className="text-[8px] text-slate-400">PNG, JPG atau JPEG</span>
+                          </div>
+                        )}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" 
+                          onChange={async (e) => {
+                            if (!e.target.files || !e.target.files[0]) return;
+                            const file = e.target.files[0];
+                            const fileName = file.name.toLowerCase();
+                            const isImageExt = fileName.endsWith('.png') || 
+                                               fileName.endsWith('.jpg') || 
+                                               fileName.endsWith('.jpeg') || 
+                                               fileName.endsWith('.webp') || 
+                                               fileName.endsWith('.heic') || 
+                                               fileName.endsWith('.heif');
+                            const isImageType = file.type && file.type.startsWith('image/');
+                            if (!isImageType && !isImageExt) {
+                              alert('File harus berupa gambar (PNG, JPG, JPEG)');
+                              return;
+                            }
+                            setIsUploadingProof(true);
+                            try {
+                              const url = await uploadToCloudinary(file);
+                              setPaymentProofUrl(url);
+                            } catch (err: any) {
+                              console.error(err);
+                              alert('Gagal mengunggah bukti: ' + err.message);
+                            } finally {
+                              setIsUploadingProof(false);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Order Summary Pricing details */}
+              <div className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Ringkasan Harga</p>
+                <div className="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <span>Subtotal ({qty} Item)</span>
+                  <span>Rp {subtotalSum.toLocaleString('id-ID')}</span>
+                </div>
+                {storeUseTax && (
+                  <div className="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
+                    <span>Pajak ({storeTaxRate}%)</span>
+                    <span>Rp {taxAmount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                {fulfillmentType === 'delivery' && (
+                  <div className="flex justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <span>Ongkos Kirim</span>
+                    <span>Rp {storeDeliveryFee.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Modal Bottom Footer Actions */}
+            <div className="px-8 py-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-4 shrink-0">
+              <div className="flex justify-between items-baseline pt-2">
+                <span className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">Total Bayar</span>
+                <span className="text-xl font-black text-slate-900 dark:text-white">
+                  Rp {totalWithFulfillment.toLocaleString('id-ID')}
+                </span>
+              </div>
+              <button
+                onClick={handleConfirmCheckout}
+                disabled={isProcessing}
+                className="w-full py-4 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={14} />
+                    <span>Memproses...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Kirim Pesanan Ke Toko</span>
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
