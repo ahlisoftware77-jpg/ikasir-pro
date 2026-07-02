@@ -88,6 +88,7 @@ import { useNotificationStore } from './src/store/notificationStore';
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
 import MarketplaceScreen from './src/screens/MarketplaceScreen';
+import MarketplaceProductDetailScreen from './src/screens/MarketplaceProductDetailScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import POSScreen from './src/screens/POSScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
@@ -907,6 +908,7 @@ function NavigationRoot() {
         ) : (
           <>
             <Stack.Screen name="Main" component={TabNavigator} />
+            <Stack.Screen name="MarketplaceProductDetail" component={MarketplaceProductDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SuperAdminScreen" component={SuperAdminScreen} options={({ route }: any) => ({
               headerShown: true,
               title: route.params?.title || 'Super Admin',
