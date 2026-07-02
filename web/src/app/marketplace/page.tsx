@@ -411,7 +411,7 @@ function MarketplaceContent() {
             <p className="text-xs text-slate-450 dark:text-slate-500 mt-1 max-w-sm">Coba sesuaikan kata kunci pencarian Anda atau pilih kategori lain.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
             {filteredProducts.map((prod) => {
               const storeLogo = storeLogos[prod.storeId];
               return (
@@ -427,13 +427,13 @@ function MarketplaceContent() {
                   <div className="relative aspect-square w-full bg-slate-100 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800/60 overflow-hidden flex items-center justify-center">
                     {prod.manageStock !== false && (prod.stock || 0) <= 0 && (
                       <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center z-10 p-1 text-center">
-                        <span className="text-[9px] font-black text-white uppercase tracking-widest bg-rose-600 px-2 py-0.5 rounded-md shadow-lg shadow-rose-600/20 animate-pulse">Terjual</span>
-                        <span className="text-[8px] font-bold text-slate-300 mt-1 uppercase leading-none">Stok Kosong</span>
+                        <span className="text-[8px] sm:text-[9px] font-black text-white uppercase tracking-widest bg-rose-600 px-1.5 sm:text-px-2 py-0.5 rounded shadow-lg shadow-rose-600/20 animate-pulse">Terjual</span>
+                        <span className="text-[7px] sm:text-[8px] font-bold text-slate-300 mt-0.5 uppercase leading-none">Stok Kosong</span>
                       </div>
                     )}
                     {getEffectivePrice(prod).isFlashSale && (
-                      <span className="absolute top-3 right-3 z-10 flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-600 text-white text-[8px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/30 animate-pulse">
-                        <Zap size={9} className="fill-white" /> Flash Sale
+                      <span className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-0.5 rounded bg-rose-600 text-white text-[7px] sm:text-[8px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/30 animate-pulse">
+                        <Zap size={8} className="fill-white" /> Flash
                       </span>
                     )}
                     {prod.imageUrl ? (
@@ -444,66 +444,66 @@ function MarketplaceContent() {
                       />
                     ) : (
                       <div className="flex flex-col items-center text-slate-350 dark:text-slate-700">
-                        <ShoppingBag size={32} />
-                        <span className="text-[9px] font-black uppercase tracking-wider mt-2">NO IMAGE</span>
+                        <ShoppingBag size={24} className="sm:w-8 sm:h-8" />
+                        <span className="text-[8px] font-black uppercase tracking-wider mt-1">NO IMAGE</span>
                       </div>
                     )}
                     {prod.category && (
-                      <span className="absolute top-3 left-3 px-2 py-0.5 rounded bg-white/90 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-black uppercase tracking-widest backdrop-blur-sm shadow-sm">
+                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded bg-white/90 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-[7px] sm:text-[8px] font-black uppercase tracking-widest backdrop-blur-sm shadow-sm">
                         {prod.category}
                       </span>
                     )}
                   </div>
 
                   {/* Details */}
-                  <div className="p-4 flex-1 flex flex-col justify-between">
-                    <div className="space-y-1.5">
+                  <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between">
+                    <div className="space-y-1">
                       {/* Store Details with Icon */}
                       <div 
                         onClick={(e) => {
                           e.stopPropagation();
                           handleStoreClick(prod.storeId, prod.storeName || 'Toko Mitra');
                         }}
-                        className="flex items-center gap-1.5 text-[9px] text-emerald-600 dark:text-emerald-450 font-bold uppercase tracking-wider hover:text-emerald-500 transition-colors"
+                        className="flex items-center gap-1 text-[8px] sm:text-[9px] text-emerald-600 dark:text-emerald-450 font-bold uppercase tracking-wider hover:text-emerald-500 transition-colors"
                       >
-                        <div className="w-4 h-4 rounded-full overflow-hidden bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center border border-emerald-250 dark:border-emerald-900 shrink-0">
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full overflow-hidden bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center border border-emerald-250 dark:border-emerald-900 shrink-0">
                           {storeLogo ? (
                             <img src={storeLogo} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <Store size={8} />
+                            <Store size={6} className="sm:w-2 sm:h-2" />
                           )}
                         </div>
                         <span className="truncate">{prod.storeName || 'Toko Mitra'}</span>
                       </div>
                       {/* Product Name */}
-                      <h3 className="font-bold text-slate-800 dark:text-white text-sm line-clamp-2 leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      <h3 className="font-bold text-slate-800 dark:text-white text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {prod.name}
                       </h3>
                       {/* Description */}
                       {prod.description && (
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed pt-1">
+                        <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1 sm:line-clamp-2 leading-relaxed pt-0.5 hidden xs:block">
                           {prod.description}
                         </p>
                       )}
                     </div>
 
-                    <div className="pt-4 flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800/50 mt-4">
+                    <div className="pt-2 sm:pt-4 flex flex-col xs:flex-row xs:items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800/50 mt-2.5 sm:mt-4">
                       {(() => {
                         const ep = getEffectivePrice(prod);
                         return (
                           <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
+                            <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
                             {ep.isFlashSale ? (
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-sm font-black text-rose-600 dark:text-rose-400">
+                              <div className="flex flex-wrap items-baseline gap-1">
+                                <span className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400">
                                   Rp {ep.price.toLocaleString('id-ID')}
                                 </span>
-                                <span className="text-[10px] line-through text-slate-400">
+                                <span className="text-[8px] sm:text-[10px] line-through text-slate-400">
                                   Rp {ep.originalPrice.toLocaleString('id-ID')}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-sm font-black text-slate-800 dark:text-white">
+                              <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">
                                 Rp {ep.price.toLocaleString('id-ID')}
                               </span>
                             )}
@@ -515,9 +515,9 @@ function MarketplaceContent() {
                           e.stopPropagation();
                           handleWhatsAppRedirect(prod);
                         }}
-                        className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+                        className="w-full xs:w-auto px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
                       >
-                        <MessageSquare size={13} className="stroke-[2.5]" />
+                        <MessageSquare size={11} className="stroke-[2.5] sm:w-[13px] sm:h-[13px]" />
                         <span>Chat</span>
                       </button>
                     </div>
