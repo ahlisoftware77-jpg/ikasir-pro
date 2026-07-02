@@ -25,6 +25,8 @@ export default function Home() {
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [joinMarketplace, setJoinMarketplace] = useState(false);
+  const [isUpdatingMarketplace, setIsUpdatingMarketplace] = useState(false);
 
   const SUBSCRIPTION_PACKAGES = useMemo(() => {
     const pkgs = [
@@ -114,8 +116,66 @@ export default function Home() {
     }
   };
 
+  const handleToggleMarketplace = async (newVal: boolean) => {
+    if (!storeId || isUpdatingMarketplace) return;
+    setIsUpdatingMarketplace(true);
+    
+    // Import dynamically to optimize bundle
+    const { doc, getDoc, updateDoc, writeBatch } = await import('firebase/firestore');
+
+    try {
+      const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      const settingsSnap = await getDoc(settingsRef);
+      const storeName = settingsSnap.exists() ? (settingsSnap.data().storeName || '') : '';
+
+      // 1. Update store settings document
+      await updateDoc(settingsRef, {
+        joinMarketplace: newVal
+      });
+
+      // 2. Update joinMarketplace on all products of this store
+      const prodQuery = query(collection(db, 'products'), where('storeId', '==', storeId));
+      const prodSnap = await getDocs(prodQuery);
+      
+      let batch = writeBatch(db);
+      let count = 0;
+      
+      prodSnap.docs.forEach((docSnap) => {
+        batch.update(docSnap.ref, {
+          joinMarketplace: newVal,
+          storeName: storeName
+        });
+        count++;
+        if (count === 400) {
+          batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      });
+      
+      if (count > 0) {
+        await batch.commit();
+      }
+
+      toast.success(newVal ? 'Marketplace Bersama berhasil DIATIFKAN!' : 'Marketplace Bersama berhasil DINONAKTIFKAN!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Gagal mengubah status marketplace: ' + err.message);
+    } finally {
+      setIsUpdatingMarketplace(false);
+    }
+  };
+
   useEffect(() => {
     if (!storeId) return;
+
+    // Listen to store settings change
+    const { doc } = require('firebase/firestore');
+    const unsubSettings = onSnapshot(doc(db, 'settings', `store_${storeId}`), (docSnap: any) => {
+      if (docSnap.exists()) {
+        setJoinMarketplace(docSnap.data().joinMarketplace === true);
+      }
+    });
 
     const qTrx = query(
       collection(db, 'transactions'), 
@@ -136,7 +196,7 @@ export default function Home() {
       setCustomersCount(snap.size);
     });
 
-    return () => { unsubTrx(); unsubCust(); };
+    return () => { unsubSettings(); unsubTrx(); unsubCust(); };
   }, [storeId]);
 
   // Load announcements (broadcasts)
@@ -219,42 +279,65 @@ export default function Home() {
 
         {/* Panel Link Marketplace Bersama */}
         {storeId && (
-          <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-450 flex items-center justify-center shrink-0">
-                <Globe size={20} />
+          <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-2xl">
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-colors ${joinMarketplace ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 border-emerald-250 dark:border-emerald-900' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
+                <Globe size={24} />
               </div>
               <div className="min-w-0">
-                <span className="text-[9px] font-black bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-450 px-2 py-0.5 rounded-md uppercase tracking-wider block w-fit mb-1">
-                  iKasir Marketplace
+                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1.5 ${joinMarketplace ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-450' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                  {joinMarketplace ? 'Marketplace Aktif' : 'Marketplace Nonaktif'}
                 </span>
-                <h3 className="font-extrabold text-xs text-slate-950 dark:text-white truncate">
-                  Toko Anda aktif di Marketplace Bersama
+                <h3 className="font-extrabold text-sm text-slate-950 dark:text-white leading-snug">
+                  Marketplace Bersama iKasir
                 </h3>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold truncate">
-                  {`${window.location.origin}/marketplace?storeId=${storeId}`}
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
+                  {joinMarketplace ? 'Toko Anda aktif dan tampil di halaman pencarian marketplace bersama.' : 'Aktifkan untuk menampilkan produk Anda di marketplace bersama.'}
                 </p>
+                {joinMarketplace && (
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate mt-2 bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/10">
+                    {`Tautan: ${window.location.origin}/marketplace?storeId=${storeId}`}
+                  </p>
+                )}
               </div>
             </div>
             
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/marketplace?storeId=${storeId}`);
-                  toast.success("Link Toko Marketplace berhasil disalin!");
-                }}
-                className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700 flex items-center gap-1.5"
-              >
-                <Copy size={13} />
-                Salin Link
-              </button>
-              <Link
-                href={`/marketplace?storeId=${storeId}`}
-                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
-              >
-                <ExternalLink size={13} />
-                Buka Toko
-              </Link>
+            <div className="flex flex-col xs:flex-row md:flex-col gap-2 shrink-0 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between md:justify-end gap-3 bg-slate-50 dark:bg-slate-950/50 px-4 py-2.5 rounded-2xl border border-slate-150 dark:border-slate-850">
+                <span className="text-xs font-black text-slate-700 dark:text-slate-350">Status</span>
+                <button
+                  type="button"
+                  disabled={isUpdatingMarketplace}
+                  onClick={() => handleToggleMarketplace(!joinMarketplace)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${joinMarketplace ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${joinMarketplace ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+
+              {joinMarketplace && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/marketplace?storeId=${storeId}`);
+                      toast.success("Link Toko Marketplace berhasil disalin!");
+                    }}
+                    className="flex-1 px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5"
+                  >
+                    <Copy size={13} />
+                    Salin
+                  </button>
+                  <Link
+                    href={`/marketplace?storeId=${storeId}`}
+                    className="flex-1 px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+                  >
+                    <ExternalLink size={13} />
+                    Buka
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}
