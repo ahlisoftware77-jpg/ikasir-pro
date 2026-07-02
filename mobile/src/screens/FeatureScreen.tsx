@@ -6761,7 +6761,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
   };
 
   const showFloatingButton = [
-    'estimasi', 'piutang', 'ekstra', 'diskon', 
+    'estimasi', 'piutang', 'ekstra', 'diskon', 'flashsale',
     'pelanggan', 'staff', 'arus_kas', 'tutup_buku', 'service_elektronik'
   ].includes(featureId);
 
