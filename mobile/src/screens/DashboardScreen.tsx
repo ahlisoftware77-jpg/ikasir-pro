@@ -399,6 +399,65 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
           </View>
         </View>
+        
+        {/* Marketplace Bersama Store Link Panel */}
+        {storeId && (
+          <View 
+            className="mb-6 p-5 rounded-[2rem] border relative overflow-hidden"
+            style={{ 
+              backgroundColor: colors.surface, 
+              borderColor: colors.border 
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center">
+                <Globe size={18} color="#10b981" />
+              </View>
+              <View className="flex-1 min-w-0">
+                <View className="bg-emerald-500/10 px-2 py-0.5 rounded-md self-start mb-1">
+                  <Text className="text-[7px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    iKasir Marketplace
+                  </Text>
+                </View>
+                <Text className="text-xs font-black" style={{ color: colors.text }}>
+                  Toko Anda Aktif di Marketplace Bersama
+                </Text>
+                <Text className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                  {`https://ikasir.my.id/marketplace?storeId=${storeId}`}
+                </Text>
+              </View>
+            </View>
+
+            <View className="flex-row gap-2.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  Clipboard.setString(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
+                  Alert.alert('Sukses', 'Link Marketplace toko Anda berhasil disalin!');
+                }}
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 dark:border-slate-700"
+              >
+                <Copy size={12} color={colors.text} />
+                <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                  Salin Link
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  Linking.openURL(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
+                }}
+                className="flex-1 py-2.5 bg-emerald-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-emerald-500/10"
+              >
+                <Globe size={12} color="#ffffff" />
+                <Text className="text-[10px] font-black uppercase tracking-wider text-white">
+                  Buka Toko
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* PROMO SPESIAL LANGGANAN (AKAN MUNCUL JIKA MASA AKTIF < 2 MINGGU) */}
         {sisaHari !== null && sisaHari <= 14 && (role as string) !== 'super-admin' && (role as string) !== 'superadmin' && (role as string) !== 'customer' && (

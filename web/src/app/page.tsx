@@ -212,12 +212,52 @@ export default function Home() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">Dashboard</h1>
           <p className="text-xs md:text-sm text-app-text-muted mt-2 font-medium">Selamat datang kembali, <span className="text-accent font-bold">{user?.email}</span> 👋</p>
         </div>
-      </div>
+
+        {/* Panel Link Marketplace Bersama */}
+        {storeId && (
+          <div className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-450 flex items-center justify-center shrink-0">
+                <Globe size={20} />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] font-black bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-450 px-2 py-0.5 rounded-md uppercase tracking-wider block w-fit mb-1">
+                  iKasir Marketplace
+                </span>
+                <h3 className="font-extrabold text-xs text-slate-950 dark:text-white truncate">
+                  Toko Anda aktif di Marketplace Bersama
+                </h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold truncate">
+                  {`${window.location.origin}/marketplace?storeId=${storeId}`}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/marketplace?storeId=${storeId}`);
+                  toast.success("Link Toko Marketplace berhasil disalin!");
+                }}
+                className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-black rounded-xl text-xs active:scale-95 transition-all border border-slate-200 dark:border-slate-700 flex items-center gap-1.5"
+              >
+                <Copy size={13} />
+                Salin Link
+              </button>
+              <Link
+                href={`/marketplace?storeId=${storeId}`}
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+              >
+                <ExternalLink size={13} />
+                Buka Toko
+              </Link>
+            </div>
+          </div>
+        )}
 
       {!isLoadingBroadcasts ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
