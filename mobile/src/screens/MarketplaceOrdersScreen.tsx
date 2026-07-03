@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import dayjs from 'dayjs';
 import 'dayjs/locale/id';
@@ -20,57 +20,67 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchOrders();
-  }, [user]);
-
-  const fetchOrders = async () => {
     if (!user) {
       setLoading(false);
       return;
     }
     
-    try {
-      setLoading(true);
-      const userIdToSearch = user.uid || user.phone || user.phoneNumber || '';
-      const phoneToSearch = user.phone || user.phoneNumber || '';
-      
-      const ordersRef = collection(db, 'transactions');
-      
-      // Ambil berdasarkan userId
-      let q1 = query(ordersRef, where('userId', '==', userIdToSearch));
-      const snap1 = await getDocs(q1);
-      
-      let fetched = snap1.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Tambahkan juga berdasar phone jika ada dan berbeda dengan userId
-      if (phoneToSearch && phoneToSearch !== userIdToSearch) {
-        let q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
-        const snap2 = await getDocs(q2);
-        
-        snap2.docs.forEach(doc => {
-          if (!fetched.some(o => o.id === doc.id)) {
-            fetched.push({ id: doc.id, ...doc.data() });
-          }
-        });
-      }
-      
+    setLoading(true);
+    const userIdToSearch = user.uid || user.phone || user.phoneNumber || '';
+    const phoneToSearch = user.phone || user.phoneNumber || '';
+    
+    const ordersRef = collection(db, 'transactions');
+    let fetchedMap = new Map();
+    
+    const updateOrders = () => {
+      const arr = Array.from(fetchedMap.values());
       // Sort in memory in case index is not present for orderBy
-      fetched.sort((a, b) => {
+      arr.sort((a, b) => {
         const timeA = a.timestamp?.seconds || 0;
         const timeB = b.timestamp?.seconds || 0;
         return timeB - timeA;
       });
-      
-      setOrders(fetched);
-    } catch (err) {
-      console.error('Error fetching orders:', err);
-    } finally {
+      setOrders(arr);
       setLoading(false);
+    };
+
+    // Ambil berdasarkan userId
+    const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+    const unsub1 = onSnapshot(q1, (snap) => {
+      snap.forEach(doc => {
+        fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      // Handle deleted documents
+      snap.docChanges().forEach(change => {
+        if (change.type === 'removed') {
+          fetchedMap.delete(change.doc.id);
+        }
+      });
+      updateOrders();
+    });
+
+    let unsub2: any = null;
+    // Tambahkan juga berdasar phone jika ada dan berbeda dengan userId
+    if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+      const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+      unsub2 = onSnapshot(q2, (snap) => {
+        snap.forEach(doc => {
+          fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
+        });
+        snap.docChanges().forEach(change => {
+          if (change.type === 'removed') {
+            fetchedMap.delete(change.doc.id);
+          }
+        });
+        updateOrders();
+      });
     }
-  };
+
+    return () => {
+      unsub1();
+      if (unsub2) unsub2();
+    };
+  }, [user]);
 
   const getStatusConfig = (status: string) => {
     switch(status) {
