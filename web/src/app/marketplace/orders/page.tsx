@@ -156,7 +156,7 @@ export default function MarketplaceOrdersPage() {
                                   const storeRef = doc(db, 'settings', `store_${order.storeId}`);
                                   const storeSnap = await getDoc(storeRef);
                                   if (storeSnap.exists()) {
-                                    storePhone = storeSnap.data().storePhone || '';
+                                    storePhone = storeSnap.data().phone || storeSnap.data().storePhone || '';
                                   }
                                 }
                               } catch (e) {
