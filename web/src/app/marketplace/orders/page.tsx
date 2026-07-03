@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -120,7 +120,7 @@ export default function MarketplaceOrdersPage() {
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-0.5">Order ID</p>
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{order.id}</p>
                         </div>
-                        <div className={lex items-center gap-1.5 px-2.5 py-1 rounded-full border }>
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${statusColor}`}>
                           {getStatusIcon(order.status, order.paymentStatus)}
                           <span className="text-[9px] font-black uppercase tracking-widest">{getStatusText(order.status, order.paymentStatus)}</span>
                         </div>
