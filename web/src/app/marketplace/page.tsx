@@ -226,28 +226,31 @@ function MarketplaceContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
+      
+      {/* Floating Action Buttons */}
+      <div className="fixed top-4 right-4 flex items-center gap-2 z-50">
+        <button 
+          onClick={() => router.push('/marketplace/orders')}
+          className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-slate-700 dark:text-slate-200 border border-slate-200/50 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-700 hover:scale-105 hover:border-emerald-500 transition-all shadow-lg shadow-emerald-500/10"
+        >
+          <span className="text-xl leading-none">📦</span>
+          <span className="text-[11px] font-black uppercase tracking-widest hidden sm:inline">Pesanan</span>
+        </button>
+        <button 
+          onClick={() => router.push('/marketplace/profile')}
+          className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-slate-700 dark:text-slate-200 border border-slate-200/50 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-700 hover:scale-105 hover:border-blue-500 transition-all shadow-lg shadow-blue-500/10"
+        >
+          <span className="text-xl leading-none">👤</span>
+          <span className="text-[11px] font-black uppercase tracking-widest hidden sm:inline">Profil</span>
+        </button>
+      </div>
+
       {/* Top Banner/Header */}
       <header className="relative py-12 px-6 overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-100 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
         
         <div className="max-w-7xl mx-auto flex flex-col items-center text-center relative z-10">
-          <div className="absolute top-0 right-0 flex items-center gap-2 z-20">
-            <button 
-              onClick={() => router.push('/marketplace/orders')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-emerald-500 transition-all shadow-sm"
-            >
-              <Package size={14} className="text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Pesanan</span>
-            </button>
-            <button 
-              onClick={() => router.push('/marketplace/profile')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-500 transition-all shadow-sm"
-            >
-              <User size={14} className="text-blue-500" />
-              <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Profil</span>
-            </button>
-          </div>
           
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-[2px] mb-4">
             <ShoppingBag size={12} className="animate-pulse" /> iKasir Pro Marketplace
