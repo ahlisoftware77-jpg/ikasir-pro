@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag } from 'lucide-react-native';
+import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, XCircle, Star } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -275,6 +275,11 @@ export default function MarketplaceScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                <XCircle color={colors.textMuted} size={18} />
+              </TouchableOpacity>
+            )}
           </View>
           
           <TouchableOpacity 
