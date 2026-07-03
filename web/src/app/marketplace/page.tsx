@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
 import CartButton from '@/components/CartButton';
@@ -232,13 +232,22 @@ function MarketplaceContent() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
         
         <div className="max-w-7xl mx-auto flex flex-col items-center text-center relative z-10">
-          <button 
-            onClick={() => router.push('/marketplace/orders')}
-            className="absolute top-0 right-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-emerald-500 transition-all shadow-sm z-20"
-          >
-            <Package size={14} className="text-emerald-500" />
-            <span className="text-[10px] font-black uppercase tracking-wider">Cek Pesanan</span>
-          </button>
+          <div className="absolute top-0 right-0 flex items-center gap-2 z-20">
+            <button 
+              onClick={() => router.push('/marketplace/orders')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-emerald-500 transition-all shadow-sm"
+            >
+              <Package size={14} className="text-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Pesanan</span>
+            </button>
+            <button 
+              onClick={() => router.push('/marketplace/profile')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-500 transition-all shadow-sm"
+            >
+              <User size={14} className="text-blue-500" />
+              <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Profil</span>
+            </button>
+          </div>
           
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-[2px] mb-4">
             <ShoppingBag size={12} className="animate-pulse" /> iKasir Pro Marketplace

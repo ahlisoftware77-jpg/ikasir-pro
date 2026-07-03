@@ -1,13 +1,37 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function CartDrawer() {
   const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQty, clearStoreItems } = useCart();
   const router = useRouter();
+
+  const [buyerInfo, setBuyerInfo] = useState({ name: '', phone: '', address: '' });
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setBuyerInfo({
+            name: data.name || user.displayName || '',
+            phone: data.phone || '',
+            address: data.address || ''
+          });
+        }
+      } else {
+        setBuyerInfo({ name: '', phone: '', address: '' });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   if (!isCartOpen) return null;
 
@@ -36,7 +60,16 @@ export default function CartDrawer() {
       total += subtotal;
       message += `- *${item.productName}* (${item.qty}x) = Rp ${subtotal.toLocaleString('id-ID')}\n`;
     });
-    message += `\n*Total: Rp ${total.toLocaleString('id-ID')}*\n\nApakah pesanan ini bisa diproses?`;
+    message += `\n*Total: Rp ${total.toLocaleString('id-ID')}*`;
+
+    if (buyerInfo.name || buyerInfo.phone || buyerInfo.address) {
+      message += `\n\n*Info Pengiriman:*`;
+      if (buyerInfo.name) message += `\nNama: ${buyerInfo.name}`;
+      if (buyerInfo.phone) message += `\nHP: ${buyerInfo.phone}`;
+      if (buyerInfo.address) message += `\nAlamat: ${buyerInfo.address}`;
+    }
+
+    message += `\n\nApakah pesanan ini bisa diproses?`;
 
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
   };
