@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
 import { db } from '../lib/firebase';
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 
@@ -25,11 +25,32 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      if (user.displayName || user.name) setName(user.displayName || user.name);
-      if (user.phone || user.phoneNumber) setPhone(user.phone || user.phoneNumber);
-      if (user.address) setAddress(user.address);
-    }
+    const fetchUserData = async () => {
+      if (!user) return;
+      
+      let defaultName = user.displayName || user.name || '';
+      let defaultPhone = user.phone || user.phoneNumber || '';
+      let defaultAddress = user.address || '';
+      
+      try {
+        const settingsRef = doc(db, 'settings', `store_${user.uid}`);
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (!defaultName && data.storeName) defaultName = data.storeName;
+          if (!defaultPhone && data.phone) defaultPhone = data.phone;
+          if (!defaultAddress && data.address) defaultAddress = data.address;
+        }
+      } catch (err) {
+        console.error("Failed to fetch user settings:", err);
+      }
+      
+      setName(defaultName);
+      setPhone(defaultPhone);
+      setAddress(defaultAddress);
+    };
+    
+    fetchUserData();
   }, [user]);
 
   const handleCheckout = async () => {
