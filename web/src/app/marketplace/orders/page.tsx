@@ -33,7 +33,25 @@ export default function MarketplaceOrdersPage() {
       );
       const snap = await getDocs(q);
       let list: any[] = [];
-      snap.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+      const storeNames: Record<string, string> = {};
+      
+      for (const document of snap.docs) {
+        const data = document.data();
+        let sName = '';
+        if (data.storeId) {
+          if (storeNames[data.storeId]) {
+            sName = storeNames[data.storeId];
+          } else {
+            const storeRef = doc(db, 'settings', `store_${data.storeId}`);
+            const storeSnap = await getDoc(storeRef);
+            if (storeSnap.exists() && storeSnap.data().storeName) {
+              sName = storeSnap.data().storeName;
+              storeNames[data.storeId] = sName;
+            }
+          }
+        }
+        list.push({ id: document.id, storeName: sName, ...data });
+      }
       list.sort((a,b) => b.createdAt - a.createdAt);
       setOrders(list);
       setIsSearched(true);
@@ -119,6 +137,12 @@ export default function MarketplaceOrdersPage() {
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-0.5">Order ID</p>
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{order.id}</p>
+                          {order.storeName && (
+                            <p className="text-[10px] font-bold text-slate-500 mt-1 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              Toko: <span className="text-slate-700 dark:text-slate-300">{order.storeName}</span>
+                            </p>
+                          )}
                         </div>
                         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${statusColor}`}>
                           {getStatusIcon(order.status, order.paymentStatus, order.orderStatus)}
