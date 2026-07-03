@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
-  User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2
+  User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2, ShoppingBag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
