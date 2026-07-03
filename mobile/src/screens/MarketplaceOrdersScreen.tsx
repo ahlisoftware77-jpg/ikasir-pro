@@ -136,9 +136,24 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
           
           <View style={styles.itemsList}>
             {item.items?.map((prod: any, idx: number) => (
-              <Text key={idx} style={[styles.itemText, { color: colors.textMuted }]} numberOfLines={1}>
-                {prod.qty}x {prod.name}
-              </Text>
+              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Text style={[styles.itemText, { color: colors.textMuted, flex: 1 }]} numberOfLines={1}>
+                  {prod.qty}x {prod.name}
+                </Text>
+                {finalStatus === 'paid' && (
+                  <TouchableOpacity
+                    style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginLeft: 8 }}
+                    onPress={() => navigation.navigate('MarketplaceWriteReview', {
+                      productId: prod.id,
+                      productName: prod.name,
+                      storeId: item.storeId,
+                      orderId: item.id
+                    })}
+                  >
+                    <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>Beri Ulasan</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             ))}
           </View>
         </View>
