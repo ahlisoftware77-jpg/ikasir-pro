@@ -47,9 +47,18 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
       let finalId = '';
       
       await runTransaction(db, async (transaction) => {
+        // --- 1. Lakukan SEMUA proses baca (reads) terlebih dahulu ---
         const settingsRef = doc(db, 'settings', `store_${storeId}`);
         const settingsSnap = await transaction.get(settingsRef);
         
+        const productReads = [];
+        for (const item of storeItems) {
+          const pRef = doc(db, 'products', item.productId);
+          const pSnap = await transaction.get(pRef);
+          productReads.push({ ref: pRef, snap: pSnap, item });
+        }
+
+        // --- 2. Lakukan validasi dan penulisan (writes) ---
         let currentCounter = 0;
         let prefix = 'TRX';
         let padding = 4;
@@ -94,21 +103,20 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           paidAmount: 0,
           debtAmount: totalAmount,
           timestamp: serverTimestamp(),
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          userId: user?.uid || user?.phone || 'anonymous'
         };
 
         // Check and deduct stock
-        for (const item of storeItems) {
-          const pRef = doc(db, 'products', item.productId);
-          const pSnap = await transaction.get(pRef);
-          if (pSnap.exists()) {
-            const pData = pSnap.data();
+        for (const { ref, snap, item } of productReads) {
+          if (snap.exists()) {
+            const pData = snap.data();
             if (pData.manageStock !== false) {
               const currentStock = pData.stock || 0;
               if (currentStock < item.qty) {
                 throw new Error(`Stok produk ${item.name} tidak mencukupi.`);
               }
-              transaction.update(pRef, { stock: currentStock - item.qty });
+              transaction.update(ref, { stock: currentStock - item.qty });
             }
           }
         }
