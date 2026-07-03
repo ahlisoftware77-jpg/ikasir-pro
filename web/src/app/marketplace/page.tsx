@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
 import CartButton from '@/components/CartButton';
@@ -232,6 +232,14 @@ function MarketplaceContent() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
         
         <div className="max-w-7xl mx-auto flex flex-col items-center text-center relative z-10">
+          <button 
+            onClick={() => router.push('/marketplace/orders')}
+            className="absolute top-0 right-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-emerald-500 transition-all shadow-sm z-20"
+          >
+            <Package size={14} className="text-emerald-500" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Cek Pesanan</span>
+          </button>
+          
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-[2px] mb-4">
             <ShoppingBag size={12} className="animate-pulse" /> iKasir Pro Marketplace
           </div>
@@ -259,7 +267,7 @@ function MarketplaceContent() {
       </header>
 
       {/* Main Grid Section */}
-      <main className="max-w-7xl mx-auto px-6 py-10 w-full flex-1">
+      <main className="max-w-7xl mx-auto px-3 py-4 md:px-6 md:py-10 w-full flex-1">
         {/* Storefront Filter Banner */}
         {selectedStoreId && (
           <div className="mb-8 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -289,7 +297,7 @@ function MarketplaceContent() {
         )}
 
         {/* Categories Bar */}
-        <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto pb-3 md:pb-6 scrollbar-none">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -366,7 +374,7 @@ function MarketplaceContent() {
                               <button
                                 key={fsProd.productId}
                                 onClick={() => router.push(`/marketplace/${prod.id}`)}
-                                className="flex-shrink-0 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-700 rounded-2xl p-3 w-44 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden shadow-sm"
+                                className="flex-shrink-0 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-700 rounded-2xl p-3 w-36 md:w-44 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden shadow-sm"
                               >
                                 <h5 className="font-extrabold text-xs truncate text-slate-800 dark:text-slate-200 leading-snug">{prod.name}</h5>
                                 <div className="flex items-baseline gap-1.5 mt-1.5">

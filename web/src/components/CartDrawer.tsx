@@ -49,7 +49,7 @@ export default function CartDrawer() {
         className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] transition-opacity duration-300" 
         onClick={() => setIsCartOpen(false)}
       />
-      <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-950 shadow-2xl z-[101] flex flex-col transform transition-transform duration-500 translate-x-0">
+      <div className="fixed inset-y-0 right-0 w-full max-w-full md:max-w-md bg-white dark:bg-slate-950 shadow-2xl z-[101] flex flex-col transform transition-transform duration-500 translate-x-0">
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
