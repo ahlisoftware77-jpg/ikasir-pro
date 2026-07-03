@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
@@ -42,6 +43,13 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
       });
       setOrders(arr);
       setLoading(false);
+
+      // Simpan state terakhir untuk badge notifikasi
+      const stateToSave: Record<string, string> = {};
+      arr.forEach(o => {
+        stateToSave[o.id] = o.paymentStatus === 'paid' || o.paymentStatus === 'completed' ? 'paid' : (o.status || 'pending');
+      });
+      AsyncStorage.setItem('@marketplace_orders_state', JSON.stringify(stateToSave)).catch(console.error);
     };
 
     // Ambil berdasarkan userId
@@ -97,7 +105,11 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
   };
 
   const renderOrderItem = ({ item }: any) => {
-    const statusConfig = getStatusConfig(item.status);
+    let finalStatus = item.status;
+    if (item.paymentStatus === 'paid' || item.paymentStatus === 'completed') {
+      finalStatus = 'paid';
+    }
+    const statusConfig = getStatusConfig(finalStatus);
     const StatusIcon = statusConfig.icon;
     const dateStr = item.timestamp?.seconds 
       ? dayjs(item.timestamp.seconds * 1000).format('DD MMM YYYY, HH:mm') 

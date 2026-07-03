@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, XCircle, Star } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { useNavigation } from '@react-navigation/native';
+import { collection, query, where, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCartStore } from '../store/cartStore';
+import { useAuthStore } from '../store/authStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Product {
   id: string;
@@ -45,6 +47,64 @@ export default function MarketplaceScreen() {
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [categories, setCategories] = useState<string[]>(['Semua']);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasNewUpdate, setHasNewUpdate] = useState(false);
+  const { user } = useAuthStore();
+  
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      const userIdToSearch = user.uid || user.phone || user.phoneNumber || '';
+      const phoneToSearch = user.phone || user.phoneNumber || '';
+      
+      let savedState: Record<string, string> = {};
+
+      const checkOrders = async () => {
+        const storedStr = await AsyncStorage.getItem('@marketplace_orders_state');
+        if (storedStr) {
+          try {
+            savedState = JSON.parse(storedStr);
+          } catch (e) {}
+        }
+
+        const ordersRef = collection(db, 'transactions');
+        
+        const handleSnap = (snap: any) => {
+          let foundNew = false;
+          snap.forEach((doc: any) => {
+            const data = doc.data();
+            const currentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'completed' ? 'paid' : (data.status || 'pending');
+            
+            // Jika ID belum ada di savedState (pesanan baru), atau statusnya berubah
+            if (savedState[doc.id] !== currentStatus) {
+              foundNew = true;
+            }
+          });
+          setHasNewUpdate(foundNew);
+        };
+
+        const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+        const unsub1 = onSnapshot(q1, handleSnap);
+
+        let unsub2: any = null;
+        if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+          const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+          unsub2 = onSnapshot(q2, handleSnap);
+        }
+
+        return () => {
+          unsub1();
+          if (unsub2) unsub2();
+        };
+      };
+
+      let cleanup: any;
+      checkOrders().then(fn => cleanup = fn);
+
+      return () => {
+        if (cleanup) cleanup();
+      };
+    }, [user])
+  );
   
   // Store info
   const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
@@ -284,9 +344,13 @@ export default function MarketplaceScreen() {
           
           <TouchableOpacity 
             style={[styles.historyBtn, { backgroundColor: colors.bg, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('MarketplaceOrders')}
+            onPress={() => {
+              setHasNewUpdate(false);
+              navigation.navigate('MarketplaceOrders');
+            }}
           >
             <Clock color={colors.text} size={20} />
+            {hasNewUpdate && <View style={styles.notificationBadge} />}
           </TouchableOpacity>
         </View>
 
@@ -399,6 +463,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
   },
   searchInput: {
     flex: 1,
