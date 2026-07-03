@@ -61,7 +61,7 @@ export default function CartDrawer() {
       // Create a transaction for each store
       // Create a transaction for each store sequentially to avoid counter collision
       for (const [storeId, storeItems] of Object.entries(itemsByStore)) {
-        await runTransaction(db, async (transaction) => {
+        const result = await runTransaction(db, async (transaction) => {
           const settingsRef = doc(db, 'settings', `store_${storeId}`);
           const settingsSnap = await transaction.get(settingsRef);
           
@@ -138,7 +138,21 @@ export default function CartDrawer() {
           const newOrderRef = doc(db, 'transactions', finalId);
           transaction.set(newOrderRef, orderData);
           transaction.update(settingsRef, { trxCounter: currentCounter });
+          
+          return { finalId, storeTotal };
         });
+
+        // Trigger FCM Push Notification
+        fetch('/api/send-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeId: storeId,
+            title: '🛍️ PESANAN MARKETPLACE BARU!',
+            message: `Ada pesanan dari Marketplace senilai Rp ${result.storeTotal.toLocaleString('id-ID')}.`,
+            data: { transactionId: result.finalId }
+          })
+        }).catch(e => console.error('Failed to trigger notification', e));
       }
 
 
