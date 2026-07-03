@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus } from 'lucide-react-native';
 import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 
 const { width } = Dimensions.get('window');
@@ -32,6 +32,24 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       
       if (pSnap.exists()) {
         const pData = pSnap.data();
+        
+        // Fetch active discounts for this product
+        const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
+        const dSnap = await getDocs(dq);
+        const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        const now = new Date();
+        let appliedDiscount = null;
+        activeDiscounts.forEach(disc => {
+          const start = new Date(disc.startDate);
+          const end = new Date(disc.endDate);
+          if (now >= start && now <= end) {
+            if (disc.appliedProductIds?.includes(productId)) {
+              appliedDiscount = { type: disc.type, value: disc.value, name: disc.name };
+            }
+          }
+        });
+        if (appliedDiscount) pData.discount = appliedDiscount;
+
         setProduct({ id: pSnap.id, ...pData });
         
         // Fetch store settings for WhatsApp number
@@ -110,6 +128,15 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   }
 
   const outOfStock = product.manageStock !== false && (product.stock || 0) <= 0;
+  let finalPrice = product.price;
+  let hasDiscount = !!product.discount;
+  if (hasDiscount) {
+    if (product.discount.type === 'percent') {
+      finalPrice = product.price - (product.price * product.discount.value / 100);
+    } else {
+      finalPrice = Math.max(0, product.price - product.discount.value);
+    }
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -178,10 +205,28 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         </View>
 
         <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
+          {hasDiscount && (
+            <View style={styles.detailDiscountBadge}>
+              <Text style={styles.detailDiscountText}>
+                {product.discount.type === 'percent' ? `${product.discount.value}% OFF` : `-${(product.discount.value / 1000)}K`}
+              </Text>
+            </View>
+          )}
           <Text style={[styles.productName, { color: colors.text }]}>{product.name}</Text>
-          <Text style={[styles.productPrice, { color: colors.accent }]}>
-            Rp {product.price.toLocaleString('id-ID')}
-          </Text>
+          {hasDiscount ? (
+            <View style={styles.detailPriceContainer}>
+              <Text style={[styles.detailOriginalPrice, { color: colors.textMuted }]}>
+                Rp {product.price.toLocaleString('id-ID')}
+              </Text>
+              <Text style={[styles.productPrice, { color: colors.accent }]}>
+                Rp {finalPrice.toLocaleString('id-ID')}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.productPrice, { color: colors.accent }]}>
+              Rp {product.price.toLocaleString('id-ID')}
+            </Text>
+          )}
 
           <View style={[styles.storeRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
             <Store color={colors.text} size={20} opacity={0.7} />
@@ -274,15 +319,34 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontFamily: 'System',
-    fontWeight: '700',
-    fontSize: 18,
+    fontSize: 22,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
+  detailPriceContainer: {
+    marginBottom: 12,
+  },
+  detailOriginalPrice: {
+    fontSize: 14,
+    textDecorationLine: 'line-through',
+    marginBottom: 4,
+  },
   productPrice: {
-    fontFamily: 'System',
+    fontSize: 24,
     fontWeight: '900',
-    fontSize: 22,
-    marginBottom: 16,
+  },
+  detailDiscountBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  detailDiscountText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 12,
   },
   storeRow: {
     flexDirection: 'row',

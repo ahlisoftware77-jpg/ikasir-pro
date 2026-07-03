@@ -19,6 +19,11 @@ interface Product {
   storeName?: string;
   stock?: number;
   manageStock?: boolean;
+  discount?: {
+    type: 'percent' | 'fixed';
+    value: number;
+    name: string;
+  };
 }
 
 const { width } = Dimensions.get('window');
@@ -80,6 +85,34 @@ export default function MarketplaceScreen() {
         }
       });
 
+      // Fetch active discounts
+      const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
+      const dSnap = await getDocs(dq);
+      const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const now = new Date();
+      
+      const productDiscounts: Record<string, any> = {};
+      activeDiscounts.forEach(disc => {
+        const start = new Date(disc.startDate);
+        const end = new Date(disc.endDate);
+        if (now >= start && now <= end) {
+          disc.appliedProductIds?.forEach((pid: string) => {
+            productDiscounts[pid] = disc;
+          });
+        }
+      });
+
+      // Apply discount to list
+      list.forEach(p => {
+        if (productDiscounts[p.id]) {
+          p.discount = {
+            type: productDiscounts[p.id].type,
+            value: productDiscounts[p.id].value,
+            name: productDiscounts[p.id].name
+          };
+        }
+      });
+
       // Fetch store details concurrently
       const logoMap: Record<string, string> = {};
       await Promise.all(
@@ -131,6 +164,16 @@ export default function MarketplaceScreen() {
     const outOfStock = item.manageStock !== false && (item.stock || 0) <= 0;
     const isVideo = item.imageUrl?.toLowerCase().match(/\.(mp4|mov|webm)(\?.*)?$/i);
     
+    let finalPrice = item.price;
+    let hasDiscount = !!item.discount;
+    if (hasDiscount) {
+      if (item.discount!.type === 'percent') {
+        finalPrice = item.price - (item.price * item.discount!.value / 100);
+      } else {
+        finalPrice = Math.max(0, item.price - item.discount!.value);
+      }
+    }
+
     return (
       <TouchableOpacity 
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, width: CARD_WIDTH }]}
@@ -158,6 +201,13 @@ export default function MarketplaceScreen() {
           ) : (
             <ShoppingBag color={colors.text} size={32} opacity={0.3} />
           )}
+          {hasDiscount && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>
+                {item.discount!.type === 'percent' ? `${item.discount!.value}% OFF` : `-${(item.discount!.value / 1000)}K`}
+              </Text>
+            </View>
+          )}
           {outOfStock && (
             <View style={styles.outOfStockBadge}>
               <Text style={styles.outOfStockText}>HABIS</Text>
@@ -169,9 +219,20 @@ export default function MarketplaceScreen() {
           <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
-          <Text style={[styles.productPrice, { color: colors.accent }]}>
-            Rp {item.price.toLocaleString('id-ID')}
-          </Text>
+          {hasDiscount ? (
+            <View style={styles.priceContainer}>
+              <Text style={[styles.originalPrice, { color: colors.textMuted }]}>
+                Rp {item.price.toLocaleString('id-ID')}
+              </Text>
+              <Text style={[styles.productPrice, { color: colors.accent }]}>
+                Rp {finalPrice.toLocaleString('id-ID')}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.productPrice, { color: colors.accent }]}>
+              Rp {item.price.toLocaleString('id-ID')}
+            </Text>
+          )}
 
           <View style={[styles.storeInfo, { borderTopColor: colors.border }]}>
             {storeLogos[item.storeId] ? (
@@ -384,6 +445,21 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  discountBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  discountText: {
+    color: '#fff',
+    fontFamily: 'System',
+    fontWeight: '900',
+    fontSize: 10,
+  },
   outOfStockBadge: {
     position: 'absolute',
     top: 0,
@@ -414,11 +490,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     height: 36, // Ensure 2 lines height approx
   },
+  priceContainer: {
+    marginBottom: 8,
+  },
+  originalPrice: {
+    fontFamily: 'System',
+    fontSize: 10,
+    textDecorationLine: 'line-through',
+    marginBottom: 2,
+  },
   productPrice: {
     fontFamily: 'System',
     fontWeight: '900',
     fontSize: 14,
-    marginBottom: 8,
   },
   storeInfo: {
     flexDirection: 'row',
