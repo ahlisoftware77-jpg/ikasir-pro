@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock } from 'lucide-react-native';
+import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle } from 'lucide-react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
@@ -54,12 +55,20 @@ export default function MarketplaceScreen() {
 
       snap.forEach((d) => {
         const data = d.data();
+        let finalImageUrl = data.imageUrl || '';
+        
+        // Fallback ke media array jika imageUrl kosong
+        if (!finalImageUrl) {
+          if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
+          else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
+        }
+
         list.push({
           id: d.id,
           name: data.name || '',
           price: data.price || 0,
           category: data.category || 'Umum',
-          imageUrl: data.imageUrl || '',
+          imageUrl: finalImageUrl,
           storeId: data.storeId || '',
           storeName: data.storeName || 'Toko Mitra',
           stock: data.stock !== undefined ? data.stock : 0,
@@ -113,6 +122,7 @@ export default function MarketplaceScreen() {
 
   const renderProductCard = ({ item }: { item: Product }) => {
     const outOfStock = item.manageStock !== false && (item.stock || 0) <= 0;
+    const isVideo = item.imageUrl?.toLowerCase().match(/\.(mp4|mov|webm)$/);
     
     return (
       <TouchableOpacity 
@@ -122,7 +132,22 @@ export default function MarketplaceScreen() {
       >
         <View style={[styles.imageContainer, { backgroundColor: colors.bg }]}>
           {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+            isVideo ? (
+              <View style={styles.videoWrapper}>
+                <Video
+                  source={{ uri: item.imageUrl }}
+                  style={styles.image}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay={false}
+                  isMuted={true}
+                />
+                <View style={styles.playIconOverlay}>
+                  <PlayCircle color="#ffffff" size={32} opacity={0.8} />
+                </View>
+              </View>
+            ) : (
+              <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+            )
           ) : (
             <ShoppingBag color={colors.text} size={32} opacity={0.3} />
           )}
@@ -162,7 +187,6 @@ export default function MarketplaceScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, paddingTop: insets.top + 10, borderBottomColor: colors.border }]}>
         <View style={styles.topRow}>
-          {/* Search Bar */}
           <View style={[styles.searchContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
             <Search color={colors.accent} size={20} />
             <TextInput
@@ -182,7 +206,6 @@ export default function MarketplaceScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Categories */}
         <View style={styles.categoriesContainer}>
           <FlatList
             horizontal
@@ -329,6 +352,20 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   image: {
+    width: '100%',
+    height: '100%',
+  },
+  videoWrapper: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playIconOverlay: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     width: '100%',
     height: '100%',
   },
