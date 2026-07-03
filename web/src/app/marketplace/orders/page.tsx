@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ArrowLeft, Package, Clock, CheckCircle2, XCircle, Search } from 'lucide-react';
+import { ArrowLeft, Package, Clock, CheckCircle2, XCircle, Search, MessageSquare } from 'lucide-react';
 
 export default function MarketplaceOrdersPage() {
   const router = useRouter();
@@ -142,8 +142,46 @@ export default function MarketplaceOrdersPage() {
 
                       <div className="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800/50">
                         <span className="text-xs text-slate-500 font-bold">Total Pembayaran</span>
-                        <span className="text-sm font-black text-emerald-500">Rp {(order.totalAmount || 0).toLocaleString('id-ID')}</span>
+                        <span className="text-sm font-black text-emerald-500">Rp {(order.total || order.totalAmount || 0).toLocaleString('id-ID')}</span>
                       </div>
+
+                      {/* WhatsApp Button */}
+                      {!isFinished && order.status !== 'cancelled' && (
+                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                          <button
+                            onClick={() => {
+                              const storePhone = order.items?.[0]?.storePhone || '';
+                              let formattedPhone = storePhone.replace(/[^0-9]/g, '');
+                              if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.slice(1);
+                              
+                              if (!formattedPhone) {
+                                alert('Nomor WhatsApp toko tidak tersedia');
+                                return;
+                              }
+
+                              let message = `Halo, saya memesan dari Marketplace iKasir (Order ID: ${order.id}):\n\n`;
+                              (order.items || []).forEach((item: any) => {
+                                message += `- *${item.productName}* (${item.qty}x) = Rp ${(item.price * item.qty).toLocaleString('id-ID')}\n`;
+                              });
+                              message += `\n*Total: Rp ${(order.total || order.totalAmount || 0).toLocaleString('id-ID')}*`;
+                              
+                              if (order.customerName || order.customerPhone || order.customerAddress) {
+                                message += `\n\n*Info Pengiriman:*`;
+                                if (order.customerName) message += `\nNama: ${order.customerName}`;
+                                if (order.customerPhone) message += `\nHP: ${order.customerPhone}`;
+                                if (order.customerAddress) message += `\nAlamat: ${order.customerAddress}`;
+                              }
+                              
+                              message += `\n\nApakah pesanan ini bisa diproses?`;
+
+                              window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+                            }}
+                            className="w-full py-2.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 font-black rounded-xl text-xs flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors border border-emerald-100 dark:border-emerald-500/20"
+                          >
+                            <MessageSquare size={14} /> Hubungi Penjual via WA
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

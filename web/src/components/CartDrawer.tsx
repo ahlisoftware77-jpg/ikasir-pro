@@ -1,18 +1,20 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
-import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare } from 'lucide-react';
+import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 export default function CartDrawer() {
-  const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQty, clearStoreItems } = useCart();
+  const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQty, clearStoreItems, clearCart } = useCart();
   const router = useRouter();
 
   const [buyerInfo, setBuyerInfo] = useState({ name: '', phone: '', address: '' });
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -44,43 +46,55 @@ export default function CartDrawer() {
     itemsByStore[item.storeId].push(item);
   });
 
-  const getWhatsAppLink = (storeItems: CartItem[]) => {
-    if (storeItems.length === 0) return '';
-    const store = storeItems[0];
-    let formattedPhone = store.storePhone.replace(/[^0-9]/g, '');
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = '62' + formattedPhone.slice(1);
-    }
-    if (!formattedPhone) return '';
-
-    let message = `Halo ${store.storeName || 'Toko'}, saya ingin memesan dari Marketplace iKasir:\n\n`;
-    let total = 0;
-    storeItems.forEach(item => {
-      const subtotal = item.price * item.qty;
-      total += subtotal;
-      message += `- *${item.productName}* (${item.qty}x) = Rp ${subtotal.toLocaleString('id-ID')}\n`;
-    });
-    message += `\n*Total: Rp ${total.toLocaleString('id-ID')}*`;
-
-    if (buyerInfo.name || buyerInfo.phone || buyerInfo.address) {
-      message += `\n\n*Info Pengiriman:*`;
-      if (buyerInfo.name) message += `\nNama: ${buyerInfo.name}`;
-      if (buyerInfo.phone) message += `\nHP: ${buyerInfo.phone}`;
-      if (buyerInfo.address) message += `\nAlamat: ${buyerInfo.address}`;
-    }
-
-    message += `\n\nApakah pesanan ini bisa diproses?`;
-
-    return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
-  };
-
   const grandTotal = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  const handleCheckout = async () => {
+    if (!buyerInfo.name || !buyerInfo.phone) {
+      toast.error('Silakan lengkapi Profil (Nama & Nomor HP) terlebih dahulu');
+      setIsCartOpen(false);
+      router.push('/marketplace/profile');
+      return;
+    }
+
+    setIsCheckingOut(true);
+    try {
+      // Create a transaction for each store
+      const promises = Object.entries(itemsByStore).map(async ([storeId, storeItems]) => {
+        const storeTotal = storeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        
+        await addDoc(collection(db, 'transactions'), {
+          storeId,
+          total: storeTotal,
+          paymentMethod: 'whatsapp_marketplace',
+          createdAt: Date.now(),
+          userId: auth.currentUser?.uid || '',
+          customerPhone: buyerInfo.phone,
+          customerName: buyerInfo.name,
+          customerAddress: buyerInfo.address,
+          items: storeItems
+        });
+      });
+
+      await Promise.all(promises);
+      
+      clearCart();
+      setIsCartOpen(false);
+      toast.success('Pesanan berhasil dibuat!');
+      router.push('/marketplace/orders');
+
+    } catch (error) {
+      console.error('Error during checkout:', error);
+      toast.error('Gagal memproses pesanan. Silakan coba lagi.');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   return (
     <>
       <div 
         className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] transition-opacity duration-300" 
-        onClick={() => setIsCartOpen(false)}
+        onClick={() => !isCheckingOut && setIsCartOpen(false)}
       />
       <div className="fixed inset-y-0 right-0 w-full max-w-full md:max-w-md bg-white dark:bg-slate-950 shadow-2xl z-[101] flex flex-col transform transition-transform duration-500 translate-x-0">
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
@@ -94,8 +108,9 @@ export default function CartDrawer() {
             </div>
           </div>
           <button 
-            onClick={() => setIsCartOpen(false)}
-            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-colors"
+            onClick={() => !isCheckingOut && setIsCartOpen(false)}
+            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-colors disabled:opacity-50"
+            disabled={isCheckingOut}
           >
             <X size={24} />
           </button>
@@ -127,9 +142,10 @@ export default function CartDrawer() {
                       </div>
                       <button 
                         onClick={() => clearStoreItems(storeId)}
-                        className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-widest flex items-center gap-1"
+                        disabled={isCheckingOut}
+                        className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-widest flex items-center gap-1 disabled:opacity-50"
                       >
-                        <Trash2 size={12} /> Hapus Toko
+                        <Trash2 size={12} /> Hapus
                       </button>
                     </div>
                     
@@ -155,7 +171,8 @@ export default function CartDrawer() {
                               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-0.5 w-fit">
                                 <button 
                                   onClick={() => updateQty(item.productId, -1)}
-                                  className="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 shadow-sm"
+                                  disabled={isCheckingOut}
+                                  className="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 shadow-sm disabled:opacity-50"
                                 >
                                   <Minus size={14} />
                                 </button>
@@ -164,14 +181,16 @@ export default function CartDrawer() {
                                 </span>
                                 <button 
                                   onClick={() => updateQty(item.productId, 1)}
-                                  className="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 shadow-sm"
+                                  disabled={isCheckingOut}
+                                  className="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 shadow-sm disabled:opacity-50"
                                 >
                                   <Plus size={14} />
                                 </button>
                               </div>
                               <button 
                                 onClick={() => removeFromCart(item.productId)}
-                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                                disabled={isCheckingOut}
+                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors disabled:opacity-50"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -179,26 +198,6 @@ export default function CartDrawer() {
                           </div>
                         </div>
                       ))}
-                    </div>
-
-                    <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/10 border-t border-emerald-100 dark:border-emerald-900/30 flex flex-col gap-3">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="font-bold text-slate-600 dark:text-slate-400">Total Toko Ini</span>
-                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">Rp {storeTotal.toLocaleString('id-ID')}</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const link = getWhatsAppLink(storeItems);
-                          if (link) {
-                            window.open(link, '_blank');
-                          } else {
-                            alert("Nomor WhatsApp toko tidak valid.");
-                          }
-                        }}
-                        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-emerald-500/20"
-                      >
-                        <MessageSquare size={16} /> Pesan Toko Ini via WA
-                      </button>
                     </div>
                   </div>
                 );
@@ -211,7 +210,7 @@ export default function CartDrawer() {
           <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
             <div className="flex justify-between items-end mb-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Grand Total</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total Pembayaran</p>
                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{items.length} Barang</p>
               </div>
               <p className="text-2xl font-black text-emerald-500 tracking-tight">
@@ -219,8 +218,24 @@ export default function CartDrawer() {
                 {grandTotal.toLocaleString('id-ID')}
               </p>
             </div>
-            <p className="text-[10px] text-center text-slate-500 bg-slate-100 dark:bg-slate-900 py-2 rounded-lg font-medium">
-              Checkout dilakukan terpisah untuk setiap toko melalui WhatsApp
+            
+            <button
+              onClick={handleCheckout}
+              disabled={isCheckingOut}
+              className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-70 disabled:active:scale-100"
+            >
+              {isCheckingOut ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" /> Memproses Pesanan...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} /> Checkout Sekarang
+                </>
+              )}
+            </button>
+            <p className="text-[10px] text-center text-slate-400 font-medium mt-3">
+              Pesanan Anda akan diteruskan ke Penjual
             </p>
           </div>
         )}
