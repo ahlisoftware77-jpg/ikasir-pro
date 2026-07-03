@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle } from 'lucide-react-native';
+import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -203,6 +203,7 @@ export default function MarketplaceScreen() {
           )}
           {hasDiscount && (
             <View style={styles.discountBadge}>
+              <Tag color="#fff" size={10} style={{ marginRight: 2 }} />
               <Text style={styles.discountText}>
                 {item.discount!.type === 'percent' ? `${item.discount!.value}% OFF` : `-${(item.discount!.value / 1000)}K`}
               </Text>
@@ -447,18 +448,25 @@ const styles = StyleSheet.create({
   },
   discountBadge: {
     position: 'absolute',
-    top: 4,
-    left: 4,
+    top: 6,
+    left: 6,
     backgroundColor: '#ef4444',
     paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: 3,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   discountText: {
     color: '#fff',
     fontFamily: 'System',
     fontWeight: '900',
-    fontSize: 10,
+    fontSize: 9,
   },
   outOfStockBadge: {
     position: 'absolute',

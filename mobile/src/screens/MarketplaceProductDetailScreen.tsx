@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIn
 import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus } from 'lucide-react-native';
+import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
@@ -207,6 +207,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         <View style={[styles.infoSection, { backgroundColor: colors.surface }]}>
           {hasDiscount && (
             <View style={styles.detailDiscountBadge}>
+              <Tag color="#fff" size={12} style={{ marginRight: 4 }} />
               <Text style={styles.detailDiscountText}>
                 {product.discount.type === 'percent' ? `${product.discount.value}% OFF` : `-${(product.discount.value / 1000)}K`}
               </Text>
@@ -338,10 +339,17 @@ const styles = StyleSheet.create({
   detailDiscountBadge: {
     alignSelf: 'flex-start',
     backgroundColor: '#ef4444',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
   },
   detailDiscountText: {
     color: '#fff',
