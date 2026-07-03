@@ -17,6 +17,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   
   const [product, setProduct] = useState<any>(null);
   const [storePhone, setStorePhone] = useState('');
+  const [storeLogo, setStoreLogo] = useState('');
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const addToCart = useCartStore((state) => state.addToCart);
@@ -58,6 +59,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           const sSnap = await getDoc(sRef);
           if (sSnap.exists()) {
             setStorePhone(sSnap.data().phone || '');
+            setStoreLogo(sSnap.data().logoUrl || '');
           }
         }
       }
@@ -237,7 +239,11 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
               }
             }}
           >
-            <Store color={colors.text} size={20} opacity={0.7} />
+            {storeLogo ? (
+              <Image source={{ uri: storeLogo }} style={styles.storeRowLogo} />
+            ) : (
+              <Store color={colors.text} size={20} opacity={0.7} />
+            )}
             <Text style={[styles.storeName, { color: colors.text }]}>{product.storeName || 'Toko Mitra'}</Text>
           </TouchableOpacity>
 
@@ -370,6 +376,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     marginBottom: 16,
+  },
+  storeRowLogo: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
   storeName: {
     fontFamily: 'System',

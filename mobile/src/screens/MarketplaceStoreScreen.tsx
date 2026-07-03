@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, ChevronLeft } from 'lucide-react-native';
+import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, ChevronLeft, MessageCircle } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -38,6 +38,8 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('Toko');
+  const [selectedCategory, setSelectedCategory] = useState('');
   
   // Store info
   const [storeInfo, setStoreInfo] = useState<{name: string, logoUrl: string, desc?: string}>({
@@ -132,11 +134,49 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
     fetchStoreData(true);
   }, [storeId]);
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [products, searchQuery]);
+  const categories = useMemo(() => {
+    const cats = new Set(products.map(p => p.category));
+    return Array.from(cats);
+  }, [products]);
 
-  const renderProductCard = ({ item }: { item: Product }) => {
+  const filteredProducts = useMemo(() => {
+    let res = products;
+    if (selectedCategory) {
+      res = res.filter(p => p.category === selectedCategory);
+    }
+    if (searchQuery) {
+      res = res.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return res;
+  }, [products, searchQuery, selectedCategory]);
+
+  const displayedData = useMemo(() => {
+    if (activeTab === 'Toko') return filteredProducts.slice(0, 4); // Limit for home
+    if (activeTab === 'Produk') return filteredProducts;
+    if (activeTab === 'Kategori') return categories;
+    if (activeTab === 'Ulasan') return []; // Placeholder
+    return filteredProducts;
+  }, [activeTab, filteredProducts, categories]);
+
+  const renderProductCard = ({ item }: { item: any }) => {
+    if (activeTab === 'Kategori') {
+      return (
+        <TouchableOpacity 
+          style={[styles.categoryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={() => {
+            setSelectedCategory(item);
+            setActiveTab('Produk');
+          }}
+        >
+          <Text style={[styles.categoryName, { color: colors.text }]}>{item}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (activeTab === 'Ulasan') {
+      return null;
+    }
+
     const outOfStock = item.manageStock !== false && (item.stock || 0) <= 0;
     const isVideo = item.imageUrl?.toLowerCase().match(/\.(mp4|mov|webm)(\?.*)?$/i);
     
@@ -236,12 +276,13 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       </View>
 
       <FlatList
-        data={filteredProducts}
-        keyExtractor={(item) => item.id}
+        key={activeTab}
+        data={displayedData}
+        keyExtractor={(item, index) => typeof item === 'string' ? item : item.id}
         renderItem={renderProductCard}
-        numColumns={COLUMN_COUNT}
+        numColumns={activeTab === 'Kategori' ? 1 : COLUMN_COUNT}
         contentContainerStyle={[styles.listContainer, { paddingBottom: insets.bottom + 80 }]}
-        columnWrapperStyle={styles.columnWrapper}
+        columnWrapperStyle={activeTab === 'Kategori' ? undefined : styles.columnWrapper}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -258,23 +299,56 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Store color={colors.text} size={64} opacity={0.2} style={{ marginBottom: 16 }} />
-              <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>Belum ada produk di toko ini.</Text>
+              {activeTab === 'Ulasan' ? (
+                <>
+                  <MessageCircle color={colors.text} size={64} opacity={0.2} style={{ marginBottom: 16 }} />
+                  <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>Belum ada ulasan.</Text>
+                </>
+              ) : (
+                <>
+                  <Store color={colors.text} size={64} opacity={0.2} style={{ marginBottom: 16 }} />
+                  <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>Belum ada produk di kategori ini.</Text>
+                </>
+              )}
             </View>
           )
         }
         ListHeaderComponent={
-          <View style={[styles.storeProfileHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            {storeInfo.logoUrl ? (
-              <Image source={{ uri: storeInfo.logoUrl }} style={styles.storeProfileLogo} />
-            ) : (
-              <View style={[styles.storeProfileLogoFallback, { backgroundColor: colors.accent + '20' }]}>
-                <Store color={colors.accent} size={40} />
-              </View>
-            )}
-            <Text style={[styles.storeProfileName, { color: colors.text }]}>{storeInfo.name}</Text>
-            {!!storeInfo.desc && (
-              <Text style={[styles.storeProfileDesc, { color: colors.textMuted }]} numberOfLines={3}>{storeInfo.desc}</Text>
+          <View>
+            <View style={[styles.storeProfileHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+              {storeInfo.logoUrl ? (
+                <Image source={{ uri: storeInfo.logoUrl }} style={styles.storeProfileLogo} />
+              ) : (
+                <View style={[styles.storeProfileLogoFallback, { backgroundColor: colors.accent + '20' }]}>
+                  <Store color={colors.accent} size={40} />
+                </View>
+              )}
+              <Text style={[styles.storeProfileName, { color: colors.text }]}>{storeInfo.name}</Text>
+              {!!storeInfo.desc && (
+                <Text style={[styles.storeProfileDesc, { color: colors.textMuted }]} numberOfLines={3}>{storeInfo.desc}</Text>
+              )}
+            </View>
+            <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
+              {['Toko', 'Produk', 'Kategori', 'Ulasan'].map(tab => {
+                const isActive = activeTab === tab;
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    style={[styles.tabBtn, isActive && { borderBottomColor: colors.accent }]}
+                    onPress={() => {
+                      setActiveTab(tab);
+                      if (tab !== 'Produk') setSelectedCategory('');
+                    }}
+                  >
+                    <Text style={[styles.tabText, { color: isActive ? colors.accent : colors.textMuted }, isActive && styles.tabTextActive]}>
+                      {tab}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {activeTab === 'Toko' && displayedData.length > 0 && (
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Produk Unggulan</Text>
             )}
           </View>
         }
@@ -348,6 +422,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'System',
     lineHeight: 20,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: CARD_MARGIN,
+    marginTop: 8,
+    marginBottom: 8,
   },
   listContainer: {
     padding: CARD_MARGIN,
@@ -455,5 +557,17 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontFamily: 'System',
     fontSize: 14,
+  },
+  categoryCard: {
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+    marginHorizontal: CARD_MARGIN,
+  },
+  categoryName: {
+    fontFamily: 'System',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
