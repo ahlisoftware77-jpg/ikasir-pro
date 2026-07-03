@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl, Linking } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, ChevronLeft, MessageCircle, Star } from 'lucide-react-native';
@@ -365,6 +365,21 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
               {!!storeInfo.desc && (
                 <Text style={[styles.storeProfileDesc, { color: colors.textMuted }]} numberOfLines={3}>{storeInfo.desc}</Text>
               )}
+              {!!storeInfo.phone && (
+                <TouchableOpacity 
+                  style={[styles.waButton, { backgroundColor: '#25D366' }]}
+                  onPress={() => {
+                    let phoneNum = storeInfo.phone.replace(/\D/g, '');
+                    if (phoneNum.startsWith('0')) {
+                      phoneNum = '62' + phoneNum.substring(1);
+                    }
+                    Linking.openURL(`https://wa.me/${phoneNum}`);
+                  }}
+                >
+                  <MessageCircle color="#fff" size={16} />
+                  <Text style={styles.waButtonText}>Hubungi via WhatsApp</Text>
+                </TouchableOpacity>
+              )}
             </View>
             <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
               {['Toko', 'Produk', 'Kategori', 'Ulasan'].map(tab => {
@@ -456,10 +471,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   storeProfileDesc: {
-    fontSize: 13,
-    textAlign: 'center',
     fontFamily: 'System',
+    fontSize: 14,
+    textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 8,
+  },
+  waButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 8,
+    gap: 6,
+  },
+  waButtonText: {
+    color: '#fff',
+    fontFamily: 'System',
+    fontWeight: '700',
+    fontSize: 12,
   },
   tabBar: {
     flexDirection: 'row',
