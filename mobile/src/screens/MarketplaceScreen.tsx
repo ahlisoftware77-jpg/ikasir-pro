@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle } from 'lucide-react-native';
@@ -37,6 +37,7 @@ export default function MarketplaceScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [categories, setCategories] = useState<string[]>(['Semua']);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Store info
   const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
@@ -45,8 +46,8 @@ export default function MarketplaceScreen() {
     fetchMarketplaceData();
   }, []);
 
-  const fetchMarketplaceData = async () => {
-    setLoading(true);
+  const fetchMarketplaceData = async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const q = query(collection(db, 'products'), where('joinMarketplace', '==', true));
       const snap = await getDocs(q);
@@ -108,8 +109,14 @@ export default function MarketplaceScreen() {
       console.error('Error fetching marketplace data:', err);
     } finally {
       setLoading(false);
+      if (isRefresh) setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchMarketplaceData(true);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -122,7 +129,7 @@ export default function MarketplaceScreen() {
 
   const renderProductCard = ({ item }: { item: Product }) => {
     const outOfStock = item.manageStock !== false && (item.stock || 0) <= 0;
-    const isVideo = item.imageUrl?.toLowerCase().match(/\.(mp4|mov|webm)$/);
+    const isVideo = item.imageUrl?.toLowerCase().match(/\.(mp4|mov|webm)(\?.*)?$/i);
     
     return (
       <TouchableOpacity 
@@ -257,6 +264,14 @@ export default function MarketplaceScreen() {
           contentContainerStyle={[styles.listContainer, { paddingBottom: insets.bottom + 80 }]}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
+            />
+          }
         />
       )}
 

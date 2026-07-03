@@ -126,10 +126,24 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           {(() => {
             const mediaItems = [];
             if (product.videoUrl) mediaItems.push({ type: 'video', url: product.videoUrl });
-            if (product.imageUrls && product.imageUrls.length > 0) {
-              product.imageUrls.forEach((url: string) => mediaItems.push({ type: 'image', url }));
-            } else if (product.imageUrl) {
-              mediaItems.push({ type: 'image', url: product.imageUrl });
+            
+            // Periksa media array (jika ada)
+            if (product.media && product.media.length > 0) {
+              product.media.forEach((m: any) => {
+                const url = m.url || m;
+                const isVid = typeof url === 'string' && url.toLowerCase().match(/\.(mp4|mov|webm)(\?.*)?$/i);
+                mediaItems.push({ type: m.type === 'video' || isVid ? 'video' : 'image', url });
+              });
+            } else {
+              if (product.imageUrls && product.imageUrls.length > 0) {
+                product.imageUrls.forEach((url: string) => {
+                  const isVid = url.toLowerCase().match(/\.(mp4|mov|webm)(\?.*)?$/i);
+                  mediaItems.push({ type: isVid ? 'video' : 'image', url });
+                });
+              } else if (product.imageUrl) {
+                const isVid = product.imageUrl.toLowerCase().match(/\.(mp4|mov|webm)(\?.*)?$/i);
+                mediaItems.push({ type: isVid ? 'video' : 'image', url: product.imageUrl });
+              }
             }
 
             if (mediaItems.length === 0) {
