@@ -327,6 +327,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     storeBanks: [] as any[],
     storeEwallets: [] as any[],
   });
+  const [initialStoreSettings, setInitialStoreSettings] = useState<any>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -1336,8 +1337,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
               estPrefix: data.estPrefix || 'EST-',
               estPadding: data.estPadding || 4,
               estCounter: data.estCounter || 0,
-
-              // Load new properties
               logoUrl: data.logoUrl || '',
               thermalLogoUrl: data.thermalLogoUrl || '',
               signatureUrl: data.signatureUrl || '',
@@ -1349,10 +1348,14 @@ export default function StoreSettingsScreen({ navigation }: any) {
               a4DebtNote: data.a4DebtNote || '',
               storeBanks: data.storeBanks || [],
               storeEwallets: data.storeEwallets || [],
-            });
+            };
+            setStoreSettings(parsedSettings);
+            setInitialStoreSettings(parsedSettings);
+          } else {
+            setInitialStoreSettings(storeSettings);
           }
         } catch (err) {
-          console.error("Error loading store settings on mobile SettingsScreen:", err);
+          console.error(err);
         } finally {
           setIsLoadingSettings(false);
         }
@@ -1360,6 +1363,42 @@ export default function StoreSettingsScreen({ navigation }: any) {
       loadStoreSettings();
     }
   }, [storeId]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (!initialStoreSettings || JSON.stringify(storeSettings) === JSON.stringify(initialStoreSettings)) {
+        return;
+      }
+
+      // Ignore if currently saving to prevent blocking the goBack() inside handleSaveStoreSettings
+      if (isSavingSettings) {
+        return;
+      }
+
+      e.preventDefault();
+
+      Alert.alert(
+        'Perubahan Belum Disimpan',
+        'Anda memiliki perubahan pada data toko yang belum disimpan. Yakin ingin keluar tanpa menyimpan?',
+        [
+          { text: 'Batal', style: 'cancel', onPress: () => {} },
+          {
+            text: 'Tetap Keluar',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+          {
+            text: 'Simpan',
+            onPress: () => {
+              handleSaveStoreSettings();
+            },
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, storeSettings, initialStoreSettings, isSavingSettings]);
 
   const handleSaveStoreSettings = async () => {
     if (!storeId) return;
@@ -1404,6 +1443,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
       await updateDoc(doc(db, 'stores', storeId), {
         name: storeSettings.storeName
       }).catch(() => {});
+
+      setInitialStoreSettings(finalSettings);
 
       Alert.alert('Berhasil', 'Pengaturan toko berhasil disimpan!');
       navigation.goBack();
