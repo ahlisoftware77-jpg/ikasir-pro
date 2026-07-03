@@ -13,7 +13,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   
-  const { user } = useAuthStore();
+  const { user, storeId: myStoreId } = useAuthStore();
   const { items, clearStoreCart } = useCartStore();
   const storeItems = items.filter(item => item.storeId === storeId);
   const totalAmount = storeItems.reduce((acc, item) => acc + (item.price * item.qty), 0);
@@ -33,7 +33,8 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
       let defaultAddress = user.address || '';
       
       try {
-        const settingsRef = doc(db, 'settings', `store_${user.uid}`);
+        const targetStoreId = myStoreId || user.uid;
+        const settingsRef = doc(db, 'settings', `store_${targetStoreId}`);
         const settingsSnap = await getDoc(settingsRef);
         if (settingsSnap.exists()) {
           const data = settingsSnap.data();
@@ -51,7 +52,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
     };
     
     fetchUserData();
-  }, [user]);
+  }, [user, myStoreId]);
 
   const handleCheckout = async () => {
     if (!name || !phone) {
