@@ -45,21 +45,21 @@ export default function MarketplaceOrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string, paymentStatus: string) => {
+  const getStatusColor = (status: string, paymentStatus: string, orderStatus: string) => {
     if (paymentStatus === 'paid' || paymentStatus === 'completed') return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-900';
-    if (status === 'cancelled') return 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-900';
+    if (status === 'cancelled' || orderStatus === 'cancelled') return 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-900';
     return 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-900';
   };
 
-  const getStatusIcon = (status: string, paymentStatus: string) => {
+  const getStatusIcon = (status: string, paymentStatus: string, orderStatus: string) => {
     if (paymentStatus === 'paid' || paymentStatus === 'completed') return <CheckCircle2 size={16} />;
-    if (status === 'cancelled') return <XCircle size={16} />;
+    if (status === 'cancelled' || orderStatus === 'cancelled') return <XCircle size={16} />;
     return <Clock size={16} />;
   };
 
-  const getStatusText = (status: string, paymentStatus: string) => {
+  const getStatusText = (status: string, paymentStatus: string, orderStatus: string) => {
     if (paymentStatus === 'paid' || paymentStatus === 'completed') return 'Selesai / Dibayar';
-    if (status === 'cancelled') return 'Dibatalkan';
+    if (status === 'cancelled' || orderStatus === 'cancelled') return 'Dibatalkan';
     return 'Menunggu Konfirmasi';
   };
 
@@ -111,7 +111,7 @@ export default function MarketplaceOrdersPage() {
                   <button onClick={() => { setIsSearched(false); setOrders([]); }} className="text-[10px] text-emerald-500 font-black uppercase">Ganti Nomor</button>
                 </div>
                 {orders.map((order) => {
-                  const statusColor = getStatusColor(order.status, order.paymentStatus);
+                  const statusColor = getStatusColor(order.status, order.paymentStatus, order.orderStatus);
                   const isFinished = order.paymentStatus === 'paid' || order.paymentStatus === 'completed';
                   return (
                     <div key={order.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
@@ -121,8 +121,8 @@ export default function MarketplaceOrdersPage() {
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{order.id}</p>
                         </div>
                         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${statusColor}`}>
-                          {getStatusIcon(order.status, order.paymentStatus)}
-                          <span className="text-[9px] font-black uppercase tracking-widest">{getStatusText(order.status, order.paymentStatus)}</span>
+                          {getStatusIcon(order.status, order.paymentStatus, order.orderStatus)}
+                          <span className="text-[9px] font-black uppercase tracking-widest">{getStatusText(order.status, order.paymentStatus, order.orderStatus)}</span>
                         </div>
                       </div>
                       
@@ -146,7 +146,7 @@ export default function MarketplaceOrdersPage() {
                       </div>
 
                       {/* WhatsApp Button */}
-                      {!isFinished && order.status !== 'cancelled' && (
+                      {!isFinished && order.status !== 'cancelled' && order.orderStatus !== 'cancelled' && (
                         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/50">
                           <button
                             onClick={() => {
