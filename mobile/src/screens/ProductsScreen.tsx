@@ -996,8 +996,6 @@ export default function ProductsScreen({ navigation }: any) {
                     } else {
                       setSelectedIds(prev => [...prev, item.id!]);
                     }
-                  } else {
-                    navigation.navigate('EditProduct', { product: item });
                   }
                 }}
                 className="flex-col mb-4 p-4 rounded-[28px] border"
