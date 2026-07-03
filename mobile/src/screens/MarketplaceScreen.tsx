@@ -19,6 +19,8 @@ interface Product {
   storeName?: string;
   stock?: number;
   manageStock?: boolean;
+  averageRating?: number;
+  reviewCount?: number;
   discount?: {
     type: 'percent' | 'fixed';
     value: number;
@@ -79,6 +81,8 @@ export default function MarketplaceScreen() {
           storeName: data.storeName || 'Toko Mitra',
           stock: data.stock !== undefined ? data.stock : 0,
           manageStock: data.manageStock !== undefined ? data.manageStock : true,
+          averageRating: data.averageRating || 0,
+          reviewCount: data.reviewCount || 0,
         });
         if (data.storeId) {
           uniqueStoreIds.add(data.storeId);
@@ -201,6 +205,12 @@ export default function MarketplaceScreen() {
           ) : (
             <ShoppingBag color={colors.text} size={32} opacity={0.3} />
           )}
+          {(item.averageRating && item.averageRating > 0) ? (
+            <View style={styles.ratingBadge}>
+              <Star color="#f59e0b" fill="#f59e0b" size={10} style={{ marginRight: 2 }} />
+              <Text style={styles.ratingBadgeText}>{item.averageRating.toFixed(1)}</Text>
+            </View>
+          ) : null}
           {hasDiscount && (
             <View style={styles.discountBadge}>
               <Tag color="#fff" size={10} style={{ marginRight: 2 }} />
@@ -445,6 +455,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     width: '100%',
     height: '100%',
+  },
+  ratingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  ratingBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#333',
   },
   discountBadge: {
     position: 'absolute',

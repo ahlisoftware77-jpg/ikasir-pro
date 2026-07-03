@@ -93,6 +93,7 @@ import CartScreen from './src/screens/CartScreen';
 import MarketplaceCheckoutScreen from './src/screens/MarketplaceCheckoutScreen';
 import MarketplaceOrdersScreen from './src/screens/MarketplaceOrdersScreen';
 import MarketplaceStoreScreen from './src/screens/MarketplaceStoreScreen';
+import MarketplaceWriteReviewScreen from './src/screens/MarketplaceWriteReviewScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import POSScreen from './src/screens/POSScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
@@ -915,6 +916,7 @@ function NavigationRoot() {
             <Stack.Screen name="MarketplaceProductDetail" component={MarketplaceProductDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MarketplaceOrders" component={MarketplaceOrdersScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MarketplaceStore" component={MarketplaceStoreScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MarketplaceWriteReview" component={MarketplaceWriteReviewScreen} options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="CartScreen" component={CartScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MarketplaceCheckoutScreen" component={MarketplaceCheckoutScreen} options={{ headerShown: false }} />
             <Stack.Screen name="UpdateChecker" component={UpdateChecker} options={{ headerShown: false }} />

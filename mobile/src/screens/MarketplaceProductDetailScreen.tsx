@@ -5,8 +5,11 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag } from 'lucide-react-native';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
+import { useAuthStore } from '../store/authStore';
+import { Star } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +24,11 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const addToCart = useCartStore((state) => state.addToCart);
+  
+  const { user } = useAuthStore();
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [canReview, setCanReview] = useState(false);
+  const [averageRating, setAverageRating] = useState(0);
 
   useEffect(() => {
     fetchProductDetail();
@@ -63,6 +71,34 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           }
         }
       }
+
+      // Fetch Reviews
+      const rQuery = query(collection(db, 'reviews'), where('productId', '==', productId));
+      const rSnap = await getDocs(rQuery);
+      const fetchedReviews = rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      setReviews(fetchedReviews);
+      
+      if (fetchedReviews.length > 0) {
+        const sum = fetchedReviews.reduce((acc, curr) => acc + curr.rating, 0);
+        setAverageRating(sum / fetchedReviews.length);
+      }
+
+      // Check if user can review
+      if (user) {
+        const userId = user.uid || user.phone;
+        const oQuery = query(collection(db, 'orders'), where('userId', '==', userId), where('orderStatus', '==', 'completed'));
+        const oSnap = await getDocs(oQuery);
+        let hasPurchased = false;
+        oSnap.docs.forEach(doc => {
+          const oData = doc.data();
+          if (oData.items && oData.items.some((item: any) => item.id === productId || item.productId === productId)) {
+            hasPurchased = true;
+          }
+        });
+        const hasReviewed = fetchedReviews.some(r => r.userId === userId);
+        setCanReview(hasPurchased && !hasReviewed);
+      }
+
     } catch (err) {
       console.error('Error fetching product detail:', err);
     } finally {
@@ -216,6 +252,14 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
             </View>
           )}
           <Text style={[styles.productName, { color: colors.text }]}>{product.name}</Text>
+          {reviews.length > 0 && (
+            <View style={styles.ratingSummary}>
+              <Star color="#f59e0b" fill="#f59e0b" size={16} />
+              <Text style={[styles.ratingText, { color: colors.text }]}>
+                {averageRating.toFixed(1)} <Text style={{ color: colors.textMuted }}>({reviews.length} ulasan)</Text>
+              </Text>
+            </View>
+          )}
           {hasDiscount ? (
             <View style={styles.detailPriceContainer}>
               <Text style={[styles.detailOriginalPrice, { color: colors.textMuted }]}>
@@ -253,6 +297,44 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
               {product.description || 'Tidak ada deskripsi.'}
             </Text>
           </View>
+        </View>
+
+        <View style={[styles.reviewSection, { backgroundColor: colors.surface }]}>
+          <View style={styles.reviewHeader}>
+            <Text style={[styles.descTitle, { color: colors.text, marginBottom: 0 }]}>Ulasan Produk</Text>
+            {canReview && (
+              <TouchableOpacity onPress={() => navigation.navigate('MarketplaceWriteReview', { productId, productName: product.name, storeId: product.storeId })}>
+                <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Tulis Ulasan</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {reviews.length === 0 ? (
+            <Text style={[styles.descText, { color: colors.textMuted, marginTop: 12 }]}>Belum ada ulasan untuk produk ini.</Text>
+          ) : (
+            <View style={styles.reviewList}>
+              {reviews.slice(0, 3).map(review => (
+                <View key={review.id} style={[styles.reviewCard, { borderBottomColor: colors.border }]}>
+                  <View style={styles.reviewUserRow}>
+                    <Text style={[styles.reviewUserName, { color: colors.text }]}>{review.userName || 'Pengguna'}</Text>
+                    <View style={styles.reviewStars}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star key={star} color={star <= review.rating ? '#f59e0b' : colors.border} fill={star <= review.rating ? '#f59e0b' : 'transparent'} size={12} />
+                      ))}
+                    </View>
+                  </View>
+                  {!!review.comment && (
+                    <Text style={[styles.reviewComment, { color: colors.text }]}>{review.comment}</Text>
+                  )}
+                </View>
+              ))}
+              {reviews.length > 3 && (
+                <TouchableOpacity style={styles.viewAllReviewsBtn}>
+                  <Text style={{ color: colors.accent, textAlign: 'center', fontWeight: 'bold' }}>Lihat Semua Ulasan</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -446,5 +528,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minWidth: 24,
     textAlign: 'center',
+  },
+  ratingSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  reviewSection: {
+    padding: 20,
+    marginTop: 8,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewList: {
+    marginTop: 16,
+  },
+  reviewCard: {
+    borderBottomWidth: 1,
+    paddingBottom: 16,
+    marginBottom: 16,
+  },
+  reviewUserRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewUserName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  reviewComment: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.9,
+  },
+  viewAllReviewsBtn: {
+    paddingVertical: 12,
   }
 });

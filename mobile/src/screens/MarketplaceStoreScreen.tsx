@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, ChevronLeft, MessageCircle } from 'lucide-react-native';
+import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, ChevronLeft, MessageCircle, Star } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
@@ -40,6 +40,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('Toko');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [storeReviews, setStoreReviews] = useState<any[]>([]);
   
   // Store info
   const [storeInfo, setStoreInfo] = useState<{name: string, logoUrl: string, desc?: string}>({
@@ -89,6 +90,8 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
           storeName: data.storeName || initialStoreName,
           stock: data.stock !== undefined ? data.stock : 0,
           manageStock: data.manageStock !== undefined ? data.manageStock : true,
+          averageRating: data.averageRating || 0,
+          reviewCount: data.reviewCount || 0,
         });
       });
 
@@ -121,6 +124,18 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       });
 
       setProducts(list);
+
+      // 4. Fetch Reviews
+      const rQuery = query(collection(db, 'reviews'), where('storeId', '==', storeId));
+      const rSnap = await getDocs(rQuery);
+      const fetchedReviews = rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      fetchedReviews.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      setStoreReviews(fetchedReviews);
+
     } catch (err) {
       console.error('Error fetching store data:', err);
     } finally {
@@ -154,9 +169,9 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
     if (activeTab === 'Toko') return filteredProducts.slice(0, 4); // Limit for home
     if (activeTab === 'Produk') return filteredProducts;
     if (activeTab === 'Kategori') return categories;
-    if (activeTab === 'Ulasan') return []; // Placeholder
+    if (activeTab === 'Ulasan') return storeReviews;
     return filteredProducts;
-  }, [activeTab, filteredProducts, categories]);
+  }, [activeTab, filteredProducts, categories, storeReviews]);
 
   const renderProductCard = ({ item }: { item: any }) => {
     if (activeTab === 'Kategori') {
@@ -174,7 +189,24 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
     }
 
     if (activeTab === 'Ulasan') {
-      return null;
+      return (
+        <View style={[styles.reviewCard, { borderBottomColor: colors.border }]}>
+          <View style={styles.reviewUserRow}>
+            <Text style={[styles.reviewUserName, { color: colors.text }]}>{item.userName || 'Pengguna'}</Text>
+            <View style={styles.reviewStars}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <Star key={star} color={star <= item.rating ? '#f59e0b' : colors.border} fill={star <= item.rating ? '#f59e0b' : 'transparent'} size={12} />
+              ))}
+            </View>
+          </View>
+          {!!item.productName && (
+            <Text style={[styles.reviewProductName, { color: colors.textMuted }]}>Produk: {item.productName}</Text>
+          )}
+          {!!item.comment && (
+            <Text style={[styles.reviewComment, { color: colors.text }]}>{item.comment}</Text>
+          )}
+        </View>
+      );
     }
 
     const outOfStock = item.manageStock !== false && (item.stock || 0) <= 0;
@@ -217,6 +249,12 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
           ) : (
             <ShoppingBag color={colors.text} size={32} opacity={0.3} />
           )}
+          {(item.averageRating && item.averageRating > 0) ? (
+            <View style={styles.ratingBadge}>
+              <Star color="#f59e0b" fill="#f59e0b" size={10} style={{ marginRight: 2 }} />
+              <Text style={styles.ratingBadgeText}>{item.averageRating.toFixed(1)}</Text>
+            </View>
+          ) : null}
           {hasDiscount && (
             <View style={styles.discountBadge}>
               <Tag color="#fff" size={10} style={{ marginRight: 2 }} />
@@ -275,14 +313,14 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
         </View>
       </View>
 
-      <FlatList
+        <FlatList
         key={activeTab}
         data={displayedData}
-        keyExtractor={(item, index) => typeof item === 'string' ? item : item.id}
+        keyExtractor={(item, index) => typeof item === 'string' ? item : (item.id || index.toString())}
         renderItem={renderProductCard}
-        numColumns={activeTab === 'Kategori' ? 1 : COLUMN_COUNT}
+        numColumns={activeTab === 'Kategori' || activeTab === 'Ulasan' ? 1 : COLUMN_COUNT}
         contentContainerStyle={[styles.listContainer, { paddingBottom: insets.bottom + 80 }]}
-        columnWrapperStyle={activeTab === 'Kategori' ? undefined : styles.columnWrapper}
+        columnWrapperStyle={activeTab === 'Kategori' || activeTab === 'Ulasan' ? undefined : styles.columnWrapper}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -473,6 +511,23 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  ratingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  ratingBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#333',
+  },
   videoWrapper: {
     width: '100%',
     height: '100%',
@@ -570,4 +625,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  reviewCard: {
+    borderBottomWidth: 1,
+    paddingVertical: 12,
+    marginBottom: 8,
+    marginHorizontal: CARD_MARGIN,
+  },
+  reviewUserRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  reviewUserName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  reviewProductName: {
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  reviewComment: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.9,
+  }
 });
