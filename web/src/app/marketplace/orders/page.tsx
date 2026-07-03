@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ArrowLeft, Package, Clock, CheckCircle2, XCircle, Search, MessageSquare } from 'lucide-react';
 
@@ -149,8 +149,24 @@ export default function MarketplaceOrdersPage() {
                       {!isFinished && order.status !== 'cancelled' && order.orderStatus !== 'cancelled' && (
                         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/50">
                           <button
-                            onClick={() => {
-                              const storePhone = order.items?.[0]?.storePhone || '';
+                            onClick={async () => {
+                              let storePhone = '';
+                              try {
+                                if (order.storeId) {
+                                  const storeRef = doc(db, 'settings', `store_${order.storeId}`);
+                                  const storeSnap = await getDoc(storeRef);
+                                  if (storeSnap.exists()) {
+                                    storePhone = storeSnap.data().storePhone || '';
+                                  }
+                                }
+                              } catch (e) {
+                                console.error('Failed to fetch store settings', e);
+                              }
+                              
+                              if (!storePhone) {
+                                storePhone = order.items?.[0]?.storePhone || '';
+                              }
+
                               let formattedPhone = storePhone.replace(/[^0-9]/g, '');
                               if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.slice(1);
                               
