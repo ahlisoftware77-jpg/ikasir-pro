@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, ShoppingBag, Store, MapPin } from 'lucide-react-native';
+import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
+import { useCartStore } from '../store/cartStore';
 
 interface Product {
   id: string;
@@ -28,6 +29,7 @@ export default function MarketplaceScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const cartItems = useCartStore((state) => state.items);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,16 +161,25 @@ export default function MarketplaceScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.surface, paddingTop: insets.top + 10, borderBottomColor: colors.border }]}>
-        {/* Search Bar */}
-        <View style={[styles.searchContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-          <Search color={colors.accent} size={20} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Cari produk atau toko..."
-            placeholderTextColor={colors.text + '80'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        <View style={styles.topRow}>
+          {/* Search Bar */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+            <Search color={colors.accent} size={20} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Cari produk atau toko..."
+              placeholderTextColor={colors.text + '80'}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          
+          <TouchableOpacity 
+            style={[styles.historyBtn, { backgroundColor: colors.bg, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('MarketplaceOrdersScreen')}
+          >
+            <Clock color={colors.text} size={20} />
+          </TouchableOpacity>
         </View>
 
         {/* Categories */}
@@ -225,6 +236,19 @@ export default function MarketplaceScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {cartItems.length > 0 && (
+        <TouchableOpacity
+          style={[styles.floatingCart, { bottom: insets.bottom + 24, backgroundColor: colors.accent }]}
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('CartScreen')}
+        >
+          <ShoppingCart color="#fff" size={24} />
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{cartItems.length}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -238,14 +262,28 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     height: 44,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 12,
+  },
+  historyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchInput: {
     flex: 1,
@@ -366,5 +404,38 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontSize: 14,
     opacity: 0.5,
+  },
+  floatingCart: {
+    position: 'absolute',
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontFamily: 'System',
+    fontWeight: '800',
+    fontSize: 10,
   }
 });

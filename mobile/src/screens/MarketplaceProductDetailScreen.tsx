@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIn
 import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Store, MessageCircle, ShoppingBag } from 'lucide-react-native';
+import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useCartStore } from '../store/cartStore';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +18,8 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [product, setProduct] = useState<any>(null);
   const [storePhone, setStorePhone] = useState('');
   const [loading, setLoading] = useState(true);
+  const [qty, setQty] = useState(1);
+  const addToCart = useCartStore((state) => state.addToCart);
 
   useEffect(() => {
     fetchProductDetail();
@@ -68,6 +71,23 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         Alert.alert('Error', 'WhatsApp tidak terpasang di perangkat ini.');
       }
     });
+  };
+
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        storeId: product.storeId || 'unknown',
+        storeName: product.storeName || 'Toko Mitra',
+        imageUrl: product.imageUrl || product.imageUrls?.[0],
+        stock: product.stock || 999
+      });
+      useCartStore.getState().setQty(product.id, qty);
+      Alert.alert('Sukses', 'Produk berhasil ditambahkan ke keranjang');
+      navigation.goBack();
+    }
   };
 
   if (loading) {
@@ -127,7 +147,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
                   <View style={{ width: width, height: width, justifyContent: 'center', alignItems: 'center' }}>
                     {item.type === 'video' ? (
                       <Video
-                        style={{ width: '100%', height: '100%' }}
+                        style={{ width: width, height: width }}
                         source={{ uri: item.url }}
                         useNativeControls
                         resizeMode={ResizeMode.CONTAIN}
@@ -163,24 +183,35 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         </View>
       </ScrollView>
 
-      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom || 16 }]}>
-        <TouchableOpacity 
-          style={[
-            styles.actionBtn, 
-            { backgroundColor: outOfStock ? colors.border : '#25D366' }
-          ]} 
-          onPress={handleWhatsApp}
-          activeOpacity={0.8}
-          disabled={outOfStock}
-        >
-          <MessageCircle color={outOfStock ? colors.textMuted : "#fff"} size={20} />
-          <Text style={[
-            styles.actionBtnText, 
-            { color: outOfStock ? colors.textMuted : '#fff' }
-          ]}>
-            {outOfStock ? 'STOK HABIS' : 'Tanya / Beli via WA'}
-          </Text>
-        </TouchableOpacity>
+      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom || 16, flexDirection: 'row', gap: 12 }]}>
+        {outOfStock ? (
+          <View style={[styles.actionBtn, { backgroundColor: colors.border, flex: 1 }]}>
+            <Text style={[styles.actionBtnText, { color: colors.textMuted }]}>STOK HABIS</Text>
+          </View>
+        ) : (
+          <>
+            <View style={[styles.qtySelector, { borderColor: colors.border }]}>
+              <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
+                <Minus color={colors.text} size={16} />
+              </TouchableOpacity>
+              <Text style={[styles.qtyText, { color: colors.text }]}>{qty}</Text>
+              <TouchableOpacity 
+                onPress={() => setQty(Math.min(product.stock || 999, qty + 1))} 
+                style={styles.qtyBtn}
+              >
+                <Plus color={colors.text} size={16} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity 
+              style={[styles.actionBtn, { backgroundColor: colors.accent, flex: 1 }]} 
+              onPress={handleAddToCart}
+              activeOpacity={0.8}
+            >
+              <ShoppingCart color="#fff" size={20} />
+              <Text style={styles.actionBtnText}>Tambah ke Keranjang</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -293,5 +324,23 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontWeight: '800',
     fontSize: 14,
+  },
+  qtySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    height: 48,
+  },
+  qtyBtn: {
+    padding: 10,
+  },
+  qtyText: {
+    fontFamily: 'System',
+    fontWeight: '700',
+    fontSize: 16,
+    minWidth: 24,
+    textAlign: 'center',
   }
 });
