@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
@@ -6,7 +6,7 @@ import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare, Loader2, CheckCircl
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, serverTimestamp, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export default function CartDrawer() {
@@ -59,23 +59,89 @@ export default function CartDrawer() {
     setIsCheckingOut(true);
     try {
       // Create a transaction for each store
-      const promises = Object.entries(itemsByStore).map(async ([storeId, storeItems]) => {
-        const storeTotal = storeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        
-        await addDoc(collection(db, 'transactions'), {
-          storeId,
-          total: storeTotal,
-          paymentMethod: 'whatsapp_marketplace',
-          createdAt: Date.now(),
-          userId: auth.currentUser?.uid || '',
-          customerPhone: buyerInfo.phone,
-          customerName: buyerInfo.name,
-          customerAddress: buyerInfo.address,
-          items: storeItems
-        });
-      });
+      // Create a transaction for each store sequentially to avoid counter collision
+      for (const [storeId, storeItems] of Object.entries(itemsByStore)) {
+        await runTransaction(db, async (transaction) => {
+          const settingsRef = doc(db, 'settings', `store_${storeId}`);
+          const settingsSnap = await transaction.get(settingsRef);
+          
+          const productReads = [];
+          for (const item of storeItems) {
+            const pRef = doc(db, 'products', item.productId);
+            const pSnap = await transaction.get(pRef);
+            productReads.push({ ref: pRef, snap: pSnap, item });
+          }
+          
+          let currentCounter = 0;
+          let prefix = 'TRX';
+          let padding = 4;
+          
+          if (settingsSnap.exists()) {
+            const data = settingsSnap.data();
+            currentCounter = Number(data.trxCounter) || 0;
+            prefix = data.trxPrefix || 'TRX';
+            padding = data.trxPadding || 4;
+          }
+          
+          currentCounter += 1;
+          const finalId = `${prefix}${String(currentCounter).padStart(padding, '0')}`;
+          
+          const storeTotal = storeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
+          
+          const orderData = {
+            id: finalId,
+            queueNumber: currentCounter,
+            storeId,
+            customerName: buyerInfo.name,
+            customerPhone: buyerInfo.phone,
+            deliveryAddress: buyerInfo.address || '',
+            items: storeItems.map(item => ({
+              productId: item.productId,
+              name: item.productName,
+              qty: item.qty,
+              price: item.price,
+              capitalPrice: 0,
+              subtotal: item.price * item.qty,
+            })),
+            subtotal: storeTotal,
+            taxAmount: 0,
+            discountAmount: 0,
+            total: storeTotal,
+            status: 'pending',
+            orderStatus: 'new',
+            paymentStatus: 'unpaid',
+            paymentCategory: 'order',
+            deliveryType: 'delivery',
+            orderType: 'online',
+            cashierName: 'Online (Sistem)',
+            cashierId: 'online',
+            paidAmount: 0,
+            debtAmount: storeTotal,
+            timestamp: serverTimestamp(),
+            createdAt: new Date().toISOString(),
+            userId: auth.currentUser?.uid || ''
+          };
+          
+          for (const { ref, snap, item } of productReads) {
+            if (snap.exists()) {
+              const pData = snap.data();
+              if (pData.manageStock !== false) {
+                const currentStock = pData.stock || 0;
+                if (currentStock < item.qty) {
+                  throw new Error(`Stok produk ${item.productName} tidak mencukupi.`);
+                }
+                transaction.update(ref, { stock: currentStock - item.qty });
+              }
+            }
+          }
 
-      await Promise.all(promises);
+          const newOrderRef = doc(db, 'transactions', finalId);
+          transaction.set(newOrderRef, orderData);
+          transaction.update(settingsRef, { trxCounter: currentCounter });
+        });
+      }
+
+
       
       clearCart();
       setIsCartOpen(false);
