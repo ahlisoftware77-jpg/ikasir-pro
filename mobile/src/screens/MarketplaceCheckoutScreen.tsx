@@ -128,7 +128,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
 
       clearStoreCart(storeId);
       Alert.alert('Berhasil', `Pesanan berhasil dibuat dengan ID: ${finalId}`);
-      navigation.navigate('MarketplaceOrdersScreen');
+      navigation.navigate('MarketplaceOrders');
     } catch (err: any) {
       console.error(err);
       Alert.alert('Gagal', err.message || 'Terjadi kesalahan saat memproses pesanan.');

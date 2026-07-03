@@ -284,7 +284,7 @@ export default function MarketplaceScreen() {
           
           <TouchableOpacity 
             style={[styles.historyBtn, { backgroundColor: colors.bg, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('MarketplaceOrdersScreen')}
+            onPress={() => navigation.navigate('MarketplaceOrders')}
           >
             <Clock color={colors.text} size={20} />
           </TouchableOpacity>
