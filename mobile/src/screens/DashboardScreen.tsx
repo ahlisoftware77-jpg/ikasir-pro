@@ -606,7 +606,7 @@ export default function DashboardScreen({ navigation }: any) {
                 </Text>
                 {isOnlineStoreActive && (
                   <Text className="text-[9px] font-bold text-blue-600 dark:text-blue-450 truncate mt-1.5 bg-blue-500/5 dark:bg-blue-950/20 px-2 py-1 rounded-lg self-start border border-blue-500/10">
-                    {`https://ikasir.my.id/tr?storeId=${storeId}`}
+                    {`https://ikasir.my.id/tr?s=${storeId}`}
                   </Text>
                 )}
               </View>
