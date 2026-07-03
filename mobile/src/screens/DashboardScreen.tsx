@@ -630,7 +630,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <TouchableOpacity
                   onPress={() => {
                     Vibration.vibrate(10);
-                    Clipboard.setString(`https://ikasir.my.id/tr?storeId=${storeId}`);
+                    Clipboard.setString(`https://ikasir.my.id/tr?s=${storeId}`);
                     Alert.alert('Sukses', 'Link Toko Online berhasil disalin!');
                   }}
                   className="flex-1 py-2.5 bg-white rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 shadow-sm"
@@ -644,7 +644,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <TouchableOpacity
                   onPress={() => {
                     Vibration.vibrate(10);
-                    Linking.openURL(`https://ikasir.my.id/tr?storeId=${storeId}`);
+                    Linking.openURL(`https://ikasir.my.id/tr?s=${storeId}`);
                   }}
                   className="flex-1 py-2.5 bg-blue-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-blue-500/10"
                 >
