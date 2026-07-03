@@ -29,7 +29,7 @@ function MarketplaceContent() {
   const router = useRouter();
   const { addToCart } = useCart();
   const searchParams = useSearchParams();
-  const storeIdParam = searchParams.get('storeId');
+  const storeIdParam = searchParams.get('s') || searchParams.get('storeId');
   const storeNameParam = searchParams.get('storeName');
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -190,7 +190,7 @@ function MarketplaceContent() {
   };
 
   const handleStoreClick = (storeId: string, storeName: string) => {
-    router.push(`/marketplace?storeId=${storeId}&storeName=${encodeURIComponent(storeName)}`);
+    router.push(`/marketplace?s=${storeId}&storeName=${encodeURIComponent(storeName)}`);
   };
 
   // Flash Sale: get effective price for a product

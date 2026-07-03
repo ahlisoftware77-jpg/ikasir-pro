@@ -518,7 +518,7 @@ export default function DashboardScreen({ navigation }: any) {
                 </Text>
                 {joinMarketplace && (
                   <Text className="text-[9px] font-bold text-emerald-600 dark:text-emerald-450 truncate mt-1.5 bg-emerald-500/5 dark:bg-emerald-950/20 px-2 py-1 rounded-lg self-start border border-emerald-500/10">
-                    {`https://ikasir.my.id/marketplace?storeId=${storeId}`}
+                    {`https://ikasir.my.id/marketplace?s=${storeId}`}
                   </Text>
                 )}
               </View>
@@ -542,7 +542,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <TouchableOpacity
                   onPress={() => {
                     Vibration.vibrate(10);
-                    Clipboard.setString(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
+                    Clipboard.setString(`https://ikasir.my.id/marketplace?s=${storeId}`);
                     Alert.alert('Sukses', 'Link Marketplace toko Anda berhasil disalin!');
                   }}
                   className="flex-1 py-2.5 bg-white rounded-xl items-center justify-center flex-row gap-1.5 border border-slate-200 shadow-sm"
@@ -556,7 +556,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <TouchableOpacity
                   onPress={() => {
                     Vibration.vibrate(10);
-                    Linking.openURL(`https://ikasir.my.id/marketplace?storeId=${storeId}`);
+                    Linking.openURL(`https://ikasir.my.id/marketplace?s=${storeId}`);
                   }}
                   className="flex-1 py-2.5 bg-emerald-500 rounded-xl items-center justify-center flex-row gap-1.5 shadow-lg shadow-emerald-500/10"
                 >
