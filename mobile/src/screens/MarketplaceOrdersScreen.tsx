@@ -31,16 +31,31 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
     
     try {
       setLoading(true);
+      const userIdToSearch = user.uid || user.phone || user.phoneNumber || '';
       const phoneToSearch = user.phone || user.phoneNumber || '';
       
       const ordersRef = collection(db, 'orders');
-      let q = query(ordersRef, where('customerPhone', '==', phoneToSearch));
       
-      const snapshot = await getDocs(q);
-      const fetched = snapshot.docs.map(doc => ({
+      // Ambil berdasarkan userId
+      let q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+      const snap1 = await getDocs(q1);
+      
+      let fetched = snap1.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      // Tambahkan juga berdasar phone jika ada dan berbeda dengan userId
+      if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+        let q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+        const snap2 = await getDocs(q2);
+        
+        snap2.docs.forEach(doc => {
+          if (!fetched.some(o => o.id === doc.id)) {
+            fetched.push({ id: doc.id, ...doc.data() });
+          }
+        });
+      }
       
       // Sort in memory in case index is not present for orderBy
       fetched.sort((a, b) => {
