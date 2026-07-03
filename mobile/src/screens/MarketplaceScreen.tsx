@@ -343,14 +343,15 @@ export default function MarketplaceScreen() {
           </View>
           
           <TouchableOpacity 
-            style={[styles.historyBtn, { backgroundColor: colors.bg, borderColor: colors.border }]}
+            style={[styles.historyBtn, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40', width: 'auto', paddingHorizontal: 14, flexDirection: 'row', gap: 6 }]}
             onPress={() => {
               setHasNewUpdate(false);
               navigation.navigate('MarketplaceOrders');
             }}
           >
-            <Clock color={colors.text} size={20} />
-            {hasNewUpdate && <View style={styles.notificationBadge} />}
+            <ShoppingBag color={colors.accent} size={16} />
+            <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>Pesanan</Text>
+            {hasNewUpdate && <View style={[styles.notificationBadge, { right: 8, top: 6, backgroundColor: '#ef4444' }]} />}
           </TouchableOpacity>
         </View>
 
