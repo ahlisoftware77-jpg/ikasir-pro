@@ -92,6 +92,7 @@ import MarketplaceProductDetailScreen from './src/screens/MarketplaceProductDeta
 import CartScreen from './src/screens/CartScreen';
 import MarketplaceCheckoutScreen from './src/screens/MarketplaceCheckoutScreen';
 import MarketplaceOrdersScreen from './src/screens/MarketplaceOrdersScreen';
+import MarketplaceStoreScreen from './src/screens/MarketplaceStoreScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import POSScreen from './src/screens/POSScreen';
 import OrdersScreen from './src/screens/OrdersScreen';
@@ -912,9 +913,11 @@ function NavigationRoot() {
           <>
             <Stack.Screen name="Main" component={TabNavigator} />
             <Stack.Screen name="MarketplaceProductDetail" component={MarketplaceProductDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MarketplaceOrders" component={MarketplaceOrdersScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MarketplaceStore" component={MarketplaceStoreScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CartScreen" component={CartScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MarketplaceCheckoutScreen" component={MarketplaceCheckoutScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="MarketplaceOrdersScreen" component={MarketplaceOrdersScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="UpdateChecker" component={UpdateChecker} options={{ headerShown: false }} />
             <Stack.Screen name="SuperAdminScreen" component={SuperAdminScreen} options={({ route }: any) => ({
               headerShown: true,
               title: route.params?.title || 'Super Admin',

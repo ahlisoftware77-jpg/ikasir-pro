@@ -229,10 +229,17 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
             </Text>
           )}
 
-          <View style={[styles.storeRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+          <TouchableOpacity 
+            style={[styles.storeRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}
+            onPress={() => {
+              if (product.storeId) {
+                navigation.navigate('MarketplaceStore', { storeId: product.storeId, storeName: product.storeName });
+              }
+            }}
+          >
             <Store color={colors.text} size={20} opacity={0.7} />
             <Text style={[styles.storeName, { color: colors.text }]}>{product.storeName || 'Toko Mitra'}</Text>
-          </View>
+          </TouchableOpacity>
 
           <View style={styles.descSection}>
             <Text style={[styles.descTitle, { color: colors.text }]}>Deskripsi Produk</Text>
