@@ -1298,7 +1298,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
           const docSnap = await getDoc(settingsRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setStoreSettings({
+            const parsedSettings = {
               storeName: data.storeName || '',
               address: data.address || '',
               phone: data.phone || '',
