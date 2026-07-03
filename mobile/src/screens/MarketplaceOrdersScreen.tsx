@@ -34,7 +34,7 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
       const userIdToSearch = user.uid || user.phone || user.phoneNumber || '';
       const phoneToSearch = user.phone || user.phoneNumber || '';
       
-      const ordersRef = collection(db, 'orders');
+      const ordersRef = collection(db, 'transactions');
       
       // Ambil berdasarkan userId
       let q1 = query(ordersRef, where('userId', '==', userIdToSearch));

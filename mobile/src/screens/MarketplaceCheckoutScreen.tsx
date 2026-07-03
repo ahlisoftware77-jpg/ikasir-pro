@@ -121,7 +121,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           }
         }
 
-        const newOrderRef = doc(db, 'orders', finalId);
+        const newOrderRef = doc(db, 'transactions', finalId);
         transaction.set(newOrderRef, orderData);
         transaction.update(settingsRef, { trxCounter: currentCounter });
       });
