@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, where, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, doc, deleteDoc, updateDoc, where, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { Plus, Edit2, Trash2, Search, Package, Loader2, X, Image as ImageIcon, UploadCloud, Camera, CheckSquare, Square, ListPlus, RotateCcw, Check, DownloadCloud, FileStack, Scan, Printer, Sparkles, Calendar, PenTool, Share2 } from 'lucide-react';
@@ -65,7 +65,8 @@ export default function ProductsPage() {
     hasExtras: false,
     extras: [],
     warrantyDuration: 0,
-    warrantyUnit: 'months'
+    warrantyUnit: 'months',
+    joinMarketplace: true
   };
 
   const [formData, setFormData] = useState<Product>(defaultForm);
@@ -373,10 +374,29 @@ export default function ProductsPage() {
         }
       }
 
+      let storeName = '';
+      if (storeId) {
+        try {
+          const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+          if (settingsSnap.exists()) {
+            storeName = settingsSnap.data().storeName || '';
+          }
+          if (!storeName) {
+            const storeSnap = await getDoc(doc(db, 'stores', storeId));
+            if (storeSnap.exists()) {
+              storeName = storeSnap.data().name || '';
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching storeName', e);
+        }
+      }
+
       const finalData = { 
         ...formData, 
         imageUrl: uploadedUrls[0] || '',
-        imageUrls: uploadedUrls
+        imageUrls: uploadedUrls,
+        storeName
       };
 
       if (editId) {
@@ -1298,6 +1318,24 @@ export default function ProductsPage() {
                         </div>
                       </>
                     )}
+                  </div>
+
+                  <div className="bg-background/50 p-4 border border-app-border rounded-xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Share2 size={20} className="text-accent" />
+                        <div>
+                          <label htmlFor="joinMarketplace" className="text-sm font-bold text-foreground cursor-pointer select-none block">
+                            Tampilkan di Marketplace
+                          </label>
+                          <p className="text-[10px] text-app-text-muted font-medium">Buka akses pembeli publik (B2C) via link toko Anda</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="joinMarketplace" checked={formData.joinMarketplace !== false} onChange={e => setFormData({...formData, joinMarketplace: e.target.checked})} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-app-border peer-focus:outline-none rounded-md peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-sm after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="bg-background/50 p-4 border border-app-border rounded-xl space-y-4">
