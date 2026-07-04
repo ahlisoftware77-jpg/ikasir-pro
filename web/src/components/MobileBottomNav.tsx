@@ -267,6 +267,8 @@ export default function MobileBottomNav() {
     }
   };
 
+  if (pathname.startsWith('/marketplace')) return null;
+
   return (
     <>
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-xl border-t border-app-border z-40 pb-safe">

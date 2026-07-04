@@ -8,7 +8,6 @@ import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Z
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
 import CartButton from '@/components/CartButton';
-import CartDrawer from '@/components/CartDrawer';
 
 interface Product {
   id: string;
@@ -228,7 +227,7 @@ function MarketplaceContent() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
       
       {/* Floating Action Buttons */}
-      <div className="fixed top-4 right-4 flex items-center gap-2 z-50">
+      <div className="hidden md:flex fixed top-4 right-4 items-center gap-2 z-50">
         <button 
           onClick={() => router.push('/marketplace/orders')}
           className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-md text-slate-700 dark:text-slate-200 border border-slate-200/50 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-700 hover:scale-105 hover:border-emerald-500 transition-all shadow-lg shadow-emerald-500/10"
@@ -586,7 +585,6 @@ function MarketplaceContent() {
       </footer>
 
       <CartButton />
-      <CartDrawer />
     </div>
   );
 }

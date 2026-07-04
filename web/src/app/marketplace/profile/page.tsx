@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
-  User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2, ShoppingBag
+  User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2, ShoppingBag, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -162,6 +162,22 @@ export default function MarketplaceProfilePage() {
             <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Belanja Lagi</span>
           </button>
         </div>
+
+        {/* Download APK Section */}
+        <a 
+          href="https://bit.ly/ikasirpro"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-emerald-500 hover:bg-emerald-600 border border-emerald-400 dark:border-emerald-600 rounded-3xl p-5 flex items-center justify-between gap-4 transition-all shadow-lg shadow-emerald-500/20 group"
+        >
+          <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Unduh Aplikasi Android</h3>
+            <p className="text-[10px] text-emerald-100 font-medium mt-1">Install iKasir Pro versi APK untuk pengalaman terbaik.</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Download size={24} />
+          </div>
+        </a>
 
         {/* Edit Profile Form */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
