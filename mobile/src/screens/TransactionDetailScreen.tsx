@@ -634,7 +634,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
     const isOnline = trx.orderType === 'online';
 
     return (
-      <View className="flex-row items-center gap-1.5">
+      <View className="flex-row items-center gap-1.5 flex-wrap">
         {isOnline && (
           <View className="flex-row items-center px-2.5 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/10">
             <View className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
@@ -655,12 +655,12 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
     <SafeAreaView className="flex-1" edges={['bottom', 'top']} style={{ backgroundColor: colors.bg }}>
             {/* Header */}
             <View className="flex-row items-center justify-between p-6 border-b" style={{ borderColor: colors.border }}>
-              <View className="flex-row items-center gap-3">
-                <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 bg-slate-500/10 rounded-full border border-slate-500/20">
+              <View className="flex-row items-center gap-3 flex-1 pr-2">
+                <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 bg-slate-500/10 rounded-full border border-slate-500/20 shrink-0">
                   <ChevronLeft color={colors.text} size={20} />
                 </TouchableOpacity>
-                <View>
-                  <View className="flex-row items-center gap-2">
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-2 flex-wrap">
                     <Text className="text-lg font-black" style={{ color: colors.text }}>Trx #{selectedTrx?.id?.substring(0, 8)}</Text>
                     {renderStatusBadge(selectedTrx)}
                   </View>
