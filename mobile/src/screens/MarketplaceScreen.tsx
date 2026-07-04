@@ -35,6 +35,28 @@ const COLUMN_COUNT = 2;
 const CARD_MARGIN = 8;
 const CARD_WIDTH = (width - CARD_MARGIN * (COLUMN_COUNT + 1)) / COLUMN_COUNT;
 
+const getCategoryIcon = (catName: string) => {
+  const name = catName.toLowerCase();
+  if (name.includes('semua')) return '🏪';
+  if (name.includes('makanan') || name.includes('food')) return '🍔';
+  if (name.includes('minuman') || name.includes('drink') || name.includes('kopi')) return '🥤';
+  if (name.includes('pakaian') || name.includes('baju') || name.includes('fashion') || name.includes('kaos')) return '👕';
+  if (name.includes('sepatu') || name.includes('sandal')) return '👟';
+  if (name.includes('elektronik') || name.includes('hp') || name.includes('laptop')) return '💻';
+  if (name.includes('kesehatan') || name.includes('obat') || name.includes('medis')) return '💊';
+  if (name.includes('jasa') || name.includes('service')) return '🛠️';
+  if (name.includes('sayur') || name.includes('buah') || name.includes('segar')) return '🥬';
+  if (name.includes('kue') || name.includes('roti') || name.includes('snack')) return '🍰';
+  if (name.includes('sembako') || name.includes('beras')) return '🛒';
+  if (name.includes('aksesoris') || name.includes('perhiasan')) return '⌚';
+  if (name.includes('kecantikan') || name.includes('makeup') || name.includes('skincare')) return '💄';
+  if (name.includes('otomotif') || name.includes('motor') || name.includes('mobil')) return '🏍️';
+  if (name.includes('buku') || name.includes('atk')) return '📚';
+  if (name.includes('mainan') || name.includes('hobi')) return '⚽';
+  if (name.includes('perabot') || name.includes('rumah')) return '🛋️';
+  return '📦';
+};
+
 export default function MarketplaceScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -367,18 +389,21 @@ export default function MarketplaceScreen() {
               return (
                 <TouchableOpacity
                   style={[
-                    styles.categoryChip,
+                    styles.categorySquare,
                     { 
-                      backgroundColor: isSelected ? colors.accent : colors.bg,
+                      backgroundColor: isSelected ? colors.accent : colors.surface,
                       borderColor: isSelected ? colors.accent : colors.border
                     }
                   ]}
                   onPress={() => setSelectedCategory(item)}
                 >
+                  <Text style={{ fontSize: 24, marginBottom: 4 }}>
+                    {getCategoryIcon(item)}
+                  </Text>
                   <Text style={[
-                    styles.categoryText,
+                    styles.categorySquareText,
                     { color: isSelected ? '#fff' : colors.text }
-                  ]}>
+                  ]} numberOfLines={1}>
                     {item}
                   </Text>
                 </TouchableOpacity>
@@ -485,18 +510,27 @@ const styles = StyleSheet.create({
   },
   categoriesList: {
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 12,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  categorySquare: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  categoryText: {
+  categorySquareText: {
     fontFamily: 'System',
     fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 10,
+    textAlign: 'center',
   },
   listContainer: {
     padding: CARD_MARGIN,
