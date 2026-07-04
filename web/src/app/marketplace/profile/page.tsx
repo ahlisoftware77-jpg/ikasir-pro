@@ -9,9 +9,11 @@ import {
   User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2, ShoppingBag, Download, Store
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useCart } from '@/context/CartContext';
 
 export default function MarketplaceProfilePage() {
   const router = useRouter();
+  const { clearCart } = useCart();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -89,14 +91,15 @@ export default function MarketplaceProfilePage() {
     try {
       await signOut(auth);
       
-      // Hapus data sesi lokal agar keranjang dan pesanan tidak terbawa
+      // Bersihkan state keranjang dan data local marketplace
+      clearCart();
       localStorage.removeItem('marketplace_cart');
-      localStorage.removeItem('my_orders');
-      localStorage.removeItem('guest_id');
-      localStorage.removeItem('customer_phone');
       localStorage.removeItem('customer_name');
+      localStorage.removeItem('customer_phone');
+      localStorage.removeItem('guest_id');
+      localStorage.removeItem('my_orders');
       
-      window.location.href = '/marketplace';
+      router.replace('/marketplace');
     } catch (error) {
       toast.error('Gagal logout');
     }

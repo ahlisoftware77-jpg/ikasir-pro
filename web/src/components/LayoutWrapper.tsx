@@ -816,6 +816,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     
     await signOut(auth);
     resetAll(); // Clear persistent store
+    
+    // Clear marketplace local storage
+    localStorage.removeItem('marketplace_cart');
+    localStorage.removeItem('customer_name');
+    localStorage.removeItem('customer_phone');
+    localStorage.removeItem('guest_id');
+    localStorage.removeItem('my_orders');
+    
     setShowLogoutModal(false);
     if (typeof window !== 'undefined' && window.history.state?.type === 'layout-logout-modal') {
       window.history.back();

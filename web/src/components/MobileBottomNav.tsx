@@ -261,6 +261,14 @@ export default function MobileBottomNav() {
     }
     await signOut(auth);
     useAuthStore.getState().resetAll();
+    
+    // Clear marketplace local storage
+    localStorage.removeItem('marketplace_cart');
+    localStorage.removeItem('customer_name');
+    localStorage.removeItem('customer_phone');
+    localStorage.removeItem('guest_id');
+    localStorage.removeItem('my_orders');
+    
     setShowLogoutModal(false);
     if (typeof window !== 'undefined' && window.history.state?.type === 'nav-logout-modal') {
       window.history.back();

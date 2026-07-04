@@ -151,6 +151,14 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
     
     await signOut(auth);
     useAuthStore.getState().resetAll();
+    
+    // Clear marketplace local storage
+    localStorage.removeItem('marketplace_cart');
+    localStorage.removeItem('customer_name');
+    localStorage.removeItem('customer_phone');
+    localStorage.removeItem('guest_id');
+    localStorage.removeItem('my_orders');
+    
     setShowLogoutModal(false);
   };
 

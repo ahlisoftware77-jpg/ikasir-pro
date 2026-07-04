@@ -10,24 +10,18 @@ import {
   updateProfile,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
-  User, Lock, Mail, Phone, Loader2, ArrowLeft, Globe, ShoppingBag, Store
+  User, Lock, Mail, Phone, Loader2, ArrowLeft, Globe, ShoppingBag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { logActivity } from '@/lib/activity';
 
 export default function MarketplaceAuthPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleUser, setGoogleUser] = useState<any>(null);
-  const [storeName, setStoreName] = useState('');
-  const [phone, setPhone] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -115,122 +109,23 @@ export default function MarketplaceAuthPage() {
       const user = result.user;
       
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData?.storeId) {
-          await logActivity({
-            userId: user.uid,
-            userName: userData?.name || user.displayName || 'User',
-            userEmail: user.email || '',
-            storeId: userData.storeId,
-            action: 'LOGIN',
-            description: `Masuk via Google (${user.email})`
-          });
-        }
-        toast.success('Login berhasil!');
-        router.push('/marketplace');
-      } else {
-        setGoogleUser(user);
-        setShowGoogleModal(true);
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'users', user.uid), {
+          name: user.displayName || 'Pelanggan',
+          email: user.email,
+          phone: '',
+          address: '',
+          role: 'customer',
+          createdAt: Date.now()
+        });
       }
+      toast.success('Login berhasil!');
+      router.push('/marketplace');
     } catch (error: any) {
       console.error('Google auth error:', error);
       toast.error('Gagal login dengan Google');
     } finally {
       setGoogleLoading(false);
-    }
-  };
-
-  const submitGoogleRegistration = async () => {
-    if (!storeName || !phone) {
-      toast.error('Harap isi Nama Toko dan Nomor HP.');
-      return;
-    }
-    setLoading(true);
-    try {
-      let baseStoreId = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      if (!baseStoreId) baseStoreId = 'store';
-      
-      let storeId = baseStoreId;
-      let counter = 0;
-      while (true) {
-         const storeSnap = await getDoc(doc(db, 'stores', storeId));
-         if (!storeSnap.exists()) break;
-         counter++;
-         storeId = `${baseStoreId}-${counter}`;
-      }
-
-      const userName = googleUser.displayName || 'Pengguna Baru';
-
-      await setDoc(doc(db, 'stores', storeId), {
-        name: storeName,
-        ownerEmail: googleUser.email,
-        ownerUid: googleUser.uid,
-        createdAt: new Date().toISOString(),
-        isActive: true,
-        package: 'trial'
-      });
-
-      await setDoc(doc(db, 'users', googleUser.uid), {
-        name: userName,
-        email: googleUser.email,
-        phone: phone,
-        role: 'admin',
-        storeId: storeId,
-        isActive: true,
-        isSubscribed: true,
-        validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      });
-
-      await setDoc(doc(db, 'settings', `store_${storeId}`), {
-        storeName: storeName,
-        address: 'Alamat Belum Diatur',
-        phone: phone,
-        useTax: true,
-        taxRate: 11,
-        receiptMessage: 'Terima kasih telah berbelanja!',
-        paperSize: '58mm',
-        storeId: storeId
-      });
-
-      await setDoc(doc(db, 'registrations', storeId), {
-        ownerName: userName,
-        storeName: storeName,
-        email: googleUser.email,
-        phone: phone,
-        createdAt: new Date().toISOString(),
-        method: 'google',
-        platform: 'web',
-        storeId: storeId
-      });
-
-      await addDoc(collection(db, 'superadmin_notifications'), {
-        title: 'Pendaftaran Baru (Google)',
-        message: `Toko "${storeName}" (${userName}) terdaftar via Web.`,
-        createdAt: new Date().toISOString(),
-        type: 'registration',
-        read: false,
-        registrationId: storeId
-      });
-
-      await logActivity({
-        userId: googleUser.uid,
-        userName: userName,
-        userEmail: googleUser.email,
-        storeId: storeId,
-        action: 'REGISTER_STORE',
-        description: `Mendaftar Toko Baru via Google`
-      });
-
-      setShowGoogleModal(false);
-      toast.success('Pendaftaran Toko berhasil!');
-      router.push('/');
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Gagal membuat toko: ' + err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -374,69 +269,6 @@ export default function MarketplaceAuthPage() {
           </p>
         </div>
       </div>
-
-      {showGoogleModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-500">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 border-2 border-emerald-500">
-                {googleUser?.photoURL ? (
-                  <img src={googleUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-emerald-50 dark:bg-emerald-500/20 flex items-center justify-center">
-                    <Store size={24} className="text-emerald-500" />
-                  </div>
-                )}
-              </div>
-              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Halo, {googleUser?.displayName?.split(' ')[0]}!</h2>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Ini pertama kalinya Anda masuk. Lengkapi profil toko Anda untuk memulai.
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-[0.2em] ml-2">Nama Toko</label>
-                <input
-                  type="text"
-                  required
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  className="block w-full px-4 py-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="Misal: Toko Budi Jaya"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-[0.2em] ml-2">Nomor WhatsApp</label>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="block w-full px-4 py-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  placeholder="08xxxxxxxxxx"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowGoogleModal(false)}
-                className="flex-1 py-4 border border-slate-200 dark:border-slate-800 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-950"
-              >
-                Batal
-              </button>
-              <button
-                onClick={submitGoogleRegistration}
-                disabled={loading}
-                className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 disabled:opacity-50"
-              >
-                {loading ? 'MEMPROSES...' : 'BUAT TOKO'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
