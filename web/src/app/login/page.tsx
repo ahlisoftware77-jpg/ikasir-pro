@@ -11,6 +11,7 @@ import { logActivity } from '@/lib/activity';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useBranding } from '@/context/BrandingContext';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const { branding } = useBranding();
