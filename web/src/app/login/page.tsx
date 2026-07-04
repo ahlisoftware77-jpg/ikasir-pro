@@ -202,19 +202,69 @@ export default function LoginPage() {
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-teal-500/20 dark:bg-teal-500/10 blur-[120px] pointer-events-none" style={{ animationDuration: '4s' }}></div>
         <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] rounded-full bg-blue-500/10 blur-[80px] pointer-events-none"></div>
 
-        {/* Premium Generated Image Display */}
+        {/* Claymorphism 3D Animation Container */}
         <div className="relative w-full max-w-xl flex flex-col items-center justify-center z-10 px-8">
-          <div className="relative w-full aspect-square mb-8 animate-float-slow">
-            {/* Adding a subtle glow behind the image for more premium feel */}
-            <div className="absolute inset-10 bg-emerald-500/20 blur-3xl rounded-full"></div>
+          
+          <div className="relative w-full h-[400px] flex items-center justify-center mb-8">
             
-            <Image 
-              src="/hero-ikasir.png" 
-              alt="iKasir Pro Premium Mockup" 
-              fill
-              className="object-contain drop-shadow-2xl scale-110"
-              priority
-            />
+            {/* Clay POS Device - Center */}
+            <div className="absolute z-20 w-[260px] h-[340px] bg-[#f8fafc] dark:bg-[#1e293b] rounded-[40px] animate-float-slow flex flex-col items-center justify-center p-5
+              shadow-[16px_16px_32px_rgba(0,0,0,0.1),_-16px_-16px_32px_rgba(255,255,255,0.9),_inset_4px_4px_10px_rgba(255,255,255,1),_inset_-4px_-4px_10px_rgba(0,0,0,0.05)]
+              dark:shadow-[16px_16px_32px_rgba(0,0,0,0.4),_-16px_-16px_32px_rgba(255,255,255,0.02),_inset_4px_4px_10px_rgba(255,255,255,0.1),_inset_-4px_-4px_10px_rgba(0,0,0,0.3)]">
+              
+              <div className="w-full flex-1 bg-slate-100 dark:bg-slate-800/80 rounded-3xl mb-4 shadow-[inset_6px_6px_12px_rgba(0,0,0,0.06),_inset_-6px_-6px_12px_rgba(255,255,255,0.8)] dark:shadow-[inset_6px_6px_12px_rgba(0,0,0,0.4),_inset_-6px_-6px_12px_rgba(255,255,255,0.05)] p-4 flex flex-col gap-3">
+                {/* Fake UI inside POS screen */}
+                <div className="flex justify-between items-center mb-2">
+                  <div className="w-14 h-3 rounded-full bg-emerald-400"></div>
+                  <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                </div>
+                <div className="w-full h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-1"></div>
+                <div className="flex gap-2">
+                  <div className="flex-1 h-12 rounded-xl bg-slate-200 dark:bg-slate-700"></div>
+                  <div className="flex-1 h-12 rounded-xl bg-slate-200 dark:bg-slate-700"></div>
+                </div>
+              </div>
+              
+              {/* POS button */}
+              <div className="w-[85%] h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-white font-black tracking-widest text-sm
+                shadow-[6px_6px_12px_rgba(16,185,129,0.3),_-6px_-6px_12px_rgba(255,255,255,0.5),_inset_3px_3px_6px_rgba(255,255,255,0.4),_inset_-3px_-3px_6px_rgba(0,0,0,0.1)]
+                dark:shadow-[6px_6px_12px_rgba(0,0,0,0.3),_-6px_-6px_12px_rgba(255,255,255,0.02),_inset_3px_3px_6px_rgba(255,255,255,0.2),_inset_-3px_-3px_6px_rgba(0,0,0,0.2)]">
+                BAYAR
+              </div>
+            </div>
+
+            {/* Clay Graph Card - Top Left */}
+            <div className="absolute z-30 -left-2 top-8 w-32 h-32 bg-blue-500 rounded-[32px] animate-float-medium transform -rotate-12 flex items-end justify-center gap-2 p-5
+              shadow-[12px_12px_24px_rgba(0,0,0,0.15),_-12px_-12px_24px_rgba(255,255,255,0.4),_inset_4px_4px_10px_rgba(255,255,255,0.4),_inset_-4px_-4px_10px_rgba(0,0,0,0.2)]
+              dark:shadow-[12px_12px_24px_rgba(0,0,0,0.4),_-12px_-12px_24px_rgba(255,255,255,0.05),_inset_4px_4px_10px_rgba(255,255,255,0.2),_inset_-4px_-4px_10px_rgba(0,0,0,0.3)]">
+              <div className="w-4 bg-white/80 rounded-t-lg shadow-sm" style={{ height: '40%' }}></div>
+              <div className="w-4 bg-white/80 rounded-t-lg shadow-sm" style={{ height: '70%' }}></div>
+              <div className="w-4 bg-white rounded-t-lg shadow-md" style={{ height: '100%' }}></div>
+            </div>
+
+            {/* Clay Notification / Coin - Bottom Right */}
+            <div className="absolute z-30 -right-4 bottom-16 w-28 h-28 bg-amber-400 rounded-full animate-float-fast transform rotate-12 flex items-center justify-center
+              shadow-[12px_12px_24px_rgba(0,0,0,0.15),_-12px_-12px_24px_rgba(255,255,255,0.4),_inset_6px_6px_12px_rgba(255,255,255,0.6),_inset_-6px_-6px_12px_rgba(0,0,0,0.2)]
+              dark:shadow-[12px_12px_24px_rgba(0,0,0,0.4),_-12px_-12px_24px_rgba(255,255,255,0.05),_inset_6px_6px_12px_rgba(255,255,255,0.4),_inset_-6px_-6px_12px_rgba(0,0,0,0.3)]">
+              <div className="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)] text-white font-black text-3xl">
+                $
+              </div>
+            </div>
+
+            {/* Clay Receipt Card - Bottom Left */}
+            <div className="absolute z-10 left-12 bottom-4 w-28 h-36 bg-white dark:bg-slate-300 rounded-[24px] animate-float-medium flex flex-col p-4 transform rotate-6
+              shadow-[8px_8px_20px_rgba(0,0,0,0.1),_-8px_-8px_20px_rgba(255,255,255,0.6),_inset_2px_2px_6px_rgba(255,255,255,1),_inset_-2px_-2px_6px_rgba(0,0,0,0.05)]
+              dark:shadow-[8px_8px_20px_rgba(0,0,0,0.3),_-8px_-8px_20px_rgba(255,255,255,0.05),_inset_2px_2px_6px_rgba(255,255,255,0.8),_inset_-2px_-2px_6px_rgba(0,0,0,0.1)]">
+              <div className="w-12 h-2 rounded-full bg-slate-200 dark:bg-slate-400 mb-4"></div>
+              <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-400/50 mb-2"></div>
+              <div className="w-3/4 h-1.5 rounded-full bg-slate-100 dark:bg-slate-400/50 mb-2"></div>
+              <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-400/50 mb-4"></div>
+              <div className="w-full border-t border-dashed border-slate-300 dark:border-slate-400 pt-2 flex justify-between">
+                <div className="w-6 h-2 rounded-full bg-slate-200 dark:bg-slate-400"></div>
+                <div className="w-8 h-2 rounded-full bg-emerald-400"></div>
+              </div>
+            </div>
+            
           </div>
 
           {/* Center Title */}
