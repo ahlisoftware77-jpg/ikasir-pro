@@ -110,17 +110,12 @@ export default function MarketplaceAuthPage() {
       
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          name: user.displayName || 'Pelanggan',
-          email: user.email,
-          phone: '',
-          address: '',
-          role: 'customer',
-          createdAt: Date.now()
-        });
+        toast.error('Akun belum terdaftar. Silakan lengkapi pendaftaran.');
+        router.push('/register');
+      } else {
+        toast.success('Login berhasil!');
+        router.push('/marketplace');
       }
-      toast.success('Login berhasil!');
-      router.push('/marketplace');
     } catch (error: any) {
       console.error('Google auth error:', error);
       toast.error('Gagal login dengan Google');

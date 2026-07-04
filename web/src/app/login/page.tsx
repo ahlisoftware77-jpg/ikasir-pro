@@ -181,8 +181,8 @@ export default function LoginPage() {
         }
         router.push('/');
       } else {
-        setGoogleUser(user);
-        setShowGoogleModal(true);
+        toast.error('Akun belum terdaftar. Silakan lengkapi pendaftaran.');
+        router.push('/register');
       }
     } catch (err: any) {
       console.error(err);

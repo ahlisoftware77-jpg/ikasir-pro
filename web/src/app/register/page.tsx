@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { logActivity } from '@/lib/activity';
+import { useEffect } from 'react';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -39,6 +40,26 @@ export default function RegisterPage() {
   const [googleUser, setGoogleUser] = useState<any>(null);
   const [storeName, setStoreName] = useState('');
   const [phone, setPhone] = useState('');
+
+  // Otomatis tangkap user yang login via Google tapi belum terdaftar di Firestore
+  useEffect(() => {
+    let unsub: () => void;
+    import('firebase/auth').then(({ onAuthStateChanged }) => {
+      unsub = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const { doc, getDoc } = await import('firebase/firestore');
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (!userDoc.exists()) {
+            setGoogleUser(user);
+            setShowGoogleModal(true);
+          }
+        }
+      });
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   const handleGoogleLogin = async () => {
     try {
