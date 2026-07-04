@@ -264,6 +264,35 @@ export default function LoginPage() {
                 <div className="w-8 h-2 rounded-full bg-emerald-400"></div>
               </div>
             </div>
+
+            {/* Clay Cash Stack - Top Right */}
+            <div className="absolute z-20 -right-8 top-16 w-24 h-16 bg-emerald-500 rounded-xl animate-float-medium transform rotate-12 flex flex-col p-2 justify-between
+              shadow-[8px_8px_16px_rgba(0,0,0,0.15),_-8px_-8px_16px_rgba(255,255,255,0.4),_inset_3px_3px_8px_rgba(255,255,255,0.5),_inset_-3px_-3px_8px_rgba(0,0,0,0.2)]
+              dark:shadow-[8px_8px_16px_rgba(0,0,0,0.4),_-8px_-8px_16px_rgba(255,255,255,0.05),_inset_3px_3px_8px_rgba(255,255,255,0.3),_inset_-3px_-3px_8px_rgba(0,0,0,0.3)]">
+              <div className="w-4 h-4 rounded-full border-2 border-emerald-300 dark:border-emerald-700 self-center mt-1"></div>
+              <div className="flex justify-between px-1">
+                <div className="w-2 h-2 rounded-full bg-emerald-300 dark:bg-emerald-700"></div>
+                <div className="w-2 h-2 rounded-full bg-emerald-300 dark:bg-emerald-700"></div>
+              </div>
+            </div>
+
+            {/* Small Clay Coin - Center Left */}
+            <div className="absolute z-40 -left-12 top-48 w-16 h-16 bg-amber-300 rounded-full animate-float-fast transform -rotate-12 flex items-center justify-center
+              shadow-[6px_6px_12px_rgba(0,0,0,0.15),_-6px_-6px_12px_rgba(255,255,255,0.4),_inset_3px_3px_6px_rgba(255,255,255,0.6),_inset_-3px_-3px_6px_rgba(0,0,0,0.2)]
+              dark:shadow-[6px_6px_12px_rgba(0,0,0,0.4),_-6px_-6px_12px_rgba(255,255,255,0.05),_inset_3px_3px_6px_rgba(255,255,255,0.4),_inset_-3px_-3px_6px_rgba(0,0,0,0.3)]" style={{ animationDelay: '1s' }}>
+              <div className="w-6 h-6 bg-white/40 rounded-full flex items-center justify-center shadow-[inset_1px_1px_3px_rgba(0,0,0,0.1)] text-white font-black text-sm">
+                $
+              </div>
+            </div>
+
+            {/* Clay Banknote - Bottom Center */}
+            <div className="absolute z-30 right-16 bottom-0 w-20 h-10 bg-green-400 rounded-lg animate-float-slow transform -rotate-6 flex items-center justify-center
+              shadow-[6px_6px_12px_rgba(0,0,0,0.15),_-6px_-6px_12px_rgba(255,255,255,0.4),_inset_2px_2px_5px_rgba(255,255,255,0.5),_inset_-2px_-2px_5px_rgba(0,0,0,0.2)]
+              dark:shadow-[6px_6px_12px_rgba(0,0,0,0.4),_-6px_-6px_12px_rgba(255,255,255,0.05),_inset_2px_2px_5px_rgba(255,255,255,0.3),_inset_-2px_-2px_5px_rgba(0,0,0,0.3)]" style={{ animationDelay: '2s' }}>
+              <div className="w-8 h-4 border border-green-200 dark:border-green-600 rounded-full flex items-center justify-center">
+                <span className="text-[8px] font-black text-green-100 dark:text-green-700">$</span>
+              </div>
+            </div>
             
           </div>
 
