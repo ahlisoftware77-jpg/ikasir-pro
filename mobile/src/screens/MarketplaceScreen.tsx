@@ -37,23 +37,66 @@ const CARD_WIDTH = (width - CARD_MARGIN * (COLUMN_COUNT + 1)) / COLUMN_COUNT;
 
 const getCategoryIcon = (catName: string) => {
   const name = catName.toLowerCase();
+  
   if (name.includes('semua')) return '🏪';
+  
+  // Elektronik & Gadget
+  if (name.includes('cctv') || name.includes('kamera') || name.includes('camera')) return '📹';
+  if (name.includes('hp') || name.includes('handphone') || name.includes('smartphone')) return '📱';
+  if (name.includes('laptop') || name.includes('komputer') || name.includes('pc')) return '💻';
+  if (name.includes('tv') || name.includes('televisi')) return '📺';
+  if (name.includes('elektronik') || name.includes('listrik')) return '🔌';
+  if (name.includes('jam tangan') || name.includes('smartwatch')) return '⌚';
+
+  // F&B (Makanan & Minuman)
   if (name.includes('makanan') || name.includes('food')) return '🍔';
-  if (name.includes('minuman') || name.includes('drink') || name.includes('kopi')) return '🥤';
-  if (name.includes('pakaian') || name.includes('baju') || name.includes('fashion') || name.includes('kaos')) return '👕';
-  if (name.includes('sepatu') || name.includes('sandal')) return '👟';
-  if (name.includes('elektronik') || name.includes('hp') || name.includes('laptop')) return '💻';
-  if (name.includes('kesehatan') || name.includes('obat') || name.includes('medis')) return '💊';
-  if (name.includes('jasa') || name.includes('service')) return '🛠️';
+  if (name.includes('minuman') || name.includes('drink') || name.includes('boba')) return '🥤';
+  if (name.includes('kopi') || name.includes('coffee') || name.includes('cafe')) return '☕';
+  if (name.includes('kue') || name.includes('roti') || name.includes('cake') || name.includes('bakery') || name.includes('snack')) return '🍰';
+  if (name.includes('es krim') || name.includes('ice cream')) return '🍦';
   if (name.includes('sayur') || name.includes('buah') || name.includes('segar')) return '🥬';
-  if (name.includes('kue') || name.includes('roti') || name.includes('snack')) return '🍰';
-  if (name.includes('sembako') || name.includes('beras')) return '🛒';
-  if (name.includes('aksesoris') || name.includes('perhiasan')) return '⌚';
-  if (name.includes('kecantikan') || name.includes('makeup') || name.includes('skincare')) return '💄';
-  if (name.includes('otomotif') || name.includes('motor') || name.includes('mobil')) return '🏍️';
-  if (name.includes('buku') || name.includes('atk')) return '📚';
-  if (name.includes('mainan') || name.includes('hobi')) return '⚽';
-  if (name.includes('perabot') || name.includes('rumah')) return '🛋️';
+  if (name.includes('daging') || name.includes('ikan') || name.includes('ayam')) return '🥩';
+
+  // Fashion & Apparel
+  if (name.includes('pakaian') || name.includes('baju') || name.includes('fashion') || name.includes('kaos') || name.includes('kemeja')) return '👕';
+  if (name.includes('celana') || name.includes('jeans') || name.includes('pants')) return '👖';
+  if (name.includes('sepatu') || name.includes('sandal') || name.includes('alas kaki')) return '👟';
+  if (name.includes('tas') || name.includes('bag') || name.includes('koper')) return '🎒';
+  if (name.includes('topi')) return '🧢';
+  if (name.includes('kacamata')) return '🕶️';
+
+  // Kesehatan & Kecantikan
+  if (name.includes('kesehatan') || name.includes('obat') || name.includes('medis') || name.includes('apotek')) return '💊';
+  if (name.includes('kecantikan') || name.includes('makeup') || name.includes('skincare') || name.includes('kosmetik')) return '💄';
+  if (name.includes('salon') || name.includes('rambut') || name.includes('barbershop')) return '✂️';
+
+  // Otomotif
+  if (name.includes('motor') || name.includes('sepeda motor') || name.includes('bengkel motor')) return '🏍️';
+  if (name.includes('mobil') || name.includes('bengkel mobil')) return '🚗';
+  if (name.includes('sepeda') || name.includes('bicycle')) return '🚲';
+  if (name.includes('otomotif') || name.includes('sparepart')) return '⚙️';
+
+  // Rumah Tangga & Furniture
+  if (name.includes('perabot') || name.includes('rumah') || name.includes('furniture') || name.includes('mebel')) return '🛋️';
+  if (name.includes('sembako') || name.includes('beras') || name.includes('grosir')) return '🛒';
+  if (name.includes('alat mandi') || name.includes('sabun') || name.includes('shampo')) return '🧴';
+  if (name.includes('kebersihan') || name.includes('sapu') || name.includes('pel')) return '🧹';
+
+  // Hobi & Pendidikan
+  if (name.includes('buku') || name.includes('atk') || name.includes('alat tulis') || name.includes('sekolah')) return '📚';
+  if (name.includes('mainan') || name.includes('anak') || name.includes('toys') || name.includes('kids')) return '🧸';
+  if (name.includes('olahraga') || name.includes('sport') || name.includes('bola')) return '⚽';
+  if (name.includes('musik') || name.includes('alat musik') || name.includes('gitar')) return '🎸';
+  if (name.includes('peliharaan') || name.includes('hewan') || name.includes('pet')) return '🐕';
+  if (name.includes('game') || name.includes('console')) return '🎮';
+
+  // Aksesoris & Lain-lain
+  if (name.includes('aksesoris') || name.includes('perhiasan') || name.includes('emas') || name.includes('cincin')) return '💍';
+  if (name.includes('kado') || name.includes('hadiah') || name.includes('gift') || name.includes('bunga')) return '🎁';
+  if (name.includes('jasa') || name.includes('service') || name.includes('layanan')) return '🛠️';
+  if (name.includes('tiket') || name.includes('travel') || name.includes('tour')) return '🎫';
+  
+  // Default fallback
   return '📦';
 };
 
