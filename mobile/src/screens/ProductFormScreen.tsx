@@ -5,7 +5,7 @@ import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Image as ImageIcon, Save, ArrowLeft, Trash2, Camera as CameraIcon, Scan, X, Calendar, Layers, Shield, ChevronDown, Check, CheckSquare, Square, Sparkles, AlertCircle, Info, Plus } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, Save, ArrowLeft, Trash2, Camera as CameraIcon, Scan, X, Calendar, Layers, Shield, ChevronDown, Check, CheckSquare, Square, Sparkles, AlertCircle, Info, Plus, Store } from 'lucide-react-native';
 import { CameraView, useCameraPermissions, Camera as ExpoCamera } from 'expo-camera';
 import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +36,8 @@ export default function ProductFormScreen({ route, navigation }: any) {
     hasExtras: editProduct?.hasExtras ?? false,
     extras: editProduct?.extras || [],
     warrantyDuration: editProduct?.warrantyDuration?.toString() || '0',
-    warrantyUnit: editProduct?.warrantyUnit || 'months'
+    warrantyUnit: editProduct?.warrantyUnit || 'months',
+    joinMarketplace: editProduct?.joinMarketplace ?? true
   });
 
   const [images, setImages] = useState<string[]>(editProduct?.imageUrls || (editProduct?.imageUrl ? [editProduct?.imageUrl] : []));
@@ -280,15 +281,13 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
       const finalImageUrl = finalImageUrls[0] || '';
 
-      // Get settings to copy joinMarketplace and storeName
-      let joinMarketplace = false;
+      // Get settings to copy storeName
       let storeName = '';
       if (storeId) {
         try {
           const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
           if (settingsSnap.exists()) {
             const settingsData = settingsSnap.data();
-            joinMarketplace = settingsData.joinMarketplace === true;
             storeName = settingsData.storeName || '';
           }
           if (!storeName) {
@@ -324,7 +323,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
         warrantyDuration: hasWarranty ? Number(formData.warrantyDuration) || 0 : 0,
         warrantyUnit: hasWarranty ? formData.warrantyUnit : 'months',
         storeId: storeId || 'default-store',
-        joinMarketplace,
+        joinMarketplace: formData.joinMarketplace,
         storeName,
         updatedAt: new Date()
       };
@@ -945,6 +944,27 @@ export default function ProductFormScreen({ route, navigation }: any) {
                   </Text>
                 </View>
               )}
+            </View>
+
+            {/* Tampilkan di Marketplace */}
+            <View className="p-5 rounded-3xl border flex gap-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-xl items-center justify-center bg-orange-500/10">
+                    <Store size={18} color="#f97316" />
+                  </View>
+                  <View>
+                    <Text className="text-xs font-black" style={{ color: colors.text }}>Tampil di Marketplace</Text>
+                    <Text className="text-[9px] font-bold" style={{ color: colors.textMuted }}>Jual produk ini secara online</Text>
+                  </View>
+                </View>
+                <Switch
+                  value={formData.joinMarketplace}
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, joinMarketplace: val }))}
+                  trackColor={{ false: colors.border, true: '#f97316' }}
+                  thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                />
+              </View>
             </View>
           </View>
         )}

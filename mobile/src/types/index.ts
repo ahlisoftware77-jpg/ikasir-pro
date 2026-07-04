@@ -17,6 +17,7 @@ export interface Product {
   expiryDate?: string;
   createdAt?: any; // Firestore Timestamp
   updatedAt?: any;
+  joinMarketplace?: boolean;
 }
 
 export interface StockMutation {

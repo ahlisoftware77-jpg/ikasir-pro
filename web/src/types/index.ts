@@ -23,6 +23,7 @@ export interface Product {
   warrantyUnit?: 'days' | 'months' | 'years';
   createdAt?: any; // Firestore Timestamp
   updatedAt?: any;
+  joinMarketplace?: boolean;
 }
 
 export interface StockMutation {
