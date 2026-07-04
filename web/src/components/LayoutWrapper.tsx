@@ -684,7 +684,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       const isInvoiceRoute = pathname?.startsWith('/invoice');
       const isDeliveryRoute = pathname?.startsWith('/delivery');
       const isSignRoute = pathname?.startsWith('/sign');
-      const publicRoutes = ['/login', '/register', '/demo'];
+      const publicRoutes = ['/login', '/register', '/demo', '/fitur', '/harga', '/tentang-kami', '/offline'];
       const permissions = useAuthStore.getState().permissions;
 
       const isAdminRoute = !publicRoutes.includes(pathname) && !isTrRoute && !isMarketplaceRoute && !isInvoiceRoute && !isDeliveryRoute && !isSignRoute;
@@ -779,7 +779,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const isTrPage = pathname === '/tr' || pathname?.startsWith('/tr/');
   const isMarketplacePage = pathname === '/marketplace' || pathname?.startsWith('/marketplace/');
   const isSignPage = pathname?.startsWith('/sign');
-  const publicRoutes = ['/login', '/register', '/tr'];
+  const publicRoutes = ['/login', '/register', '/tr', '/fitur', '/harga', '/tentang-kami', '/offline', '/demo'];
   
   if (publicRoutes.includes(pathname) || isTrPage || isMarketplacePage || isInvoicePage || isDeliveryPage || isSignPage) {
     return (

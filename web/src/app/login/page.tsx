@@ -1,5 +1,7 @@
 'use client';
 
+import AuthHeader from '@/components/AuthHeader';
+
 import { useState } from 'react';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -187,7 +189,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-surface dark:bg-[#0B0F19] text-foreground font-sans overflow-hidden">
+    <>
+      <AuthHeader />
+      <div className="flex min-h-screen w-full bg-surface dark:bg-[#0B0F19] text-foreground font-sans overflow-hidden">
       
       {/* LEFT PANEL - Branding (Hidden on mobile) */}
       <div className="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center border-r border-white/5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-900 dark:to-slate-950">
@@ -344,5 +348,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

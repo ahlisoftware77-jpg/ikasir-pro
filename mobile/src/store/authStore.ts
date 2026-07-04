@@ -87,6 +87,15 @@ export const useAuthStore = create<AuthState>()(
           isSubscriptionExpired: false, 
           disabledMenus: null,
         });
+        // Clear other stores dynamically to avoid circular dependencies
+        import('./cartStore').then(({ useCartStore }) => {
+          useCartStore.getState().clearAll();
+        }).catch(err => console.error("Failed to clear cart store:", err));
+        
+        import('./notificationStore').then(({ useNotificationStore }) => {
+          useNotificationStore.getState().clearAll();
+        }).catch(err => console.error("Failed to clear notification store:", err));
+
         // Sign out from Firebase Auth
         signOut(auth).catch((err) => console.error("Firebase signOut error:", err));
       },
