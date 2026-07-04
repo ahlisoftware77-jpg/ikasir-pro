@@ -89,9 +89,7 @@ export default function MarketplaceProfilePage() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      
-      // Bersihkan state keranjang dan data local marketplace
+      // Bersihkan state keranjang dan data local marketplace secara langsung
       clearCart();
       localStorage.removeItem('marketplace_cart');
       localStorage.removeItem('customer_name');
@@ -99,7 +97,9 @@ export default function MarketplaceProfilePage() {
       localStorage.removeItem('guest_id');
       localStorage.removeItem('my_orders');
       
-      router.replace('/marketplace');
+      await signOut(auth);
+      
+      window.location.href = '/marketplace';
     } catch (error) {
       toast.error('Gagal logout');
     }

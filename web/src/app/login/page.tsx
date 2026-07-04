@@ -141,11 +141,6 @@ export default function LoginPage() {
     }
   };
 
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleUser, setGoogleUser] = useState<any>(null);
-  const [storeName, setStoreName] = useState('');
-  const [phone, setPhone] = useState('');
-
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
@@ -167,8 +162,6 @@ export default function LoginPage() {
           setIsLoading(false);
           return;
         }
-
-
 
         if (userData?.storeId) {
           await logActivity({
@@ -193,276 +186,163 @@ export default function LoginPage() {
     }
   };
 
-  const submitGoogleRegistration = async () => {
-    if (!storeName || !phone) {
-      setError('Harap isi Nama Toko dan Nomor HP.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const { doc, getDoc, setDoc } = await import('firebase/firestore');
-      
-      let baseStoreId = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      if (!baseStoreId) baseStoreId = 'store';
-      
-      let storeId = baseStoreId;
-      let counter = 0;
-      while (true) {
-         const storeSnap = await getDoc(doc(db, 'stores', storeId));
-         if (!storeSnap.exists()) break;
-         counter++;
-         storeId = `${baseStoreId}-${counter}`;
-      }
-
-      const userName = googleUser.displayName || 'Pengguna Baru';
-
-      await setDoc(doc(db, 'stores', storeId), {
-        name: storeName,
-        ownerEmail: googleUser.email,
-        ownerUid: googleUser.uid,
-        createdAt: new Date().toISOString(),
-        isActive: true,
-        package: 'trial'
-      });
-
-      await setDoc(doc(db, 'users', googleUser.uid), {
-        name: userName,
-        email: googleUser.email,
-        phone: phone,
-        role: 'admin',
-        storeId: storeId,
-        isActive: true,
-        isSubscribed: true,
-        validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      });
-
-      await setDoc(doc(db, 'settings', `store_${storeId}`), {
-        storeName: storeName,
-        address: 'Alamat Belum Diatur',
-        phone: phone,
-        useTax: true,
-        taxRate: 11,
-        receiptMessage: 'Terima kasih telah berbelanja!',
-        paperSize: '58mm',
-        storeId: storeId
-      });
-
-      await logActivity({
-        userId: googleUser.uid,
-        userName: userName,
-        userEmail: googleUser.email,
-        storeId: storeId,
-        action: 'REGISTER_STORE',
-        description: `Mendaftarkan toko baru via Google: ${storeName}`
-      });
-
-      window.location.href = '/';
-    } catch (err: any) {
-      console.error(err);
-      setError('Gagal mendaftarkan toko: ' + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="flex min-h-screen bg-background items-center justify-center relative overflow-hidden transition-colors duration-500">
-      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent/10 blur-[130px] pointer-events-none animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/20 blur-[120px] pointer-events-none delay-1000"></div>
+    <div className="flex min-h-screen w-full bg-surface dark:bg-[#0B0F19] text-foreground font-sans overflow-hidden">
+      
+      {/* LEFT PANEL - Branding (Hidden on mobile) */}
+      <div className="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center border-r border-white/5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-900 dark:to-slate-950">
+        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/20 blur-[120px] pointer-events-none animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-teal-500/20 blur-[120px] pointer-events-none delay-1000"></div>
 
-      <div className="w-full max-w-md p-8 relative z-10 animate-in fade-in zoom-in-95 duration-700">
-        <div className="mb-10 text-center">
-          <div className="inline-flex justify-center items-center w-20 h-20 rounded-3xl bg-gradient-to-br from-accent to-accent-hover shadow-2xl shadow-accent/40 mb-8 border-4 border-white/10">
-            <ShoppingBag className="text-foreground w-10 h-10" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tighter text-foreground mb-3 uppercase italic">
-            {branding.appName.split(' ')[0]} <span className="text-accent">{branding.appName.split(' ').slice(1).join(' ')}</span>
-          </h1>
-          <p className="text-app-text-muted font-bold tracking-wide uppercase text-xs">Modern Point of Sale Ecosystem</p>
+        {/* Floating Emojis */}
+        <div className="absolute top-1/4 left-1/4 animate-bounce" style={{ animationDuration: '4s' }}>
+          <div className="w-16 h-16 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">💰</div>
+        </div>
+        <div className="absolute bottom-1/3 right-1/4 animate-bounce" style={{ animationDuration: '5s', animationDelay: '1s' }}>
+          <div className="w-14 h-14 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">📊</div>
+        </div>
+        <div className="absolute top-1/3 right-1/3 animate-bounce" style={{ animationDuration: '6s', animationDelay: '2s' }}>
+          <div className="w-12 h-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">📦</div>
         </div>
 
-        <div className="bg-surface/60 border border-app-border rounded-[2.5rem] p-10 shadow-3xl backdrop-blur-2xl transition-colors duration-300">
-          <form onSubmit={handleLogin} className="space-y-6">
+        {/* Center Graphic */}
+        <div className="relative z-10 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000">
+          <div className="w-32 h-32 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-6xl shadow-2xl shadow-emerald-500/40 mb-8 border-4 border-white dark:border-slate-800">
+            🏪
+          </div>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-4">
+            Kelola Bisnis Lebih Mudah
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm text-lg leading-relaxed">
+            Sistem Kasir Modern untuk mengembangkan usaha Anda dengan cepat dan aman.
+          </p>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL - Form */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center p-6 relative">
+        {/* Mobile Background Elements */}
+        <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-[80%] h-[80%] rounded-full bg-emerald-500/10 blur-[100px]"></div>
+          <div className="absolute bottom-0 left-0 w-[60%] h-[60%] rounded-full bg-teal-500/10 blur-[100px]"></div>
+        </div>
+
+        <div className="w-full max-w-[400px] relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
+          
+          <div className="mb-10 text-center lg:text-left">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-2">
+              Selamat Datang 👋
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+              Silakan masuk ke akun Anda untuk melanjutkan.
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
             
             {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-500 text-xs font-bold flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="flex items-start gap-3">
-                  <Lock size={14} className="shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
+              <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-300">
+                {error}
               </div>
             )}
 
             {resetSent && (
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-xs font-bold flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
-                <span>Silahkan cek pada email Anda, lalu cek inbox atau spam.</span>
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-300">
+                Silahkan cek pada email Anda, lalu cek inbox atau spam.
               </div>
             )}
 
-            <div className="space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-app-text-muted mb-2 uppercase tracking-[0.2em] ml-2" htmlFor="email">Alamat Email</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-app-text-muted">
-                    <Mail size={20} />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-4 border border-app-border rounded-2xl bg-background/50 text-foreground font-bold focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all duration-300"
-                    placeholder="admin@kasirpro.com"
-                  />
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1" htmlFor="email">Alamat Email</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-lg">
+                  ✉️
                 </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2 ml-2">
-                  <label className="block text-[10px] font-black text-app-text-muted uppercase tracking-[0.2em]" htmlFor="password">Kata Sandi</label>
-                  <button 
-                    type="button" 
-                    onClick={handleResetPassword}
-                    disabled={isResetting || isLoading}
-                    className="text-[10px] font-black text-accent hover:text-accent-hover transition-colors italic disabled:opacity-50"
-                  >
-                    {isResetting ? 'MENGIRIM...' : 'LUPA SANDI?'}
-                  </button>
-                </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-app-text-muted">
-                    <Lock size={20} />
-                  </div>
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-4 border border-app-border rounded-2xl bg-background/50 text-foreground font-bold focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all duration-300"
-                    placeholder="••••••••"
-                  />
-                </div>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-3.5 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all duration-300 hover:bg-white dark:hover:bg-slate-900"
+                  placeholder="admin@kasirpro.com"
+                />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-4 px-6 border border-transparent rounded-2xl shadow-xl text-sm font-black uppercase tracking-widest text-foreground bg-accent hover:bg-accent-hover focus:outline-none focus:ring-4 focus:ring-accent/20 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group"
-              >
-                {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
-                  <span className="flex items-center gap-2">
-                    MASUK KE PANEL <ShoppingBag size={18} className="group-hover:animate-bounce" />
-                  </span>
-                )}
-              </button>
-
-              <div className="flex items-center my-4">
-                <div className="flex-1 border-t border-app-border"></div>
-                <span className="px-4 text-[10px] font-bold text-app-text-muted uppercase tracking-widest">ATAU</span>
-                <div className="flex-1 border-t border-app-border"></div>
+            <div>
+              <div className="flex items-center justify-between mb-2 ml-1 mr-1">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400" htmlFor="password">Kata Sandi</label>
+                <button 
+                  type="button" 
+                  onClick={handleResetPassword}
+                  disabled={isResetting || isLoading}
+                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors disabled:opacity-50"
+                >
+                  {isResetting ? 'Mengirim...' : 'Lupa Sandi?'}
+                </button>
               </div>
-
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={handleGoogleLogin}
-                className="w-full flex justify-center py-4 px-6 border border-app-border rounded-2xl shadow-sm text-sm font-black uppercase tracking-widest text-foreground bg-surface hover:bg-background focus:outline-none focus:ring-4 focus:ring-app-border transition-all duration-300 active:scale-[0.98] disabled:opacity-50 group"
-              >
-                <span className="flex items-center gap-3">
-                  <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-                    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-                      <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
-                      <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
-                      <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
-                      <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
-                    </g>
-                  </svg>
-                  MASUK DENGAN GOOGLE
-                </span>
-              </button>
-
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-lg grayscale opacity-80">
+                  🔒
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-3.5 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm text-slate-900 dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all duration-300 hover:bg-white dark:hover:bg-slate-900"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center py-4 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all duration-300 active:scale-[0.98] disabled:opacity-70 disabled:scale-100 mt-2"
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Masuk Sekarang'}
+            </button>
+
+            <div className="flex items-center my-6">
+              <div className="flex-1 border-t border-slate-200 dark:border-slate-800"></div>
+              <span className="px-4 text-xs font-medium text-slate-400 dark:text-slate-500">atau lanjutkan dengan</span>
+              <div className="flex-1 border-t border-slate-200 dark:border-slate-800"></div>
+            </div>
+
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={handleGoogleLogin}
+              className="w-full flex justify-center items-center gap-3 py-3.5 px-6 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 shadow-sm"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
+                  <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
+                  <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
+                  <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
+                  <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
+                </g>
+              </svg>
+              Google
+            </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-app-border text-center">
-            <p className="text-xs text-app-text-muted font-bold mb-4">BELUM PUNYA TOKO?</p>
-            <Link 
-              href="/register" 
-              className="inline-flex items-center gap-2 text-accent hover:text-accent-hover font-black text-xs uppercase tracking-widest transition-all hover:gap-3"
-            >
-              <Store size={16} /> DAFTAR TOKO BARU SEKARANG
-            </Link>
+          <div className="mt-8 text-center">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Belum punya akun?{' '}
+              <Link 
+                href="/register" 
+                className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline transition-all"
+              >
+                Daftar sekarang
+              </Link>
+            </p>
           </div>
         </div>
       </div>
-
-      {showGoogleModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-surface border border-app-border rounded-[2rem] p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-500">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full overflow-hidden mx-auto mb-4 border-2 border-accent">
-                {googleUser?.photoURL ? (
-                  <img src={googleUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-accent/20 flex items-center justify-center">
-                    <Store size={24} className="text-accent" />
-                  </div>
-                )}
-              </div>
-              <h2 className="text-xl font-black text-foreground uppercase tracking-tight">Halo, {googleUser?.displayName?.split(' ')[0]}!</h2>
-              <p className="text-xs font-bold text-app-text-muted mt-2 leading-relaxed">
-                Ini pertama kalinya Anda masuk. Lengkapi profil toko Anda untuk memulai.
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-8">
-              <div>
-                <label className="block text-[10px] font-black text-app-text-muted mb-2 uppercase tracking-[0.2em] ml-2">Nama Toko</label>
-                <input
-                  type="text"
-                  required
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  className="block w-full px-4 py-4 border border-app-border rounded-2xl bg-background/50 text-foreground font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-                  placeholder="Misal: Toko Budi Jaya"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-app-text-muted mb-2 uppercase tracking-[0.2em] ml-2">Nomor WhatsApp</label>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="block w-full px-4 py-4 border border-app-border rounded-2xl bg-background/50 text-foreground font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-                  placeholder="08xxxxxxxxxx"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowGoogleModal(false)}
-                className="flex-1 py-4 border border-app-border rounded-2xl font-black text-xs uppercase tracking-widest text-app-text-muted hover:bg-background"
-              >
-                Batal
-              </button>
-              <button
-                onClick={submitGoogleRegistration}
-                disabled={isLoading}
-                className="flex-1 py-4 bg-accent text-foreground rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-accent-hover disabled:opacity-50"
-              >
-                {isLoading ? 'MEMPROSES...' : 'BUAT TOKO'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
