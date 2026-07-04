@@ -219,7 +219,7 @@ export default function MarketplaceAuthPage() {
         userName: userName,
         userEmail: googleUser.email,
         storeId: storeId,
-        action: 'REGISTER',
+        action: 'REGISTER_STORE',
         description: `Mendaftar Toko Baru via Google`
       });
 
