@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput, Image, Linking, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Share, Clipboard, RefreshControl, Vibration, Pressable, Modal, TextInput, Image, Linking, Switch, LayoutAnimation, UIManager, Platform } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -197,6 +201,33 @@ export default function DashboardScreen({ navigation }: any) {
   const [isUpdatingMarketplace, setIsUpdatingMarketplace] = useState(false);
   const [isUpdatingOnlineStore, setIsUpdatingOnlineStore] = useState(false);
 
+  const [showCategorySettings, setShowCategorySettings] = useState(false);
+  const [storeCategories, setStoreCategories] = useState<string[]>([]);
+  const [hiddenMarketplaceCategories, setHiddenMarketplaceCategories] = useState<string[]>([]);
+
+  const toggleCategorySettings = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowCategorySettings(!showCategorySettings);
+  };
+
+  const handleToggleCategory = async (cat: string) => {
+    try {
+      const isHidden = hiddenMarketplaceCategories.includes(cat);
+      const newHidden = isHidden 
+        ? hiddenMarketplaceCategories.filter(c => c !== cat)
+        : [...hiddenMarketplaceCategories, cat];
+        
+      setHiddenMarketplaceCategories(newHidden); // optimis
+      
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      await updateDoc(settingsRef, { hiddenMarketplaceCategories: newHidden });
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal mengatur visibilitas kategori: ' + err.message);
+    }
+  };
+
   const handleToggleMarketplaceMobile = async (newVal: boolean) => {
     if (!storeId || isUpdatingMarketplace) return;
     setIsUpdatingMarketplace(true);
@@ -273,10 +304,28 @@ export default function DashboardScreen({ navigation }: any) {
 
     const unsubSettings = onSnapshot(doc(db, 'settings', `store_${storeId}`), (docSnap) => {
       if (docSnap.exists()) {
-        setJoinMarketplace(docSnap.data().joinMarketplace === true);
-        setIsOnlineStoreActive(docSnap.data().isOnlineStoreActive !== false);
+        const data = docSnap.data();
+        setJoinMarketplace(data.joinMarketplace === true);
+        setIsOnlineStoreActive(data.isOnlineStoreActive !== false);
+        setHiddenMarketplaceCategories(data.hiddenMarketplaceCategories || []);
       }
     });
+
+    const loadCategories = async () => {
+      try {
+        const q = query(collection(db, 'products'), where('storeId', '==', storeId));
+        const snap = await getDocs(q);
+        const cats = new Set<string>();
+        snap.forEach(d => {
+           const c = d.data().category;
+           if (c) cats.add(c);
+        });
+        setStoreCategories(Array.from(cats));
+      } catch (err) {
+        console.error('Error loading store categories:', err);
+      }
+    };
+    loadCategories();
 
     const qTrx = query(
       collection(db, 'transactions'),
@@ -571,15 +620,44 @@ export default function DashboardScreen({ navigation }: any) {
                 <TouchableOpacity
                   onPress={() => {
                     Vibration.vibrate(10);
-                    navigation.navigate('StoreSettingsScreen');
+                    toggleCategorySettings();
                   }}
                   className="w-full py-2.5 rounded-xl items-center justify-center flex-row gap-2 border shadow-sm"
-                  style={{ backgroundColor: colors.accent, borderColor: colors.accent }}
+                  style={{ backgroundColor: showCategorySettings ? colors.surface : colors.accent, borderColor: showCategorySettings ? colors.border : colors.accent }}
                 >
-                  <Text className="text-[10px] font-black uppercase tracking-wider text-white">
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: showCategorySettings ? colors.text : 'white' }}>
                     🛍️ Atur Visibilitas Kategori
                   </Text>
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {showCategorySettings && storeCategories.length > 0 && (
+              <View className="mt-4 p-4 rounded-2xl border" style={{ backgroundColor: colors.bg, borderColor: colors.border }}>
+                <Text className="text-[10px] font-black uppercase tracking-widest mb-3 pl-1" style={{ color: colors.accent }}>Pilih Kategori yang Ditampilkan</Text>
+                <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                  {storeCategories.map((cat, idx) => {
+                    const isHidden = hiddenMarketplaceCategories.includes(cat);
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        onPress={() => {
+                          Vibration.vibrate(5);
+                          handleToggleCategory(cat);
+                        }}
+                        className="flex-row items-center px-3 py-1.5 rounded-full border"
+                        style={{
+                          backgroundColor: isHidden ? colors.surface : colors.accent,
+                          borderColor: isHidden ? colors.border : colors.accent
+                        }}
+                      >
+                        <Text className="text-[10px] font-bold" style={{ color: isHidden ? colors.text : '#fff' }}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             )}
           </View>
