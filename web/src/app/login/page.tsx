@@ -7,7 +7,7 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/aut
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ShoppingBag, Lock, Mail, Loader2, Store, Users, CheckCircle2, MessageCircle } from 'lucide-react';
+import { ShoppingBag, Lock, Mail, Loader2, Store, Users, CheckCircle2, MessageCircle, TrendingUp, Package } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { logActivity } from '@/lib/activity';
 import { doc, getDoc } from 'firebase/firestore';
@@ -194,32 +194,100 @@ export default function LoginPage() {
       <div className="flex min-h-screen w-full bg-surface dark:bg-[#0B0F19] text-foreground font-sans overflow-hidden">
       
       {/* LEFT PANEL - Branding (Hidden on mobile) */}
-      <div className="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center border-r border-white/5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-900 dark:to-slate-950">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/20 blur-[120px] pointer-events-none animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-teal-500/20 blur-[120px] pointer-events-none delay-1000"></div>
+      <div className="hidden lg:flex w-1/2 relative overflow-hidden items-center justify-center border-r border-white/5 bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-slate-950 dark:via-slate-900 dark:to-[#0a1017]">
+        
+        {/* Background glow effects */}
+        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-emerald-500/20 dark:bg-emerald-500/10 blur-[120px] pointer-events-none animate-pulse"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-teal-500/20 dark:bg-teal-500/10 blur-[120px] pointer-events-none" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute top-[40%] left-[40%] w-[30%] h-[30%] rounded-full bg-blue-500/10 blur-[80px] pointer-events-none"></div>
 
-        {/* Floating Emojis */}
-        <div className="absolute top-1/4 left-1/4 animate-bounce" style={{ animationDuration: '4s' }}>
-          <div className="w-16 h-16 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">💰</div>
-        </div>
-        <div className="absolute bottom-1/3 right-1/4 animate-bounce" style={{ animationDuration: '5s', animationDelay: '1s' }}>
-          <div className="w-14 h-14 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">📊</div>
-        </div>
-        <div className="absolute top-1/3 right-1/3 animate-bounce" style={{ animationDuration: '6s', animationDelay: '2s' }}>
-          <div className="w-12 h-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">📦</div>
-        </div>
-
-        {/* Center Graphic */}
-        <div className="relative z-10 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000">
-          <div className="w-32 h-32 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-6xl shadow-2xl shadow-emerald-500/40 mb-8 border-4 border-white dark:border-slate-800">
-            🏪
+        {/* Abstract 3D UI Elements representing POS */}
+        <div className="relative w-full max-w-lg h-[500px] flex items-center justify-center">
+          
+          {/* Main POS Dashboard Card - Center */}
+          <div className="absolute z-20 w-[340px] bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-3xl border border-white/50 dark:border-slate-700/50 shadow-2xl shadow-emerald-500/10 animate-float-slow overflow-hidden">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-200/50 dark:border-slate-700/50 flex justify-between items-center">
+              <div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Pendapatan</div>
+                <div className="text-2xl font-black text-slate-800 dark:text-white">Rp 12.450.000</div>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+            {/* Chart Area */}
+            <div className="p-5 h-36 flex items-end justify-between gap-2 relative">
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIGlkPSJncmlkIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPjxwYXRoIGQ9Ik0gNDAgMCBMIDAgMCAwIDQwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMCwwLDAsMC4wNSkiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] dark:opacity-20 opacity-50 pointer-events-none"></div>
+              {[40, 70, 45, 90, 65, 100, 80].map((h, i) => (
+                <div key={i} className="w-8 rounded-t-md bg-gradient-to-t from-emerald-500 to-teal-400 relative group transition-all duration-500 z-10" style={{ height: `${h}%`, opacity: i === 5 ? 1 : 0.6 }}>
+                  {i === 5 && (
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold py-1 px-2 rounded-md whitespace-nowrap shadow-lg">
+                      Puncak
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-4">
-            Kelola Bisnis Lebih Mudah
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm text-lg leading-relaxed">
-            Sistem Kasir Modern untuk mengembangkan usaha Anda dengan cepat dan aman.
-          </p>
+
+          {/* Receipt Card - Top Right */}
+          <div className="absolute z-10 -right-4 top-4 w-48 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-xl shadow-slate-200/50 dark:shadow-black/20 p-4 animate-float-fast transform rotate-6">
+            <div className="flex items-center gap-3 mb-4 border-b border-dashed border-slate-300 dark:border-slate-600 pb-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs shadow-md shadow-emerald-500/40">
+                <CheckCircle2 size={16} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-800 dark:text-white">Transaksi Sukses</div>
+                <div className="text-[10px] text-slate-500">ID: TR-9982</div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] text-slate-600 dark:text-slate-400 font-medium"><span>Kopi Susu</span><span>Rp 25.000</span></div>
+              <div className="flex justify-between text-[10px] text-slate-600 dark:text-slate-400 font-medium"><span>Roti Bakar</span><span>Rp 15.000</span></div>
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between text-xs font-black text-slate-800 dark:text-white mt-1">
+                <span>Total</span><span className="text-emerald-600 dark:text-emerald-400">Rp 40.000</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Product/Inventory Card - Bottom Left */}
+          <div className="absolute z-30 -left-12 bottom-10 w-56 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-xl shadow-slate-200/50 dark:shadow-black/20 p-4 animate-float-medium transform -rotate-3">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg">
+                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-800 dark:text-white">Status Stok</div>
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Sistem Aman</div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full w-[80%] rounded-full shadow-sm"></div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">80%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-amber-500 h-full w-[45%] rounded-full shadow-sm"></div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">45%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Center Title (Below everything) */}
+          <div className="absolute -bottom-24 w-full text-center z-0 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white mb-2">
+              Supercharge Bisnis Anda
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto text-sm leading-relaxed">
+              Sistem kasir cerdas yang dirancang khusus untuk mempercepat penjualan dan memonitor aset.
+            </p>
+          </div>
+          
         </div>
       </div>
 
