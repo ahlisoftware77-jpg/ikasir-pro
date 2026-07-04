@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
-  User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2, ShoppingBag, Download
+  User, Mail, Phone, MapPin, Loader2, ArrowLeft, LogOut, Package, Save, CheckCircle2, ShoppingBag, Download, Store
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -176,6 +176,22 @@ export default function MarketplaceProfilePage() {
           </div>
           <div className="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
             <Download size={24} />
+          </div>
+        </a>
+
+        {/* Seller Dashboard Link */}
+        <a 
+          href="https://ikasir.my.id"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-blue-600 hover:bg-blue-700 border border-blue-500 dark:border-blue-700 rounded-3xl p-5 flex items-center justify-between gap-4 transition-all shadow-lg shadow-blue-500/20 group"
+        >
+          <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Kelola Toko & Produk</h3>
+            <p className="text-[10px] text-blue-100 font-medium mt-1">Masuk ke Dashboard Penjual (Admin/Kasir).</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Store size={24} />
           </div>
         </a>
 
