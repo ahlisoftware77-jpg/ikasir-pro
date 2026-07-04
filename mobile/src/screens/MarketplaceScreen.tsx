@@ -244,6 +244,7 @@ export default function MarketplaceScreen() {
 
       // Fetch store details concurrently
       const logoMap: Record<string, string> = {};
+      const hiddenCatMap: Record<string, string[]> = {};
       await Promise.all(
         Array.from(uniqueStoreIds).map(async (storeId) => {
           const sRef = doc(db, 'settings', `store_${storeId}`);
@@ -251,22 +252,29 @@ export default function MarketplaceScreen() {
           if (sSnap.exists()) {
             const sData = sSnap.data();
             if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
+            if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
           }
         })
       );
 
       setStoreLogos(logoMap);
 
-      const uniqueCategories = ['Semua', ...Array.from(new Set(list.map(p => p.category)))].filter(Boolean);
+      // Filter products based on store's hidden categories
+      const visibleList = list.filter(p => {
+        const hiddenCats = hiddenCatMap[p.storeId] || [];
+        return !hiddenCats.includes(p.category);
+      });
+
+      const uniqueCategories = ['Semua', ...Array.from(new Set(visibleList.map(p => p.category)))].filter(Boolean);
       setCategories(uniqueCategories);
 
       // Randomize products
-      for (let i = list.length - 1; i > 0; i--) {
+      for (let i = visibleList.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [list[i], list[j]] = [list[j], list[i]];
+        [visibleList[i], visibleList[j]] = [visibleList[j], visibleList[i]];
       }
 
-      setProducts(list);
+      setProducts(visibleList);
     } catch (err) {
       console.error('Error fetching marketplace data:', err);
     } finally {

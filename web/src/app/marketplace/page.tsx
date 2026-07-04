@@ -97,28 +97,39 @@ function MarketplaceContent() {
           }
         });
 
-        setProducts(list);
-        setFilteredProducts(list);
-
-        // Fetch categories
-        const cats = ['Semua', ...Array.from(new Set(list.map(p => p.category)))];
-        setCategories(cats);
-
         // Fetch store contacts, addresses, and logos
         const phonesMap: Record<string, string> = {};
         const addressMap: Record<string, string> = {};
         const logosMap: Record<string, string> = {};
+        const hiddenCatsMap: Record<string, string[]> = {};
         for (const sId of Array.from(uniqueStoreIds)) {
           const settingsSnap = await getDoc(doc(db, 'settings', `store_${sId}`));
           if (settingsSnap.exists()) {
-            phonesMap[sId] = settingsSnap.data().phone || '';
-            addressMap[sId] = settingsSnap.data().address || '';
-            logosMap[sId] = settingsSnap.data().logoUrl || '';
+            const sData = settingsSnap.data();
+            phonesMap[sId] = sData.phone || '';
+            addressMap[sId] = sData.address || '';
+            logosMap[sId] = sData.logoUrl || '';
+            if (sData.hiddenMarketplaceCategories) {
+              hiddenCatsMap[sId] = sData.hiddenMarketplaceCategories;
+            }
           }
         }
         setStorePhones(phonesMap);
         setStoreAddresses(addressMap);
         setStoreLogos(logosMap);
+
+        // Filter out hidden categories
+        const visibleList = list.filter(p => {
+          const hiddenCats = hiddenCatsMap[p.storeId] || [];
+          return !hiddenCats.includes(p.category);
+        });
+
+        setProducts(visibleList);
+        setFilteredProducts(visibleList);
+
+        // Fetch categories from visible list
+        const cats = ['Semua', ...Array.from(new Set(visibleList.map(p => p.category)))];
+        setCategories(cats);
 
         // Fetch flash sales for all stores in marketplace
         const allFlashSales: any[] = [];

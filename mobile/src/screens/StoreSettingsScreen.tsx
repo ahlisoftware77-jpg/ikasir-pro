@@ -300,6 +300,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     deliveryFee: 0,
     isOnlineStoreActive: true,
     joinMarketplace: false,
+    hiddenMarketplaceCategories: [] as string[],
     
     trxPrefix: 'TRX-',
     trxPadding: 4,
@@ -327,6 +328,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     storeBanks: [] as any[],
     storeEwallets: [] as any[],
   });
+  const [storeCategories, setStoreCategories] = useState<string[]>([]);
   const [initialStoreSettings, setInitialStoreSettings] = useState<any>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
@@ -1324,6 +1326,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               deliveryFee: data.deliveryFee || 0,
               isOnlineStoreActive: data.isOnlineStoreActive !== false,
               joinMarketplace: data.joinMarketplace === true,
+              hiddenMarketplaceCategories: data.hiddenMarketplaceCategories || [],
               
               trxPrefix: data.trxPrefix || 'TRX-',
               trxPadding: data.trxPadding || 4,
@@ -1360,7 +1363,22 @@ export default function StoreSettingsScreen({ navigation }: any) {
           setIsLoadingSettings(false);
         }
       };
+      const loadCategories = async () => {
+        try {
+          const q = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const snap = await getDocs(q);
+          const cats = new Set<string>();
+          snap.forEach(d => {
+             const c = d.data().category;
+             if (c) cats.add(c);
+          });
+          setStoreCategories(Array.from(cats));
+        } catch (err) {
+          console.error('Error loading store categories:', err);
+        }
+      };
       loadStoreSettings();
+      loadCategories();
     }
   }, [storeId]);
 
@@ -2132,6 +2150,42 @@ export default function StoreSettingsScreen({ navigation }: any) {
                         thumbColor="#ffffff"
                       />
                     </View>
+
+                    {/* Category Visibility Toggle */}
+                    {storeSettings.joinMarketplace && storeCategories.length > 0 && (
+                      <View className="mb-3 space-y-2">
+                        <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Visibilitas Kategori</Text>
+                        <View className="p-3 rounded-2xl border flex-row flex-wrap" style={{ backgroundColor: colors.surface, borderColor: colors.border, gap: 8 }}>
+                          {storeCategories.map((cat, idx) => {
+                            const isHidden = storeSettings.hiddenMarketplaceCategories?.includes(cat);
+                            return (
+                              <TouchableOpacity
+                                key={idx}
+                                onPress={() => {
+                                  setStoreSettings(prev => {
+                                    const hidden = prev.hiddenMarketplaceCategories || [];
+                                    if (isHidden) {
+                                      return { ...prev, hiddenMarketplaceCategories: hidden.filter(c => c !== cat) };
+                                    } else {
+                                      return { ...prev, hiddenMarketplaceCategories: [...hidden, cat] };
+                                    }
+                                  });
+                                }}
+                                className="flex-row items-center px-3 py-1.5 rounded-full border"
+                                style={{
+                                  backgroundColor: isHidden ? colors.surface : colors.accent,
+                                  borderColor: isHidden ? colors.border : colors.accent
+                                }}
+                              >
+                                <Text className="text-[10px] font-bold" style={{ color: isHidden ? colors.text : '#fff' }}>
+                                  {cat}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
 
                     {/* isOnlineStoreActive Toggle */}
                     <View 
