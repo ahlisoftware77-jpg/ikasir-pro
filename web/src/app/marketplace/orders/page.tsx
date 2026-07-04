@@ -64,20 +64,26 @@ export default function MarketplaceOrdersPage() {
   };
 
   const getStatusColor = (status: string, paymentStatus: string, orderStatus: string) => {
-    if (paymentStatus === 'paid' || paymentStatus === 'completed') return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-900';
+    if (paymentStatus === 'paid' || paymentStatus === 'completed' || orderStatus === 'completed') return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-900';
     if (status === 'cancelled' || orderStatus === 'cancelled') return 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-900';
+    if (orderStatus === 'processing') return 'text-blue-500 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-900';
+    if (orderStatus === 'ready') return 'text-teal-500 bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-900';
     return 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-900';
   };
 
   const getStatusIcon = (status: string, paymentStatus: string, orderStatus: string) => {
-    if (paymentStatus === 'paid' || paymentStatus === 'completed') return <CheckCircle2 size={16} />;
+    if (paymentStatus === 'paid' || paymentStatus === 'completed' || orderStatus === 'completed') return <CheckCircle2 size={16} />;
     if (status === 'cancelled' || orderStatus === 'cancelled') return <XCircle size={16} />;
+    if (orderStatus === 'processing') return <Package size={16} />;
+    if (orderStatus === 'ready') return <CheckCircle2 size={16} />;
     return <Clock size={16} />;
   };
 
   const getStatusText = (status: string, paymentStatus: string, orderStatus: string) => {
-    if (paymentStatus === 'paid' || paymentStatus === 'completed') return 'Selesai / Dibayar';
+    if (paymentStatus === 'paid' || paymentStatus === 'completed' || orderStatus === 'completed') return 'Selesai / Dibayar';
     if (status === 'cancelled' || orderStatus === 'cancelled') return 'Dibatalkan';
+    if (orderStatus === 'processing') return 'Sedang Diproses';
+    if (orderStatus === 'ready') return 'Siap Diambil/Kirim';
     return 'Menunggu Konfirmasi';
   };
 
