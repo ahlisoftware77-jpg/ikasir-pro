@@ -1073,6 +1073,36 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* PINTASAN MARKETPLACE BERSAMA */}
+        <View 
+          className="p-6 rounded-[28px] border mb-6 shadow-xl"
+          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+        >
+          <View className="flex-row items-center gap-4 mb-4">
+            <View className="w-12 h-12 rounded-2xl items-center justify-center bg-purple-500/10 border border-purple-500/20">
+              <Text className="text-xl">🛍️</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-black" style={{ color: colors.text }}>Pintasan Marketplace</Text>
+              <Text className="text-[9px] font-bold mt-0.5" style={{ color: colors.textMuted }}>Atur visibilitas kategori produk di iKasir Marketplace</Text>
+            </View>
+          </View>
+
+          <View className="flex-row gap-3">
+            <TouchableOpacity 
+              onPress={() => {
+                Vibration.vibrate(10);
+                navigation.navigate('StoreSettingsScreen');
+              }}
+              activeOpacity={0.85}
+              className="flex-1 flex-row items-center justify-center gap-2 h-12 rounded-2xl"
+              style={{ backgroundColor: colors.accent }}
+            >
+              <Text className="text-[10px] font-black uppercase tracking-wider text-white">Atur Visibilitas Kategori</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* PINTASAN SERVIS ELEKTRONIK */}
         <View 
           className="p-6 rounded-[28px] border mb-6 shadow-xl"
