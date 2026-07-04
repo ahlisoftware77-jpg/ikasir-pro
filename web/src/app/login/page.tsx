@@ -309,7 +309,7 @@ export default function LoginPage() {
       </div>
 
       {/* RIGHT PANEL - Form */}
-      <div className="flex w-full lg:w-1/2 items-center justify-center p-6 relative">
+      <div className="flex w-full lg:w-1/2 items-center justify-center p-6 relative bg-white dark:bg-gradient-to-br dark:from-slate-800 dark:via-slate-900 dark:to-[#0B0F19] shadow-[-10px_0_30px_rgba(0,0,0,0.05)] dark:shadow-[-20px_0_40px_rgba(0,0,0,0.4)] z-20">
         {/* Mobile Background Elements */}
         <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none">
           <div className="absolute top-0 right-0 w-[80%] h-[80%] rounded-full bg-emerald-500/10 blur-[100px]"></div>
