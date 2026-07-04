@@ -321,28 +321,96 @@ export default function RegisterPage() {
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-500/20 blur-[120px] pointer-events-none animate-pulse"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-teal-500/20 blur-[120px] pointer-events-none delay-1000"></div>
 
-        {/* Floating Emojis */}
-        <div className="absolute top-1/4 left-1/4 animate-bounce" style={{ animationDuration: '4s' }}>
-          <div className="w-16 h-16 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">🚀</div>
-        </div>
-        <div className="absolute bottom-1/3 right-1/4 animate-bounce" style={{ animationDuration: '5s', animationDelay: '1s' }}>
-          <div className="w-14 h-14 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-2xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">💼</div>
-        </div>
-        <div className="absolute top-1/3 right-1/3 animate-bounce" style={{ animationDuration: '6s', animationDelay: '2s' }}>
-          <div className="w-12 h-12 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-slate-700/50">📈</div>
-        </div>
+        {/* Claymorphism 3D Animation Container */}
+        <div className="relative w-full max-w-xl flex flex-col items-center justify-center z-10 px-8">
+          
+          <div className="relative w-full h-[400px] flex items-center justify-center mb-8">
+            
+            {/* Clay Store Building - Center */}
+            <div className="absolute z-20 w-[240px] h-[300px] bg-teal-500 dark:bg-teal-600 rounded-[40px] animate-float-slow flex flex-col items-center justify-start pt-6 px-4
+              shadow-[16px_16px_32px_rgba(0,0,0,0.15),_-16px_-16px_32px_rgba(255,255,255,0.4),_inset_4px_4px_10px_rgba(255,255,255,0.6),_inset_-4px_-4px_10px_rgba(0,0,0,0.2)]
+              dark:shadow-[16px_16px_32px_rgba(0,0,0,0.4),_-16px_-16px_32px_rgba(255,255,255,0.05),_inset_4px_4px_10px_rgba(255,255,255,0.3),_inset_-4px_-4px_10px_rgba(0,0,0,0.3)]">
+              
+              {/* Store Awning */}
+              <div className="w-[110%] h-16 bg-red-400 rounded-t-3xl rounded-b-xl mb-4 flex overflow-hidden shadow-[0_8px_16px_rgba(0,0,0,0.2),_inset_2px_2px_6px_rgba(255,255,255,0.5),_inset_-2px_-2px_6px_rgba(0,0,0,0.2)]">
+                <div className="w-1/4 h-full bg-red-300"></div>
+                <div className="w-1/4 h-full bg-red-400"></div>
+                <div className="w-1/4 h-full bg-red-300"></div>
+                <div className="w-1/4 h-full bg-red-400"></div>
+              </div>
+              
+              {/* Store Window */}
+              <div className="w-full flex-1 bg-sky-200 dark:bg-sky-900/50 rounded-2xl mb-4 p-3 flex flex-wrap gap-2 justify-center content-start shadow-[inset_4px_4px_8px_rgba(0,0,0,0.1),_inset_-4px_-4px_8px_rgba(255,255,255,0.6)] dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.3),_inset_-4px_-4px_8px_rgba(255,255,255,0.1)] border border-white/20">
+                <div className="w-12 h-16 bg-white/60 dark:bg-slate-700/60 rounded-xl shadow-sm"></div>
+                <div className="w-12 h-16 bg-white/60 dark:bg-slate-700/60 rounded-xl shadow-sm"></div>
+                <div className="w-12 h-16 bg-white/60 dark:bg-slate-700/60 rounded-xl shadow-sm"></div>
+                <div className="w-full h-8 bg-white/40 dark:bg-slate-800/40 rounded-lg mt-2 shadow-inner"></div>
+              </div>
+              
+              {/* Door/Entrance */}
+              <div className="w-16 h-20 bg-slate-100 dark:bg-slate-800 rounded-t-2xl shadow-[inset_2px_2px_5px_rgba(0,0,0,0.1)] flex justify-center pt-2 border-t-4 border-l-4 border-r-4 border-teal-400 dark:border-teal-700">
+                <div className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 self-center ml-8"></div>
+              </div>
+            </div>
 
-        {/* Center Graphic */}
-        <div className="relative z-10 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-1000">
-          <div className="w-32 h-32 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-6xl shadow-2xl shadow-emerald-500/40 mb-8 border-4 border-white dark:border-slate-800">
-            🏪
+            {/* Clay User Profile Card - Top Right */}
+            <div className="absolute z-30 -right-6 top-6 w-32 h-40 bg-[#f8fafc] dark:bg-[#1e293b] rounded-[24px] animate-float-medium transform rotate-12 flex flex-col items-center p-4
+              shadow-[12px_12px_24px_rgba(0,0,0,0.1),_-12px_-12px_24px_rgba(255,255,255,0.8),_inset_2px_2px_6px_rgba(255,255,255,1),_inset_-2px_-2px_6px_rgba(0,0,0,0.05)]
+              dark:shadow-[12px_12px_24px_rgba(0,0,0,0.4),_-12px_-12px_24px_rgba(255,255,255,0.05),_inset_2px_2px_6px_rgba(255,255,255,0.2),_inset_-2px_-2px_6px_rgba(0,0,0,0.2)]">
+              <div className="relative w-16 h-16 bg-indigo-400 rounded-full mb-3 shadow-inner flex items-center justify-center border-4 border-white dark:border-slate-700 overflow-hidden">
+                <div className="w-6 h-6 bg-white/80 rounded-full mb-4"></div>
+                <div className="w-10 h-6 bg-white/80 rounded-t-full absolute bottom-0"></div>
+              </div>
+              <div className="w-16 h-2.5 rounded-full bg-slate-200 dark:bg-slate-600 mb-2"></div>
+              <div className="w-10 h-2 rounded-full bg-slate-100 dark:bg-slate-700"></div>
+            </div>
+
+            {/* Clay Checklist Card - Bottom Left */}
+            <div className="absolute z-30 -left-6 bottom-8 w-32 h-36 bg-amber-100 dark:bg-amber-900/40 rounded-[24px] animate-float-slow transform -rotate-6 flex flex-col p-4
+              shadow-[12px_12px_24px_rgba(0,0,0,0.1),_-12px_-12px_24px_rgba(255,255,255,0.8),_inset_2px_2px_6px_rgba(255,255,255,1),_inset_-2px_-2px_6px_rgba(0,0,0,0.05)]
+              dark:shadow-[12px_12px_24px_rgba(0,0,0,0.4),_-12px_-12px_24px_rgba(255,255,255,0.05),_inset_2px_2px_6px_rgba(255,255,255,0.1),_inset_-2px_-2px_6px_rgba(0,0,0,0.2)]" style={{ animationDelay: '1.5s' }}>
+              <div className="w-full h-3 rounded-full bg-amber-200 dark:bg-amber-700 mb-4"></div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-4 h-4 rounded bg-emerald-400 flex items-center justify-center text-white text-[8px] font-bold">✓</div>
+                <div className="w-16 h-2 rounded-full bg-slate-200 dark:bg-slate-600"></div>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-4 h-4 rounded bg-emerald-400 flex items-center justify-center text-white text-[8px] font-bold">✓</div>
+                <div className="w-12 h-2 rounded-full bg-slate-200 dark:bg-slate-600"></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-500 bg-white/50 dark:bg-transparent"></div>
+                <div className="w-14 h-2 rounded-full bg-slate-200 dark:bg-slate-600"></div>
+              </div>
+            </div>
+            
+            {/* Clay Rocket / Badge - Top Left */}
+            <div className="absolute z-10 -left-2 top-10 w-20 h-20 bg-emerald-400 rounded-3xl animate-float-fast transform -rotate-12 flex items-center justify-center
+              shadow-[8px_8px_16px_rgba(0,0,0,0.15),_-8px_-8px_16px_rgba(255,255,255,0.4),_inset_4px_4px_8px_rgba(255,255,255,0.5),_inset_-4px_-4px_8px_rgba(0,0,0,0.2)]
+              dark:shadow-[8px_8px_16px_rgba(0,0,0,0.4),_-8px_-8px_16px_rgba(255,255,255,0.05),_inset_4px_4px_8px_rgba(255,255,255,0.3),_inset_-4px_-4px_8px_rgba(0,0,0,0.3)]">
+              <span className="text-4xl filter drop-shadow-sm">🚀</span>
+            </div>
+
+            {/* Clay Chart - Bottom Right */}
+            <div className="absolute z-10 right-4 bottom-0 w-28 h-28 bg-rose-400 rounded-[28px] animate-float-medium transform rotate-6 flex items-end justify-center gap-2 p-4
+              shadow-[10px_10px_20px_rgba(0,0,0,0.15),_-10px_-10px_20px_rgba(255,255,255,0.4),_inset_4px_4px_10px_rgba(255,255,255,0.5),_inset_-4px_-4px_10px_rgba(0,0,0,0.2)]
+              dark:shadow-[10px_10px_20px_rgba(0,0,0,0.4),_-10px_-10px_20px_rgba(255,255,255,0.05),_inset_4px_4px_10px_rgba(255,255,255,0.3),_inset_-4px_-4px_10px_rgba(0,0,0,0.3)]" style={{ animationDelay: '0.5s' }}>
+              <div className="w-4 bg-white/90 rounded-t-lg shadow-sm" style={{ height: '30%' }}></div>
+              <div className="w-4 bg-white/90 rounded-t-lg shadow-sm" style={{ height: '60%' }}></div>
+              <div className="w-4 bg-white rounded-t-lg shadow-md" style={{ height: '90%' }}></div>
+            </div>
+
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-4">
-            Mulai Perjalanan Bisnis Anda
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm text-lg leading-relaxed">
-            Daftar sekarang dan nikmati semua fitur manajemen toko dalam satu genggaman.
-          </p>
+
+          {/* Center Title */}
+          <div className="text-center animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300 z-40 relative">
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-4">
+              Mulai Perjalanan Bisnis Anda
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto text-lg leading-relaxed">
+              Daftar sekarang dan nikmati semua fitur manajemen toko dalam satu genggaman.
+            </p>
+          </div>
         </div>
       </div>
 
