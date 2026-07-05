@@ -116,6 +116,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
   // Checkout state variables
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isCartPopupOpen, setIsCartPopupOpen] = useState(false);
+  const [cartQty, setCartQty] = useState(1);
   const [qty, setQty] = useState(1);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -828,19 +830,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 <button
                   disabled={product.manageStock !== false && (product.stock || 0) <= 0}
                   onClick={() => {
-                    const ep = getEffectivePrice(product);
-                    addToCart({
-                      productId: product.id,
-                      productName: product.name,
-                      price: ep.price,
-                      storeId: product.storeId,
-                      storeName: product.storeName || 'Toko Mitra',
-                      storePhone: storePhone,
-                      qty: 1,
-                      imageUrl: product.imageUrl,
-                      isFlashSale: ep.isFlashSale
-                    });
-                    toast.success('Ditambahkan ke keranjang!');
+                    setCartQty(1);
+                    setIsCartPopupOpen(true);
                   }}
                   className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
                     product.manageStock !== false && (product.stock || 0) <= 0
@@ -948,45 +939,47 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       </main>
 
       {/* Bottom Bar for Mobile View */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between gap-4 lg:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-4 flex items-center justify-between gap-3 lg:hidden">
         {(() => {
-          const ep = getEffectivePrice(product);
           return (
             <>
-              <div className="flex-1 min-w-0">
-                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
-                {ep.isFlashSale ? (
-                  <div className="flex flex-col">
-                    <span className="text-lg font-black text-rose-600 dark:text-rose-450 block leading-tight">
-                      Rp {ep.price.toLocaleString('id-ID')}
-                    </span>
-                    <span className="text-[10px] line-through text-slate-400 font-bold block leading-none mt-0.5">
-                      Rp {ep.originalPrice.toLocaleString('id-ID')}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-lg font-black text-orange-500 dark:text-orange-400 block leading-tight">
-                    Rp {ep.price.toLocaleString('id-ID')}
-                  </span>
-                )}
-              </div>
+              {waLink && (
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-none px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
+                >
+                  <MessageSquare size={18} />
+                </a>
+              )}
+              
+              <button
+                onClick={() => {
+                  setCartQty(1);
+                  setIsCartPopupOpen(true);
+                }}
+                disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+                className={`flex-1 py-3 rounded-2xl font-black text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm ${
+                  product.manageStock !== false && (product.stock || 0) <= 0
+                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                    : 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
+                }`}
+              >
+                <ShoppingBag size={14} className="stroke-[2.5]" />
+                <span>Keranjang</span>
+              </button>
+
               <button
                 onClick={() => handleOpenCheckout()}
                 disabled={product.manageStock !== false && (product.stock || 0) <= 0}
-                className={`flex-1 py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-lg ${
+                className={`flex-1 py-3 rounded-2xl font-black text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md ${
                   product.manageStock !== false && (product.stock || 0) <= 0
-                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
                     : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
                 }`}
               >
-                {product.manageStock !== false && (product.stock || 0) <= 0 ? (
-                  <span>Stok Habis</span>
-                ) : (
-                  <>
-                    <ShoppingBag size={16} className="stroke-[2.5]" />
-                    <span>Beli Sekarang</span>
-                  </>
-                )}
+                <span>Beli Sekarang</span>
               </button>
             </>
           );
@@ -1468,6 +1461,94 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Add to Cart Popup Modal */}
+      {isCartPopupOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-slate-900/75 dark:bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+            
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">Masukkan Keranjang</h3>
+              <button 
+                onClick={() => setIsCartPopupOpen(false)}
+                className="text-slate-400 hover:text-slate-950 dark:hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                      <ShoppingBag size={24} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{product.name}</h4>
+                  <p className="text-emerald-500 font-black text-sm mt-1">Rp {activePrice.toLocaleString('id-ID')}</p>
+                  {product.manageStock !== false && (
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1">Sisa Stok: <span className="text-slate-700 dark:text-slate-300">{product.stock || 0}</span></p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-6">
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Jumlah</span>
+                <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl">
+                  <button 
+                    onClick={() => setCartQty(prev => Math.max(1, prev - 1))}
+                    className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  >
+                    -
+                  </button>
+                  <span className="w-6 text-center text-sm font-black text-slate-900 dark:text-white">{cartQty}</span>
+                  <button 
+                    onClick={() => {
+                      if (product.manageStock !== false && cartQty >= (product.stock || 0)) {
+                        alert("Stok terbatas!");
+                        return;
+                      }
+                      setCartQty(prev => prev + 1);
+                    }}
+                    className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => {
+                  const ep = getEffectivePrice(product);
+                  addToCart({
+                    productId: product.id,
+                    productName: product.name,
+                    price: activePrice,
+                    storeId: product.storeId,
+                    storeName: product.storeName || 'Toko Mitra',
+                    storePhone: storePhone,
+                    qty: cartQty,
+                    imageUrl: product.imageUrl,
+                    isFlashSale: ep.isFlashSale
+                  });
+                  toast.success('Ditambahkan ke keranjang!');
+                  setIsCartPopupOpen(false);
+                }}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-450 text-slate-950 font-black rounded-xl text-xs uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                Konfirmasi Masukkan Keranjang
+              </button>
+            </div>
           </div>
         </div>
       )}

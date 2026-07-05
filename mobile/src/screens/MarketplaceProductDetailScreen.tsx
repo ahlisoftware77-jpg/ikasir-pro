@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, Alert, FlatList, Modal } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag } from 'lucide-react-native';
+import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag, X } from 'lucide-react-native';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
@@ -28,6 +28,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [reviews, setReviews] = useState<any[]>([]);
   const [canReview, setCanReview] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
+  const [isCartModalVisible, setIsCartModalVisible] = useState(false);
 
   useEffect(() => {
     fetchProductDetail();
@@ -141,7 +142,23 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       });
       useCartStore.getState().setQty(product.id, qty);
       Alert.alert('Sukses', 'Produk berhasil ditambahkan ke keranjang');
-      navigation.goBack();
+      setIsCartModalVisible(false);
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (product) {
+      addToCart({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        storeId: product.storeId || 'unknown',
+        storeName: product.storeName || 'Toko Mitra',
+        imageUrl: product.imageUrl || product.imageUrls?.[0],
+        stock: product.stock || 999
+      });
+      useCartStore.getState().setQty(product.id, 1);
+      navigation.navigate('MarketplaceCheckout', { storeId: product.storeId });
     }
   };
 
@@ -337,36 +354,117 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         </View>
       </ScrollView>
 
-      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom || 16, flexDirection: 'row', gap: 12 }]}>
+      <View style={[styles.bottomBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom || 16, flexDirection: 'row', gap: 8 }]}>
+        <TouchableOpacity 
+          style={[styles.actionBtn, { backgroundColor: colors.bg, flex: 0, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.border }]} 
+          onPress={handleWhatsApp}
+        >
+          <MessageCircle color={colors.text} size={20} />
+        </TouchableOpacity>
+
         {outOfStock ? (
           <View style={[styles.actionBtn, { backgroundColor: colors.border, flex: 1 }]}>
             <Text style={[styles.actionBtnText, { color: colors.textMuted }]}>STOK HABIS</Text>
           </View>
         ) : (
           <>
-            <View style={[styles.qtySelector, { borderColor: colors.border }]}>
-              <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
-                <Minus color={colors.text} size={16} />
-              </TouchableOpacity>
-              <Text style={[styles.qtyText, { color: colors.text }]}>{qty}</Text>
-              <TouchableOpacity 
-                onPress={() => setQty(Math.min(product.stock || 999, qty + 1))} 
-                style={styles.qtyBtn}
-              >
-                <Plus color={colors.text} size={16} />
-              </TouchableOpacity>
-            </View>
             <TouchableOpacity 
-              style={[styles.actionBtn, { backgroundColor: colors.accent, flex: 1 }]} 
-              onPress={handleAddToCart}
+              style={[styles.actionBtn, { backgroundColor: colors.surface, flex: 1, borderWidth: 1, borderColor: colors.accent }]} 
+              onPress={() => {
+                setQty(1);
+                setIsCartModalVisible(true);
+              }}
               activeOpacity={0.8}
             >
-              <ShoppingCart color="#fff" size={20} />
-              <Text style={styles.actionBtnText}>Tambah ke Keranjang</Text>
+              <ShoppingCart color={colors.accent} size={20} />
+              <Text style={[styles.actionBtnText, { color: colors.accent }]}>Keranjang</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionBtn, { backgroundColor: colors.accent, flex: 1 }]} 
+              onPress={handleBuyNow}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.actionBtnText}>Beli Sekarang</Text>
             </TouchableOpacity>
           </>
         )}
       </View>
+
+      <Modal
+        visible={isCartModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsCartModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBgTouch} 
+            activeOpacity={1} 
+            onPress={() => setIsCartModalVisible(false)} 
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, paddingBottom: (insets.bottom || 16) + 16 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Masukkan Keranjang</Text>
+              <TouchableOpacity onPress={() => setIsCartModalVisible(false)}>
+                <X color={colors.textMuted} size={24} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalProductInfo}>
+              {product.imageUrl ? (
+                <Image source={{ uri: product.imageUrl }} style={styles.modalProductImage} />
+              ) : (
+                <View style={[styles.modalProductImage, { backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+                  <ShoppingBag color={colors.border} size={24} />
+                </View>
+              )}
+              <View style={styles.modalProductDetails}>
+                <Text style={[styles.modalProductName, { color: colors.text }]} numberOfLines={2}>
+                  {product.name}
+                </Text>
+                <Text style={[styles.modalProductPrice, { color: colors.accent }]}>
+                  Rp {finalPrice.toLocaleString('id-ID')}
+                </Text>
+                {product.manageStock !== false && (
+                  <Text style={[styles.modalProductStock, { color: colors.textMuted }]}>
+                    Sisa Stok: <Text style={{ color: colors.text, fontWeight: 'bold' }}>{product.stock || 0}</Text>
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            <View style={[styles.modalQtySection, { borderTopColor: colors.border }]}>
+              <Text style={[styles.modalQtyLabel, { color: colors.text }]}>Jumlah</Text>
+              <View style={[styles.qtySelector, { borderColor: colors.border }]}>
+                <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
+                  <Minus color={colors.text} size={16} />
+                </TouchableOpacity>
+                <Text style={[styles.qtyText, { color: colors.text }]}>{qty}</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    if (product.manageStock !== false && qty >= (product.stock || 0)) {
+                      Alert.alert('Info', 'Stok terbatas!');
+                      return;
+                    }
+                    setQty(qty + 1);
+                  }} 
+                  style={styles.qtyBtn}
+                >
+                  <Plus color={colors.text} size={16} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.actionBtn, { backgroundColor: colors.accent, width: '100%' }]} 
+              onPress={handleAddToCart}
+            >
+              <Text style={styles.actionBtnText}>Konfirmasi Masukkan Keranjang</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -577,5 +675,77 @@ const styles = StyleSheet.create({
   },
   viewAllReviewsBtn: {
     paddingVertical: 12,
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBgTouch: {
+    flex: 1,
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontFamily: 'System',
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  modalProductInfo: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  modalProductImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: 16,
+  },
+  modalProductDetails: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  modalProductName: {
+    fontFamily: 'System',
+    fontWeight: '600',
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  modalProductPrice: {
+    fontFamily: 'System',
+    fontWeight: '900',
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  modalProductStock: {
+    fontSize: 12,
+  },
+  modalQtySection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    marginBottom: 16,
+  },
+  modalQtyLabel: {
+    fontFamily: 'System',
+    fontWeight: '700',
+    fontSize: 16,
+  },
 });
