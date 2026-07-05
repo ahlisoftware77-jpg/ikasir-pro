@@ -1787,7 +1787,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const renderEditUserForm = () => {
     if (!editingUser) return null;
     return (
-      <View className="flex-1">
+      <View className="flex-1 px-6 pt-4" style={{ backgroundColor: colors.bg }}>
         {/* Header Kembali */}
         <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
           <TouchableOpacity 
@@ -1962,7 +1962,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const renderEditStoreForm = () => {
     if (!editingStore) return null;
     return (
-      <View className="flex-1">
+      <View className="flex-1 px-6 pt-4" style={{ backgroundColor: colors.bg }}>
         {/* Header Kembali */}
         <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
           <TouchableOpacity 
@@ -2321,12 +2321,12 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                           borderLeftColor: s.isActive !== false ? '#10b981' : '#f43f5e'
                         }}
                       >
-                        <View className="flex-row justify-between items-center mb-3">
-                          <View className="flex-1 pr-2">
+                        <View className="mb-3 space-y-3">
+                          <View>
                             <Text className="text-sm font-black uppercase" style={{ color: colors.text }} numberOfLines={1}>{s.name}</Text>
                             <Text className="text-[10px] font-bold text-slate-400 font-mono" numberOfLines={1}>ID: {s.id}</Text>
                           </View>
-                          <View className="flex-row gap-2">
+                          <View className="flex-row gap-2 flex-wrap">
                             <TouchableOpacity 
                               onPress={() => handleEditStore(s)}
                               className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl"
@@ -3661,7 +3661,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
-      <View className="flex-1 px-6 pt-4">
+      <View className={`flex-1 ${(editingStore || editingUser) ? '' : 'px-6 pt-4'}`}>
         {renderContent()}
       </View>
 
