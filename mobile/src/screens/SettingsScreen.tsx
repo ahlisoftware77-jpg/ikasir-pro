@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing, Clipboard } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing, Clipboard, NativeModules, PermissionsAndroid, ToastAndroid } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
 LocaleConfig.locales['id'] = {
@@ -35,7 +35,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import SignaturePad from '../components/SignaturePad';
 import * as Updates from 'expo-updates';
-import { RefreshCw } from 'lucide-react-native';
+import { RefreshCw, Bluetooth, BluetoothSearching, BluetoothConnected } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
+const BluetoothManager = hasBluetoothNativeModule ? require('react-native-bluetooth-escpos-printer')?.BluetoothManager : null;
+const BluetoothEscposPrinter = hasBluetoothNativeModule ? require('react-native-bluetooth-escpos-printer')?.BluetoothEscposPrinter : null;
 
 const FONT_OPTIONS = [
   { id: 'sans', name: 'Modern (Sans)', family: 'System' },
@@ -119,8 +124,17 @@ export default function SettingsScreen({ navigation, route }: any) {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }, [subscriptionUntil]);
 
-  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | 'superAdminSubscriptions' | null>(null);
+  const [activeModal, setActiveModal] = useState<'theme' | 'profile' | 'premium' | 'storeSettings' | 'superAdminUsers' | 'superAdminStores' | 'superAdminBranding' | 'superAdminInfra' | 'subscriptionMenu' | 'superAdminSubscriptions' | 'bluetooth' | null>(null);
   const [selectedPremiumFeature, setSelectedPremiumFeature] = useState('');
+
+  // Bluetooth States
+  const [bluetoothEnabled, setBluetoothEnabled] = useState(false);
+  const [isScanningBluetooth, setIsScanningBluetooth] = useState(false);
+  const [isConnectingBluetooth, setIsConnectingBluetooth] = useState(false);
+  const [boundDevices, setBoundDevices] = useState<any[]>([]);
+  const [foundDevices, setFoundDevices] = useState<any[]>([]);
+  const [selectedPrinterAddress, setSelectedPrinterAddress] = useState<string | null>(null);
+  const [selectedPrinterName, setSelectedPrinterName] = useState<string | null>(null);
 
   // Profile States
   const { setUser } = useAuthStore();
@@ -134,6 +148,12 @@ export default function SettingsScreen({ navigation, route }: any) {
   const entranceAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
   const slideAnims = useRef(Array.from({ length: 4 }, () => new Animated.Value(20))).current;
   const badgeBounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (activeModal === 'subscriptionMenu') {
+      entranceAnims.forEach(anim => anim.setValue(0));
+      slideAnims.forEach(anim => anim.setValue(20));
+      badgeBounceAnim.setValue(0);
 
   useEffect(() => {
     if (activeModal === 'subscriptionMenu') {
@@ -172,8 +192,129 @@ export default function SettingsScreen({ navigation, route }: any) {
           })
         ])
       ).start();
+    } else if (activeModal === 'bluetooth') {
+      initBluetooth();
     }
   }, [activeModal]);
+
+  const initBluetooth = async () => {
+    if (!hasBluetoothNativeModule || !BluetoothManager) return;
+    try {
+      const activePrinterAddress = await AsyncStorage.getItem('selected_printer_address');
+      const activePrinterName = await AsyncStorage.getItem('selected_printer');
+      if (activePrinterAddress) setSelectedPrinterAddress(activePrinterAddress);
+      if (activePrinterName) setSelectedPrinterName(activePrinterName);
+
+      const isEnabled = await BluetoothManager.isBluetoothEnabled();
+      setBluetoothEnabled(isEnabled);
+
+      if (isEnabled) {
+        const devicesStr = await BluetoothManager.enableBluetooth();
+        let devices = [];
+        try {
+          devices = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
+        } catch (e) {
+          console.warn("Failed to parse bound devices", e);
+        }
+        
+        setBoundDevices(
+          devices.map((d: any) => {
+            if (typeof d === 'string') {
+              const splitted = d.split(',');
+              return { name: splitted[0] || 'Unknown', address: splitted[1] || '' };
+            }
+            return d;
+          }).filter((d: any) => d && d.address)
+        );
+      }
+    } catch (e: any) {
+      console.warn('initBluetooth err', e);
+    }
+  };
+
+  const requestBluetoothPermissions = async () => {
+    if (Platform.OS === 'android' && Platform.Version >= 31) {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        ]);
+        return (
+          granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED &&
+          granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED
+        );
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true; // on older android versions, permissions are requested at install time
+  };
+
+  const scanBluetoothDevices = async () => {
+    if (!hasBluetoothNativeModule || !BluetoothManager) {
+      Alert.alert('Tidak Tersedia', 'Fitur Bluetooth tidak didukung di perangkat ini.');
+      return;
+    }
+    
+    const hasPermission = await requestBluetoothPermissions();
+    if (!hasPermission) {
+      Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan izin Bluetooth untuk mencari printer.');
+      return;
+    }
+
+    setIsScanningBluetooth(true);
+    setFoundDevices([]);
+    try {
+      const isEnabled = await BluetoothManager.isBluetoothEnabled();
+      if (!isEnabled) {
+        Alert.alert('Bluetooth Mati', 'Harap hidupkan bluetooth Anda.');
+        setIsScanningBluetooth(false);
+        return;
+      }
+
+      const devicesStr = await BluetoothManager.scanDevices();
+      let devices = [];
+      try {
+        devices = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
+      } catch (e) {
+        if (devicesStr && devicesStr.found) {
+           devices = typeof devicesStr.found === 'string' ? JSON.parse(devicesStr.found) : devicesStr.found;
+        }
+      }
+      
+      let parsedFound = devices.map((d: any) => {
+        if (typeof d === 'string') {
+          const splitted = d.split(',');
+          return { name: splitted[0] || 'Unknown', address: splitted[1] || '' };
+        }
+        return d;
+      }).filter((d: any) => d && d.address);
+
+      setFoundDevices(parsedFound);
+    } catch (e: any) {
+      Alert.alert('Pindai Gagal', e.message || String(e));
+    } finally {
+      setIsScanningBluetooth(false);
+    }
+  };
+
+  const connectPrinter = async (address: string, name: string) => {
+    if (!hasBluetoothNativeModule || !BluetoothManager) return;
+    setIsConnectingBluetooth(true);
+    try {
+      await BluetoothManager.connect(address);
+      await AsyncStorage.setItem('selected_printer_address', address);
+      await AsyncStorage.setItem('selected_printer', name);
+      setSelectedPrinterAddress(address);
+      setSelectedPrinterName(name);
+      ToastAndroid.show(`Berhasil terhubung ke ${name}`, ToastAndroid.SHORT);
+    } catch (e: any) {
+      Alert.alert('Gagal Menghubungkan', e.message || String(e));
+    } finally {
+      setIsConnectingBluetooth(false);
+    }
+  };
 
   useEffect(() => {
     if (route.params?.openSubscription) {
@@ -1667,6 +1808,10 @@ export default function SettingsScreen({ navigation, route }: any) {
               Vibration.vibrate(10);
               navigation.navigate('StoreSettingsScreen');
             }, true)}
+            {renderMenuItem('Printer Bluetooth', '🖨️', '#3b82f6', () => {
+              Vibration.vibrate(10);
+              setActiveModal('bluetooth');
+            })}
             {renderMenuItem('Notifikasi BG', '🔋', '#f59e0b', handleOpenBatterySettings)}
             {renderMenuItem('Paket Langganan', '💎', '#8b5cf6', () => {
               Vibration.vibrate(10);
@@ -3358,6 +3503,157 @@ export default function SettingsScreen({ navigation, route }: any) {
             </Pressable>
           </Pressable>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 12. BLUETOOTH SETTINGS MODAL */}
+      <Modal visible={activeModal === 'bluetooth'} animationType="slide" transparent={false} onRequestClose={() => setActiveModal(null)}>
+        <SafeAreaView className="flex-1" edges={['top', 'bottom']} style={{ backgroundColor: colors.bg }}>
+          <View className="flex-row items-center px-6 py-4 border-b" style={{ borderColor: colors.border + '30' }}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mr-4">
+              <ArrowLeft color={colors.text} size={20} />
+            </TouchableOpacity>
+            <View>
+              <Text className="text-xl font-black" style={{ color: colors.text }}>Pengaturan Printer</Text>
+              <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.textMuted }}>Koneksi Printer Bluetooth Thermal</Text>
+            </View>
+          </View>
+
+          <ScrollView className="flex-1">
+            <View className="px-6 py-6 space-y-6">
+              
+              {/* Bluetooth Status */}
+              <View className="p-4 rounded-3xl border flex-row items-center justify-between" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-full items-center justify-center bg-blue-500/10">
+                    <Bluetooth size={20} color="#3b82f6" />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-black" style={{ color: colors.text }}>Status Bluetooth</Text>
+                    <Text className="text-[10px] font-bold mt-0.5" style={{ color: bluetoothEnabled ? '#10b981' : colors.textMuted }}>
+                      {bluetoothEnabled ? 'Aktif' : 'Tidak Aktif'}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={bluetoothEnabled}
+                  onValueChange={async (val) => {
+                    if (!BluetoothManager) return;
+                    if (val) {
+                      await BluetoothManager.enableBluetooth();
+                      setBluetoothEnabled(true);
+                      initBluetooth();
+                    } else {
+                      await BluetoothManager.disableBluetooth();
+                      setBluetoothEnabled(false);
+                      setBoundDevices([]);
+                      setFoundDevices([]);
+                    }
+                  }}
+                  thumbColor={bluetoothEnabled ? "#3b82f6" : "#f4f4f5"}
+                  trackColor={{ false: "#e4e4e7", true: "#bfdbfe" }}
+                />
+              </View>
+
+              {/* Action Buttons */}
+              <View className="flex-row gap-3">
+                <TouchableOpacity 
+                  onPress={scanBluetoothDevices} 
+                  disabled={isScanningBluetooth || !bluetoothEnabled}
+                  className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-2 border"
+                  style={{ backgroundColor: colors.surface, borderColor: colors.border, opacity: (isScanningBluetooth || !bluetoothEnabled) ? 0.6 : 1 }}
+                >
+                  {isScanningBluetooth ? (
+                    <ActivityIndicator size="small" color={colors.accent} />
+                  ) : (
+                    <BluetoothSearching size={16} color={colors.accent} />
+                  )}
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                    {isScanningBluetooth ? 'Memindai...' : 'Pindai Perangkat'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  onPress={handleTestPrintShort} 
+                  disabled={isTestPrintingShort || !selectedPrinterAddress}
+                  className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-2"
+                  style={{ backgroundColor: colors.accent, opacity: (isTestPrintingShort || !selectedPrinterAddress) ? 0.6 : 1 }}
+                >
+                  {isTestPrintingShort ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Printer size={16} color="#ffffff" />
+                  )}
+                  <Text className="text-[10px] font-black uppercase tracking-wider text-white">
+                    Uji Cetak
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Bound Devices */}
+              {boundDevices.length > 0 && (
+                <View className="space-y-3">
+                  <Text className="text-[10px] font-black uppercase tracking-wider ml-1" style={{ color: colors.textMuted }}>Perangkat Terpasang (Paired)</Text>
+                  {boundDevices.map((dev: any, idx: number) => {
+                    const isSelected = selectedPrinterAddress === dev.address;
+                    return (
+                      <TouchableOpacity 
+                        key={`bound-${dev.address}-${idx}`}
+                        onPress={() => connectPrinter(dev.address, dev.name)}
+                        className="p-4 rounded-2xl border flex-row items-center justify-between"
+                        style={{ backgroundColor: colors.surface, borderColor: isSelected ? colors.accent : colors.border }}
+                      >
+                        <View className="flex-row items-center gap-3">
+                          <View className="w-10 h-10 rounded-full items-center justify-center bg-black/5">
+                            <BluetoothConnected size={18} color={isSelected ? colors.accent : colors.text} />
+                          </View>
+                          <View>
+                            <Text className="text-xs font-black" style={{ color: colors.text }}>{dev.name}</Text>
+                            <Text className="text-[10px] font-bold mt-0.5" style={{ color: colors.textMuted }}>{dev.address}</Text>
+                          </View>
+                        </View>
+                        {isSelected && (
+                          <View className="bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                            <Text className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Aktif</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Found Devices */}
+              {foundDevices.length > 0 && (
+                <View className="space-y-3">
+                  <Text className="text-[10px] font-black uppercase tracking-wider ml-1" style={{ color: colors.accent }}>Perangkat Ditemukan</Text>
+                  {foundDevices.map((dev: any, idx: number) => {
+                    const isSelected = selectedPrinterAddress === dev.address;
+                    return (
+                      <TouchableOpacity 
+                        key={`found-${dev.address}-${idx}`}
+                        onPress={() => connectPrinter(dev.address, dev.name)}
+                        className="p-4 rounded-2xl border flex-row items-center justify-between"
+                        style={{ backgroundColor: colors.bg, borderColor: isSelected ? colors.accent : colors.border }}
+                      >
+                        <View className="flex-row items-center gap-3">
+                          <View className="w-10 h-10 rounded-full items-center justify-center bg-black/5">
+                            <Bluetooth size={18} color={isSelected ? colors.accent : colors.textMuted} />
+                          </View>
+                          <View>
+                            <Text className="text-xs font-black" style={{ color: colors.text }}>{dev.name}</Text>
+                            <Text className="text-[10px] font-bold mt-0.5" style={{ color: colors.textMuted }}>{dev.address}</Text>
+                          </View>
+                        </View>
+                        <Text className="text-[10px] font-bold" style={{ color: colors.accent }}>Hubungkan</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
 
     </SafeAreaView>
