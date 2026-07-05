@@ -215,6 +215,10 @@ export default function SettingsScreen({ navigation, route }: any) {
         setBoundDevices(
           pairedDevices.map((d: any) => {
             if (typeof d === 'string') {
+              try {
+                const parsed = JSON.parse(d);
+                if (parsed.name || parsed.address) return { name: parsed.name || 'Unknown', address: parsed.address || '' };
+              } catch(e) {}
               const splitted = d.split(',');
               return { name: splitted[0] || 'Unknown', address: splitted[1] || '' };
             }
@@ -304,6 +308,10 @@ export default function SettingsScreen({ navigation, route }: any) {
       
       let parsedFound = foundList.map((d: any) => {
         if (typeof d === 'string') {
+          try {
+            const parsed = JSON.parse(d);
+            if (parsed.name || parsed.address) return { name: parsed.name || 'Unknown', address: parsed.address || '' };
+          } catch(e) {}
           const splitted = d.split(',');
           return { name: splitted[0] || 'Unknown', address: splitted[1] || '' };
         }
