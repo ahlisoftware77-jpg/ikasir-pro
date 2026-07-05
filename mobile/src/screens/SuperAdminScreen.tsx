@@ -144,27 +144,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
   }, [role, navigation, permissions]);
 
-  React.useEffect(() => {
-    const backAction = () => {
-      if (editingStore) {
-        setEditingStore(null);
-        return true; // Prevent default behavior
-      }
-      if (editingUser) {
-        setEditingUser(null);
-        return true;
-      }
-      return false; // Let default behavior happen
-    };
-
-    const backHandler = BackHandler.addEventListener(
-      'hardwareBackPress',
-      backAction
-    );
-
-    return () => backHandler.remove();
-  }, [editingStore, editingUser]);
-
   const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
   const [superAdminStores, setSuperAdminStores] = useState<any[]>([]);
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
@@ -1787,8 +1766,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const renderEditUserForm = () => {
     if (!editingUser) return null;
     return (
-      <View className="flex-1 px-6 pt-4" style={{ backgroundColor: colors.bg }}>
-        {/* Header Kembali */}
+      <Modal visible={true} animationType="slide" onRequestClose={() => setEditingUser(null)}>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg }}>
+          <View className="flex-1 px-6 pt-4">
+            {/* Header Kembali */}
         <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
           <TouchableOpacity 
             onPress={() => setEditingUser(null)}
@@ -1956,14 +1937,18 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           </View>
         </ScrollView>
       </View>
+      </SafeAreaView>
+      </Modal>
     );
   };
 
   const renderEditStoreForm = () => {
     if (!editingStore) return null;
     return (
-      <View className="flex-1 px-6 pt-4" style={{ backgroundColor: colors.bg }}>
-        {/* Header Kembali */}
+      <Modal visible={true} animationType="slide" onRequestClose={() => setEditingStore(null)}>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg }}>
+          <View className="flex-1 px-6 pt-4">
+            {/* Header Kembali */}
         <View className="flex-row items-center gap-3 pb-4 mb-4 border-b" style={{ borderColor: colors.border + '30' }}>
           <TouchableOpacity 
             onPress={() => setEditingStore(null)}
@@ -2085,17 +2070,13 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           </View>
         </ScrollView>
       </View>
+      </SafeAreaView>
+      </Modal>
     );
   };
 
   // --- RENDER CONTENT BY FEATURE ID ---
   const renderContent = () => {
-    if (editingUser) {
-      return renderEditUserForm();
-    }
-    if (editingStore) {
-      return renderEditStoreForm();
-    }
     switch (featureId) {
       case 'superAdminUsers': {
         // Group users by store for hierarchical display
@@ -3661,11 +3642,13 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView className="flex-1" edges={['bottom']} style={{ backgroundColor: colors.bg }}>
-      <View className={`flex-1 ${(editingStore || editingUser) ? '' : 'px-6 pt-4'}`}>
+      <View className="flex-1 px-6 pt-4">
         {renderContent()}
       </View>
 
       {/* --- SUB-MODALS OVERLAYS --- */}
+      {editingUser && renderEditUserForm()}
+      {editingStore && renderEditStoreForm()}
 
       {/* 1. USER EDIT DIALOG OVERLAY (REMOVED: Now inline) */}
 
