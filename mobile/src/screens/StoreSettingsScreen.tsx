@@ -134,7 +134,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const [isTestPrinting, setIsTestPrinting] = useState(false);
   const [isTestPrintingShort, setIsTestPrintingShort] = useState(false);
 
-  const handleTestPrint = async () => {
+  const handleTestPrint = async (size: '58mm' | '80mm' = '58mm') => {
     if (isTestPrinting) return;
     setIsTestPrinting(true);
     try {
@@ -168,7 +168,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
         change: 25000,
       } as any;
       
-      await printReceipt(dummyTrx, storeSettings as any, false);
+      const customStoreSettings = { ...(storeSettings as any), paperSize: size };
+      await printReceipt(dummyTrx, customStoreSettings, false);
     } catch (err: any) {
       Alert.alert('Gagal Mencetak', err.message || String(err));
     } finally {
@@ -176,7 +177,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     }
   };
 
-  const handleTestPrintShort = async () => {
+  const handleTestPrintShort = async (size: '58mm' | '80mm' = '58mm') => {
     if (isTestPrintingShort) return;
     setIsTestPrintingShort(true);
     try {
@@ -210,7 +211,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
         change: 25000,
       } as any;
       
-      await printReceipt(dummyTrx, storeSettings as any, true);
+      const customStoreSettings = { ...(storeSettings as any), paperSize: size };
+      await printReceipt(dummyTrx, customStoreSettings, true);
     } catch (err: any) {
       Alert.alert('Gagal Mencetak', err.message || String(err));
     } finally {
@@ -2047,7 +2049,13 @@ export default function StoreSettingsScreen({ navigation }: any) {
 
                       <View className="flex-row gap-2.5 mt-4">
                         <TouchableOpacity
-                          onPress={handleTestPrintShort}
+                          onPress={() => {
+                            Alert.alert('Cetak Pendek', 'Pilih ukuran kertas printer', [
+                              { text: '58mm', onPress: () => handleTestPrintShort('58mm') },
+                              { text: '80mm', onPress: () => handleTestPrintShort('80mm') },
+                              { text: 'Batal', style: 'cancel' }
+                            ]);
+                          }}
                           disabled={isTestPrintingShort || isTestPrinting}
                           activeOpacity={0.8}
                           className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-1.5 border"
@@ -2066,7 +2074,13 @@ export default function StoreSettingsScreen({ navigation }: any) {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          onPress={handleTestPrint}
+                          onPress={() => {
+                            Alert.alert('Cetak Full', 'Pilih ukuran kertas printer', [
+                              { text: '58mm', onPress: () => handleTestPrint('58mm') },
+                              { text: '80mm', onPress: () => handleTestPrint('80mm') },
+                              { text: 'Batal', style: 'cancel' }
+                            ]);
+                          }}
                           disabled={isTestPrinting || isTestPrintingShort}
                           activeOpacity={0.8}
                           className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-1.5 border"

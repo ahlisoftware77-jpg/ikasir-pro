@@ -458,7 +458,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     }
   };
 
-  const handleTestPrintShort = async () => {
+  const handleTestPrintShort = async (size: '58mm' | '80mm' = '58mm') => {
     if (isTestPrintingShort) return;
     setIsTestPrintingShort(true);
     try {
@@ -492,7 +492,8 @@ export default function SettingsScreen({ navigation, route }: any) {
         change: 25000,
       } as any;
       
-      await printReceipt(dummyTrx, storeSettings as any, true);
+      const customStoreSettings = { ...(storeSettings as any), paperSize: size };
+      await printReceipt(dummyTrx, customStoreSettings, true);
     } catch (err: any) {
       Alert.alert('Gagal Mencetak', err.message || String(err));
     } finally {
@@ -3600,7 +3601,13 @@ export default function SettingsScreen({ navigation, route }: any) {
                 </TouchableOpacity>
 
                 <TouchableOpacity 
-                  onPress={handleTestPrintShort} 
+                  onPress={() => {
+                    Alert.alert('Uji Cetak', 'Pilih ukuran kertas printer', [
+                      { text: '58mm', onPress: () => handleTestPrintShort('58mm') },
+                      { text: '80mm', onPress: () => handleTestPrintShort('80mm') },
+                      { text: 'Batal', style: 'cancel' }
+                    ]);
+                  }} 
                   disabled={isTestPrintingShort || !selectedPrinterAddress}
                   className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-2"
                   style={{ backgroundColor: colors.accent, opacity: (isTestPrintingShort || !selectedPrinterAddress) ? 0.6 : 1 }}
