@@ -2694,7 +2694,7 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
     }
 
     // Determine paper width
-    const is80mm = storeSettings?.paperSize === '80mm';
+    const is80mm = finalSettings?.paperSize === '80mm';
     const paperWidth = is80mm ? 380 : 300;
 
     // Inject CSS to make it look like a continuous thermal roll and fix alignments
