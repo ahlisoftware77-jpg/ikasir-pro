@@ -155,12 +155,6 @@ export default function SettingsScreen({ navigation, route }: any) {
       slideAnims.forEach(anim => anim.setValue(20));
       badgeBounceAnim.setValue(0);
 
-  useEffect(() => {
-    if (activeModal === 'subscriptionMenu') {
-      entranceAnims.forEach(anim => anim.setValue(0));
-      slideAnims.forEach(anim => anim.setValue(20));
-      badgeBounceAnim.setValue(0);
-
       Animated.stagger(80, entranceAnims.map((anim, i) => 
         Animated.parallel([
           Animated.timing(anim, {
