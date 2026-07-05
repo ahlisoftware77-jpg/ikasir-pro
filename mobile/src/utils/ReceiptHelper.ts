@@ -201,6 +201,96 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
   const rawCashier = transaction.cashierName || 'Kasir';
   const cleanCashier = rawCashier.includes('@') ? rawCashier.split('@')[0] : rawCashier;
 
+  const totalVal = transaction.total || transaction.price || 0;
+  const taxVal = transaction.tax || 0;
+  const subtotal = totalVal - taxVal;
+  
+  let financialHtml = '';
+  
+  if (taxVal > 0) {
+    financialHtml += `
+      <div class="item-row">
+        <span>Subtotal</span>
+        <span>${subtotal.toLocaleString('id-ID')}</span>
+      </div>
+      <div class="item-row">
+        <span>PPN</span>
+        <span>${taxVal.toLocaleString('id-ID')}</span>
+      </div>
+      <div class="divider"></div>
+    `;
+  }
+  
+  financialHtml += `
+    <div class="total-row">
+      <span>TOTAL</span>
+      <span>Rp ${totalVal.toLocaleString('id-ID')}</span>
+    </div>
+  `;
+  
+  const isDebt = transaction.paymentCategory === 'debt' || transaction.paymentStatus === 'partially_paid' || (transaction.paymentHistory && transaction.paymentHistory.length > 0);
+  
+  if (!isEstimation) {
+    if (isDebt) {
+      financialHtml += `<div class="divider"></div><div style="text-align: center; font-weight: bold; font-size: 11px; margin-bottom: 5px;">RIWAYAT PEMBAYARAN</div>`;
+      if (transaction.paymentHistory && transaction.paymentHistory.length > 0) {
+        for (const hist of transaction.paymentHistory) {
+          let histDate: Date;
+          try {
+            if (hist.date?.seconds) histDate = new Date(hist.date.seconds * 1000);
+            else if (hist.date?.toDate) histDate = hist.date.toDate();
+            else histDate = new Date(hist.date);
+          } catch { histDate = new Date(); }
+          const hDateStr = histDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+          financialHtml += `
+            <div class="item-row" style="font-size: 11px;">
+              <span>${hDateStr} ${hist.note || 'Bayar'}</span>
+              <span>${(hist.amount || 0).toLocaleString('id-ID')}</span>
+            </div>
+          `;
+        }
+      }
+      financialHtml += `<div class="divider"></div>`;
+      const paidTotal = transaction.paidAmount ?? transaction.cashReceived ?? 0;
+      financialHtml += `
+        <div class="item-row" style="font-weight: bold;">
+          <span>TOTAL BAYAR</span>
+          <span>${paidTotal.toLocaleString('id-ID')}</span>
+        </div>
+      `;
+      const remaining = totalVal - paidTotal;
+      if (remaining > 0) {
+        financialHtml += `
+          <div class="item-row" style="font-weight: bold;">
+            <span>SISA PIUTANG</span>
+            <span>${remaining.toLocaleString('id-ID')}</span>
+          </div>
+        `;
+      }
+    } else {
+      // Cash payment
+      const cashVal = transaction.cashReceived || (transaction.change !== undefined ? transaction.change + totalVal : 0);
+      const changeVal = transaction.change !== undefined ? transaction.change : (cashVal > totalVal ? cashVal - totalVal : 0);
+      
+      if (transaction.paymentMethod?.toUpperCase() === 'CASH' && cashVal > 0) {
+        financialHtml += `
+          <div class="item-row" style="margin-top: 5px;">
+            <span>Tunai</span>
+            <span>${cashVal.toLocaleString('id-ID')}</span>
+          </div>
+          <div class="item-row">
+            <span>Kembali</span>
+            <span>${Math.abs(changeVal).toLocaleString('id-ID')}</span>
+          </div>
+        `;
+      }
+    }
+  }
+
+  const statusText = isEstimation
+    ? '[ DOKUMEN PENAWARAN ]'
+    : `[ ${transaction.paymentStatus === 'paid' ? 'LUNAS' : 'BELUM LUNAS'} - ${transaction.paymentMethod || '-'} ]`;
+
   return `
     <html>
       <head>
@@ -322,10 +412,13 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
         </div>
         <div class="divider"></div>
         
-        <div class="total-row">
-          <span>TOTAL</span>
-          <span>${(transaction.total || transaction.price || 0).toLocaleString('id-ID')}</span>
+        ${financialHtml}
+
+        <div class="divider"></div>
+        <div style="text-align: center; font-weight: bold; font-size: 12px; margin: 10px 0;">
+          ${statusText}
         </div>
+        <div class="divider"></div>
         
         <div class="footer">
           <p>${isEstimation ? 'Terima kasih atas kepercayaan Anda!' : 'Terima Kasih!'}</p>
