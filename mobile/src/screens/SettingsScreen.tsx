@@ -204,20 +204,21 @@ export default function SettingsScreen({ navigation, route }: any) {
 
       if (isEnabled) {
         const devicesStr = await BluetoothManager.enableBluetooth();
-        let devices = [];
+        let pairedDevices: any[] = [];
         try {
-          devices = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
+          const results = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
+          pairedDevices = results.paired || [];
         } catch (e) {
           console.warn("Failed to parse bound devices", e);
         }
         
         setBoundDevices(
-          devices.map((d: any) => {
+          pairedDevices.map((d: any) => {
             if (typeof d === 'string') {
               const splitted = d.split(',');
               return { name: splitted[0] || 'Unknown', address: splitted[1] || '' };
             }
-            return d;
+            return { name: d.name || 'Unknown', address: d.address || '' };
           }).filter((d: any) => d && d.address)
         );
       }
@@ -268,21 +269,20 @@ export default function SettingsScreen({ navigation, route }: any) {
       }
 
       const devicesStr = await BluetoothManager.scanDevices();
-      let devices = [];
+      let foundList: any[] = [];
       try {
-        devices = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
+        const results = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
+        foundList = results.found || [];
       } catch (e) {
-        if (devicesStr && devicesStr.found) {
-           devices = typeof devicesStr.found === 'string' ? JSON.parse(devicesStr.found) : devicesStr.found;
-        }
+        console.warn("Failed to parse scanned devices", e);
       }
       
-      let parsedFound = devices.map((d: any) => {
+      let parsedFound = foundList.map((d: any) => {
         if (typeof d === 'string') {
           const splitted = d.split(',');
           return { name: splitted[0] || 'Unknown', address: splitted[1] || '' };
         }
-        return d;
+        return { name: d.name || 'Unknown', address: d.address || '' };
       }).filter((d: any) => d && d.address);
 
       setFoundDevices(parsedFound);
