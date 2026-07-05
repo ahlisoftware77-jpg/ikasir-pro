@@ -2703,11 +2703,23 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
         @page { margin: 0; size: ${paperWidth}px ${baseHeight}px; }
         body { 
           margin: 0; 
-          padding: 15px; 
+          padding: ${is80mm ? '20px' : '15px'}; 
           box-sizing: border-box; 
           width: ${paperWidth}px; 
           background-color: #fff;
+          font-size: ${is80mm ? '16px' : '12px'} !important;
         }
+        .store-name { font-size: ${is80mm ? '28px' : '22px'} !important; }
+        .header { margin-bottom: ${is80mm ? '15px' : '10px'} !important; }
+        .flex, .item-name, .item-price { font-size: ${is80mm ? '16px' : '12px'} !important; }
+        .info, .left-info, .footer { font-size: ${is80mm ? '14px' : '11px'} !important; }
+        .total-row { font-size: ${is80mm ? '18px' : '14px'} !important; }
+        .divider { margin: ${is80mm ? '15px' : '10px'} 0 !important; }
+        
+        /* Overrides for inline styles in generateReceiptHtml */
+        div[style*="font-size: 11px"], span[style*="font-size: 11px"], p[style*="font-size: 11px"] { font-size: ${is80mm ? '14px' : '11px'} !important; }
+        div[style*="font-size: 12px"], span[style*="font-size: 12px"], p[style*="font-size: 12px"] { font-size: ${is80mm ? '16px' : '12px'} !important; }
+        div[style*="font-size: 14px"], span[style*="font-size: 14px"], p[style*="font-size: 14px"] { font-size: ${is80mm ? '18px' : '14px'} !important; }
       </style>
       </head>
     `);
