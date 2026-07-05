@@ -2571,14 +2571,48 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
     const productsMap = await fetchProductsMap(transaction?.storeId);
     
     // Generate HTML struk
-    const html = generateReceiptHtml(transaction, finalSettings, branding, isExpired, productsMap);
+    let html = generateReceiptHtml(transaction, finalSettings, branding, isExpired, productsMap);
+    
+    // Calculate approximate height for thermal receipt
+    const itemCount = transaction.items?.length || 1;
+    let baseHeight = 250 + (itemCount * 45) + 220;
+    if (transaction.paymentHistory && transaction.paymentHistory.length > 0) {
+      baseHeight += transaction.paymentHistory.length * 20;
+    }
+
+    // Inject CSS to make it look like a continuous thermal roll and fix alignments
+    html = html.replace('</head>', `
+      <style>
+        @page { margin: 0; size: 250px ${baseHeight}px; }
+        body { 
+          margin: 0; 
+          padding: 15px; 
+          box-sizing: border-box; 
+          width: 250px; 
+          background-color: #fff;
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        .header, .footer { text-align: center; }
+        .info { text-align: center; font-size: 11px; }
+        .items { border-bottom: 1px dashed #000; margin-bottom: 10px; padding-bottom: 10px; }
+      </style>
+      </head>
+    `);
     
     // Convert to PDF
-    const { uri } = await Print.printToFileAsync({ html, width: 250 });
+    const { uri } = await Print.printToFileAsync({ html, width: 250, height: baseHeight });
     
+    // Rename file to match transaction ID
+    const docId = (transaction.id || '').toUpperCase();
+    const cleanStoreName = (finalSettings?.storeName || 'IKASIR').split('@')[0].trim();
+    const fileName = `STRUK_${docId}.pdf`.replace(/[\/\\?%*:|"<>#& ]/g, '_');
+    const newPath = `${FileSystem.cacheDirectory}${fileName}`;
+    
+    await FileSystem.moveAsync({ from: uri, to: newPath });
+
     // Share PDF
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
+      await Sharing.shareAsync(newPath, {
         mimeType: 'application/pdf',
         dialogTitle: 'Bagikan Struk',
         UTI: 'com.adobe.pdf'
