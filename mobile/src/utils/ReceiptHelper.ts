@@ -2528,3 +2528,66 @@ export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
     throw error;
   }
 };
+
+export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => {
+  let settings = storeSettings;
+  let branding: any = null;
+  const isExpired = await checkSubscriptionExpired(transaction?.storeId);
+
+  if (transaction?.storeId) {
+    try {
+      const { db } = require('../lib/firebase');
+      const { doc, getDoc } = require('firebase/firestore');
+      const docSnap = await getDoc(doc(db, 'settings', `store_${transaction.storeId}`));
+      if (docSnap.exists()) {
+        settings = { ...settings, ...docSnap.data() };
+      }
+    } catch (err) {
+      console.warn("Failed to fetch settings from Firestore:", err);
+    }
+  }
+
+  try {
+    const { db } = require('../lib/firebase');
+    const { doc, getDoc } = require('firebase/firestore');
+    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    if (brandingSnap.exists()) {
+      branding = brandingSnap.data();
+    }
+  } catch (err) {
+    console.warn("Failed to fetch branding:", err);
+  }
+
+  try {
+    let finalSettings = settings;
+    let base64Logo = '';
+    if (finalSettings?.logoUrl) {
+      base64Logo = await convertUrlToBase64(finalSettings.logoUrl, 'temp_share_logo');
+    }
+    if (base64Logo) {
+      finalSettings = { ...finalSettings, logoUrl: base64Logo };
+    }
+
+    const productsMap = await fetchProductsMap(transaction?.storeId);
+    
+    // Generate HTML struk
+    const html = generateReceiptHtml(transaction, finalSettings, branding, isExpired, productsMap);
+    
+    // Convert to PDF
+    const { uri } = await Print.printToFileAsync({ html, width: 250 });
+    
+    // Share PDF
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Bagikan Struk',
+        UTI: 'com.adobe.pdf'
+      });
+    } else {
+      Alert.alert("Tidak Didukung", "Perangkat Anda tidak mendukung fitur berbagi file.");
+    }
+  } catch (error) {
+    console.error('Error sharing receipt:', error);
+    Alert.alert("Gagal", "Terjadi kesalahan saat membagikan struk.");
+  }
+};

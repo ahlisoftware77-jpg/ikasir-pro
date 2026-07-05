@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { History, Calendar, User, ChevronRight, X, UserCircle, Trash2, Printer, Truck, Share2, MessageCircle, ShieldCheck, FileText, PenTool, ShoppingBag, CreditCard, Clock, CheckCircle2 } from 'lucide-react-native';
-import { printReceipt, printA4, printA4Delivery } from '../utils/ReceiptHelper';
+import { printReceipt, printA4, printA4Delivery, shareReceiptPDF } from '../utils/ReceiptHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const hasBluetoothNativeModule = !!NativeModules.BluetoothManager || !!NativeModules.RNBluetoothManager;
@@ -1290,7 +1290,20 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                 className="flex-1 py-4 rounded-2xl items-center justify-center"
                 style={{ backgroundColor: colors.border }}
               >
-                <Text className="font-black text-xs uppercase" style={{ color: colors.text }}>Tutup</Text>
+                <Text className="font-black text-[11px] uppercase" style={{ color: colors.text }}>Tutup</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={async () => {
+                  if (viewingReceipt) {
+                    await shareReceiptPDF(viewingReceipt, storeSettings);
+                  }
+                }}
+                className="flex-[1.2] py-4 rounded-2xl items-center justify-center flex-row gap-1 shadow-sm border"
+                style={{ backgroundColor: colors.surface, borderColor: '#16a34a' }}
+              >
+                <Share2 size={14} color="#16a34a" />
+                <Text className="font-black text-[11px] uppercase" style={{ color: '#16a34a' }}>Bagikan</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -1299,11 +1312,11 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                     await handlePrintAction(viewingReceipt);
                   }
                 }}
-                className="flex-[2] py-4 rounded-2xl items-center justify-center flex-row gap-2 shadow-lg"
+                className="flex-[1.5] py-4 rounded-2xl items-center justify-center flex-row gap-1 shadow-lg"
                 style={{ backgroundColor: colors.accent }}
               >
-                <Printer size={16} color="white" />
-                <Text className="font-black text-white text-xs uppercase">Cetak ke Printer</Text>
+                <Printer size={14} color="white" />
+                <Text className="font-black text-white text-[11px] uppercase">Cetak</Text>
               </TouchableOpacity>
             </View>
           </View>
