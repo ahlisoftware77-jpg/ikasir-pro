@@ -21,7 +21,7 @@ import {
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
 } from 'lucide-react-native';
-import { printReceipt, printA4, printServiceReceipt, printServiceA4 } from '../utils/ReceiptHelper';
+import { printReceipt, printA4, printServiceReceipt, printServiceA4, shareReceiptPDF } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -2200,6 +2200,19 @@ export default function FeatureScreen({ route, navigation }: any) {
         }
       ]
     );
+  };
+
+  const handleSharePDF = async (item: any) => {
+    try {
+      if (!storeId) return;
+      Vibration.vibrate(15);
+      const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+      const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
+      await shareReceiptPDF(item, settingsData);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Terjadi kesalahan saat membagikan PDF: ' + (err.message || String(err)));
+    }
   };
 
   const handlePrintA4 = async (item: any) => {
@@ -4442,6 +4455,13 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                       >
                         <Printer size={12} color="#64748b" />
                         <Text className="text-[9px] font-black uppercase text-slate-600 tracking-wider">Thermal</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleSharePDF(item)}
+                        className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex-row items-center justify-center gap-1.5"
+                      >
+                        <Share2 size={12} color="#6366f1" />
+                        <Text className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">Bagikan</Text>
                       </TouchableOpacity>
                       {item.status === 'active' && (
                         <TouchableOpacity
@@ -7806,6 +7826,15 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                         className="flex-1 py-3 bg-slate-500/10 border border-slate-500/20 text-slate-600 rounded-xl flex items-center justify-center gap-1"
                       >
                         <Text className="text-[9px] font-black uppercase tracking-widest text-slate-500 text-center">Struk Thermal</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          Vibration.vibrate(10);
+                          handleSharePDF(selectedDebt);
+                        }}
+                        className="flex-1 py-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-xl flex items-center justify-center gap-1"
+                      >
+                        <Text className="text-[9px] font-black uppercase tracking-widest text-indigo-500 text-center">Bagikan</Text>
                       </TouchableOpacity>
                     </View>
 

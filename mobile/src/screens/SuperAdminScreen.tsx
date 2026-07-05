@@ -180,6 +180,31 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [isUpdatingMaintenance, setIsUpdatingMaintenance] = useState(false);
 
+  useEffect(() => {
+    const backAction = () => {
+      if (editingStore) {
+        setEditingStore(null);
+        return true;
+      }
+      if (isAddingStore) {
+        setIsAddingStore(false);
+        return true;
+      }
+      if (editingUser) {
+        setEditingUser(null);
+        return true;
+      }
+      if (isAddingUser) {
+        setIsAddingUser(false);
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [editingStore, isAddingStore, editingUser, isAddingUser]);
+
   const pickBroadcastImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -1766,7 +1791,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const renderEditUserForm = () => {
     if (!editingUser) return null;
     return (
-      <Modal visible={true} animationType="slide" onRequestClose={() => setEditingUser(null)}>
+      <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, elevation: 50, backgroundColor: colors.bg }]}>
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg }}>
           <View className="flex-1 px-6 pt-4">
             {/* Header Kembali */}
@@ -1938,14 +1963,14 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         </ScrollView>
       </View>
       </SafeAreaView>
-      </Modal>
+      </View>
     );
   };
 
   const renderEditStoreForm = () => {
     if (!editingStore) return null;
     return (
-      <Modal visible={true} animationType="slide" onRequestClose={() => setEditingStore(null)}>
+      <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, elevation: 50, backgroundColor: colors.bg }]}>
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg }}>
           <View className="flex-1 px-6 pt-4">
             {/* Header Kembali */}
@@ -2071,7 +2096,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         </ScrollView>
       </View>
       </SafeAreaView>
-      </Modal>
+      </View>
     );
   };
 
@@ -2302,62 +2327,12 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                           borderLeftColor: s.isActive !== false ? '#10b981' : '#f43f5e'
                         }}
                       >
-                        <View className="mb-3 space-y-3">
-                          <View>
-                            <Text className="text-sm font-black uppercase" style={{ color: colors.text }} numberOfLines={1}>{s.name}</Text>
-                            <Text className="text-[10px] font-bold text-slate-400 font-mono" numberOfLines={1}>ID: {s.id}</Text>
-                          </View>
-                          <View className="flex-row gap-2 flex-wrap">
-                            <TouchableOpacity 
-                              onPress={() => handleEditStore(s)}
-                              className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl"
-                            >
-                              <Pencil size={14} color="#3b82f6" />
-                            </TouchableOpacity>
-                             <TouchableOpacity 
-                              onPress={() => triggerBackup(s.id)}
-                              disabled={isBackingUp !== null || isRestoring}
-                              className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl"
-                            >
-                              {isBackingUp === s.id ? (
-                                <ActivityIndicator size="small" color="#8b5cf6" />
-                              ) : (
-                                <Download size={14} color="#8b5cf6" />
-                              )}
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              onPress={() => onFileRestoreStore(s.id)}
-                              disabled={isRestoring || isBackingUp !== null}
-                              className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl"
-                            >
-                              {isRestoring ? (
-                                <ActivityIndicator size="small" color="#f59e0b" />
-                              ) : (
-                                <Upload size={14} color="#f59e0b" />
-                              )}
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              onPress={() => setMigratingStoreData(s)}
-                              className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"
-                            >
-                              <Database size={14} color="#10b981" />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              onPress={() => handleUpdateStore(s.id, s.isActive ?? true)}
-                              className={`p-2.5 rounded-xl border ${s.isActive !== false ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}
-                            >
-                              <Power size={14} color={s.isActive !== false ? '#10b981' : '#94a3b8'} />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                              onPress={() => handleDeleteStorePermanently(s.id)}
-                              className="p-2.5 rounded-xl border bg-rose-500/10 border-rose-500/20"
-                            >
-                              <Trash2 size={14} color="#f43f5e" />
-                            </TouchableOpacity>
-                          </View>
+                        <View className="mb-3">
+                          <Text className="text-sm font-black uppercase" style={{ color: colors.text }} numberOfLines={1}>{s.name}</Text>
+                          <Text className="text-[10px] font-bold text-slate-400 font-mono" numberOfLines={1}>ID: {s.id}</Text>
                         </View>
 
-                        <View className="bg-black/10 p-3 rounded-2xl">
+                        <View className="bg-black/10 p-3 rounded-2xl mb-3">
                           <View className="flex-row justify-between mb-1">
                             <Text className="text-[8px] font-black text-slate-500">PEMILIK:</Text>
                             <Text className="text-[9px] font-bold" style={{ color: colors.text }} numberOfLines={1}>{s.ownerEmail}</Text>
@@ -2372,6 +2347,55 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                               {s.isActive !== false ? 'AKTIF' : 'NON-AKTIF'}
                             </Text>
                           </View>
+                        </View>
+
+                        <View className="flex-row gap-2 flex-wrap pt-2 mt-1 border-t" style={{ borderColor: colors.border + '20' }}>
+                          <TouchableOpacity 
+                            onPress={() => handleEditStore(s)}
+                            className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl"
+                          >
+                            <Pencil size={14} color="#3b82f6" />
+                          </TouchableOpacity>
+                           <TouchableOpacity 
+                            onPress={() => triggerBackup(s.id)}
+                            disabled={isBackingUp !== null || isRestoring}
+                            className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl"
+                          >
+                            {isBackingUp === s.id ? (
+                              <ActivityIndicator size="small" color="#8b5cf6" />
+                            ) : (
+                              <Download size={14} color="#8b5cf6" />
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            onPress={() => onFileRestoreStore(s.id)}
+                            disabled={isRestoring || isBackingUp !== null}
+                            className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl"
+                          >
+                            {isRestoring ? (
+                              <ActivityIndicator size="small" color="#f59e0b" />
+                            ) : (
+                              <Upload size={14} color="#f59e0b" />
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            onPress={() => setMigratingStoreData(s)}
+                            className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl"
+                          >
+                            <Database size={14} color="#10b981" />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            onPress={() => handleUpdateStore(s.id, s.isActive ?? true)}
+                            className={`p-2.5 rounded-xl border ${s.isActive !== false ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-500/10 border-slate-500/20'}`}
+                          >
+                            <Power size={14} color={s.isActive !== false ? '#10b981' : '#94a3b8'} />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            onPress={() => handleDeleteStorePermanently(s.id)}
+                            className="p-2.5 rounded-xl border bg-rose-500/10 border-rose-500/20"
+                          >
+                            <Trash2 size={14} color="#f43f5e" />
+                          </TouchableOpacity>
                         </View>
                       </View>
                     );
