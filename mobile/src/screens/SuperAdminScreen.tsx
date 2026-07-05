@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, 
   TextInput, Switch, ActivityIndicator, Alert, Image, Linking, 
-  KeyboardAvoidingView, Platform, Dimensions 
+  KeyboardAvoidingView, Platform, Dimensions, BackHandler
 } from 'react-native';
 import styled from 'styled-components/native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -143,6 +143,27 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       navigation.goBack();
     }
   }, [role, navigation, permissions]);
+
+  React.useEffect(() => {
+    const backAction = () => {
+      if (editingStore) {
+        setEditingStore(null);
+        return true; // Prevent default behavior
+      }
+      if (editingUser) {
+        setEditingUser(null);
+        return true;
+      }
+      return false; // Let default behavior happen
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [editingStore, editingUser]);
 
   const [superAdminUsers, setSuperAdminUsers] = useState<any[]>([]);
   const [superAdminStores, setSuperAdminStores] = useState<any[]>([]);
@@ -2284,7 +2305,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
               <View className="space-y-4 pb-20">
                 {superAdminStores
                   .filter(s => s.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()))
