@@ -207,7 +207,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         let pairedDevices: any[] = [];
         try {
           const results = typeof devicesStr === 'string' ? JSON.parse(devicesStr) : devicesStr;
-          pairedDevices = results.paired || [];
+          pairedDevices = Array.isArray(results) ? results : (results.paired || []);
         } catch (e) {
           console.warn("Failed to parse bound devices", e);
         }
