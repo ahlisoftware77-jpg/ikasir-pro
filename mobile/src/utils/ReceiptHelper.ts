@@ -177,25 +177,29 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
     }
 
     return `
-      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <div style="flex: 1;">
-          <div style="font-weight: bold;">${item.productName || item.name}</div>
-          <div style="font-size: 10px; color: #666;">${item.qty || 1} x Rp ${(item.price || 0).toLocaleString('id-ID')}</div>
-          ${item.selectedExtras?.map((e: any) => `<div style="font-size: 9px; margin-left: 10px;">+ ${e.optionName || e.name} (Rp ${(e.price || 0).toLocaleString('id-ID')})</div>`).join('') || ''}
-          ${expiryStr ? `
-            <div style="font-size: 9px; color: #10b981; font-weight: bold; margin-top: 2px;">
-              🛡️ Garansi s/d: ${expiryStr} (Mulai ${wStartDate ? wStartDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''})
-            </div>
-          ` : duration > 0 ? `
-            <div style="font-size: 9px; color: #3b82f6; font-weight: bold; margin-top: 2px;">
-              🛡️ Garansi: ${duration} ${unit === 'days' ? 'Hari' : unit === 'months' ? 'Bulan' : 'Tahun'} (Belum Aktif - Menunggu Pembayaran DP/Lunas)
-            </div>
-          ` : ''}
+      <div style="margin-bottom: 5px;">
+        <div style="font-weight: bold; font-size: 12px;">${item.productName || item.name}</div>
+        ${item.selectedExtras?.map((e: any) => `<div style="font-size: 11px; margin-left: 10px;">+ ${e.optionName || e.name} (Rp ${(e.price || 0).toLocaleString('id-ID')})</div>`).join('') || ''}
+        ${item.note ? `<div style="font-size: 11px; text-align: center;">( ${item.note} )</div>` : ''}
+        <div class="item-row">
+          <div class="item-name">${item.qty || 1} x ${(item.price || 0).toLocaleString('id-ID')}</div>
+          <div class="item-price">${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</div>
         </div>
-        <div style="font-weight: bold;">Rp ${(item.subtotal || ((item.price || 0) * (item.qty || 1))).toLocaleString('id-ID')}</div>
+        ${expiryStr ? `
+          <div style="font-size: 11px; font-weight: bold;">
+            [Garansi s/d: ${expiryStr}]
+          </div>
+        ` : duration > 0 ? `
+          <div style="font-size: 11px; font-weight: bold;">
+            [Garansi: ${duration} ${unit === 'days' ? 'Hr' : unit === 'months' ? 'Bln' : 'Thn'} (Non-aktif)]
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
+
+  const rawCashier = transaction.cashierName || 'Kasir';
+  const cleanCashier = rawCashier.includes('@') ? rawCashier.split('@')[0] : rawCashier;
 
   return `
     <html>
@@ -240,8 +244,16 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
             font-style: normal;
           }
 
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333; }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
+          body { 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 5px; 
+            color: #000; 
+            font-size: 12px;
+            width: 100%;
+            margin: 0;
+            box-sizing: border-box;
+          }
+          .header { text-align: center; margin-bottom: 10px; }
           .store-name { 
             font-size: 22px; 
             margin-bottom: 5px; 
@@ -278,41 +290,49 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
               }
             })()};
           }
-          .info { font-size: 12px; margin-bottom: 2px; text-align: center; white-space: pre-wrap; }
-          .items { margin-bottom: 20px; border-bottom: 1px dashed #ccc; padding-bottom: 15px; }
-          .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; margin-top: 10px; }
-          .footer { text-align: center; margin-top: 30px; font-size: 10px; color: #999; }
+          .info { font-size: 11px; margin-bottom: 2px; text-align: center; white-space: pre-wrap; }
+          .divider { border-top: 1px dashed #000; margin: 8px 0; }
+          .left-info { text-align: left; font-size: 11px; margin-bottom: 2px; font-weight: bold; }
+          .items { margin-bottom: 10px; }
+          .item-row { display: flex; justify-content: space-between; margin-bottom: 3px; align-items: flex-start; }
+          .item-name { flex: 1; text-align: left; font-size: 12px; font-weight: normal; }
+          .item-price { text-align: right; font-size: 12px; font-weight: normal; }
+          .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-top: 5px; }
+          .footer { text-align: center; margin-top: 15px; font-size: 11px; color: #000; }
         </style>
       </head>
       <body>
         <div class="header">
-          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `<div style="text-align: center; margin-bottom: 10px;"><img src="${storeSettings.logoUrl}" style="max-width: 120px; max-height: 80px; filter: grayscale(100%);" /></div>` : ''}
+          ${storeSettings?.showLogoOnReceipt !== false && storeSettings?.logoUrl ? `<div style="text-align: center; margin-bottom: 10px;"><img src="${storeSettings.logoUrl}" style="max-width: 200px; max-height: 80px; filter: grayscale(100%); object-fit: contain;" /></div>` : ''}
           <div class="store-name">${cleanStoreName}</div>
           ${address ? `<div class="info">${address}</div>` : ''}
-          ${phone ? `<div class="info">Telp: ${phone}</div>` : ''}
-          <div style="margin: 10px 0; border-top: 1px solid #eee; padding-top: 5px;"></div>
-          <div class="info">${isEstimation ? 'ID Estimasi' : 'ID Transaksi'}: #${(transaction.id || '').substring(0, 8).toUpperCase()}</div>
-          <div class="info">${dateStr}</div>
-          <div class="info">${isEstimation ? 'Pelanggan: ' + (transaction.customerName || 'Umum') : 'Kasir: ' + (transaction.cashierName || 'Kasir')}</div>
-          ${isEstimation && transaction.validUntil ? `<div class="info" style="color: #f59e0b; font-weight: bold; margin-top: 5px;">Berlaku s/d: ${new Date(transaction.validUntil).toLocaleDateString('id-ID')}</div>` : ''}
+          ${phone ? `<div class="info">${phone}</div>` : ''}
         </div>
+        <div class="divider"></div>
+        <div class="left-info">Wkt: ${dateStr}</div>
+        <div class="left-info">ID : ${(transaction.id || '').substring(0, 12).toUpperCase()}</div>
+        ${isEstimation && transaction.validUntil ? `<div class="left-info">Berlaku s/d: ${new Date(transaction.validUntil).toLocaleDateString('id-ID')}</div>` : ''}
+        <div class="left-info">Ksr: ${cleanCashier}</div>
+        ${(transaction.customerName && transaction.customerName !== 'Tanpa Nama') ? `<div class="left-info">Pmsn: ${transaction.customerName}</div>` : ''}
+        ${transaction.queueNumber ? `<div class="left-info">Antr: #${transaction.queueNumber}</div>` : ''}
+        <div class="divider"></div>
         
         <div class="items">
           ${itemsHtml}
         </div>
+        <div class="divider"></div>
         
         <div class="total-row">
           <span>TOTAL</span>
-          <span>Rp ${(transaction.total || transaction.price || 0).toLocaleString('id-ID')}</span>
+          <span>${(transaction.total || transaction.price || 0).toLocaleString('id-ID')}</span>
         </div>
         
         <div class="footer">
-          <p>${isEstimation ? 'Terima kasih atas kepercayaan Anda!' : 'Terima kasih telah berbelanja!'}</p>
-          <p>${isEstimation ? 'Silakan hubungi kami untuk konfirmasi lebih lanjut.' : 'Barang yang sudah dibeli tidak dapat ditukar atau dikembalikan.'}</p>
+          <p>${isEstimation ? 'Terima kasih atas kepercayaan Anda!' : 'Terima Kasih!'}</p>
         </div>
 
         ${isExpired && branding?.receiptWatermark ? `
-          <div style="text-align: center; margin-top: 20px; font-size: 8px; font-weight: bold; text-transform: uppercase; opacity: 0.5; border-top: 1px dashed #ccc; padding-top: 10px; color: #999; letter-spacing: 2px;">
+          <div style="text-align: center; margin-top: 20px; font-size: 10px; font-weight: bold; text-transform: uppercase; border-top: 1px dashed #000; padding-top: 10px; letter-spacing: 1px;">
             ${branding.receiptWatermark}
           </div>
         ` : ''}
@@ -2575,36 +2595,35 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
     
     // Calculate approximate height for thermal receipt
     const itemCount = transaction.items?.length || 1;
-    let baseHeight = 250 + (itemCount * 45) + 220;
+    let baseHeight = 350 + (itemCount * 70) + 120;
     if (transaction.paymentHistory && transaction.paymentHistory.length > 0) {
       baseHeight += transaction.paymentHistory.length * 20;
     }
 
+    // Determine paper width
+    const is80mm = storeSettings?.paperSize === '80mm';
+    const paperWidth = is80mm ? 380 : 300;
+
     // Inject CSS to make it look like a continuous thermal roll and fix alignments
     html = html.replace('</head>', `
       <style>
-        @page { margin: 0; size: 250px ${baseHeight}px; }
+        @page { margin: 0; size: ${paperWidth}px ${baseHeight}px; }
         body { 
           margin: 0; 
           padding: 15px; 
           box-sizing: border-box; 
-          width: 250px; 
+          width: ${paperWidth}px; 
           background-color: #fff;
-          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         }
-        .header, .footer { text-align: center; }
-        .info { text-align: center; font-size: 11px; }
-        .items { border-bottom: 1px dashed #000; margin-bottom: 10px; padding-bottom: 10px; }
       </style>
       </head>
     `);
     
     // Convert to PDF
-    const { uri } = await Print.printToFileAsync({ html, width: 250, height: baseHeight });
+    const { uri } = await Print.printToFileAsync({ html, width: paperWidth, height: baseHeight });
     
     // Rename file to match transaction ID
     const docId = (transaction.id || '').toUpperCase();
-    const cleanStoreName = (finalSettings?.storeName || 'IKASIR').split('@')[0].trim();
     const fileName = `STRUK_${docId}.pdf`.replace(/[\/\\?%*:|"<>#& ]/g, '_');
     const newPath = `${FileSystem.cacheDirectory}${fileName}`;
     
