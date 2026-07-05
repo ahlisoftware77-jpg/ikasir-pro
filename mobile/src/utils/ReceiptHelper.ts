@@ -2693,39 +2693,42 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
       baseHeight += transaction.paymentHistory.length * 20;
     }
 
-    // Determine paper width
+    // Determine paper width and scale for high-res thermal printing
     const is80mm = finalSettings?.paperSize === '80mm';
-    const paperWidth = is80mm ? 380 : 300;
+    const paperWidth = is80mm ? 576 : 384;
+    const scale = is80mm ? 1.92 : 1.28;
+    const fs = (px: number) => Math.round(px * scale) + 'px';
+    const scaledHeight = Math.round(baseHeight * scale);
 
     // Inject CSS to make it look like a continuous thermal roll and fix alignments
     html = html.replace('</head>', `
       <style>
-        @page { margin: 0; size: ${paperWidth}px ${baseHeight}px; }
+        @page { margin: 0; size: ${paperWidth}px ${scaledHeight}px; }
         body { 
           margin: 0; 
-          padding: ${is80mm ? '20px' : '15px'}; 
+          padding: 10px 10px; /* Minimal padding so it reaches left and right edges */
           box-sizing: border-box; 
           width: ${paperWidth}px; 
           background-color: #fff;
-          font-size: ${is80mm ? '16px' : '12px'} !important;
+          font-size: ${fs(12)} !important;
         }
-        .store-name { font-size: ${is80mm ? '28px' : '22px'} !important; }
-        .header { margin-bottom: ${is80mm ? '15px' : '10px'} !important; }
-        .flex, .item-name, .item-price { font-size: ${is80mm ? '16px' : '12px'} !important; }
-        .info, .left-info, .footer { font-size: ${is80mm ? '14px' : '11px'} !important; }
-        .total-row { font-size: ${is80mm ? '18px' : '14px'} !important; }
-        .divider { margin: ${is80mm ? '15px' : '10px'} 0 !important; }
+        .store-name { font-size: ${fs(22)} !important; }
+        .header { margin-bottom: ${fs(10)} !important; }
+        .flex, .item-name, .item-price { font-size: ${fs(12)} !important; }
+        .info, .left-info, .footer { font-size: ${fs(11)} !important; }
+        .total-row { font-size: ${fs(14)} !important; }
+        .divider { margin: ${fs(10)} 0 !important; }
         
         /* Overrides for inline styles in generateReceiptHtml */
-        div[style*="font-size: 11px"], span[style*="font-size: 11px"], p[style*="font-size: 11px"] { font-size: ${is80mm ? '14px' : '11px'} !important; }
-        div[style*="font-size: 12px"], span[style*="font-size: 12px"], p[style*="font-size: 12px"] { font-size: ${is80mm ? '16px' : '12px'} !important; }
-        div[style*="font-size: 14px"], span[style*="font-size: 14px"], p[style*="font-size: 14px"] { font-size: ${is80mm ? '18px' : '14px'} !important; }
+        div[style*="font-size: 11px"], span[style*="font-size: 11px"], p[style*="font-size: 11px"] { font-size: ${fs(11)} !important; }
+        div[style*="font-size: 12px"], span[style*="font-size: 12px"], p[style*="font-size: 12px"] { font-size: ${fs(12)} !important; }
+        div[style*="font-size: 14px"], span[style*="font-size: 14px"], p[style*="font-size: 14px"] { font-size: ${fs(14)} !important; }
       </style>
       </head>
     `);
     
     // Convert to PDF
-    const { uri } = await Print.printToFileAsync({ html, width: paperWidth, height: baseHeight });
+    const { uri } = await Print.printToFileAsync({ html, width: paperWidth, height: scaledHeight });
     
     // Rename file to match transaction ID
     const docId = (transaction.id || '').toUpperCase();
