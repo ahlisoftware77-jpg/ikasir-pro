@@ -227,23 +227,45 @@ export default function SettingsScreen({ navigation, route }: any) {
     }
   };
 
-  const requestBluetoothPermissions = async () => {
-    if (Platform.OS === 'android' && Platform.Version >= 31) {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
+  const requestBluetoothPermissions = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      if (Number(Platform.Version) >= 31) {
+        const results = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         ]);
-        return (
-          granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED
+
+        const scanGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED;
+        const connectGranted = results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED;
+        
+        if (!scanGranted || !connectGranted) {
+          Alert.alert(
+            "Izin Dibutuhkan",
+            "Aplikasi membutuhkan izin Bluetooth Scan dan Bluetooth Connect untuk mendeteksi & menyalakan printer."
+          );
+          return false;
+        }
+        return true;
+      } else {
+        const locationGranted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
         );
-      } catch (err) {
-        console.warn(err);
-        return false;
+        if (locationGranted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert(
+            "Izin Dibutuhkan",
+            "Aplikasi membutuhkan izin Lokasi untuk mendeteksi printer Bluetooth."
+          );
+          return false;
+        }
+        return true;
       }
+    } catch (err) {
+      console.warn(err);
+      return false;
     }
-    return true; // on older android versions, permissions are requested at install time
   };
 
   const scanBluetoothDevices = async () => {
@@ -267,6 +289,9 @@ export default function SettingsScreen({ navigation, route }: any) {
         setIsScanningBluetooth(false);
         return;
       }
+
+      await BluetoothManager.enableBluetooth();
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       const devicesStr = await BluetoothManager.scanDevices();
       let foundList: any[] = [];
