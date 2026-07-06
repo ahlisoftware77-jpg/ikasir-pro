@@ -534,7 +534,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
         }
 
         @media print {
-          @page { margin: 0; }
+          @page { margin: 0; size: ${is80mm ? '80mm auto' : '58mm auto'}; }
           body { margin: 0; }
         }
         body {

@@ -30,7 +30,8 @@ import {
   PlusCircle,
   Search,
   PenTool,
-  Share2
+  Share2,
+  MessageCircle
 } from 'lucide-react';
 import { printReceipt } from '@/lib/printReceipt';
 import { useAuthStore } from '@/store/auth';
@@ -112,6 +113,50 @@ export default function EstimationsPage() {
 
     return () => unsubscribe();
   }, [storeId]);
+
+  const handleSendWA = async (trx: any) => {
+    if (!trx.customerId) {
+        toast.error("Nomor WhatsApp tidak diketahui karena tidak ada data Pelanggan yang ditautkan pada Kasir sebelumnya.");
+        return;
+    }
+    
+    try {
+        const custDoc = await getDoc(doc(db, 'customers', trx.customerId));
+        if (!custDoc.exists()) {
+             toast.error("Data pelanggan tidak ditemukan!");
+             return;
+        }
+        
+        const customerData = custDoc.data();
+        if (!customerData.phone) {
+             toast.error(`Pelanggan "${customerData.name}" belum mencantumkan nomor telepon / WA pada sistem.`);
+             return;
+        }
+        
+        let phone = customerData.phone.replace(/\D/g, '');
+        if (phone.startsWith('0')) {
+             phone = '62' + phone.substring(1);
+        }
+        
+        const total = trx.total || 0;
+        const trxId = trx.id?.substring(0, 8);
+        const validUntil = trx.validUntil ? new Date(trx.validUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
+        
+        let text = storeSettings?.waTemplate || 'Halo *{customerName}*,\n\nKami dari *{storeName}* menyampaikan Penawaran Harga / Estimasi (Ref: *#{trxId}*)\n\nTotal Estimasi: *{total}*\nBerlaku Hingga: *{validUntil}*\n\nTerima kasih!';
+        
+        text = text.replace(/{customerName}/g, customerData.name)
+                  .replace(/{trxId}/g, trxId)
+                  .replace(/{total}/g, `Rp ${total.toLocaleString('id-ID')}`)
+                  .replace(/{validUntil}/g, validUntil)
+                  .replace(/{storeName}/g, storeSettings?.storeName || 'Toko Kami');
+                  
+        const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+    } catch (err) {
+        console.error("Gagal mengambil kontak WhatsApp: ", err);
+        toast.error("Terjadi kesalahan saat memproses kontak.");
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Yakin ingin menghapus estimasi ini (data akan hilang permanen)?')) return;
@@ -314,6 +359,12 @@ export default function EstimationsPage() {
                     className="col-span-2 py-3 bg-accent/10 border border-accent/20 text-accent rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center justify-center gap-2"
                   >
                     <Share2 size={14} /> BAGIKAN LINK TTD
+                  </button>
+                  <button 
+                    onClick={() => handleSendWA(est)}
+                    className="col-span-2 py-3 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#25D366] hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle size={14} /> KIRIM WA (ESTIMASI)
                   </button>
                   {est.status === 'active' && (
                     <button 

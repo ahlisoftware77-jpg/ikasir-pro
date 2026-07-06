@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, orderBy, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuthStore } from '@/store/auth';
 import { 
@@ -22,7 +22,8 @@ import {
   Globe,
   Share2,
   Edit2,
-  Download
+  Download,
+  MessageCircle
 } from 'lucide-react';
 import { Transaction } from '@/types';
 import toast from 'react-hot-toast';
@@ -171,6 +172,54 @@ export default function DebtsPage() {
       toast.error('Terjadi kesalahan saat menyimpan pembayaran.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSendWA = async (trx: any) => {
+    if (!trx.customerId) {
+        toast.error("Nomor WhatsApp tidak diketahui karena tidak ada data Pelanggan yang ditautkan pada Kasir sebelumnya.");
+        return;
+    }
+    
+    try {
+        const custDoc = await getDoc(doc(db, 'customers', trx.customerId));
+        if (!custDoc.exists()) {
+             toast.error("Data pelanggan tidak ditemukan!");
+             return;
+        }
+        
+        const customerData = custDoc.data();
+        if (!customerData.phone) {
+             toast.error(`Pelanggan "${customerData.name}" belum mencantumkan nomor telepon / WA pada sistem.`);
+             return;
+        }
+        
+        let phone = customerData.phone.replace(/\D/g, '');
+        if (phone.startsWith('0')) {
+             phone = '62' + phone.substring(1);
+        }
+        
+        const paid = trx.paidAmount || 0;
+        const total = trx.total || 0;
+        const sisa = Math.max(0, total - paid);
+        const dDate = trx.dueDate ? new Date(trx.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
+        const trxId = trx.id?.substring(0, 8);
+        
+        let text = storeSettings?.waTemplate || 'Halo *{customerName}*,\n\nKami dari *{storeName}* ingin menyampaikan rincian tagihan pesanan Anda (Ref: *#{trxId}*)\n\nTotal Tagihan: *{total}*\nTelah Dibayar: {paid}\nSisa Piutang : *{debt}*\nJatuh Tempo  : *{dueDate}*\n\nMohon dapat melakukan pelunasan sisa tagihan sebelum jatuh tempo. Terima kasih!';
+        
+        text = text.replace(/{customerName}/g, customerData.name)
+                  .replace(/{trxId}/g, trxId)
+                  .replace(/{total}/g, `Rp ${total.toLocaleString('id-ID')}`)
+                  .replace(/{paid}/g, `Rp ${paid.toLocaleString('id-ID')}`)
+                  .replace(/{debt}/g, `Rp ${sisa.toLocaleString('id-ID')}`)
+                  .replace(/{dueDate}/g, dDate)
+                  .replace(/{storeName}/g, storeSettings?.storeName || 'Toko Kami');
+                  
+        const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+    } catch (err) {
+        console.error("Gagal mengambil kontak WhatsApp: ", err);
+        toast.error("Terjadi kesalahan saat memproses kontak.");
     }
   };
 
@@ -476,6 +525,13 @@ export default function DebtsPage() {
                         >
                            <Printer size={18} className="group-hover:scale-110 transition-transform" />
                            <span className="text-[9px] font-black uppercase tracking-widest">Struk Thermal</span>
+                        </button>
+                        <button 
+                          onClick={() => handleSendWA(selectedDebt)}
+                          className="py-3 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-[#25D366] hover:text-white transition-all group col-span-2"
+                        >
+                          <MessageCircle size={18} className="group-hover:scale-110 transition-transform" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">Kirim Tagihan WA</span>
                         </button>
                      </div>
 
