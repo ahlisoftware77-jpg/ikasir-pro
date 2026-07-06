@@ -318,10 +318,10 @@ export default function SettingsPage() {
     
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setSettings(prev => ({ ...prev, [name]: checked }));
+      setSettings((prev: any) => ({ ...prev, [name]: checked }));
     } else {
       const isNumericField = ['taxRate', 'trxPadding', 'trxCounter', 'deliveryFee', 'estPadding', 'estCounter', 'debPadding', 'debCounter', 'ordPadding', 'ordCounter'].includes(name);
-      setSettings(prev => ({ ...prev, [name]: isNumericField ? Number(value) : value }));
+      setSettings((prev: any) => ({ ...prev, [name]: isNumericField ? Number(value) : value }));
     }
   };
 
@@ -1401,7 +1401,7 @@ export default function SettingsPage() {
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => setSettings(prev => ({...prev, receiptAlignment: option.id}))}
+                      onClick={() => setSettings((prev: any) => ({...prev, receiptAlignment: option.id}))}
                       className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${settings.receiptAlignment === option.id || (!settings.receiptAlignment && option.id === 'center') ? 'bg-accent text-white shadow-md' : 'text-app-text hover:bg-black/5 dark:hover:bg-white/5'}`}
                     >
                       {option.label}
