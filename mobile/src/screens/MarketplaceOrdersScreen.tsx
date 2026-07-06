@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import dayjs from 'dayjs';
 import 'dayjs/locale/id';
@@ -19,6 +19,27 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
   
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [storeNames, setStoreNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchStoreNames = async () => {
+      const newNames = { ...storeNames };
+      let changed = false;
+      for (const order of orders) {
+        if (order.storeId && !newNames[order.storeId]) {
+          try {
+            const snap = await getDoc(doc(db, 'settings', `store_${order.storeId}`));
+            if (snap.exists() && snap.data().storeName) {
+              newNames[order.storeId] = snap.data().storeName;
+              changed = true;
+            }
+          } catch (e) {}
+        }
+      }
+      if (changed) setStoreNames(newNames);
+    };
+    if (orders.length > 0) fetchStoreNames();
+  }, [orders]);
 
   useEffect(() => {
     if (!user) {
@@ -120,7 +141,14 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
         <View style={[styles.orderHeader, { borderBottomColor: colors.border }]}>
           <View style={styles.orderHeaderLeft}>
             <Package color={colors.text} size={16} />
-            <Text style={[styles.orderId, { color: colors.text }]}>{item.id}</Text>
+            <View>
+              <Text style={[styles.orderId, { color: colors.text }]}>{item.id}</Text>
+              {(item.storeName || storeNames[item.storeId]) && (
+                <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 2, fontWeight: 'bold' }}>
+                  Toko: {item.storeName || storeNames[item.storeId]}
+                </Text>
+              )}
+            </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusConfig.color + '20' }]}>
             <StatusIcon color={statusConfig.color} size={12} />
