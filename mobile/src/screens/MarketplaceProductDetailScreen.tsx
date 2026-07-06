@@ -175,7 +175,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const handleShare = async () => {
     if (!product) return;
     try {
-      const shareUrl = `https://app.kasirpro.com/marketplace/${product.id}?s=${routeStoreId || product.storeId}`;
+      const shareUrl = `https://ikasir.my.id/marketplace/${product.id}?s=${routeStoreId || product.storeId}`;
       const message = `Lihat ${product.name} di iKasir Pro!\n\nHarga: Rp ${product.price?.toLocaleString('id-ID')}\n\nBelanja sekarang:\n${shareUrl}`;
       
       await Share.share({
