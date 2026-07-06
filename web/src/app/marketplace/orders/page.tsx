@@ -12,7 +12,6 @@ export default function MarketplaceOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [phoneQuery, setPhoneQuery] = useState('');
-  const [isSearched, setIsSearched] = useState(false);
   const [reviewProduct, setReviewProduct] = useState<{
     productId: string;
     productName: string;
@@ -36,17 +35,10 @@ export default function MarketplaceOrdersPage() {
     if (!phone) return;
     setLoading(true);
     try {
-      const activeStoreId = localStorage.getItem('marketplace_store_id');
-      const q = activeStoreId
-        ? query(
-            collection(db, 'transactions'),
-            where('customerPhone', '==', phone),
-            where('storeId', '==', activeStoreId)
-          )
-        : query(
-            collection(db, 'transactions'),
-            where('customerPhone', '==', phone)
-          );
+      const q = query(
+        collection(db, 'transactions'),
+        where('customerPhone', '==', phone)
+      );
       const snap = await getDocs(q);
       let list: any[] = [];
       const storeNames: Record<string, string> = {};
@@ -70,8 +62,6 @@ export default function MarketplaceOrdersPage() {
       }
       list.sort((a,b) => b.createdAt - a.createdAt);
       setOrders(list);
-      setIsSearched(true);
-      localStorage.setItem('customer_phone', phone);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -113,43 +103,20 @@ export default function MarketplaceOrdersPage() {
       </nav>
 
       <main className="max-w-2xl mx-auto w-full p-4 flex-1">
-        {!isSearched && !loading && orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Package size={48} className="text-slate-300 mb-4" />
-            <h2 className="text-sm font-black uppercase mb-2">Cek Pesanan Anda</h2>
-            <p className="text-xs text-slate-500 mb-6 max-w-xs">Masukkan nomor WhatsApp yang Anda gunakan saat checkout untuk melihat status pesanan.</p>
-            <div className="flex w-full max-w-sm gap-2 mx-auto">
-              <input 
-                type="tel" 
-                value={phoneQuery} 
-                onChange={(e) => setPhoneQuery(e.target.value)} 
-                placeholder="081234567890" 
-                className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 text-sm font-bold focus:outline-none focus:border-emerald-500"
-              />
-              <button 
-                onClick={() => fetchOrders(phoneQuery)}
-                className="bg-emerald-500 text-white px-4 rounded-xl flex items-center justify-center hover:bg-emerald-600"
-              >
-                <Search size={18} />
-              </button>
+        <div className="space-y-4">
+          {loading ? (
+            <p className="text-center text-xs text-slate-500 py-10 font-bold animate-pulse">Memuat pesanan...</p>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-20">
+              <Package size={48} className="text-slate-300 mb-4 mx-auto" />
+              <p className="text-sm font-bold text-slate-500">Belum ada pesanan.</p>
+              <button onClick={() => router.push('/marketplace')} className="text-emerald-500 text-xs font-black mt-4 uppercase">Mulai Belanja</button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {loading ? (
-              <p className="text-center text-xs text-slate-500 py-10 font-bold animate-pulse">Memuat pesanan...</p>
-            ) : orders.length === 0 ? (
-              <div className="text-center py-20">
-                <Package size={48} className="text-slate-300 mb-4 mx-auto" />
-                <p className="text-sm font-bold text-slate-500">Belum ada pesanan untuk nomor ini.</p>
-                <button onClick={() => setIsSearched(false)} className="text-emerald-500 text-xs font-black mt-4 uppercase">Cari Nomor Lain</button>
+          ) : (
+            <>
+              <div className="flex justify-between items-center mb-2 px-1">
+                <span className="text-xs font-bold text-slate-500">Nomor: {phoneQuery}</span>
               </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-2 px-1">
-                  <span className="text-xs font-bold text-slate-500">Nomor: {phoneQuery}</span>
-                  <button onClick={() => { setIsSearched(false); setOrders([]); }} className="text-[10px] text-emerald-500 font-black uppercase">Ganti Nomor</button>
-                </div>
                 {orders.map((order) => {
                   const statusColor = getStatusColor(order.status, order.paymentStatus, order.orderStatus);
                   const isFinished = order.paymentStatus === 'paid' || order.paymentStatus === 'completed';
@@ -265,7 +232,6 @@ export default function MarketplaceOrdersPage() {
               </>
             )}
           </div>
-        )}
       </main>
 
       {reviewProduct && (
