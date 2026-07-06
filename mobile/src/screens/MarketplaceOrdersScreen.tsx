@@ -83,7 +83,7 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
 
     const fetchFederatedOrders = async () => {
       // 1. Dapatkan daftar tenant db dari active stores
-      const storesQ = query(collection(primaryDb, 'stores'), where('status', '==', 'active'));
+      const storesQ = query(collection(primaryDb, 'stores'));
       let tenantConfigs = new Map<string, any>();
       try {
         const storesSnap = await getDocs(storesQ);

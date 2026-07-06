@@ -133,7 +133,7 @@ export default function MarketplaceScreen() {
         }
 
         // Fetch stores to know which tenant databases to listen to
-        const storesQ = query(collection(primaryDb, 'stores'), where('status', '==', 'active'));
+        const storesQ = query(collection(primaryDb, 'stores'));
         const storesSnap = await getDocs(storesQ);
         const tenantConfigs = new Map<string, any>();
         storesSnap.forEach(doc => {
@@ -195,7 +195,7 @@ export default function MarketplaceScreen() {
     if (!isRefresh) setLoading(true);
     try {
       // 1. Get all active stores from primary DB to discover tenant databases
-      const storesQ = query(collection(primaryDb, 'stores'), where('status', '==', 'active'));
+      const storesQ = query(collection(primaryDb, 'stores'));
       const storesSnap = await getDocs(storesQ);
       
       const tenantConfigs = new Map<string, any>(); // key: projectId, value: infraConfig
