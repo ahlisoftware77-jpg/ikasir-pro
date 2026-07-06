@@ -4,7 +4,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, XCircle, Star } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
-import { db } from '../lib/firebase';
+import { getAuth } from 'firebase/auth';
+import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCartStore } from '../store/cartStore';
@@ -131,34 +132,46 @@ export default function MarketplaceScreen() {
           } catch (e) {}
         }
 
-        const ordersRef = collection(db, 'transactions');
+        // Fetch stores to know which tenant databases to listen to
+        const storesQ = query(collection(primaryDb, 'stores'), where('status', '==', 'active'));
+        const storesSnap = await getDocs(storesQ);
+        const tenantConfigs = new Map<string, any>();
+        storesSnap.forEach(doc => {
+          const cfg = doc.data().infraConfig || { projectId: 'default_primary' };
+          tenantConfigs.set(cfg.projectId, cfg);
+        });
+
+        const unsubs: any[] = [];
         
         const handleSnap = (snap: any) => {
           let foundNew = false;
           snap.forEach((doc: any) => {
             const data = doc.data();
             const currentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'completed' ? 'paid' : (data.status || 'pending');
-            
-            // Jika ID belum ada di savedState (pesanan baru), atau statusnya berubah
             if (savedState[doc.id] !== currentStatus) {
               foundNew = true;
             }
           });
-          setHasNewUpdate(foundNew);
+          if (foundNew) setHasNewUpdate(true);
         };
 
-        const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
-        const unsub1 = onSnapshot(q1, handleSnap);
+        for (const cfg of tenantConfigs.values()) {
+          try {
+            const tDb = getTenantDb(cfg);
+            const ordersRef = collection(tDb, 'transactions');
+            
+            const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+            unsubs.push(onSnapshot(q1, handleSnap));
 
-        let unsub2: any = null;
-        if (phoneToSearch && phoneToSearch !== userIdToSearch) {
-          const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
-          unsub2 = onSnapshot(q2, handleSnap);
+            if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+              const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+              unsubs.push(onSnapshot(q2, handleSnap));
+            }
+          } catch (e) {}
         }
 
         return () => {
-          unsub1();
-          if (unsub2) unsub2();
+          unsubs.forEach(fn => fn());
         };
       };
 
@@ -181,79 +194,103 @@ export default function MarketplaceScreen() {
   const fetchMarketplaceData = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      const q = query(collection(db, 'products'), where('joinMarketplace', '==', true));
-      const snap = await getDocs(q);
-      const list: Product[] = [];
-      const uniqueStoreIds = new Set<string>();
-
-      snap.forEach((d) => {
-        const data = d.data();
-        let finalImageUrl = data.imageUrl || '';
-        
-        // Fallback ke media array jika imageUrl kosong
-        if (!finalImageUrl) {
-          if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
-          else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
-        }
-
-        list.push({
-          id: d.id,
-          name: data.name || '',
-          price: data.price || 0,
-          category: data.category || 'Umum',
-          imageUrl: finalImageUrl,
-          storeId: data.storeId || '',
-          storeName: data.storeName || 'Toko Mitra',
-          stock: data.stock !== undefined ? data.stock : 0,
-          manageStock: data.manageStock !== undefined ? data.manageStock : true,
-          averageRating: data.averageRating || 0,
-          reviewCount: data.reviewCount || 0,
-        });
-        if (data.storeId) {
-          uniqueStoreIds.add(data.storeId);
-        }
-      });
-
-      // Fetch active discounts
-      const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
-      const dSnap = await getDocs(dq);
-      const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      const now = new Date();
+      // 1. Get all active stores from primary DB to discover tenant databases
+      const storesQ = query(collection(primaryDb, 'stores'), where('status', '==', 'active'));
+      const storesSnap = await getDocs(storesQ);
       
+      const tenantConfigs = new Map<string, any>(); // key: projectId, value: infraConfig
+      const storeToConfigMap: Record<string, any> = {};
+      
+      storesSnap.forEach(doc => {
+        const sData = doc.data();
+        const cfg = sData.infraConfig || { projectId: 'default_primary' };
+        tenantConfigs.set(cfg.projectId, cfg);
+        storeToConfigMap[doc.id] = cfg;
+      });
+
+      // 2. Fetch products and discounts from ALL tenant databases concurrently
+      let list: Product[] = [];
+      const uniqueStoreIds = new Set<string>();
       const productDiscounts: Record<string, any> = {};
-      activeDiscounts.forEach(disc => {
-        const start = new Date(disc.startDate);
-        const end = new Date(disc.endDate);
-        if (now >= start && now <= end) {
-          disc.appliedProductIds?.forEach((pid: string) => {
-            productDiscounts[pid] = disc;
+      const now = new Date();
+
+      const fetchPromises = Array.from(tenantConfigs.values()).map(async (cfg) => {
+        try {
+          const tDb = getTenantDb(cfg);
+          
+          // Fetch products
+          const qP = query(collection(tDb, 'products'), where('joinMarketplace', '==', true));
+          const pSnap = await getDocs(qP);
+          
+          pSnap.forEach((d) => {
+            const data = d.data();
+            let finalImageUrl = data.imageUrl || '';
+            if (!finalImageUrl) {
+              if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
+              else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
+            }
+
+            list.push({
+              id: d.id,
+              name: data.name || '',
+              price: data.price || 0,
+              category: data.category || 'Umum',
+              imageUrl: finalImageUrl,
+              storeId: data.storeId || '',
+              storeName: data.storeName || 'Toko Mitra',
+              stock: data.stock !== undefined ? data.stock : 0,
+              manageStock: data.manageStock !== undefined ? data.manageStock : true,
+              averageRating: data.averageRating || 0,
+              reviewCount: data.reviewCount || 0,
+            });
+            if (data.storeId) {
+              uniqueStoreIds.add(data.storeId);
+            }
           });
+
+          // Fetch discounts
+          const qD = query(collection(tDb, 'discounts'), where('isActive', '==', true));
+          const dSnap = await getDocs(qD);
+          dSnap.forEach(docD => {
+            const disc = docD.data();
+            const start = new Date(disc.startDate);
+            const end = new Date(disc.endDate);
+            if (now >= start && now <= end) {
+              disc.appliedProductIds?.forEach((pid: string) => {
+                productDiscounts[pid] = { type: disc.type, value: disc.value, name: disc.name };
+              });
+            }
+          });
+        } catch (err) {
+          console.warn(`Failed to fetch from tenant db ${cfg.projectId}`, err);
         }
       });
+
+      await Promise.all(fetchPromises);
 
       // Apply discount to list
       list.forEach(p => {
         if (productDiscounts[p.id]) {
-          p.discount = {
-            type: productDiscounts[p.id].type,
-            value: productDiscounts[p.id].value,
-            name: productDiscounts[p.id].name
-          };
+          p.discount = productDiscounts[p.id];
         }
       });
 
-      // Fetch store details concurrently
+      // 3. Fetch store details concurrently from respective tenant DBs
       const logoMap: Record<string, string> = {};
       const hiddenCatMap: Record<string, string[]> = {};
       await Promise.all(
         Array.from(uniqueStoreIds).map(async (storeId) => {
-          const sRef = doc(db, 'settings', `store_${storeId}`);
-          const sSnap = await getDoc(sRef);
-          if (sSnap.exists()) {
-            const sData = sSnap.data();
-            if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
-            if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
-          }
+          try {
+            const cfg = storeToConfigMap[storeId] || { projectId: 'default_primary' };
+            const tDb = getTenantDb(cfg);
+            const sRef = doc(tDb, 'settings', `store_${storeId}`);
+            const sSnap = await getDoc(sRef);
+            if (sSnap.exists()) {
+              const sData = sSnap.data();
+              if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
+              if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
+            }
+          } catch (e) {}
         })
       );
 
@@ -315,7 +352,7 @@ export default function MarketplaceScreen() {
       <TouchableOpacity 
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, width: CARD_WIDTH }]}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id })}
+        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id, storeId: item.storeId })}
       >
         <View style={[styles.imageContainer, { backgroundColor: colors.bg }]}>
           {item.imageUrl ? (
