@@ -31,49 +31,24 @@ export const auth = initializedAuth;
 
 // Dynamic Data App references
 let dataApp: FirebaseApp = primaryApp;
-let _db: Firestore | null = null;
-let _primaryDb: Firestore | null = null;
-let _storage: FirebaseStorage | null = null;
 
-// Proxy for DB (Tenant Database)
-export const db = new Proxy({}, {
-  get: (target, prop) => {
-    if (!_db) {
-      try {
-        _db = initializeFirestore(primaryApp, {
-          localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-        });
-      } catch {
-        _db = getFirestore(primaryApp);
-      }
-    }
-    return Reflect.get(_db, prop);
-  }
-}) as Firestore;
+export let db: Firestore;
+try {
+  db = initializeFirestore(primaryApp, {
+    localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+  });
+} catch {
+  db = getFirestore(primaryApp);
+}
 
-// Proxy for Primary DB (Central Database)
-export const primaryDb = new Proxy({}, {
-  get: (target, prop) => {
-    if (!_primaryDb) {
-      try {
-        _primaryDb = initializeFirestore(primaryApp, {
-          localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-        });
-      } catch {
-        _primaryDb = getFirestore(primaryApp);
-      }
-    }
-    return Reflect.get(_primaryDb, prop);
-  }
-}) as Firestore;
+export let primaryDb: Firestore = db;
 
-// Proxy for Storage
-export const storage = new Proxy({}, {
-  get: (target, prop) => {
-    if (!_storage) _storage = getStorage(primaryApp);
-    return Reflect.get(_storage, prop);
-  }
-}) as FirebaseStorage;
+export let storage: FirebaseStorage;
+try {
+  storage = getStorage(primaryApp);
+} catch {
+  storage = getStorage(primaryApp);
+}
 
 // Function to initialize dynamic Firebase connection based on tenancy
 export const initDynamicFirebase = async () => {
@@ -93,24 +68,24 @@ export const initDynamicFirebase = async () => {
 
     // Initialize Tenant DB
     try {
-      _db = initializeFirestore(dataApp, {
+      db = initializeFirestore(dataApp, {
         localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
       });
     } catch {
-      _db = getFirestore(dataApp);
+      db = getFirestore(dataApp);
     }
 
     // Initialize Primary DB
     try {
-      _primaryDb = dataApp === primaryApp ? _db : getFirestore(primaryApp);
+      primaryDb = dataApp === primaryApp ? db : getFirestore(primaryApp);
     } catch {
-      _primaryDb = initializeFirestore(primaryApp, {
+      primaryDb = initializeFirestore(primaryApp, {
         localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
       });
     }
 
     // Initialize Storage
-    _storage = getStorage(dataApp);
+    storage = getStorage(dataApp);
     
     return true;
   } catch (error) {
