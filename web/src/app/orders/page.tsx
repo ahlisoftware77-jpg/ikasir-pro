@@ -271,7 +271,7 @@ export default function OrdersPage() {
 
   const handleFinishOrder = (order: any) => {
     if (order.paymentStatus === 'paid') {
-      processStatusUpdate(order.id, 'completed');
+      handleUpdateStatus(order, 'completed');
     } else {
       setFinishOrderTarget(order);
     }
