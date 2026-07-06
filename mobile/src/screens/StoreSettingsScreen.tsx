@@ -22,7 +22,7 @@ import {
   Printer
 } from 'lucide-react-native';
 import { printReceipt } from '../utils/ReceiptHelper';
-import { db, auth, storage } from '../lib/firebase';
+import { db, auth, storage , primaryDb} from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -227,7 +227,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
       if (auth.currentUser) {
          await updateProfile(auth.currentUser, { displayName: editProfileName });
       }
-      await updateDoc(doc(db, 'users', user.uid), { name: editProfileName });
+      await updateDoc(doc(primaryDb, 'users', user.uid), { name: editProfileName });
       setUser({ ...user, name: editProfileName });
       Alert.alert('Sukses', 'Profil berhasil diperbarui');
     } catch (error: any) {
@@ -261,7 +261,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
         if (auth.currentUser) {
            await updateProfile(auth.currentUser, { photoURL: downloadUrl });
         }
-        await updateDoc(doc(db, 'users', user.uid), { photoUrl: downloadUrl });
+        await updateDoc(doc(primaryDb, 'users', user.uid), { photoUrl: downloadUrl });
         
         setEditProfilePhoto(downloadUrl);
         setUser({ ...user, photoURL: downloadUrl });
@@ -397,7 +397,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
   });
 
   useEffect(() => {
-    const unsubBrandingGlobal = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+    const unsubBrandingGlobal = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setGlobalBranding({
@@ -413,19 +413,19 @@ export default function StoreSettingsScreen({ navigation }: any) {
 
   useEffect(() => {
     if (role === 'super-admin' || role === 'superadmin') {
-      const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const unsubUsers = onSnapshot(collection(primaryDb, 'users'), (snapshot) => {
         const usr: any[] = [];
         snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
         setSuperAdminUsers(usr);
       });
 
-      const unsubStores = onSnapshot(collection(db, 'stores'), (snapshot) => {
+      const unsubStores = onSnapshot(collection(primaryDb, 'stores'), (snapshot) => {
         const str: any[] = [];
         snapshot.forEach((d) => str.push({ id: d.id, ...d.data() }));
         setSuperAdminStores(str);
       });
 
-      const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+      const unsubBranding = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setBrandingData({
@@ -436,13 +436,13 @@ export default function StoreSettingsScreen({ navigation }: any) {
         }
       });
 
-      const unsubInfra = onSnapshot(doc(db, 'system_settings', 'infrastructure'), (docSnap) => {
+      const unsubInfra = onSnapshot(doc(primaryDb, 'system_settings', 'infrastructure'), (docSnap) => {
         if (docSnap.exists()) {
           setInfraData(docSnap.data());
         }
       });
 
-      const unsubProjects = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
+      const unsubProjects = onSnapshot(collection(primaryDb, 'system_settings', 'database_projects', 'list'), (snapshot) => {
         const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setDbProjects(projects);
       });
@@ -478,7 +478,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               };
 
               if (storeId === 'GLOBAL') {
-                const storesSnap = await getDocs(collection(db, 'stores'));
+                const storesSnap = await getDocs(collection(primaryDb, 'stores'));
                 const storesList: any[] = [];
                 storesSnap.forEach(d => storesList.push({ id: d.id, ...d.data() }));
                 backupData.data['stores'] = storesList;
@@ -496,7 +496,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                   backupData.data[collName] = docs;
                 }
               } else {
-                const storeRef = doc(db, 'stores', storeId);
+                const storeRef = doc(primaryDb, 'stores', storeId);
                 const storeSnap = await getDoc(storeRef);
                 if (storeSnap.exists()) {
                   backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
@@ -697,7 +697,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     if (!editingUser) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'users', editingUser.id), {
+      await updateDoc(doc(primaryDb, 'users', editingUser.id), {
         role: editingUser.role,
         isActive: editingUser.isActive ?? true,
         isSubscribed: editingUser.isSubscribed ?? false,
@@ -721,7 +721,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'stores', newStoreData.id), {
+      await setDoc(doc(primaryDb, 'stores', newStoreData.id), {
         name: newStoreData.name,
         ownerEmail: newStoreData.ownerEmail || '-',
         createdAt: new Date().toISOString(),
@@ -750,7 +750,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
           text: 'Ya',
           onPress: async () => {
             try {
-              await updateDoc(doc(db, 'stores', storeId), {
+              await updateDoc(doc(primaryDb, 'stores', storeId), {
                 isActive: !currentStatus
               });
               Alert.alert('Sukses', 'Status toko berhasil diperbarui!');
@@ -768,7 +768,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     if (!editingStore) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'stores', editingStore.id), {
+      await updateDoc(doc(primaryDb, 'stores', editingStore.id), {
         name: editingStore.name,
         ownerEmail: editingStore.ownerEmail || '-',
         maxUsers: parseInt(editingStore.maxUsers) || 5
@@ -791,7 +791,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const handleUpdateBranding = async () => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'system_settings', 'branding'), {
+      await setDoc(doc(primaryDb, 'system_settings', 'branding'), {
         ...brandingData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -807,7 +807,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const handleUpdateInfra = async () => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'system_settings', 'infrastructure'), {
+      await setDoc(doc(primaryDb, 'system_settings', 'infrastructure'), {
         ...infraData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -832,7 +832,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await deleteDoc(doc(db, 'system_settings', 'infrastructure'));
+              await deleteDoc(doc(primaryDb, 'system_settings', 'infrastructure'));
               Alert.alert('Sukses', 'Pengaturan telah dikembalikan ke default.');
             } catch (err: any) {
               console.error(err);
@@ -849,8 +849,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const handleSaveProject = async () => {
     setIsSaving(true);
     try {
-      const projId = editingProject?.id || doc(collection(db, 'system_settings', 'database_projects', 'list')).id;
-      await setDoc(doc(db, 'system_settings', 'database_projects', 'list', projId), {
+      const projId = editingProject?.id || doc(collection(primaryDb, 'system_settings', 'database_projects', 'list')).id;
+      await setDoc(doc(primaryDb, 'system_settings', 'database_projects', 'list', projId), {
         ...infraData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -884,7 +884,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
           text: 'Ya, Hapus',
           onPress: async () => {
             try {
-              await deleteDoc(doc(db, 'system_settings', 'database_projects', 'list', projId));
+              await deleteDoc(doc(primaryDb, 'system_settings', 'database_projects', 'list', projId));
               Alert.alert('Sukses', 'Proyek berhasil dihapus.');
             } catch (err: any) {
               Alert.alert('Gagal', 'Gagal hapus: ' + err.message);
@@ -909,7 +909,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await updateDoc(doc(db, 'users', userToMigrate.id), {
+              await updateDoc(doc(primaryDb, 'users', userToMigrate.id), {
                 targetProjectId: isResetting ? null : targetProj.fb_project_id,
                 infraConfig: isResetting ? null : targetProj,
                 lastMigration: new Date().toISOString()
@@ -997,7 +997,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
       };
 
       // 1. Export Settings & Store Docs
-      const storeRef = doc(db, 'stores', storeId);
+      const storeRef = doc(primaryDb, 'stores', storeId);
       const storeSnap = await getDoc(storeRef);
       if (storeSnap.exists()) {
         backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
@@ -1460,14 +1460,14 @@ export default function StoreSettingsScreen({ navigation }: any) {
       }
       
       // Sync back to stores collection if name changed
-      await updateDoc(doc(db, 'stores', storeId), {
+      await updateDoc(doc(primaryDb, 'stores', storeId), {
         name: storeSettings.storeName
       }).catch(() => {});
       
       // Sync phone and address to user profile
       if (storeSettings.phone || storeSettings.address) {
         try {
-          const userRef = doc(db, 'users', storeId);
+          const userRef = doc(primaryDb, 'users', storeId);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             await updateDoc(userRef, { 

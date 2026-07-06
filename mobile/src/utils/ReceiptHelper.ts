@@ -53,9 +53,9 @@ const convertUrlToBase64 = async (url: string, prefixName: string): Promise<stri
 const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean> => {
   if (!storeId) return true;
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { collection, query, where, getDocs } = require('firebase/firestore');
-    const q = query(collection(db, 'users'), where('storeId', '==', storeId));
+    const q = query(collection(primaryDb, 'users'), where('storeId', '==', storeId));
     const userSnaps = await getDocs(q);
     
     if (userSnaps.empty) {
@@ -90,7 +90,7 @@ const fetchProductsMap = async (storeId: string | null): Promise<Record<string, 
   if (!storeId) return {};
   const pMap: Record<string, any> = {};
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { collection, query, where, getDocs } = require('firebase/firestore');
     const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
     const prodsSnap = await getDocs(qProds);
@@ -1316,7 +1316,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
 
   if (transaction?.storeId) {
     try {
-      const { db } = require('../lib/firebase');
+      const { db, primaryDb } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${transaction.storeId}`));
       if (docSnap.exists()) {
@@ -1329,9 +1329,9 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
 
   // Fetch branding (watermark) from system_settings/branding
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { doc, getDoc } = require('firebase/firestore');
-    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    const brandingSnap = await getDoc(doc(primaryDb, 'system_settings', 'branding'));
     if (brandingSnap.exists()) {
       branding = brandingSnap.data();
     }
@@ -1396,7 +1396,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
     let finalSettings = settings;
     if ((!finalSettings || !finalSettings.storeName || finalSettings.storeName === 'Kasir Pro Store' || finalSettings.storeName === 'KASIR PRO' || (!finalSettings.logoUrl && !finalSettings.thermalLogoUrl)) && transaction?.storeId) {
       try {
-        const { db } = require('../lib/firebase');
+        const { db, primaryDb } = require('../lib/firebase');
         const { doc, getDoc } = require('firebase/firestore');
         const docSnap = await getDoc(doc(db, 'settings', `store_${transaction.storeId}`));
         if (docSnap.exists()) {
@@ -1435,7 +1435,7 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
 
   if (trx?.storeId) {
     try {
-      const { db } = require('../lib/firebase');
+      const { db, primaryDb } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${trx.storeId}`));
       if (docSnap.exists()) {
@@ -1448,9 +1448,9 @@ export const printA4 = async (trx: any, storeSettings?: any) => {
 
   // Fetch branding (watermark) from system_settings/branding
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { doc, getDoc } = require('firebase/firestore');
-    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    const brandingSnap = await getDoc(doc(primaryDb, 'system_settings', 'branding'));
     if (brandingSnap.exists()) {
       branding = brandingSnap.data();
     }
@@ -1757,7 +1757,7 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
 
   if (trx?.storeId) {
     try {
-      const { db } = require('../lib/firebase');
+      const { db, primaryDb } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${trx.storeId}`));
       if (docSnap.exists()) {
@@ -1770,9 +1770,9 @@ export const printA4Delivery = async (trx: any, storeSettings?: any) => {
 
   // Fetch branding (watermark) from system_settings/branding
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { doc, getDoc } = require('firebase/firestore');
-    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    const brandingSnap = await getDoc(doc(primaryDb, 'system_settings', 'branding'));
     if (brandingSnap.exists()) {
       branding = brandingSnap.data();
     }
@@ -2261,7 +2261,7 @@ export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
 
   if (ticket?.storeId) {
     try {
-      const { db } = require('../lib/firebase');
+      const { db, primaryDb } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${ticket.storeId}`));
       if (docSnap.exists()) {
@@ -2273,9 +2273,9 @@ export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
   }
 
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { doc, getDoc } = require('firebase/firestore');
-    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    const brandingSnap = await getDoc(doc(primaryDb, 'system_settings', 'branding'));
     if (brandingSnap.exists()) {
       branding = brandingSnap.data();
     }
@@ -2594,7 +2594,7 @@ export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
 
   if (ticket?.storeId) {
     try {
-      const { db } = require('../lib/firebase');
+      const { db, primaryDb } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${ticket.storeId}`));
       if (docSnap.exists()) {
@@ -2606,9 +2606,9 @@ export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
   }
 
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { doc, getDoc } = require('firebase/firestore');
-    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    const brandingSnap = await getDoc(doc(primaryDb, 'system_settings', 'branding'));
     if (brandingSnap.exists()) {
       branding = brandingSnap.data();
     }
@@ -2649,7 +2649,7 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
 
   if (transaction?.storeId) {
     try {
-      const { db } = require('../lib/firebase');
+      const { db, primaryDb } = require('../lib/firebase');
       const { doc, getDoc } = require('firebase/firestore');
       const docSnap = await getDoc(doc(db, 'settings', `store_${transaction.storeId}`));
       if (docSnap.exists()) {
@@ -2661,9 +2661,9 @@ export const shareReceiptPDF = async (transaction: any, storeSettings?: any) => 
   }
 
   try {
-    const { db } = require('../lib/firebase');
+    const { db, primaryDb } = require('../lib/firebase');
     const { doc, getDoc } = require('firebase/firestore');
-    const brandingSnap = await getDoc(doc(db, 'system_settings', 'branding'));
+    const brandingSnap = await getDoc(doc(primaryDb, 'system_settings', 'branding'));
     if (brandingSnap.exists()) {
       branding = brandingSnap.data();
     }

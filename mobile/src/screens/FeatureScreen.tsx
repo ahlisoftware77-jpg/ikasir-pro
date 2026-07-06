@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
-import { db, storage } from '../lib/firebase';
+import { db, storage , primaryDb} from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { initializeApp, getApp, deleteApp } from 'firebase/app';
@@ -615,7 +615,7 @@ export default function FeatureScreen({ route, navigation }: any) {
         setIsUploadingAttachment(true);
         const fileUri = result.assets[0].uri;
 
-        const docSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+        const docSnap = await getDoc(doc(primaryDb, 'system_settings', 'infrastructure'));
         let cloudName = 'dkcjfwbvc';
         let uploadPreset = 'kasirpos';
         if (docSnap.exists()) {
@@ -1358,13 +1358,13 @@ export default function FeatureScreen({ route, navigation }: any) {
           break;
 
         case 'staff':
-          const storeRef = doc(db, 'stores', storeId);
+          const storeRef = doc(primaryDb, 'stores', storeId);
           const unsubStore = onSnapshot(storeRef, (docSnap) => {
             if (docSnap.exists()) {
               setMaxUsers(docSnap.data().maxUsers || 5);
             }
           });
-          q = query(collection(db, 'users'), where('storeId', '==', storeId));
+          q = query(collection(primaryDb, 'users'), where('storeId', '==', storeId));
           const unsubUsers = onSnapshot(q, (snapshot) => {
             const docs: any[] = [];
             snapshot.forEach((docSnap) => {
@@ -2306,7 +2306,7 @@ export default function FeatureScreen({ route, navigation }: any) {
     if (!selectedStaff) return;
     setIsSavingPerms(true);
     try {
-      await updateDoc(doc(db, 'users', selectedStaff.id), {
+      await updateDoc(doc(primaryDb, 'users', selectedStaff.id), {
         permissions: editPermissions
       });
 
@@ -2353,7 +2353,7 @@ export default function FeatureScreen({ route, navigation }: any) {
           onPress: async () => {
             Vibration.vibrate(15);
             try {
-              await deleteDoc(doc(db, 'users', staffMember.id));
+              await deleteDoc(doc(primaryDb, 'users', staffMember.id));
 
               // Log User Deletion
               await addDoc(collection(db, 'activity_logs'), {
@@ -2749,7 +2749,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             await deleteApp(secondaryApp);
 
             // 5. Simpan hak akses role ke koleksi Firestore ('users')
-            await setDoc(doc(db, 'users', userCredential.user.uid), {
+            await setDoc(doc(primaryDb, 'users', userCredential.user.uid), {
               name: formName.trim(),
               email: formEmail.trim(),
               role: formRole, // 'admin' or 'cashier'

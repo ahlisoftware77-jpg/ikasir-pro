@@ -1,10 +1,10 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeAuth, getReactNativePersistence, getAuth, Auth } from 'firebase/auth';
+import { initializeFirestore, persistentLocalCache, CACHE_SIZE_UNLIMITED, Firestore, getFirestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAzmifpFOz0asKVDjLJDXVAvfTPNmOEiUw',
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'kasir-3d12b.firebaseapp.com',
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'kasir-3d12b',
@@ -13,28 +13,110 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:468553316772:web:fc5251a1ac9b842d6f6931'
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize Primary App for Authentication
+const primaryApp = !getApps().find(a => a.name === '[DEFAULT]') 
+  ? initializeApp(firebaseConfig) 
+  : getApp();
 
-// Configure React Native Persistence to avoid console warning and keep user sessions persistent
-let initializedAuth;
+// Configure React Native Persistence
+let initializedAuth: Auth;
 try {
-  initializedAuth = initializeAuth(app, {
+  initializedAuth = initializeAuth(primaryApp, {
     persistence: getReactNativePersistence(AsyncStorage)
   });
 } catch (error) {
-  initializedAuth = getAuth(app);
+  initializedAuth = getAuth(primaryApp);
 }
-
 export const auth = initializedAuth;
 
-// Initialize Firestore with Persistent Local Cache (Offline capability)
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    cacheSizeBytes: CACHE_SIZE_UNLIMITED
-  })
-});
+// Dynamic Data App references
+let dataApp: FirebaseApp = primaryApp;
+let _db: Firestore | null = null;
+let _primaryDb: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
 
-export const storage = getStorage(app);
+// Proxy for DB (Tenant Database)
+export const db = new Proxy({}, {
+  get: (target, prop) => {
+    if (!_db) {
+      try {
+        _db = initializeFirestore(primaryApp, {
+          localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+        });
+      } catch {
+        _db = getFirestore(primaryApp);
+      }
+    }
+    return Reflect.get(_db, prop);
+  }
+}) as Firestore;
 
-export default app;
+// Proxy for Primary DB (Central Database)
+export const primaryDb = new Proxy({}, {
+  get: (target, prop) => {
+    if (!_primaryDb) {
+      try {
+        _primaryDb = initializeFirestore(primaryApp, {
+          localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+        });
+      } catch {
+        _primaryDb = getFirestore(primaryApp);
+      }
+    }
+    return Reflect.get(_primaryDb, prop);
+  }
+}) as Firestore;
+
+// Proxy for Storage
+export const storage = new Proxy({}, {
+  get: (target, prop) => {
+    if (!_storage) _storage = getStorage(primaryApp);
+    return Reflect.get(_storage, prop);
+  }
+}) as FirebaseStorage;
+
+// Function to initialize dynamic Firebase connection based on tenancy
+export const initDynamicFirebase = async () => {
+  try {
+    const saved = await AsyncStorage.getItem('infra_config_fb');
+    let config = firebaseConfig;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.apiKey && parsed.projectId) {
+        config = parsed;
+      }
+    }
+
+    dataApp = config.projectId !== firebaseConfig.projectId
+      ? (getApps().find(a => a.name === 'DataApp') || initializeApp(config, 'DataApp'))
+      : primaryApp;
+
+    // Initialize Tenant DB
+    try {
+      _db = initializeFirestore(dataApp, {
+        localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+      });
+    } catch {
+      _db = getFirestore(dataApp);
+    }
+
+    // Initialize Primary DB
+    try {
+      _primaryDb = dataApp === primaryApp ? _db : getFirestore(primaryApp);
+    } catch {
+      _primaryDb = initializeFirestore(primaryApp, {
+        localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+      });
+    }
+
+    // Initialize Storage
+    _storage = getStorage(dataApp);
+    
+    return true;
+  } catch (error) {
+    console.error("Failed to init dynamic firebase", error);
+    return false;
+  }
+};
+
+export default primaryApp;

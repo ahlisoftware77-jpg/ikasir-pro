@@ -74,7 +74,16 @@ export const useAuthStore = create<AuthState>()(
       setIsSubscriptionExpired: (val) => set({ isSubscriptionExpired: val }),
       setDisabledMenus: (disabledMenus) => set({ disabledMenus }),
       setExpiredDisabledMenus: (expiredDisabledMenus) => set({ expiredDisabledMenus }),
-      logout: () => {
+      logout: async () => {
+        try {
+          await AsyncStorage.removeItem('infra_config_fb');
+          const { initDynamicFirebase } = require('../lib/firebase');
+          await initDynamicFirebase();
+          await signOut(auth);
+        } catch (error) {
+          console.error("Logout error", error);
+        }
+        
         // Reset per-user state atomically.
         // NOTE: expiredDisabledMenus is preserved — it's a global branding
         // setting that the onSnapshot listener won't reload after reset.

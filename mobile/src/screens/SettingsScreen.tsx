@@ -24,7 +24,7 @@ import {
   Printer
 } from 'lucide-react-native';
 import { printReceipt } from '../utils/ReceiptHelper';
-import { db, auth, storage } from '../lib/firebase';
+import { db, auth, storage , primaryDb} from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -352,7 +352,7 @@ export default function SettingsScreen({ navigation, route }: any) {
 
   useEffect(() => {
     if (storeId) {
-      const q = query(collection(db, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
+      const q = query(collection(primaryDb, 'subscription_requests'), where('storeId', '==', storeId), where('status', '==', 'pending'));
       const unsub = onSnapshot(q, (snap) => {
         setHasPendingSubscription(!snap.empty);
       });
@@ -508,7 +508,7 @@ export default function SettingsScreen({ navigation, route }: any) {
       if (auth.currentUser) {
          await updateProfile(auth.currentUser, { displayName: editProfileName });
       }
-      await updateDoc(doc(db, 'users', user.uid), { name: editProfileName });
+      await updateDoc(doc(primaryDb, 'users', user.uid), { name: editProfileName });
       setUser({ ...user, name: editProfileName });
       Alert.alert('Sukses', 'Profil berhasil diperbarui');
     } catch (error: any) {
@@ -542,7 +542,7 @@ export default function SettingsScreen({ navigation, route }: any) {
         if (auth.currentUser) {
            await updateProfile(auth.currentUser, { photoURL: downloadUrl });
         }
-        await updateDoc(doc(db, 'users', user.uid), { photoUrl: downloadUrl });
+        await updateDoc(doc(primaryDb, 'users', user.uid), { photoUrl: downloadUrl });
         
         setEditProfilePhoto(downloadUrl);
         setUser({ ...user, photoURL: downloadUrl });
@@ -673,7 +673,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     }
     setIsSubmittingFeedbackMobile(true);
     try {
-      await addDoc(collection(db, 'feedback'), {
+      await addDoc(collection(primaryDb, 'feedback'), {
         storeId: storeId || 'unknown',
         userEmail: user?.email || 'unknown',
         content: feedbackTextMobile,
@@ -697,7 +697,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     const fetchStats = async () => {
       try {
         const q = query(
-          collection(db, 'subscription_requests'),
+          collection(primaryDb, 'subscription_requests'),
           where('status', '==', 'approved')
         );
         const snapshot = await getDocs(q);
@@ -784,7 +784,7 @@ export default function SettingsScreen({ navigation, route }: any) {
 
 
   useEffect(() => {
-    const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+    const unsubBranding = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         const banks = data.subscriptionBanks || [];
@@ -816,7 +816,7 @@ export default function SettingsScreen({ navigation, route }: any) {
 
   useEffect(() => {
     if (role === 'super-admin' || role === 'superadmin') {
-      const q = query(collection(db, 'subscription_requests'), where('status', '==', 'pending'));
+      const q = query(collection(primaryDb, 'subscription_requests'), where('status', '==', 'pending'));
       const unsub = onSnapshot(q, (snap) => {
         setPendingRequestsCount(snap.size);
       }, (err) => {
@@ -878,7 +878,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     }
     setIsSubmittingSubscription(true);
     try {
-      const infraSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+      const infraSnap = await getDoc(doc(primaryDb, 'system_settings', 'infrastructure'));
       let cloudName = 'dkcjfwbvc';
       let uploadPreset = 'kasirpos';
       if (infraSnap.exists()) {
@@ -898,7 +898,7 @@ export default function SettingsScreen({ navigation, route }: any) {
       const uploadResult = await uploadRes.json();
       
       if (uploadResult.secure_url) {
-        await addDoc(collection(db, 'subscription_requests'), {
+        await addDoc(collection(primaryDb, 'subscription_requests'), {
           storeId: storeId,
           ownerUid: user?.uid || '',
           ownerEmail: user?.email || '',
@@ -1007,7 +1007,7 @@ export default function SettingsScreen({ navigation, route }: any) {
       };
 
       // 1. Export Settings & Store Docs
-      const storeRef = doc(db, 'stores', storeId);
+      const storeRef = doc(primaryDb, 'stores', storeId);
       const storeSnap = await getDoc(storeRef);
       if (storeSnap.exists()) {
         backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
@@ -1415,7 +1415,7 @@ export default function SettingsScreen({ navigation, route }: any) {
       }
       
       // Sync back to stores collection if name changed
-      await updateDoc(doc(db, 'stores', storeId), {
+      await updateDoc(doc(primaryDb, 'stores', storeId), {
         name: storeSettings.storeName
       }).catch(() => {});
 
@@ -2532,7 +2532,7 @@ export default function SettingsScreen({ navigation, route }: any) {
 
                       <View className="flex-row gap-2.5 mt-4">
                         <TouchableOpacity
-                          onPress={handleTestPrintShort}
+                          onPress={() => handleTestPrintShort()}
                           disabled={isTestPrintingShort || isTestPrinting}
                           activeOpacity={0.8}
                           className="flex-1 py-3.5 rounded-2xl items-center justify-center flex-row gap-1.5 border"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal, Switch, Vibration } from 'react-native';
 import { addDoc, collection, doc, updateDoc, query, where, onSnapshot, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, primaryDb } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
@@ -291,7 +291,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
             storeName = settingsData.storeName || '';
           }
           if (!storeName) {
-            const storeSnap = await getDoc(doc(db, 'stores', storeId));
+            const storeSnap = await getDoc(doc(primaryDb, 'stores', storeId));
             if (storeSnap.exists()) {
               storeName = storeSnap.data().name || '';
             }

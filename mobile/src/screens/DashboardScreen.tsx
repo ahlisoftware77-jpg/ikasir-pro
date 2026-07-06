@@ -5,7 +5,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 import { collection, query, onSnapshot, orderBy, where, getDocs, writeBatch, limit, doc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, primaryDb } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
 import { DollarSign, ShoppingBag, Package, Users, Copy, Share2, TrendingUp, ChevronRight, Bell, X, AlertCircle, ChevronLeft, Sparkles, CheckCircle2, CreditCard, Globe, Printer, ArrowUpCircle, ArrowDownCircle, Plus } from 'lucide-react-native';
@@ -166,7 +166,7 @@ export default function DashboardScreen({ navigation }: any) {
   }, [brandingData]);
 
   useEffect(() => {
-    const unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+    const unsubBranding = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setBrandingData({
@@ -366,7 +366,7 @@ export default function DashboardScreen({ navigation }: any) {
   // Load announcements (broadcasts)
   useEffect(() => {
     const q = query(
-      collection(db, 'broadcasts'),
+      collection(primaryDb, 'broadcasts'),
       orderBy('createdAt', 'desc'),
       limit(5)
     );

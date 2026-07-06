@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackgroundService from 'react-native-background-actions';
 import { onIdTokenChanged } from 'firebase/auth';
 import { doc, setDoc, updateDoc, arrayUnion, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth, db, primaryDb } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationStore } from '../store/notificationStore';
 
@@ -290,7 +290,7 @@ export default function OrderNotificationListener() {
     if (role !== 'superadmin' && role !== 'super-admin' && !(permissions && (permissions as any).canAccessSuperAdminPanel)) return;
 
     const q = query(
-      collection(db, 'subscription_requests'),
+      collection(primaryDb, 'subscription_requests'),
       where('status', '==', 'pending')
     );
 

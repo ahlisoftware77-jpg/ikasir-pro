@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { db } from './src/lib/firebase';
+import { db, initDynamicFirebase } from './src/lib/firebase';
 
 let isCleanupDone = false;
 
@@ -1012,8 +1012,13 @@ export default function App() {
     'Sancreek-Regular': require('./assets/Sancreek-Regular.ttf'),
   });
 
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+
   useEffect(() => {
     activateKeepAwakeAsync().catch(console.warn);
+    initDynamicFirebase().then(() => {
+      setIsFirebaseReady(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -1040,6 +1045,8 @@ export default function App() {
       responseSubscription.remove();
     };
   }, []);
+
+  if (!isFirebaseReady) return null;
 
   return (
     <SafeAreaProvider>

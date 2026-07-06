@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
 import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, primaryDb } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -110,7 +110,7 @@ export default function TransactionsScreen({ navigation }: any) {
   const [infraData, setInfraData] = useState<any>({});
 
   useEffect(() => {
-    const unsubInfra = onSnapshot(doc(db, 'system_settings', 'infrastructure'), (docSnap) => {
+    const unsubInfra = onSnapshot(doc(primaryDb, 'system_settings', 'infrastructure'), (docSnap) => {
       if (docSnap.exists()) {
         setInfraData(docSnap.data());
       }

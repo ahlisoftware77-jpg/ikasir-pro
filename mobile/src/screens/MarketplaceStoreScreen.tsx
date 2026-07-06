@@ -43,7 +43,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
   const [storeReviews, setStoreReviews] = useState<any[]>([]);
   
   // Store info
-  const [storeInfo, setStoreInfo] = useState<{name: string, logoUrl: string, desc?: string}>({
+  const [storeInfo, setStoreInfo] = useState<{name: string, logoUrl: string, desc?: string, phone?: string}>({
     name: initialStoreName || 'Toko',
     logoUrl: ''
   });
@@ -92,7 +92,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
           manageStock: data.manageStock !== undefined ? data.manageStock : true,
           averageRating: data.averageRating || 0,
           reviewCount: data.reviewCount || 0,
-        });
+        } as any);
       });
 
       // 3. Fetch active discounts
@@ -369,7 +369,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
                 <TouchableOpacity 
                   style={[styles.waButton, { backgroundColor: '#25D366' }]}
                   onPress={() => {
-                    let phoneNum = storeInfo.phone.replace(/\D/g, '');
+                    let phoneNum = storeInfo.phone!.replace(/\D/g, '');
                     if (phoneNum.startsWith('0')) {
                       phoneNum = '62' + phoneNum.substring(1);
                     }

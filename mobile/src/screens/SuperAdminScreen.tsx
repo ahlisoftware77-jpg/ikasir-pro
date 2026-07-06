@@ -15,7 +15,7 @@ import {
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
   Wrench, ExternalLink, MessageSquare, Landmark, UserPlus, ShieldCheck
 } from 'lucide-react-native';
-import { db } from '../lib/firebase';
+import { db, primaryDb } from '../lib/firebase';
 import { 
   doc, setDoc, updateDoc, collection, query, where, getDocs, 
   writeBatch, onSnapshot, deleteDoc, addDoc, serverTimestamp, getDoc 
@@ -342,7 +342,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsUpdatingMaintenance(true);
             try {
-              await setDoc(doc(db, 'system_settings', 'maintenance'), {
+              await setDoc(doc(primaryDb, 'system_settings', 'maintenance'), {
                 isActive: nextState,
                 message: nextState ? (maintenanceMessage.trim() || 'Aplikasi sedang dalam pemeliharaan sistem. Harap coba beberapa saat lagi.') : '',
                 updatedAt: new Date().toISOString()
@@ -363,7 +363,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const handleSaveMaintenanceMessage = async () => {
     setIsUpdatingMaintenance(true);
     try {
-      await setDoc(doc(db, 'system_settings', 'maintenance'), {
+      await setDoc(doc(primaryDb, 'system_settings', 'maintenance'), {
         message: maintenanceMessage.trim(),
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -437,7 +437,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     let unsubBroadcasts: any = () => {};
 
     // Always fetch branding for potential preview checks
-    unsubBranding = onSnapshot(doc(db, 'system_settings', 'branding'), (docSnap) => {
+    unsubBranding = onSnapshot(doc(primaryDb, 'system_settings', 'branding'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setBrandingData({
@@ -469,46 +469,46 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     });
 
     if (featureId === 'superAdminUsers') {
-      unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      unsubUsers = onSnapshot(collection(primaryDb, 'users'), (snapshot) => {
         const usr: any[] = [];
         snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
         setSuperAdminUsers(usr);
       });
-      unsubStores = onSnapshot(collection(db, 'stores'), (snapshot) => {
+      unsubStores = onSnapshot(collection(primaryDb, 'stores'), (snapshot) => {
         const str: any[] = [];
         snapshot.forEach((d) => str.push({ id: d.id, ...d.data() }));
         setSuperAdminStores(str);
       });
-      unsubProjects = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
+      unsubProjects = onSnapshot(collection(primaryDb, 'system_settings', 'database_projects', 'list'), (snapshot) => {
         const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setDbProjects(projects);
       });
     }
 
     if (featureId === 'superAdminStores') {
-      unsubStores = onSnapshot(collection(db, 'stores'), (snapshot) => {
+      unsubStores = onSnapshot(collection(primaryDb, 'stores'), (snapshot) => {
         const str: any[] = [];
         snapshot.forEach((d) => str.push({ id: d.id, ...d.data() }));
         setSuperAdminStores(str);
       });
-      unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      unsubUsers = onSnapshot(collection(primaryDb, 'users'), (snapshot) => {
         const usr: any[] = [];
         snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
         setSuperAdminUsers(usr);
       });
-      unsubProjects = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
+      unsubProjects = onSnapshot(collection(primaryDb, 'system_settings', 'database_projects', 'list'), (snapshot) => {
         const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setDbProjects(projects);
       });
     }
 
     if (featureId === 'superAdminInfra') {
-      unsubInfra = onSnapshot(doc(db, 'system_settings', 'infrastructure'), (docSnap) => {
+      unsubInfra = onSnapshot(doc(primaryDb, 'system_settings', 'infrastructure'), (docSnap) => {
         if (docSnap.exists()) {
           setInfraData(docSnap.data());
         }
       });
-      unsubMaint = onSnapshot(doc(db, 'system_settings', 'maintenance'), (docSnap) => {
+      unsubMaint = onSnapshot(doc(primaryDb, 'system_settings', 'maintenance'), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setIsMaintenanceActive(data.isActive ?? false);
@@ -518,11 +518,11 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           setMaintenanceMessage('');
         }
       });
-      unsubProjects = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
+      unsubProjects = onSnapshot(collection(primaryDb, 'system_settings', 'database_projects', 'list'), (snapshot) => {
         const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setDbProjects(projects);
       });
-      unsubStores = onSnapshot(collection(db, 'stores'), (snapshot) => {
+      unsubStores = onSnapshot(collection(primaryDb, 'stores'), (snapshot) => {
         const str: any[] = [];
         snapshot.forEach((d) => str.push({ id: d.id, ...d.data() }));
         setSuperAdminStores(str);
@@ -530,7 +530,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
 
     if (featureId === 'superAdminSubscriptions') {
-      unsubSubscriptions = onSnapshot(collection(db, 'subscription_requests'), (snapshot) => {
+      unsubSubscriptions = onSnapshot(collection(primaryDb, 'subscription_requests'), (snapshot) => {
         const subs: any[] = [];
         snapshot.forEach((d) => subs.push({ id: d.id, ...d.data() }));
         // Sort pending first, then newest
@@ -546,7 +546,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
 
     if (featureId === 'superAdminFeedback') {
-      unsubFeedback = onSnapshot(collection(db, 'feedback'), (snapshot) => {
+      unsubFeedback = onSnapshot(collection(primaryDb, 'feedback'), (snapshot) => {
         const fbs: any[] = [];
         snapshot.forEach((d) => fbs.push({ id: d.id, ...d.data() }));
         fbs.sort((a, b) => {
@@ -561,7 +561,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
 
     if (featureId === 'superAdminRegistrations') {
-      unsubRegistrations = onSnapshot(collection(db, 'registrations'), (snapshot) => {
+      unsubRegistrations = onSnapshot(collection(primaryDb, 'registrations'), (snapshot) => {
         const regs: any[] = [];
         snapshot.forEach((d) => regs.push({ id: d.id, ...d.data() }));
         regs.sort((a, b) => {
@@ -576,7 +576,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
 
     if (featureId === 'superAdminBroadcast') {
-      unsubBroadcasts = onSnapshot(collection(db, 'broadcasts'), (snapshot) => {
+      unsubBroadcasts = onSnapshot(collection(primaryDb, 'broadcasts'), (snapshot) => {
         const list: any[] = [];
         snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
         list.sort((a, b) => {
@@ -666,7 +666,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       // 5. Simpan hak akses role ke koleksi Firestore (`users`)
       const selectedStore = superAdminStores.find(s => s.id === newUserData.storeId);
 
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
+      await setDoc(doc(primaryDb, 'users', userCredential.user.uid), {
         name: newUserData.name.trim(),
         email: newUserData.email.trim(),
         role: newUserData.role,
@@ -723,7 +723,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     if (!editingUser) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'users', editingUser.id), {
+      await updateDoc(doc(primaryDb, 'users', editingUser.id), {
         role: editingUser.role,
         isActive: editingUser.isActive ?? true,
         isSubscribed: editingUser.isSubscribed ?? false,
@@ -755,7 +755,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await deleteDoc(doc(db, 'users', userId));
+              await deleteDoc(doc(primaryDb, 'users', userId));
               Alert.alert('Sukses', 'User berhasil dihapus secara permanen dari Firestore.');
             } catch (err: any) {
               console.error(err);
@@ -973,7 +973,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await updateDoc(doc(db, 'users', userToMigrate.id), {
+              await updateDoc(doc(primaryDb, 'users', userToMigrate.id), {
                 targetProjectId: isResetting ? null : targetProj.fb_project_id,
                 infraConfig: isResetting ? null : targetProj,
                 lastMigration: new Date().toISOString()
@@ -997,7 +997,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     if (!newStoreData.name || !newStoreData.id) return;
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'stores', newStoreData.id), {
+      await setDoc(doc(primaryDb, 'stores', newStoreData.id), {
         name: newStoreData.name,
         ownerEmail: newStoreData.ownerEmail || '-',
         createdAt: new Date().toISOString(),
@@ -1026,7 +1026,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           text: 'Ya',
           onPress: async () => {
             try {
-              await updateDoc(doc(db, 'stores', storeId), {
+              await updateDoc(doc(primaryDb, 'stores', storeId), {
                 isActive: !currentStatus
               });
               Alert.alert('Sukses', 'Status toko berhasil diperbarui!');
@@ -1060,7 +1060,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     if (!editingStore) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'stores', editingStore.id), {
+      await updateDoc(doc(primaryDb, 'stores', editingStore.id), {
         name: editingStore.name,
         ownerEmail: editingStore.ownerEmail || '-',
         maxUsers: Math.max(1, parseInt(editingStore.maxUsers as any) || 1),
@@ -1102,7 +1102,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   onPress: async () => {
                     setIsSaving(true);
                     try {
-                      await deleteDoc(doc(db, 'stores', storeId));
+                      await deleteDoc(doc(primaryDb, 'stores', storeId));
                       await deleteDoc(doc(db, 'settings', `store_${storeId}`));
                       
                       const collectionsToDelete = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras', 'estimations'];
@@ -1145,7 +1145,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const handleUpdateBranding = async () => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'system_settings', 'branding'), {
+      await setDoc(doc(primaryDb, 'system_settings', 'branding'), {
         ...brandingData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -1210,7 +1210,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const handleUpdateInfra = async () => {
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'system_settings', 'infrastructure'), {
+      await setDoc(doc(primaryDb, 'system_settings', 'infrastructure'), {
         ...infraData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -1226,8 +1226,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const handleSaveProject = async () => {
     setIsSaving(true);
     try {
-      const projId = editingProject?.id || doc(collection(db, 'system_settings', 'database_projects', 'list')).id;
-      await setDoc(doc(db, 'system_settings', 'database_projects', 'list', projId), {
+      const projId = editingProject?.id || doc(collection(primaryDb, 'system_settings', 'database_projects', 'list')).id;
+      await setDoc(doc(primaryDb, 'system_settings', 'database_projects', 'list', projId), {
         ...infraData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -1261,7 +1261,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           text: 'Ya, Hapus',
           onPress: async () => {
             try {
-              await deleteDoc(doc(db, 'system_settings', 'database_projects', 'list', projId));
+              await deleteDoc(doc(primaryDb, 'system_settings', 'database_projects', 'list', projId));
               Alert.alert('Sukses', 'Proyek berhasil dihapus.');
             } catch (err: any) {
               Alert.alert('Gagal', 'Gagal hapus: ' + err.message);
@@ -1293,7 +1293,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               };
 
               if (storeId === 'GLOBAL') {
-                const storesSnap = await getDocs(collection(db, 'stores'));
+                const storesSnap = await getDocs(collection(primaryDb, 'stores'));
                 const storesList: any[] = [];
                 storesSnap.forEach(d => storesList.push({ id: d.id, ...d.data() }));
                 backupData.data['stores'] = storesList;
@@ -1311,7 +1311,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   backupData.data[collName] = docs;
                 }
               } else {
-                const storeRef = doc(db, 'stores', storeId);
+                const storeRef = doc(primaryDb, 'stores', storeId);
                 const storeSnap = await getDoc(storeRef);
                 if (storeSnap.exists()) {
                   backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
@@ -1629,7 +1629,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               const match = req.packageId.match(/(\d+)m/);
               const months = match ? parseInt(match[1]) : 1;
 
-              const qUsers = query(collection(db, 'users'), where('storeId', '==', req.storeId));
+              const qUsers = query(collection(primaryDb, 'users'), where('storeId', '==', req.storeId));
               const userSnaps = await getDocs(qUsers);
 
               const now = new Date();
@@ -1658,7 +1658,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               newValidUntil.setDate(newValidUntil.getDate() + (months * 30));
 
               const batch = writeBatch(db);
-              batch.update(doc(db, 'subscription_requests', req.id), {
+              batch.update(doc(primaryDb, 'subscription_requests', req.id), {
                 status: 'approved',
                 approvedAt: now.toISOString()
               });
@@ -1696,7 +1696,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await deleteDoc(doc(db, 'subscription_requests', reqId));
+              await deleteDoc(doc(primaryDb, 'subscription_requests', reqId));
               Alert.alert('Sukses', 'Riwayat langganan berhasil dihapus.');
             } catch (error: any) {
               console.error(error);
@@ -1722,7 +1722,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await deleteDoc(doc(db, 'feedback', id));
+              await deleteDoc(doc(primaryDb, 'feedback', id));
               Alert.alert('Sukses', 'Kritik & saran berhasil dihapus.');
             } catch (err: any) {
               console.error(err);
@@ -1748,7 +1748,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await deleteDoc(doc(db, 'broadcasts', id));
+              await deleteDoc(doc(primaryDb, 'broadcasts', id));
               Alert.alert('Sukses', 'Broadcast berhasil dihapus.');
             } catch (err: any) {
               console.error(err);
@@ -1774,7 +1774,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
-              await deleteDoc(doc(db, 'registrations', id));
+              await deleteDoc(doc(primaryDb, 'registrations', id));
               Alert.alert('Sukses', 'Log pendaftaran berhasil dihapus.');
             } catch (err: any) {
               console.error(err);

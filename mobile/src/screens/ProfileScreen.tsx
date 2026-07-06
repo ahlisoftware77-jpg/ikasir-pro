@@ -4,7 +4,7 @@ import { Save, Camera } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
-import { db, auth, storage } from '../lib/firebase';
+import { db, auth, storage , primaryDb} from '../lib/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -70,7 +70,7 @@ export default function ProfileScreen({ navigation }: any) {
       if (auth.currentUser) {
          await updateProfile(auth.currentUser, { displayName: editProfileName, photoURL: editProfilePhoto });
       }
-      await updateDoc(doc(db, 'users', user.uid), { 
+      await updateDoc(doc(primaryDb, 'users', user.uid), { 
         name: editProfileName, 
         photoURL: editProfilePhoto,
         phone: editProfilePhone,

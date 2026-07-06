@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert, Modal, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, addDoc, collection } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth, db, primaryDb, initDynamicFirebase } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../context/ThemeContext';
 import { Mail, Lock, ShoppingBag, Eye, EyeOff, User, Store, Phone } from 'lucide-react-native';
@@ -46,7 +47,7 @@ export default function LoginScreen() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(primaryDb, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         
@@ -62,6 +63,23 @@ export default function LoginScreen() {
         if (userData.validUntil) {
           const raw = String(userData.validUntil);
           validUntil = raw.includes('T') ? new Date(raw) : new Date(raw + 'T23:59:59');
+        }
+
+        // Handle dynamic infra
+        if (userData.infraConfig && userData.infraConfig.fb_project_id) {
+           const fbObj = {
+             apiKey: userData.infraConfig.fb_api_key,
+             authDomain: userData.infraConfig.fb_auth_domain,
+             projectId: userData.infraConfig.fb_project_id,
+             storageBucket: userData.infraConfig.fb_storage_bucket,
+             messagingSenderId: userData.infraConfig.fb_messaging_sender_id,
+             appId: userData.infraConfig.fb_app_id
+           };
+           await AsyncStorage.setItem('infra_config_fb', JSON.stringify(fbObj));
+           await initDynamicFirebase();
+        } else {
+           await AsyncStorage.removeItem('infra_config_fb');
+           await initDynamicFirebase();
         }
 
         // Atomic login: set ALL auth state in a single call to prevent
@@ -117,13 +135,13 @@ export default function LoginScreen() {
       let storeIdStr = baseStoreId;
       let counter = 0;
       while (true) {
-        const storeSnap = await getDoc(doc(db, 'stores', storeIdStr));
+        const storeSnap = await getDoc(doc(primaryDb, 'stores', storeIdStr));
         if (!storeSnap.exists()) break;
         counter++;
         storeIdStr = `${baseStoreId}-${counter}`;
       }
 
-      await setDoc(doc(db, 'stores', storeIdStr), {
+      await setDoc(doc(primaryDb, 'stores', storeIdStr), {
         name: storeName,
         ownerEmail: email,
         ownerUid: user.uid,
@@ -132,7 +150,7 @@ export default function LoginScreen() {
         package: 'trial'
       });
 
-      await setDoc(doc(db, 'users', user.uid), {
+      await setDoc(doc(primaryDb, 'users', user.uid), {
         name: name,
         email: email,
         role: 'admin',
@@ -154,7 +172,7 @@ export default function LoginScreen() {
       });
 
       // Rekam Pendataan Pendaftaran
-      await setDoc(doc(db, 'registrations', storeIdStr), {
+      await setDoc(doc(primaryDb, 'registrations', storeIdStr), {
         ownerName: name,
         storeName: storeName,
         email: email,
@@ -166,7 +184,7 @@ export default function LoginScreen() {
       });
 
       // Kirim Notifikasi Superadmin
-      await addDoc(collection(db, 'superadmin_notifications'), {
+      await addDoc(collection(primaryDb, 'superadmin_notifications'), {
         title: 'Pendaftaran Baru (Email)',
         message: `Toko "${storeName}" (${name}) terdaftar via Mobile.`,
         createdAt: new Date().toISOString(),
@@ -224,7 +242,7 @@ export default function LoginScreen() {
       const userCredential = await signInWithCredential(auth, googleCredential);
       const user = userCredential.user;
 
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(primaryDb, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         
@@ -240,6 +258,23 @@ export default function LoginScreen() {
         if (userData.validUntil) {
           const raw = String(userData.validUntil);
           validUntil = raw.includes('T') ? new Date(raw) : new Date(raw + 'T23:59:59');
+        }
+
+        // Handle dynamic infra
+        if (userData.infraConfig && userData.infraConfig.fb_project_id) {
+           const fbObj = {
+             apiKey: userData.infraConfig.fb_api_key,
+             authDomain: userData.infraConfig.fb_auth_domain,
+             projectId: userData.infraConfig.fb_project_id,
+             storageBucket: userData.infraConfig.fb_storage_bucket,
+             messagingSenderId: userData.infraConfig.fb_messaging_sender_id,
+             appId: userData.infraConfig.fb_app_id
+           };
+           await AsyncStorage.setItem('infra_config_fb', JSON.stringify(fbObj));
+           await initDynamicFirebase();
+        } else {
+           await AsyncStorage.removeItem('infra_config_fb');
+           await initDynamicFirebase();
         }
 
         login({
@@ -287,7 +322,7 @@ export default function LoginScreen() {
       let storeIdStr = baseStoreId;
       let counter = 0;
       while (true) {
-        const storeSnap = await getDoc(doc(db, 'stores', storeIdStr));
+        const storeSnap = await getDoc(doc(primaryDb, 'stores', storeIdStr));
         if (!storeSnap.exists()) break;
         counter++;
         storeIdStr = `${baseStoreId}-${counter}`;
@@ -295,7 +330,7 @@ export default function LoginScreen() {
 
       const displayName = googleUser.displayName || 'Pengguna Baru';
 
-      await setDoc(doc(db, 'stores', storeIdStr), {
+      await setDoc(doc(primaryDb, 'stores', storeIdStr), {
         name: storeName,
         ownerEmail: googleUser.email,
         ownerUid: googleUser.uid,
@@ -304,7 +339,7 @@ export default function LoginScreen() {
         package: 'trial'
       });
 
-      await setDoc(doc(db, 'users', googleUser.uid), {
+      await setDoc(doc(primaryDb, 'users', googleUser.uid), {
         name: displayName,
         email: googleUser.email,
         phone: phone,
@@ -315,7 +350,7 @@ export default function LoginScreen() {
         validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
       });
 
-      await setDoc(doc(db, 'settings', `store_${storeIdStr}`), {
+      await setDoc(doc(primaryDb, 'settings', `store_${storeIdStr}`), {
         storeName: storeName,
         address: 'Alamat Belum Diatur',
         phone: phone,
@@ -327,7 +362,7 @@ export default function LoginScreen() {
       });
 
       // Rekam Pendataan Pendaftaran
-      await setDoc(doc(db, 'registrations', storeIdStr), {
+      await setDoc(doc(primaryDb, 'registrations', storeIdStr), {
         ownerName: displayName,
         storeName: storeName,
         email: googleUser.email,
@@ -339,7 +374,7 @@ export default function LoginScreen() {
       });
 
       // Kirim Notifikasi Superadmin
-      await addDoc(collection(db, 'superadmin_notifications'), {
+      await addDoc(collection(primaryDb, 'superadmin_notifications'), {
         title: 'Pendaftaran Baru (Google)',
         message: `Toko "${storeName}" (${displayName}) terdaftar via Mobile.`,
         createdAt: new Date().toISOString(),

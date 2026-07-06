@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
-import { db } from '../lib/firebase';
-import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { db, primaryDb } from '../lib/firebase';
+import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 
@@ -151,7 +151,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
       if (user?.uid) {
         // Sync phone and address to user profile
         try {
-           await updateDoc(doc(db, 'users', user.uid), {
+           await updateDoc(doc(primaryDb, 'users', user.uid), {
              phone,
              address
            });
