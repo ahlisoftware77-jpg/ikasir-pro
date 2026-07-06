@@ -50,7 +50,7 @@ export default function EstimationsPage() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [selectedEstimation, setSelectedEstimation] = useState<any>(null);
   
-  const [storeSettings, setStoreSettings] = useState({ 
+  const [storeSettings, setStoreSettings] = useState<any>({ 
     useTax: true, 
     taxRate: 11, 
     storeName: '', 
