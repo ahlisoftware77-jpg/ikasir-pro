@@ -95,4 +95,28 @@ export const initDynamicFirebase = async () => {
   }
 };
 
+// Helper for Federated Queries: get Firestore instance for any tenant config
+export const getTenantDb = (config: any): Firestore => {
+  if (!config || !config.projectId) return primaryDb;
+  
+  const appName = `DataApp_${config.projectId}`;
+  let tApp = getApps().find(a => a.name === appName);
+  
+  if (!tApp) {
+    if (config.projectId === firebaseConfig.projectId) {
+      tApp = primaryApp;
+    } else {
+      tApp = initializeApp(config, appName);
+    }
+  }
+
+  try {
+    return getFirestore(tApp);
+  } catch {
+    return initializeFirestore(tApp, {
+      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+    });
+  }
+};
+
 export default primaryApp;

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
-import { db } from '../lib/firebase';
+import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import dayjs from 'dayjs';
@@ -51,8 +51,8 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
     const userIdToSearch = user.uid || user.phone || user.phoneNumber || '';
     const phoneToSearch = user.phone || user.phoneNumber || '';
     
-    const ordersRef = collection(db, 'transactions');
     let fetchedMap = new Map();
+    let unsubs: (() => void)[] = [];
     
     const updateOrders = () => {
       const arr = Array.from(fetchedMap.values());
@@ -73,41 +73,64 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
       AsyncStorage.setItem('@marketplace_orders_state', JSON.stringify(stateToSave)).catch(console.error);
     };
 
-    // Ambil berdasarkan userId
-    const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
-    const unsub1 = onSnapshot(q1, (snap) => {
-      snap.forEach(doc => {
-        fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
-      });
-      // Handle deleted documents
-      snap.docChanges().forEach(change => {
-        if (change.type === 'removed') {
-          fetchedMap.delete(change.doc.id);
-        }
-      });
-      updateOrders();
-    });
-
-    let unsub2: any = null;
-    // Tambahkan juga berdasar phone jika ada dan berbeda dengan userId
-    if (phoneToSearch && phoneToSearch !== userIdToSearch) {
-      const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
-      unsub2 = onSnapshot(q2, (snap) => {
-        snap.forEach(doc => {
-          fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
+    const fetchAllOrders = async () => {
+      try {
+        const storesQ = query(collection(primaryDb, 'stores'));
+        const storesSnap = await getDocs(storesQ);
+        const tenantConfigs = new Map<string, any>();
+        storesSnap.forEach(doc => {
+          const sData = doc.data();
+          const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
+          tenantConfigs.set(cfg.projectId, cfg);
         });
-        snap.docChanges().forEach(change => {
-          if (change.type === 'removed') {
-            fetchedMap.delete(change.doc.id);
+
+        Array.from(tenantConfigs.values()).forEach(cfg => {
+          try {
+            const tDb = getTenantDb(cfg);
+            const ordersRef = collection(tDb, 'transactions');
+            
+            const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+            const unsub1 = onSnapshot(q1, (snap) => {
+              snap.forEach(doc => {
+                fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
+              });
+              snap.docChanges().forEach(change => {
+                if (change.type === 'removed') fetchedMap.delete(change.doc.id);
+              });
+              updateOrders();
+            });
+            unsubs.push(unsub1);
+
+            if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+              const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+              const unsub2 = onSnapshot(q2, (snap) => {
+                snap.forEach(doc => {
+                  fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
+                });
+                snap.docChanges().forEach(change => {
+                  if (change.type === 'removed') fetchedMap.delete(change.doc.id);
+                });
+                updateOrders();
+              });
+              unsubs.push(unsub2);
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch orders from tenant db ${cfg.projectId}`, e);
           }
         });
-        updateOrders();
-      });
-    }
+        
+        // Timeout in case no tenants
+        setTimeout(() => setLoading(false), 2000);
+      } catch (err) {
+        console.error("Error fetching stores config for orders", err);
+        setLoading(false);
+      }
+    };
+
+    fetchAllOrders();
 
     return () => {
-      unsub1();
-      if (unsub2) unsub2();
+      unsubs.forEach(unsub => unsub());
     };
   }, [user]);
 

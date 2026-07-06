@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
-import { db, primaryDb } from '../lib/firebase';
+import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
@@ -66,16 +66,26 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
 
     setLoading(true);
     try {
+      let tDb = db;
+      if (storeId) {
+        const sRefPrimary = doc(primaryDb, 'stores', storeId);
+        const sSnapPrimary = await getDoc(sRefPrimary);
+        if (sSnapPrimary.exists()) {
+          const cfg = sSnapPrimary.data().infraConfig;
+          if (cfg) tDb = getTenantDb(cfg);
+        }
+      }
+
       let finalId = '';
       
-      await runTransaction(db, async (transaction) => {
+      await runTransaction(tDb, async (transaction) => {
         // --- 1. Lakukan SEMUA proses baca (reads) terlebih dahulu ---
-        const settingsRef = doc(db, 'settings', `store_${storeId}`);
+        const settingsRef = doc(tDb, 'settings', `store_${storeId}`);
         const settingsSnap = await transaction.get(settingsRef);
         
         const productReads = [];
         for (const item of storeItems) {
-          const pRef = doc(db, 'products', item.productId);
+          const pRef = doc(tDb, 'products', item.productId);
           const pSnap = await transaction.get(pRef);
           productReads.push({ ref: pRef, snap: pSnap, item });
         }
@@ -143,7 +153,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           }
         }
 
-        const newOrderRef = doc(db, 'transactions', finalId);
+        const newOrderRef = doc(tDb, 'transactions', finalId);
         transaction.set(newOrderRef, orderData);
         transaction.update(settingsRef, { trxCounter: currentCounter });
       });

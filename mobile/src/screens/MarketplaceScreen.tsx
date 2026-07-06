@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, XCircle, Star } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
-import { db } from '../lib/firebase';
+import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCartStore } from '../store/cartStore';
@@ -181,38 +181,60 @@ export default function MarketplaceScreen() {
   const fetchMarketplaceData = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      const q = query(collection(db, 'products'), where('joinMarketplace', '==', true));
-      const snap = await getDocs(q);
+      const storesQ = query(collection(primaryDb, 'stores'));
+      const storesSnap = await getDocs(storesQ);
+      const tenantConfigs = new Map<string, any>();
+      const storeToConfigMap: Record<string, any> = {};
+      
+      storesSnap.forEach(doc => {
+        const sData = doc.data();
+        const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' }; // fallback
+        tenantConfigs.set(cfg.projectId, cfg);
+        storeToConfigMap[doc.id] = cfg;
+      });
+
       const list: Product[] = [];
       const uniqueStoreIds = new Set<string>();
 
-      snap.forEach((d) => {
-        const data = d.data();
-        let finalImageUrl = data.imageUrl || '';
-        
-        // Fallback ke media array jika imageUrl kosong
-        if (!finalImageUrl) {
-          if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
-          else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
-        }
+      const fetchPromises = Array.from(tenantConfigs.values()).map(async (cfg) => {
+        try {
+          const tDb = getTenantDb(cfg);
+          const q = query(collection(tDb, 'products'), where('joinMarketplace', '==', true));
+          const pSnap = await getDocs(q);
+          
+          pSnap.forEach((d) => {
+            const data = d.data();
+            let finalImageUrl = data.imageUrl || '';
+            
+            // Fallback ke media array jika imageUrl kosong
+            if (!finalImageUrl) {
+              if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
+              else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
+            }
 
-        list.push({
-          id: d.id,
-          name: data.name || '',
-          price: data.price || 0,
-          category: data.category || 'Umum',
-          imageUrl: finalImageUrl,
-          storeId: data.storeId || '',
-          storeName: data.storeName || 'Toko Mitra',
-          stock: data.stock !== undefined ? data.stock : 0,
-          manageStock: data.manageStock !== undefined ? data.manageStock : true,
-          averageRating: data.averageRating || 0,
-          reviewCount: data.reviewCount || 0,
-        });
-        if (data.storeId) {
-          uniqueStoreIds.add(data.storeId);
+            list.push({
+              id: d.id,
+              name: data.name || '',
+              price: data.price || 0,
+              category: data.category || 'Umum',
+              imageUrl: finalImageUrl,
+              storeId: data.storeId || '',
+              storeName: data.storeName || 'Toko Mitra',
+              stock: data.stock !== undefined ? data.stock : 0,
+              manageStock: data.manageStock !== undefined ? data.manageStock : true,
+              averageRating: data.averageRating || 0,
+              reviewCount: data.reviewCount || 0,
+            });
+            if (data.storeId) {
+              uniqueStoreIds.add(data.storeId);
+            }
+          });
+        } catch (e) {
+          console.warn(`Failed to fetch from tenant db ${cfg.projectId}`, e);
         }
       });
+
+      await Promise.all(fetchPromises);
 
       // Fetch active discounts
       const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
@@ -247,13 +269,17 @@ export default function MarketplaceScreen() {
       const hiddenCatMap: Record<string, string[]> = {};
       await Promise.all(
         Array.from(uniqueStoreIds).map(async (storeId) => {
-          const sRef = doc(db, 'settings', `store_${storeId}`);
-          const sSnap = await getDoc(sRef);
-          if (sSnap.exists()) {
-            const sData = sSnap.data();
-            if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
-            if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
-          }
+          try {
+            const cfg = storeToConfigMap[storeId] || { projectId: 'kasir-3d12b' };
+            const tDb = getTenantDb(cfg);
+            const sRef = doc(tDb, 'settings', `store_${storeId}`);
+            const sSnap = await getDoc(sRef);
+            if (sSnap.exists()) {
+              const sData = sSnap.data();
+              if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
+              if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
+            }
+          } catch (e) {}
         })
       );
 
@@ -315,7 +341,7 @@ export default function MarketplaceScreen() {
       <TouchableOpacity 
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, width: CARD_WIDTH }]}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id })}
+        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id, storeId: item.storeId })}
       >
         <View style={[styles.imageContainer, { backgroundColor: colors.bg }]}>
           {item.imageUrl ? (

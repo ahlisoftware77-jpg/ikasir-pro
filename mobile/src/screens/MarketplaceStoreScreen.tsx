@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, ChevronLeft, MessageCircle, Star } from 'lucide-react-native';
 import { Video, ResizeMode } from 'expo-av';
-import { db } from '../lib/firebase';
+import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 interface Product {
@@ -55,8 +55,18 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
   const fetchStoreData = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
+      let tDb = db;
+      if (storeId) {
+        const sRefPrimary = doc(primaryDb, 'stores', storeId);
+        const sSnapPrimary = await getDoc(sRefPrimary);
+        if (sSnapPrimary.exists()) {
+          const cfg = sSnapPrimary.data().infraConfig;
+          if (cfg) tDb = getTenantDb(cfg);
+        }
+      }
+
       // 1. Fetch Store Info
-      const sRef = doc(db, 'settings', `store_${storeId}`);
+      const sRef = doc(tDb, 'settings', `store_${storeId}`);
       const sSnap = await getDoc(sRef);
       if (sSnap.exists()) {
         const sData = sSnap.data();
@@ -68,7 +78,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       }
 
       // 2. Fetch Products
-      const q = query(collection(db, 'products'), where('joinMarketplace', '==', true), where('storeId', '==', storeId));
+      const q = query(collection(tDb, 'products'), where('joinMarketplace', '==', true), where('storeId', '==', storeId));
       const snap = await getDocs(q);
       const list: Product[] = [];
 
@@ -96,7 +106,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       });
 
       // 3. Fetch active discounts
-      const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
+      const dq = query(collection(tDb, 'discounts'), where('isActive', '==', true));
       const dSnap = await getDocs(dq);
       const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       const now = new Date();
@@ -126,7 +136,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       setProducts(list);
 
       // 4. Fetch Reviews
-      const rQuery = query(collection(db, 'reviews'), where('storeId', '==', storeId));
+      const rQuery = query(collection(tDb, 'reviews'), where('storeId', '==', storeId));
       const rSnap = await getDocs(rQuery);
       const fetchedReviews = rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
       fetchedReviews.sort((a, b) => {
