@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, primaryDb, getTenantDb } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ArrowLeft, Package, Clock, CheckCircle2, XCircle, Search, MessageSquare } from 'lucide-react';
 import ReviewModal from '@/components/ReviewModal';
@@ -41,33 +41,62 @@ export default function MarketplaceOrdersPage() {
     }
     setLoading(true);
     try {
-      const q = query(collection(db, 'transactions'), where('userId', '==', userId));
-      const snap = await getDocs(q);
-      const fetchedMap = new Map();
+      const storesQ = query(collection(primaryDb, 'stores'));
+      const storesSnap = await getDocs(storesQ);
+      const tenantConfigs = new Map<string, any>();
       
-      snap.forEach(document => {
-        fetchedMap.set(document.id, { id: document.id, ...document.data() });
+      storesSnap.forEach(doc => {
+        const sData = doc.data();
+        const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
+        tenantConfigs.set(cfg.projectId, cfg);
       });
 
-      let list: any[] = Array.from(fetchedMap.values());
+      const fetchedMap = new Map();
       const storeNames: Record<string, string> = {};
+
+      await Promise.all(Array.from(tenantConfigs.values()).map(async (cfg) => {
+        try {
+          const tDb = getTenantDb(cfg);
+
+          // Check transactions by userId
+          const q1 = query(collection(tDb, 'transactions'), where('userId', '==', userId));
+          const snap1 = await getDocs(q1);
+          snap1.forEach(document => {
+            fetchedMap.set(document.id, { id: document.id, ...document.data() });
+          });
+
+          // Check transactions by guestId
+          const q2 = query(collection(tDb, 'transactions'), where('guestId', '==', userId));
+          const snap2 = await getDocs(q2);
+          snap2.forEach(document => {
+            fetchedMap.set(document.id, { id: document.id, ...document.data() });
+          });
+
+          // Fetch store names from settings
+          const settingsQ = query(collection(tDb, 'settings'));
+          const settingsSnap = await getDocs(settingsQ);
+          settingsSnap.forEach((sDoc) => {
+            if (sDoc.id.startsWith('store_')) {
+              const sId = sDoc.id.replace('store_', '');
+              const sData = sDoc.data();
+              if (sData.storeName) {
+                storeNames[sId] = sData.storeName;
+              }
+            }
+          });
+        } catch (tErr) {
+          console.error(`Error fetching orders from tenant ${cfg.projectId}:`, tErr);
+        }
+      }));
+
+      let list: any[] = Array.from(fetchedMap.values());
       
       for (const data of list) {
-        let sName = '';
-        if (data.storeId) {
-          if (storeNames[data.storeId]) {
-            sName = storeNames[data.storeId];
-          } else {
-            const storeRef = doc(db, 'settings', `store_${data.storeId}`);
-            const storeSnap = await getDoc(storeRef);
-            if (storeSnap.exists() && storeSnap.data().storeName) {
-              sName = storeSnap.data().storeName;
-              storeNames[data.storeId] = sName;
-            }
-          }
+        if (data.storeId && storeNames[data.storeId]) {
+          data.storeName = storeNames[data.storeId];
         }
-        data.storeName = sName;
       }
+      
       list.sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       setOrders(list);
     } catch (error) {

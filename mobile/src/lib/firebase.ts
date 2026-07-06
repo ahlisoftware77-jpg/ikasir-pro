@@ -113,9 +113,7 @@ export const getTenantDb = (config: any): Firestore => {
   try {
     return getFirestore(tApp);
   } catch {
-    return initializeFirestore(tApp, {
-      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-    });
+    return initializeFirestore(tApp, {});
   }
 };
 

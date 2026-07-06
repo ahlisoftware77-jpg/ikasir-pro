@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { db, auth } from '@/lib/firebase';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { db, auth, primaryDb, getTenantDb } from '@/lib/firebase';
 import { 
   collection, 
   query, 
@@ -90,6 +90,8 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 export default function ProductDetailPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const routeStoreId = searchParams.get('s');
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -186,7 +188,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       }
       setLoading(true);
       try {
-        const productRef = doc(db, 'products', productId);
+        let tDb = db;
+        if (routeStoreId) {
+          const sRefPrimary = doc(primaryDb, 'stores', routeStoreId);
+          const sSnapPrimary = await getDoc(sRefPrimary);
+          if (sSnapPrimary.exists()) {
+            const cfg = sSnapPrimary.data().infraConfig;
+            if (cfg) tDb = getTenantDb(cfg);
+          }
+        }
+
+        const productRef = doc(tDb, 'products', productId);
         const productSnap = await getDoc(productRef);
 
         if (productSnap.exists()) {
@@ -210,7 +222,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           setProduct(prodObj);
 
           // Fetch reviews
-          const reviewsQ = query(collection(db, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
+          const reviewsQ = query(collection(tDb, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
           unsubReviews = onSnapshot(reviewsQ, (snap) => {
             const revs: any[] = [];
             snap.forEach(doc => revs.push({ id: doc.id, ...doc.data() }));
@@ -219,7 +231,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
           // Fetch store details
           if (data.storeId) {
-            const settingsSnap = await getDoc(doc(db, 'settings', `store_${data.storeId}`));
+            const settingsSnap = await getDoc(doc(tDb, 'settings', `store_${data.storeId}`));
             if (settingsSnap.exists()) {
               const sData = settingsSnap.data();
               setStorePhone(sData.phone || '');
@@ -253,7 +265,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
             // Fetch other products from same store
             const q = query(
-              collection(db, 'products'), 
+              collection(tDb, 'products'), 
               where('storeId', '==', data.storeId), 
               where('joinMarketplace', '==', true)
             );
@@ -278,7 +290,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
             // Fetch flash sales for this store
             try {
               const fsQuery = query(
-                collection(db, 'flash_sales'),
+                collection(tDb, 'flash_sales'),
                 where('storeId', '==', data.storeId),
                 where('isActive', '==', true)
               );
@@ -321,22 +333,28 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
   const handleConfirmCheckout = async () => {
     if (!product) return;
-
-    if (!customerName.trim()) {
-      alert("Harap lengkapi nama Anda.");
-      return;
-    }
-    if (!customerPhone.trim()) {
-      alert("Harap isi nomor WhatsApp Anda.");
+    if (!customerName.trim() || !customerPhone.trim()) {
+      alert("Nama dan Nomor HP tidak boleh kosong.");
       return;
     }
     if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
-      alert("Harap lengkapi alamat pengiriman Anda.");
+      alert("Alamat Pengiriman wajib diisi.");
       return;
     }
 
     setIsProcessing(true);
     try {
+      let tDb = db;
+      if (routeStoreId) {
+        const sRefPrimary = doc(primaryDb, 'stores', routeStoreId);
+        const sSnapPrimary = await getDoc(sRefPrimary);
+        if (sSnapPrimary.exists()) {
+          const cfg = sSnapPrimary.data().infraConfig;
+          if (cfg) tDb = getTenantDb(cfg);
+        }
+      }
+
+      // Calculate totals
       const ep = getEffectivePrice(product);
       const activePrice = ep.isFlashSale ? ep.price : product.price;
       const sub = activePrice * qty;
@@ -384,11 +402,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
       let finalId = '';
       
-      await runTransaction(db, async (transaction) => {
+      await runTransaction(tDb, async (transaction) => {
         if (!product.storeId) {
           throw new Error("Store ID tidak valid.");
         }
-        const settingsRef = doc(db, 'settings', `store_${product.storeId}`);
+        const settingsRef = doc(tDb, 'settings', `store_${product.storeId}`);
         const settingsSnap = await transaction.get(settingsRef);
         
         let currentCounter = 0;
@@ -418,7 +436,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
           });
 
           if (activeFs && activeFs.id) {
-            const fsRef = doc(db, 'flash_sales', activeFs.id);
+            const fsRef = doc(tDb, 'flash_sales', activeFs.id);
             const fsDoc = await transaction.get(fsRef);
             if (fsDoc.exists()) {
               const fsData = fsDoc.data();
@@ -437,7 +455,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         if (!finalId) {
           throw new Error("ID Transaksi tidak valid.");
         }
-        transaction.set(doc(db, 'transactions', finalId), orderData);
+        transaction.set(doc(tDb, 'transactions', finalId), orderData);
         transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
       });
 

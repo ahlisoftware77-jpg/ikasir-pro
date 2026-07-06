@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { db } from '@/lib/firebase';
+import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -72,49 +72,76 @@ function MarketplaceContent() {
     async function fetchMarketplaceData() {
       setLoading(true);
       try {
-        const q = query(collection(db, 'products'), where('joinMarketplace', '==', true));
-        const snap = await getDocs(q);
-        const list: Product[] = [];
-        const uniqueStoreIds = new Set<string>();
-
-        snap.forEach((d) => {
-          const data = d.data();
-          list.push({
-            id: d.id,
-            name: data.name || '',
-            price: data.price || 0,
-            category: data.category || 'Umum',
-            imageUrl: data.imageUrl || '',
-            imageUrls: data.imageUrls || [],
-            description: data.description || '',
-            videoUrl: data.videoUrl || '',
-            storeId: data.storeId || '',
-            storeName: data.storeName || 'Toko Mitra',
-            stock: data.stock !== undefined ? data.stock : 0,
-            manageStock: data.manageStock !== undefined ? data.manageStock : true,
-          });
-          if (data.storeId) {
-            uniqueStoreIds.add(data.storeId);
-          }
+        const storesQ = query(collection(primaryDb, 'stores'));
+        const storesSnap = await getDocs(storesQ);
+        const tenantConfigs = new Map<string, any>();
+        
+        storesSnap.forEach(doc => {
+          const sData = doc.data();
+          const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
+          tenantConfigs.set(cfg.projectId, cfg);
         });
 
-        // Fetch store contacts, addresses, and logos
+        const list: Product[] = [];
         const phonesMap: Record<string, string> = {};
         const addressMap: Record<string, string> = {};
         const logosMap: Record<string, string> = {};
         const hiddenCatsMap: Record<string, string[]> = {};
-        for (const sId of Array.from(uniqueStoreIds)) {
-          const settingsSnap = await getDoc(doc(db, 'settings', `store_${sId}`));
-          if (settingsSnap.exists()) {
-            const sData = settingsSnap.data();
-            phonesMap[sId] = sData.phone || '';
-            addressMap[sId] = sData.address || '';
-            logosMap[sId] = sData.logoUrl || '';
-            if (sData.hiddenMarketplaceCategories) {
-              hiddenCatsMap[sId] = sData.hiddenMarketplaceCategories;
-            }
+        const allFlashSales: any[] = [];
+
+        await Promise.all(Array.from(tenantConfigs.values()).map(async (cfg) => {
+          try {
+            const tDb = getTenantDb(cfg);
+
+            const q = query(collection(tDb, 'products'), where('joinMarketplace', '==', true));
+            const snap = await getDocs(q);
+
+            snap.forEach((d) => {
+              const data = d.data();
+              list.push({
+                id: d.id,
+                name: data.name || '',
+                price: data.price || 0,
+                category: data.category || 'Umum',
+                imageUrl: data.imageUrl || '',
+                imageUrls: data.imageUrls || [],
+                description: data.description || '',
+                videoUrl: data.videoUrl || '',
+                storeId: data.storeId || '',
+                storeName: data.storeName || 'Toko Mitra',
+                stock: data.stock !== undefined ? data.stock : 0,
+                manageStock: data.manageStock !== undefined ? data.manageStock : true,
+              });
+            });
+
+            const fsQuery = query(collection(tDb, 'flash_sales'), where('isActive', '==', true));
+            const fsSnap = await getDocs(fsQuery);
+            fsSnap.forEach((fsDoc) => {
+              allFlashSales.push({ id: fsDoc.id, ...fsDoc.data() });
+            });
+
+            const settingsQ = query(collection(tDb, 'settings'));
+            const settingsSnap = await getDocs(settingsQ);
+            settingsSnap.forEach((sDoc) => {
+              if (sDoc.id.startsWith('store_')) {
+                const sId = sDoc.id.replace('store_', '');
+                const sData = sDoc.data();
+                if (sData.joinMarketplace) {
+                  phonesMap[sId] = sData.phone || '';
+                  addressMap[sId] = sData.address || '';
+                  logosMap[sId] = sData.logoUrl || '';
+                  if (sData.hiddenMarketplaceCategories) {
+                    hiddenCatsMap[sId] = sData.hiddenMarketplaceCategories;
+                  }
+                }
+              }
+            });
+
+          } catch (tErr) {
+            console.error(`Error fetching from tenant ${cfg.projectId}:`, tErr);
           }
-        }
+        }));
+
         setStorePhones(phonesMap);
         setStoreAddresses(addressMap);
         setStoreLogos(logosMap);
@@ -131,24 +158,6 @@ function MarketplaceContent() {
         // Fetch categories from visible list
         const cats = ['Semua', ...Array.from(new Set(visibleList.map(p => p.category)))];
         setCategories(cats);
-
-        // Fetch flash sales for all stores in marketplace
-        const allFlashSales: any[] = [];
-        for (const sId of Array.from(uniqueStoreIds)) {
-          try {
-            const fsQuery = query(
-              collection(db, 'flash_sales'),
-              where('storeId', '==', sId),
-              where('isActive', '==', true)
-            );
-            const fsSnap = await getDocs(fsQuery);
-            fsSnap.forEach((fsDoc) => {
-              allFlashSales.push({ id: fsDoc.id, ...fsDoc.data() });
-            });
-          } catch (fsErr) {
-            console.error(`Error fetching flash sales for store ${sId}:`, fsErr);
-          }
-        }
         setFlashSales(allFlashSales);
       } catch (err) {
         console.error("Error fetching marketplace products:", err);
@@ -396,7 +405,7 @@ function MarketplaceContent() {
                             return (
                               <button
                                 key={fsProd.productId}
-                                onClick={() => router.push(`/marketplace/${prod.id}`)}
+                                onClick={() => router.push(`/marketplace/${prod.id}?s=${prod.storeId}`)}
                                 className="flex-shrink-0 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-700 rounded-2xl p-3 w-36 md:w-44 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden shadow-sm"
                               >
                                 <h5 className="font-extrabold text-xs truncate text-slate-800 dark:text-slate-200 leading-snug">{prod.name}</h5>
@@ -455,7 +464,7 @@ function MarketplaceContent() {
                   key={prod.id} 
                   onClick={() => {
                     // Navigate to the dynamic detail page
-                    router.push(`/marketplace/${prod.id}`);
+                    router.push(`/marketplace/${prod.id}?s=${prod.storeId}`);
                   }}
                   className="group bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col hover:border-emerald-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/5 hover:-translate-y-1 cursor-pointer shadow-sm"
                 >
