@@ -577,7 +577,7 @@ export default function SettingsPage() {
 
         if (!registration) throw new Error("Gagal menghubungkan ke Service Worker.");
 
-        await registration.showNotification('?�� TES PESANAN BARU', {
+        await registration.showNotification('🎯 TES PESANAN BARU', {
           body: 'Notifikasi latar belakang berfungsi! Jika ini muncul di Android, maka sistem Anda sudah sinkron.',
           icon: '/icon-192.png',
           badge: '/icon-192.png',
@@ -591,7 +591,7 @@ export default function SettingsPage() {
       } catch (err: any) {
         toast.error(`Gagal: ${err.message || err}`);
         try {
-           new Notification('?�� TES PESANAN BARU', { body: 'Notifikasi dasar (mode terbatas).' });
+           new Notification('🎯 TES PESANAN BARU', { body: 'Notifikasi dasar (mode terbatas).' });
         } catch (f) {}
       }
     }, 5000);
@@ -1882,11 +1882,11 @@ export default function SettingsPage() {
                    Untuk dapat mencetak struk langsung dari browser HP Android ke printer thermal Bluetooth/USB, Anda memerlukan aplikasi <strong className="text-foreground">RawBT</strong>. Aplikasi ini berfungsi sebagai jembatan (driver) komunikasi antara web kasir dan printer Anda.
                 </p>
                 <div className="flex flex-wrap gap-2 text-[10px] font-bold text-app-text-muted italic">
-                   <span>??Support Bluetooth</span>
+                   <span>✓ Support Bluetooth</span>
                    <span className="w-1 h-1 bg-app-border rounded-full self-center"></span>
-                   <span>??Support USB/OTG</span>
+                   <span>✓ Support USB/OTG</span>
                    <span className="w-1 h-1 bg-app-border rounded-full self-center"></span>
-                   <span>??Support WiFi Printer</span>
+                   <span>✓ Support WiFi Printer</span>
                 </div>
              </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -1986,7 +1986,7 @@ export default function SettingsPage() {
                   value={passwordState.oldPassword}
                   onChange={e => setPasswordState(prev => ({ ...prev, oldPassword: e.target.value }))}
                   className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all placeholder:text-app-text-muted/30"
-                  placeholder="?�••••�?
+                  placeholder="••••••"
                 />
              </div>
              <div className="space-y-2">
