@@ -1565,7 +1565,13 @@ export default function SettingsScreen({ navigation, route }: any) {
           className="p-5 mx-6 mt-4 rounded-3xl border flex-row items-center justify-between"
           style={{ backgroundColor: colors.surface, borderColor: colors.border }}
         >
-          <View className="flex-row items-center gap-4 flex-1">
+          <TouchableOpacity 
+            className="flex-row items-center gap-4 flex-1"
+            onPress={() => {
+              Vibration.vibrate(15);
+              navigation.navigate('Profile');
+            }}
+          >
             {user?.photoURL || user?.photoUrl ? (
               <Image 
                 source={{ uri: user.photoURL || user.photoUrl }} 
@@ -1590,7 +1596,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                 {role === 'admin' ? 'Owner (Admin)' : 'Kasir'}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => {
               Vibration.vibrate(15);

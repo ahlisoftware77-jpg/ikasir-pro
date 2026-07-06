@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import { db, auth, storage } from '../lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,6 +83,18 @@ export default function ProfileScreen({ navigation }: any) {
         phone: editProfilePhone,
         address: editProfileAddress
       });
+      
+      // Sync down to store settings if they are owner/admin
+      if (user.role === 'owner' || user.role === 'admin' || user.role === 'superadmin') {
+        try {
+          const storeRef = doc(db, 'settings', `store_${user.uid}`);
+          const storeSnap = await getDoc(storeRef);
+          if (storeSnap.exists()) {
+             await updateDoc(storeRef, { phone: editProfilePhone, address: editProfileAddress });
+          }
+        } catch (sErr) {}
+      }
+
       Alert.alert('Sukses', 'Profil berhasil diperbarui!');
     } catch (err) {
       console.error(err);

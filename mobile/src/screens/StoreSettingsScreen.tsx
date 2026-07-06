@@ -1464,13 +1464,16 @@ export default function StoreSettingsScreen({ navigation }: any) {
         name: storeSettings.storeName
       }).catch(() => {});
       
-      // Sync phone to user profile
-      if (storeSettings.phone) {
+      // Sync phone and address to user profile
+      if (storeSettings.phone || storeSettings.address) {
         try {
           const userRef = doc(db, 'users', storeId);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
-            await updateDoc(userRef, { phone: storeSettings.phone });
+            await updateDoc(userRef, { 
+              phone: storeSettings.phone || '',
+              address: storeSettings.address || ''
+            });
           }
         } catch (uErr) {
           console.error("Error updating user phone from mobile settings:", uErr);
