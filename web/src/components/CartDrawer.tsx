@@ -119,7 +119,7 @@ export default function CartDrawer() {
             debtAmount: storeTotal,
             timestamp: serverTimestamp(),
             createdAt: new Date().toISOString(),
-            userId: auth.currentUser?.uid || ''
+            userId: auth.currentUser?.uid || localStorage.getItem('guest_id') || ''
           };
           
           for (const { ref, snap, item } of productReads) {

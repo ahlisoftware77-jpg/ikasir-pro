@@ -25,35 +25,28 @@ export default function MarketplaceOrdersPage() {
   useEffect(() => {
     const savedPhone = localStorage.getItem('customer_phone') || '';
     setPhoneQuery(savedPhone);
+    const savedGuestId = localStorage.getItem('guest_id') || '';
     
     const unsub = onAuthStateChanged(auth, (user) => {
-      fetchOrders(savedPhone, user?.uid || '');
+      const activeUserId = user?.uid || savedGuestId;
+      fetchOrders(activeUserId);
     });
     return () => unsub();
   }, []);
 
-  const fetchOrders = async (phone: string, uid: string) => {
-    if (!phone && !uid) {
+  const fetchOrders = async (userId: string) => {
+    if (!userId) {
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const queries = [];
-      if (phone) {
-        queries.push(getDocs(query(collection(db, 'transactions'), where('customerPhone', '==', phone))));
-      }
-      if (uid) {
-        queries.push(getDocs(query(collection(db, 'transactions'), where('userId', '==', uid))));
-      }
-
-      const results = await Promise.all(queries);
+      const q = query(collection(db, 'transactions'), where('userId', '==', userId));
+      const snap = await getDocs(q);
       const fetchedMap = new Map();
       
-      results.forEach(snap => {
-        snap.forEach(document => {
-          fetchedMap.set(document.id, { id: document.id, ...document.data() });
-        });
+      snap.forEach(document => {
+        fetchedMap.set(document.id, { id: document.id, ...document.data() });
       });
 
       let list: any[] = Array.from(fetchedMap.values());
