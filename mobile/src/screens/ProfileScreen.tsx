@@ -14,6 +14,8 @@ export default function ProfileScreen({ navigation }: any) {
   const { colors } = useTheme();
   const { user, setUser } = useAuthStore();
   const [editProfileName, setEditProfileName] = useState(user?.name || user?.email?.split('@')[0] || '');
+  const [editProfilePhone, setEditProfilePhone] = useState(user?.phone || user?.phoneNumber || '');
+  const [editProfileAddress, setEditProfileAddress] = useState(user?.address || '');
   const [editProfilePhoto, setEditProfilePhoto] = useState(user?.photoURL || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -68,8 +70,19 @@ export default function ProfileScreen({ navigation }: any) {
       if (auth.currentUser) {
          await updateProfile(auth.currentUser, { displayName: editProfileName, photoURL: editProfilePhoto });
       }
-      await updateDoc(doc(db, 'users', user.uid), { name: editProfileName, photoURL: editProfilePhoto });
-      setUser({ ...user, name: editProfileName, photoURL: editProfilePhoto });
+      await updateDoc(doc(db, 'users', user.uid), { 
+        name: editProfileName, 
+        photoURL: editProfilePhoto,
+        phone: editProfilePhone,
+        address: editProfileAddress
+      });
+      setUser({ 
+        ...user, 
+        name: editProfileName, 
+        photoURL: editProfilePhoto,
+        phone: editProfilePhone,
+        address: editProfileAddress
+      });
       Alert.alert('Sukses', 'Profil berhasil diperbarui!');
     } catch (err) {
       console.error(err);
@@ -128,6 +141,33 @@ export default function ProfileScreen({ navigation }: any) {
               placeholder="Masukkan nama lengkap"
               placeholderTextColor={colors.textMuted}
               className="w-full h-12 px-4 rounded-xl font-bold text-sm"
+              style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, borderWidth: 1 }}
+            />
+          </View>
+          
+          <View className="w-full">
+            <Text className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1 pl-1 mt-2">Nomor HP/WA</Text>
+            <TextInput
+              value={editProfilePhone}
+              onChangeText={setEditProfilePhone}
+              placeholder="0812xxxxxx"
+              keyboardType="phone-pad"
+              placeholderTextColor={colors.textMuted}
+              className="w-full h-12 px-4 rounded-xl font-bold text-sm"
+              style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, borderWidth: 1 }}
+            />
+          </View>
+
+          <View className="w-full">
+            <Text className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1 pl-1 mt-2">Alamat Pengiriman</Text>
+            <TextInput
+              value={editProfileAddress}
+              onChangeText={setEditProfileAddress}
+              placeholder="Masukkan alamat lengkap..."
+              multiline
+              textAlignVertical="top"
+              placeholderTextColor={colors.textMuted}
+              className="w-full h-24 px-4 py-3 rounded-xl font-bold text-sm"
               style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, borderWidth: 1 }}
             />
           </View>

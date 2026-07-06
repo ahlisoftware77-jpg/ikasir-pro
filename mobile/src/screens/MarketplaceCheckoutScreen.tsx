@@ -148,6 +148,16 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
         transaction.update(settingsRef, { trxCounter: currentCounter });
       });
 
+      if (user?.uid) {
+        // Sync phone and address to user profile
+        try {
+           await updateDoc(doc(db, 'users', user.uid), {
+             phone,
+             address
+           });
+        } catch (e) {}
+      }
+
       clearStoreCart(storeId);
       Alert.alert('Berhasil', `Pesanan berhasil dibuat dengan ID: ${finalId}`);
       navigation.navigate('MarketplaceOrders');
