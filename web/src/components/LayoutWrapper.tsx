@@ -828,6 +828,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     if (typeof window !== 'undefined' && window.history.state?.type === 'layout-logout-modal') {
       window.history.back();
     }
+    window.location.href = '/login';
   };
 
   return (
