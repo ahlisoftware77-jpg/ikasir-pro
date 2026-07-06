@@ -162,9 +162,9 @@ export default function CartDrawer() {
       toast.success('Pesanan berhasil dibuat!');
       router.push('/marketplace/orders');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during checkout:', error);
-      toast.error('Gagal memproses pesanan. Silakan coba lagi.');
+      toast.error(error.message || 'Gagal memproses pesanan. Silakan coba lagi.');
     } finally {
       setIsCheckingOut(false);
     }

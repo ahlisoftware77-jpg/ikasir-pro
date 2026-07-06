@@ -772,9 +772,16 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                     )}
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                          {ep.isFlashSale ? 'Harga Flash Sale' : 'Harga Spesial'}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                            {ep.isFlashSale ? 'Harga Flash Sale' : 'Harga Spesial'}
+                          </span>
+                          {product.manageStock !== false && (
+                            <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                              Sisa Stok: {product.stock || 0}
+                            </span>
+                          )}
+                        </div>
                         <div className={`text-2xl lg:text-4xl font-black mt-1 ${ep.isFlashSale ? 'text-rose-600 dark:text-rose-400' : 'text-orange-500 dark:text-orange-400'}`}>
                           Rp {ep.price.toLocaleString('id-ID')}
                         </div>

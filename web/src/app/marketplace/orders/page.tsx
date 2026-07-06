@@ -27,10 +27,17 @@ export default function MarketplaceOrdersPage() {
     if (!phone) return;
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'transactions'),
-        where('customerPhone', '==', phone)
-      );
+      const activeStoreId = localStorage.getItem('marketplace_store_id');
+      const q = activeStoreId
+        ? query(
+            collection(db, 'transactions'),
+            where('customerPhone', '==', phone),
+            where('storeId', '==', activeStoreId)
+          )
+        : query(
+            collection(db, 'transactions'),
+            where('customerPhone', '==', phone)
+          );
       const snap = await getDocs(q);
       let list: any[] = [];
       const storeNames: Record<string, string> = {};

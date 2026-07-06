@@ -61,6 +61,7 @@ function MarketplaceContent() {
     if (storeIdParam) {
       setSelectedStoreId(storeIdParam);
       setSelectedStoreName(storeNameParam || 'Toko');
+      localStorage.setItem('marketplace_store_id', storeIdParam);
     } else {
       setSelectedStoreId(null);
       setSelectedStoreName(null);
@@ -527,7 +528,14 @@ function MarketplaceContent() {
                         const ep = getEffectivePrice(prod);
                         return (
                           <div className="space-y-0.5">
-                            <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Harga</span>
+                              {prod.manageStock !== false && (
+                                <span className="text-[7px] sm:text-[8px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-1 rounded">
+                                  Stok: {prod.stock || 0}
+                                </span>
+                              )}
+                            </div>
                             {ep.isFlashSale ? (
                               <div className="flex flex-wrap items-baseline gap-1">
                                 <span className="text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400">
