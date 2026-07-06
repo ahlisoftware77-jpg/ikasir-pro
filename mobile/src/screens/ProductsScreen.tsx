@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput, Modal, RefreshControl, Vibration, Pressable, Platform, PermissionsAndroid, Dimensions, NativeModules, ScrollView } from 'react-native';
-import { collection, query, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, deleteDoc, doc, where, writeBatch, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Search, Package, Scan, X, Printer, Minus, Square, CheckSquare, Share2, History, TrendingUp, AlertTriangle, AlertCircle, SlidersHorizontal, ArrowUpDown, Check, MoreVertical, RefreshCw } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -720,6 +720,67 @@ export default function ProductsScreen({ navigation }: any) {
     );
   };
 
+  const handleSyncMarketplace = () => {
+    Alert.alert(
+      'Sinkronkan ke Marketplace',
+      'Yakin ingin memperbarui semua produk Anda agar tampil di Marketplace? Proses ini mungkin membutuhkan waktu jika produk Anda banyak.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Sinkronkan',
+          style: 'default',
+          onPress: async () => {
+            try {
+              if (!storeId) return;
+              setLoading(true);
+              
+              const productsRef = collection(db, 'products');
+              const q = query(productsRef, where('storeId', '==', storeId));
+              const querySnapshot = await getDocs(q);
+              
+              if (querySnapshot.empty) {
+                Alert.alert('Info', 'Tidak ada produk untuk disinkronkan.');
+                setLoading(false);
+                return;
+              }
+
+              let batch = writeBatch(db);
+              let batchCount = 0;
+              let totalUpdated = 0;
+
+              for (const document of querySnapshot.docs) {
+                const data = document.data();
+                if (data.joinMarketplace !== true) {
+                  batch.update(document.ref, { joinMarketplace: true });
+                  batchCount++;
+                  totalUpdated++;
+                  
+                  // Firestore limits batches to 500 operations
+                  if (batchCount >= 450) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    batchCount = 0;
+                  }
+                }
+              }
+              
+              if (batchCount > 0) {
+                await batch.commit();
+              }
+              
+              Alert.alert('Berhasil', `${totalUpdated} produk berhasil disinkronkan ke Marketplace.`);
+            } catch (err: any) {
+              console.error('Error syncing marketplace:', err);
+              Alert.alert('Gagal', 'Terjadi kesalahan saat sinkronisasi: ' + err.message);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const categories = React.useMemo(() => {
     const uniq = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
     return ['Semua', ...uniq];
@@ -804,6 +865,20 @@ export default function ProductsScreen({ navigation }: any) {
             className="mt-4"
             contentContainerStyle={{ gap: 12, paddingRight: 4 }}
           >
+            {/* Sync Marketplace */}
+            <TouchableOpacity 
+              onPress={handleSyncMarketplace}
+              className="p-4 rounded-2xl border flex-row items-center gap-3 min-w-[140px] bg-blue-500/5 border-blue-500/20 active:opacity-70"
+            >
+              <View className="p-2 bg-blue-500/10 rounded-xl">
+                <RefreshCw size={16} color="#3b82f6" />
+              </View>
+              <View>
+                <Text className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Marketplace</Text>
+                <Text className="text-sm font-black mt-0.5 text-blue-500">Sinkronisasi</Text>
+              </View>
+            </TouchableOpacity>
+
             {/* Total Varian */}
             <View 
               className="p-4 rounded-2xl border flex-row items-center gap-3 min-w-[130px]"
