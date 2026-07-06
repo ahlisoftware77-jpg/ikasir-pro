@@ -457,10 +457,10 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
             </View>
 
             <TouchableOpacity 
-              style={[styles.actionBtn, { backgroundColor: colors.accent, width: '100%' }]} 
+              style={[styles.actionBtn, { backgroundColor: colors.accent, width: '100%', flex: 0, paddingVertical: 14, minHeight: 48 }]} 
               onPress={handleAddToCart}
             >
-              <Text style={[styles.actionBtnText, { color: '#ffffff', textAlign: 'center', flexShrink: 1 }]} numberOfLines={1}>
+              <Text style={{ color: '#ffffff', fontFamily: 'System', fontWeight: '800', fontSize: 14, textAlign: 'center' }}>
                 Masukkan Keranjang
               </Text>
             </TouchableOpacity>

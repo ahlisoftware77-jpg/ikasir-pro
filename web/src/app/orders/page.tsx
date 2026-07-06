@@ -99,6 +99,7 @@ export default function OrdersPage() {
   
   // Tabs State
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'processing' | 'ready' | 'cancelled'>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'pos' | 'online'>('all');
 
   // Piutang State
   const [showPiutangModal, setShowPiutangModal] = useState(false);
@@ -224,10 +225,12 @@ export default function OrdersPage() {
 
   // Derived Filtered Orders
   const filteredOrders = orders.filter(o => {
+    // Tipe Pesanan Filter
+    if (orderTypeFilter === 'pos' && o.orderType === 'online') return false;
+    if (orderTypeFilter === 'online' && o.orderType !== 'online') return false;
+
     // Only show orders that have an orderStatus, or are pending payment. 
-    // We don't want to show random purely direct sales in KDS unless they have orderStatus.
-    // If we want direct sales to show, we can just rely on activeTab.
-    if (!o.orderStatus && o.paymentStatus === 'paid') return false; // Ignore old un-tracked direct sales
+    if (!o.orderStatus && o.paymentStatus === 'paid') return false; 
     
     if (activeTab === 'all') {
        return (o.orderStatus !== 'completed' && o.orderStatus !== 'cancelled') || o.paymentStatus === 'pending' || o.paymentStatus === 'unpaid' || o.paymentStatus === 'partially_paid';
@@ -437,16 +440,39 @@ export default function OrdersPage() {
         </div>
         
         {/* TABS NAVIGATION */}
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-app-border/40">
-           {TABS.map(tab => (
-             <button 
-               key={tab.id}
-               onClick={() => setActiveTab(tab.id as any)}
-               className={`flex-shrink-0 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-accent text-foreground shadow-lg shadow-accent/20' : 'bg-surface text-app-text-muted hover:bg-surface/80 border border-app-border'}`}
-             >
-               {tab.label}
-             </button>
-           ))}
+        <div className="flex flex-col gap-3 pb-2 border-b border-app-border/40">
+           <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {TABS.map(tab => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-accent text-foreground shadow-lg shadow-accent/20' : 'bg-surface text-app-text-muted hover:bg-surface/80 border border-app-border'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+           </div>
+           
+           <div className="flex gap-2 bg-surface p-1 rounded-xl w-fit border border-app-border">
+              <button 
+                onClick={() => setOrderTypeFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${orderTypeFilter === 'all' ? 'bg-background text-foreground shadow-sm' : 'text-app-text-muted hover:text-foreground'}`}
+              >
+                Semua
+              </button>
+              <button 
+                onClick={() => setOrderTypeFilter('pos')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${orderTypeFilter === 'pos' ? 'bg-blue-500/10 text-blue-500 shadow-sm' : 'text-app-text-muted hover:text-foreground'}`}
+              >
+                Toko (POS)
+              </button>
+              <button 
+                onClick={() => setOrderTypeFilter('online')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${orderTypeFilter === 'online' ? 'bg-amber-500/10 text-amber-500 shadow-sm' : 'text-app-text-muted hover:text-foreground'}`}
+              >
+                Marketplace
+              </button>
+           </div>
         </div>
       </div>
 

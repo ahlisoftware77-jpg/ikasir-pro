@@ -70,7 +70,7 @@ const menuItems = [
   { name: 'Kotak Sampah', path: '/recycle-bin', icon: '🗑️', permission: 'canEditSettings' },
   { name: 'Profil Saya', path: '/profile', icon: '👤' },
   { name: 'Paket Langganan', path: '#subscription', icon: '💎' },
-  { name: 'Kunjungi ikasir.my.id', path: 'https://ikasir.my.id', icon: '🌐' },
+  { name: 'Kunjungi Marketplace', path: '/marketplace', icon: '🌐' },
   { name: 'Pusat Bantuan', path: 'https://wa.me/6283815862300?text=Halo%20Admin%20iKasir%20Pro%2C%20saya%20membutuhkan%20bantuan%20atau%20informasi%20lebih%20lanjut%20terkait%20penggunaan%20layanan%20aplikasi.%20Terima%20kasih.', icon: '💬' },
   { name: 'Unduh App Android (APK)', path: 'https://bit.ly/ikasirpro', icon: '📲' },
   { name: 'Kritik & Saran', path: '#feedback', icon: '📩' },
