@@ -148,8 +148,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         setCustomerName(user.displayName || '');
         if (user && user.uid) {
           getDoc(doc(db, 'users', user.uid)).then(snap => {
-            if (snap.exists() && snap.data().phone) {
-              setCustomerPhone(snap.data().phone);
+            if (snap.exists()) {
+              const d = snap.data();
+              if (d.phone) setCustomerPhone(d.phone);
+              if (d.address) setDeliveryAddress(d.address);
             }
           }).catch(err => console.error("Error fetching user doc:", err));
         }

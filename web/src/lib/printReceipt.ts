@@ -177,10 +177,17 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
         if (currentLine) resultLines.push(currentLine);
     });
 
-    // Center each line with exact padding
     return resultLines.map(line => {
       const trimmed = line.trim();
       if (trimmed.length >= length) return trimmed.substring(0, length);
+      
+      const align = storeSettings.receiptAlignment || 'center';
+      if (align === 'left') {
+        return trimmed + ' '.repeat(length - trimmed.length);
+      } else if (align === 'right') {
+        return ' '.repeat(length - trimmed.length) + trimmed;
+      }
+      
       const totalPad = length - trimmed.length;
       const leftPad = Math.floor(totalPad / 2);
       const rightPad = totalPad - leftPad;
@@ -320,18 +327,22 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
       text += wrapCenter("RIWAYAT PEMBAYARAN", width) + "\n";
       trx.paymentHistory?.forEach((hist: any) => {
          const dateStr = new Date(hist.date).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit'});
-         const left = `${dateStr} ${hist.note || 'Bayar'}`;
+         const left = `- ${dateStr}:`;
          const right = hist.amount.toLocaleString('id-ID');
          const spaces = width - left.length - right.length;
          text += left + (spaces > 0 ? ' '.repeat(spaces) : ' ') + right + '\n';
       });
       
       text += `${hr}`;
-      const paidL = 'TOTAL BAYAR:';
-      const paidR = (trx.paidAmount ?? trx.cashReceived ?? 0).toLocaleString('id-ID');
+      const paidAmount = (trx as any).paidAmount || 0;
+      const totalPaidFromHistory = trx.paymentHistory?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+      const totalPaid = Math.max(paidAmount, totalPaidFromHistory);
+      
+      const paidL = 'TOTAL DIBAYAR:';
+      const paidR = totalPaid.toLocaleString('id-ID');
       text += paidL + ' '.repeat(Math.max(1, width - paidL.length - paidR.length)) + paidR + '\n';
       
-      const remaining = trx.total - (trx.paidAmount ?? trx.cashReceived ?? 0);
+      const remaining = trx.total - totalPaid;
       if (remaining > 0) {
         const sisaL = 'SISA PIUTANG:';
         const sisaR = remaining.toLocaleString('id-ID');
@@ -340,11 +351,13 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
     } else if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashVal > 0) {
       const cashL = 'Tunai:';
       const cashR = cashVal.toLocaleString('id-ID');
-      text += cashL + ' '.repeat(width - cashL.length - cashR.length) + cashR + '\n';
+      const cSpaces = width - cashL.length - cashR.length;
+      text += cashL + (cSpaces > 0 ? ' '.repeat(cSpaces) : ' ') + cashR + '\n';
       
       const changeL = 'Kembali:';
       const changeR = changeVal.toLocaleString('id-ID').replace('-', '');
-      text += changeL + ' '.repeat(width - changeL.length - changeR.length) + changeR + '\n';
+      const chSpaces = width - changeL.length - changeR.length;
+      text += changeL + (chSpaces > 0 ? ' '.repeat(chSpaces) : ' ') + changeR + '\n';
     }
   }
   
@@ -534,7 +547,8 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
           padding: 10px;
         }
         .text-center { text-align: center; width: 100%; }
-        .text-right { text-align: right; }
+        .text-left { text-align: left; width: 100%; }
+        .text-right { text-align: right; width: 100%; }
         .font-bold { font-weight: bold; }
         .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
         .flex { display: flex; justify-content: space-between; }
@@ -582,7 +596,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
       </style>
     </head>
     <body>
-      <div class="text-center" style="margin-bottom: 8px; width: 100%; text-align: center;">
+      <div class="text-${storeSettings.receiptAlignment || 'center'}" style="margin-bottom: 8px; width: 100%; text-align: ${storeSettings.receiptAlignment || 'center'};">
         ${storeSettings.showLogoOnReceipt !== false ? `
           <div style="margin-bottom: 10px; width: 100%; text-align: center;">
             <img src="${logoData || '/logo.png'}" style="width: 100px; height: auto; display: inline-block; filter: grayscale(100%) contrast(1.8) brightness(1.1);" />
@@ -717,13 +731,38 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
         const cashValue = (trx as any).cashReceived || ((trx as any).change !== undefined ? (trx as any).change + trx.total : 0);
         const changeValue = (trx as any).change !== undefined ? (trx as any).change : (cashValue > trx.total ? cashValue - trx.total : 0);
         
-        if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashValue > 0) {
-          return `
+        let paymentInfo = '';
+        if (trx.paymentMethod?.toUpperCase() === 'CASH' && cashValue > 0 && trx.paymentStatus === 'paid') {
+          paymentInfo += `
             <div class="flex" style="margin-top: 4px;"><span>Tunai:</span><span>${cashValue.toLocaleString('id-ID')}</span></div>
             <div class="flex"><span>Kembali:</span><span>${changeValue.toLocaleString('id-ID').replace('-', '')}</span></div>
           `;
         }
-        return '';
+
+        const paidAmount = (trx as any).paidAmount || 0;
+        const debtAmount = (trx as any).debtAmount || 0;
+        const totalPaidFromHistory = trx.paymentHistory?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+        const totalPaid = Math.max(paidAmount, totalPaidFromHistory);
+        const remaining = Math.max(0, trx.total - totalPaid);
+
+        if (trx.paymentStatus !== 'paid' || debtAmount > 0 || (trx.paymentHistory && trx.paymentHistory.length > 0)) {
+            paymentInfo += '<div class="divider"></div>';
+            if (trx.paymentHistory && trx.paymentHistory.length > 0) {
+              paymentInfo += '<div style="margin-top: 4px; font-weight: bold; font-size: calc(' + fontSize + ' - 2px);">Riwayat Pembayaran:</div>';
+              trx.paymentHistory.forEach((p: any, i: number) => {
+                 const pDate = new Date(p.date).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'});
+                 paymentInfo += `<div class="flex" style="font-size: calc(${fontSize} - 2px);"><span>- ${pDate}:</span><span>${p.amount.toLocaleString('id-ID')}</span></div>`;
+              });
+            } else if (totalPaid > 0) {
+               paymentInfo += `<div class="flex" style="margin-top: 4px;"><span>Telah Dibayar:</span><span>${totalPaid.toLocaleString('id-ID')}</span></div>`;
+            }
+            
+            if (remaining > 0) {
+               paymentInfo += `<div class="flex font-bold" style="margin-top: 2px;"><span>SISA BAYAR:</span><span>${remaining.toLocaleString('id-ID')}</span></div>`;
+            }
+        }
+        
+        return paymentInfo;
       })() : ''}
       
       <div class="mt-2 text-center" style="margin-top: 15px;">

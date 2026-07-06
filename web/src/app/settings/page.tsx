@@ -1390,6 +1390,26 @@ export default function SettingsPage() {
                   </div>
                </div>
 
+              <div className="space-y-2 mb-4">
+                <label className="block text-xs font-black text-app-text-muted uppercase tracking-widest ml-1">Posisi Teks Struk</label>
+                <div className="flex bg-surface rounded-xl border border-app-border p-1">
+                  {[
+                    { id: 'left', label: 'Rata Kiri' },
+                    { id: 'center', label: 'Tengah' },
+                    { id: 'right', label: 'Rata Kanan' }
+                  ].map(option => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSettings(prev => ({...prev, receiptAlignment: option.id}))}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${settings.receiptAlignment === option.id || (!settings.receiptAlignment && option.id === 'center') ? 'bg-accent text-white shadow-md' : 'text-app-text hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="block text-xs font-black text-app-text-muted uppercase tracking-widest ml-1">Pesan Footer Struk</label>
                 <textarea 
