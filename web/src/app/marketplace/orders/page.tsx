@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ArrowLeft, Package, Clock, CheckCircle2, XCircle, Search, MessageSquare } from 'lucide-react';
+import ReviewModal from '@/components/ReviewModal';
 
 export default function MarketplaceOrdersPage() {
   const router = useRouter();
@@ -12,6 +13,14 @@ export default function MarketplaceOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [phoneQuery, setPhoneQuery] = useState('');
   const [isSearched, setIsSearched] = useState(false);
+  const [reviewProduct, setReviewProduct] = useState<{
+    productId: string;
+    productName: string;
+    storeId: string;
+    orderId: string;
+    customerName: string;
+    customerPhone: string;
+  } | null>(null);
 
   useEffect(() => {
     const savedPhone = localStorage.getItem('customer_phone');
@@ -173,6 +182,21 @@ export default function MarketplaceOrdersPage() {
                               <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{item.productName}</h4>
                               <p className="text-[10px] text-slate-500">{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</p>
                             </div>
+                            {isFinished && (
+                              <button
+                                onClick={() => setReviewProduct({
+                                  productId: item.productId,
+                                  productName: item.productName,
+                                  storeId: order.storeId || '',
+                                  orderId: order.id,
+                                  customerName: order.customerName || phoneQuery,
+                                  customerPhone: phoneQuery
+                                })}
+                                className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors shrink-0"
+                              >
+                                Beri Ulasan
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -243,6 +267,14 @@ export default function MarketplaceOrdersPage() {
           </div>
         )}
       </main>
+
+      {reviewProduct && (
+        <ReviewModal
+          isOpen={true}
+          onClose={() => setReviewProduct(null)}
+          {...reviewProduct}
+        />
+      )}
     </div>
   );
 }

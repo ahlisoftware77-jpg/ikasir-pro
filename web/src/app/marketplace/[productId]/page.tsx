@@ -11,7 +11,9 @@ import {
   doc, 
   getDoc, 
   runTransaction, 
-  serverTimestamp 
+  serverTimestamp,
+  onSnapshot,
+  orderBy
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { 
@@ -32,7 +34,9 @@ import {
   CreditCard, 
   QrCode,
   CheckCircle,
-  Plus
+  Plus,
+  Star,
+  MessageCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
@@ -53,6 +57,8 @@ interface Product {
   storeName?: string;
   stock?: number;
   manageStock?: boolean;
+  reviewCount?: number;
+  averageRating?: number;
 }
 
 interface MediaItem {
@@ -115,6 +121,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
 
   // Checkout state variables
+  const [reviews, setReviews] = useState<any[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isCartPopupOpen, setIsCartPopupOpen] = useState(false);
   const [cartQty, setCartQty] = useState(1);
@@ -169,6 +176,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   }, []);
 
   useEffect(() => {
+    let unsubReviews: any;
     async function loadProductDetails() {
       if (!productId) {
         setLoading(false);
@@ -194,8 +202,18 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
             storeName: data.storeName || 'Toko Mitra',
             stock: data.stock !== undefined ? data.stock : 0,
             manageStock: data.manageStock !== undefined ? data.manageStock : true,
+            reviewCount: data.reviewCount || 0,
+            averageRating: data.averageRating || 0,
           };
           setProduct(prodObj);
+
+          // Fetch reviews
+          const reviewsQ = query(collection(db, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
+          unsubReviews = onSnapshot(reviewsQ, (snap) => {
+            const revs: any[] = [];
+            snap.forEach(doc => revs.push({ id: doc.id, ...doc.data() }));
+            setReviews(revs);
+          });
 
           // Fetch store details
           if (data.storeId) {
@@ -281,6 +299,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
     }
 
     loadProductDetails();
+    return () => {
+      if (unsubReviews) unsubReviews();
+    };
   }, [productId]);
 
   const handleOpenCheckout = () => {
@@ -751,6 +772,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 {product.name}
               </h1>
               
+              {/* Reviews Summary */}
+              {product.reviewCount ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center text-amber-400">
+                    <Star size={16} className="fill-amber-400" />
+                    <span className="ml-1 text-sm font-black text-slate-700 dark:text-slate-300">
+                      {product.averageRating?.toFixed(1) || '0.0'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-bold">•</span>
+                  <span className="text-xs font-bold text-slate-500 underline decoration-slate-300 dark:decoration-slate-700 underline-offset-4 cursor-pointer" onClick={() => document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                    {product.reviewCount} Ulasan
+                  </span>
+                </div>
+              ) : null}
+              
               {/* Shopee-style Price Panel */}
               {(() => {
                 const ep = getEffectivePrice(product);
@@ -941,6 +978,51 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 </div>
               ))}
             </div>
+
+            {/* REVIEWS SECTION */}
+            <div id="reviews-section" className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 rounded-3xl mt-8">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white mb-6 uppercase tracking-wider flex items-center gap-2">
+                <MessageCircle size={20} className="text-emerald-500" /> Penilaian Produk
+              </h3>
+              
+              {reviews.length === 0 ? (
+                <div className="text-center py-10">
+                  <Star size={48} className="mx-auto text-slate-200 dark:text-slate-800 mb-3" />
+                  <p className="text-sm font-bold text-slate-500">Belum ada penilaian untuk produk ini.</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">Jadilah yang pertama menilai!</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {reviews.map((rev) => (
+                    <div key={rev.id} className="border-b border-slate-100 dark:border-slate-800/50 pb-6 last:border-0 last:pb-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                              {rev.userName ? (rev.userName.length > 2 ? rev.userName.substring(0, 1) + '***' + rev.userName.substring(rev.userName.length - 1) : rev.userName) : '***'}
+                            </span>
+                          </div>
+                          <div className="flex items-center text-amber-400 mb-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                key={star} 
+                                size={12} 
+                                className={star <= rev.rating ? 'fill-amber-400' : 'fill-slate-100 text-slate-200 dark:fill-slate-800 dark:text-slate-700'} 
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold">
+                          {rev.createdAt?.seconds ? new Date(rev.createdAt.seconds * 1000).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{rev.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </main>
