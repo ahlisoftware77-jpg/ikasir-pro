@@ -158,7 +158,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         stock: product.stock || 999
       });
       useCartStore.getState().setQty(product.id, 1);
-      navigation.navigate('MarketplaceCheckout', { storeId: product.storeId });
+      navigation.navigate('MarketplaceCheckoutScreen', { storeId: product.storeId });
     }
   };
 
@@ -460,7 +460,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
               style={[styles.actionBtn, { backgroundColor: colors.accent, width: '100%' }]} 
               onPress={handleAddToCart}
             >
-              <Text style={styles.actionBtnText}>Konfirmasi Masukkan Keranjang</Text>
+              <Text style={[styles.actionBtnText, { color: '#ffffff', textAlign: 'center', flexShrink: 1 }]} numberOfLines={1}>
+                Masukkan Keranjang
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
