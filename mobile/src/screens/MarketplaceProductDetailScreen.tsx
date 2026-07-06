@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, Alert, FlatList, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Dimensions, Linking, Alert, FlatList, Modal, Share } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag, X } from 'lucide-react-native';
+import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag, X, Share2 } from 'lucide-react-native';
 import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
@@ -172,6 +172,21 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
     }
   };
 
+  const handleShare = async () => {
+    if (!product) return;
+    try {
+      const shareUrl = `https://app.kasirpro.com/marketplace/${product.id}?s=${routeStoreId || product.storeId}`;
+      const message = `Lihat ${product.name} di iKasir Pro!\n\nHarga: Rp ${product.price?.toLocaleString('id-ID')}\n\nBelanja sekarang:\n${shareUrl}`;
+      
+      await Share.share({
+        message,
+        title: product.name,
+      });
+    } catch (error: any) {
+      Alert.alert('Error', 'Gagal membagikan produk: ' + error.message);
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.bg }]}>
@@ -209,7 +224,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <ChevronLeft color={colors.text} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Detail Produk</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
+          <Share2 color={colors.text} size={22} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
