@@ -61,7 +61,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
         const sSnapPrimary = await getDoc(sRefPrimary);
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
-          if (cfg) tDb = getTenantDb(cfg);
+          tDb = cfg ? getTenantDb(cfg) : primaryDb;
         }
       }
 

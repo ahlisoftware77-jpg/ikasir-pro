@@ -189,17 +189,26 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       setLoading(true);
       try {
         let tDb = db;
+        let sSnapPrimary: any = null;
         if (routeStoreId) {
           const sRefPrimary = doc(primaryDb, 'stores', routeStoreId);
-          const sSnapPrimary = await getDoc(sRefPrimary);
+          sSnapPrimary = await getDoc(sRefPrimary);
           if (sSnapPrimary.exists()) {
             const cfg = sSnapPrimary.data().infraConfig;
-            if (cfg) tDb = getTenantDb(cfg);
+            tDb = cfg ? getTenantDb(cfg) : primaryDb;
           }
         }
 
         const productRef = doc(tDb, 'products', productId);
         const productSnap = await getDoc(productRef);
+        
+        console.log("[DEBUG] Fetching product:", productId, "from store:", routeStoreId);
+        console.log("[DEBUG] sSnapPrimary exists?", sSnapPrimary?.exists());
+        if (sSnapPrimary?.exists()) {
+          console.log("[DEBUG] infraConfig:", sSnapPrimary.data().infraConfig);
+        }
+        console.log("[DEBUG] tDb project ID:", tDb.app.options.projectId);
+        console.log("[DEBUG] productSnap exists?", productSnap.exists());
 
         if (productSnap.exists()) {
           const data = productSnap.data();
@@ -350,7 +359,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         const sSnapPrimary = await getDoc(sRefPrimary);
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
-          if (cfg) tDb = getTenantDb(cfg);
+          tDb = cfg ? getTenantDb(cfg) : primaryDb;
         }
       }
 
