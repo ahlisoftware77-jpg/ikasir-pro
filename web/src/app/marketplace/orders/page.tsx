@@ -48,7 +48,8 @@ export default function MarketplaceOrdersPage() {
       storesSnap.forEach(doc => {
         const sData = doc.data();
         const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
-        tenantConfigs.set(cfg.projectId, cfg);
+        const pId = cfg.projectId || cfg.fb_project_id;
+        if (pId) tenantConfigs.set(pId, cfg);
       });
 
       const fetchedMap = new Map();

@@ -97,16 +97,26 @@ export const initDynamicFirebase = async () => {
 
 // Helper for Federated Queries: get Firestore instance for any tenant config
 export const getTenantDb = (config: any): Firestore => {
-  if (!config || !config.projectId) return primaryDb;
+  const projectId = config?.projectId || config?.fb_project_id;
+  if (!config || !projectId) return primaryDb;
   
-  const appName = `DataApp_${config.projectId}`;
+  const appName = `DataApp_${projectId}`;
   let tApp = getApps().find(a => a.name === appName);
   
   if (!tApp) {
-    if (config.projectId === firebaseConfig.projectId) {
+    if (projectId === firebaseConfig.projectId) {
       tApp = primaryApp;
     } else {
-      tApp = initializeApp(config, appName);
+      // Normalize config keys for initializeApp if it uses fb_ prefix
+      const normalizedConfig = {
+        apiKey: config.apiKey || config.fb_api_key,
+        authDomain: config.authDomain || config.fb_auth_domain,
+        projectId: projectId,
+        storageBucket: config.storageBucket || config.fb_storage_bucket,
+        messagingSenderId: config.messagingSenderId || config.fb_messaging_sender_id,
+        appId: config.appId || config.fb_app_id
+      };
+      tApp = initializeApp(normalizedConfig, appName);
     }
   }
 
