@@ -96,6 +96,7 @@ export default function OrdersPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [viewingReceipt, setViewingReceipt] = useState<any>(null);
+  const [finishOrderTarget, setFinishOrderTarget] = useState<any>(null);
   
   // Tabs State
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'processing' | 'ready' | 'cancelled'>('all');
@@ -265,6 +266,59 @@ export default function OrdersPage() {
       toast.error('Gagal mengupdate status pesanan.');
     } finally {
       setIsProcessing(null);
+    }
+  };
+
+  const handleFinishOrder = (order: any) => {
+    if (order.paymentStatus === 'paid') {
+      processStatusUpdate(order.id, 'completed');
+    } else {
+      setFinishOrderTarget(order);
+    }
+  };
+
+  const confirmFinishWithDebt = async () => {
+    if (!finishOrderTarget) return;
+    setIsProcessing(finishOrderTarget.id);
+    try {
+      await updateDoc(doc(db, 'transactions', finishOrderTarget.id), {
+        orderStatus: 'completed',
+        paymentCategory: 'debt',
+        lastUpdate: serverTimestamp()
+      });
+      toast.success('Pesanan diselesaikan dan dicatat sebagai piutang.');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal menyelesaikan pesanan.');
+    } finally {
+      setIsProcessing(null);
+      setFinishOrderTarget(null);
+    }
+  };
+
+  const confirmFinishWithCash = async () => {
+    if (!finishOrderTarget) return;
+    setIsProcessing(finishOrderTarget.id);
+    try {
+      await updateDoc(doc(db, 'transactions', finishOrderTarget.id), {
+        orderStatus: 'completed',
+        paymentStatus: 'paid',
+        paymentMethod: 'cash',
+        paymentCategory: 'direct',
+        paidAmount: finishOrderTarget.total,
+        debtAmount: 0,
+        cashReceived: finishOrderTarget.total,
+        change: 0,
+        lastUpdate: serverTimestamp()
+      });
+      playSuccessSound();
+      toast.success('Pesanan dilunasi (tunai) dan diselesaikan!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal melunasi pesanan.');
+    } finally {
+      setIsProcessing(null);
+      setFinishOrderTarget(null);
     }
   };
 
@@ -750,14 +804,12 @@ export default function OrdersPage() {
 
                             {order.orderStatus === 'ready' && (
                               <button 
-                                disabled={!!isProcessing || order.paymentStatus !== 'paid'}
-                                onClick={() => handleUpdateStatus(order, 'completed')}
+                                disabled={!!isProcessing}
+                                onClick={() => handleFinishOrder(order)}
                                 className="flex items-center gap-2 px-4 py-3 bg-accent text-foreground rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-accent/20 disabled:opacity-50 disabled:grayscale"
                               >
-                                {isProcessing === order.id ? <Loader2 className="animate-spin" size={14} /> : (
-                                  order.paymentStatus !== 'paid' ? <Ban size={14} /> : <CheckCircle2 size={14} />
-                                )}
-                                {order.paymentStatus !== 'paid' ? 'Lengkapi Pembayaran' : 'Selesaikan Pesanan'}
+                                {isProcessing === order.id ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
+                                Selesaikan Pesanan
                               </button>
                             )}
                           </div>
@@ -983,6 +1035,40 @@ export default function OrdersPage() {
               >
                 {isProcessing === selectedPiutangOrder.id ? <Loader2 className="animate-spin" /> : <><CreditCard size={24} /> SIMPAN PEMBAYARAN</>}
               </button>
+           </div>
+        </div>
+      )}
+
+      {/* FINISH ORDER MODAL (BELUM LUNAS) */}
+      {finishOrderTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="bg-surface w-full max-w-sm rounded-[40px] border border-app-border p-6 shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
+              <div className="flex justify-between items-center mb-6">
+                 <div>
+                    <h2 className="text-xl font-black text-foreground tracking-tighter">SELESAIKAN PESANAN</h2>
+                    <p className="text-[10px] text-app-text-muted font-bold mt-1">Pesanan ini belum lunas. Bagaimana Anda ingin menyelesaikannya?</p>
+                 </div>
+                 <button onClick={() => setFinishOrderTarget(null)} className="p-2 bg-background rounded-full hover:bg-rose-500 hover:text-white transition-all text-app-text-muted">
+                    <X size={20} />
+                 </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                 <button 
+                   disabled={isProcessing === finishOrderTarget.id}
+                   onClick={confirmFinishWithDebt}
+                   className="w-full h-14 bg-surface border border-accent/30 hover:border-accent text-foreground rounded-[20px] font-black text-[11px] uppercase tracking-widest transition-all"
+                 >
+                   {isProcessing === finishOrderTarget.id ? 'Memproses...' : 'Selesaikan & Tetap Piutang'}
+                 </button>
+                 <button 
+                   disabled={isProcessing === finishOrderTarget.id}
+                   onClick={confirmFinishWithCash}
+                   className="w-full h-14 bg-accent text-foreground rounded-[20px] font-black text-[11px] uppercase tracking-widest shadow-lg shadow-accent/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+                 >
+                   {isProcessing === finishOrderTarget.id ? 'Memproses...' : <><CheckCircle2 size={18} /> Lunasi (Tunai) & Selesaikan</>}
+                 </button>
+              </div>
            </div>
         </div>
       )}
