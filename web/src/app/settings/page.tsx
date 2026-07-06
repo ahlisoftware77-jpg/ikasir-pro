@@ -400,7 +400,7 @@ export default function SettingsPage() {
         const uploadResult = await uploadRes.json();
         if (uploadRes.ok && uploadResult.secure_url) {
           finalSettings.logoUrl = uploadResult.secure_url;
-          setSettings(prev => ({ ...prev, logoUrl: uploadResult.secure_url }));
+          setSettings((prev: any) => ({ ...prev, logoUrl: uploadResult.secure_url }));
           setLogoFile(null);
         } else {
           throw new Error(uploadResult.error?.message || 'Gagal unggah logo ke Cloudinary');
@@ -423,7 +423,7 @@ export default function SettingsPage() {
         const uploadResult = await uploadRes.json();
         if (uploadRes.ok && uploadResult.secure_url) {
           finalSettings.thermalLogoUrl = uploadResult.secure_url;
-          setSettings(prev => ({ ...prev, thermalLogoUrl: uploadResult.secure_url }));
+          setSettings((prev: any) => ({ ...prev, thermalLogoUrl: uploadResult.secure_url }));
           setThermalLogoFile(null);
         } else {
           throw new Error(uploadResult.error?.message || 'Gagal unggah logo thermal ke Cloudinary');
@@ -446,7 +446,7 @@ export default function SettingsPage() {
         const uploadResult = await uploadRes.json();
         if (uploadRes.ok && uploadResult.secure_url) {
           finalSettings.qrisUrl = uploadResult.secure_url;
-          setSettings(prev => ({ ...prev, qrisUrl: uploadResult.secure_url }));
+          setSettings((prev: any) => ({ ...prev, qrisUrl: uploadResult.secure_url }));
           setQrisFile(null);
         } else {
           throw new Error(uploadResult.error?.message || 'Gagal unggah foto QRIS ke Cloudinary');
@@ -469,7 +469,7 @@ export default function SettingsPage() {
         const uploadResult = await uploadRes.json();
         if (uploadRes.ok && uploadResult.secure_url) {
           finalSettings.signatureUrl = uploadResult.secure_url;
-          setSettings(prev => ({ ...prev, signatureUrl: uploadResult.secure_url }));
+          setSettings((prev: any) => ({ ...prev, signatureUrl: uploadResult.secure_url }));
           setSignaturePadData('');
         } else {
           console.error("Signature upload failed:", uploadResult);
@@ -577,7 +577,7 @@ export default function SettingsPage() {
 
         if (!registration) throw new Error("Gagal menghubungkan ke Service Worker.");
 
-        await registration.showNotification('🎯 TES PESANAN BARU', {
+        await registration.showNotification('?�� TES PESANAN BARU', {
           body: 'Notifikasi latar belakang berfungsi! Jika ini muncul di Android, maka sistem Anda sudah sinkron.',
           icon: '/icon-192.png',
           badge: '/icon-192.png',
@@ -591,7 +591,7 @@ export default function SettingsPage() {
       } catch (err: any) {
         toast.error(`Gagal: ${err.message || err}`);
         try {
-           new Notification('🎯 TES PESANAN BARU', { body: 'Notifikasi dasar (mode terbatas).' });
+           new Notification('?�� TES PESANAN BARU', { body: 'Notifikasi dasar (mode terbatas).' });
         } catch (f) {}
       }
     }, 5000);
@@ -715,21 +715,21 @@ export default function SettingsPage() {
   };
   const handleRemoveLogo = () => {
     if (confirm('Hapus logo utama toko?')) {
-      setSettings(prev => ({ ...prev, logoUrl: '' }));
+      setSettings((prev: any) => ({ ...prev, logoUrl: '' }));
       toast.success('Logo dihapus (klik Simpan untuk menetapkan)');
     }
   };
 
   const handleRemoveThermalLogo = () => {
     if (confirm('Hapus logo struk thermal?')) {
-      setSettings(prev => ({ ...prev, thermalLogoUrl: '' }));
+      setSettings((prev: any) => ({ ...prev, thermalLogoUrl: '' }));
       toast.success('Logo thermal dihapus (klik Simpan untuk menetapkan)');
     }
   };
 
   const handleRemoveQris = () => {
     if (confirm('Hapus foto QRIS pembayaran?')) {
-      setSettings(prev => ({ ...prev, qrisUrl: '' }));
+      setSettings((prev: any) => ({ ...prev, qrisUrl: '' }));
       toast.success('Foto QRIS dihapus (klik Simpan untuk menetapkan)');
     }
   };
@@ -1076,7 +1076,7 @@ export default function SettingsPage() {
                   </div>
                   <div 
                     className="flex items-center gap-3 cursor-pointer group"
-                    onClick={() => setSettings(prev => ({ ...prev, showSignature: !prev.showSignature }))}
+                    onClick={() => setSettings((prev: any) => ({ ...prev, showSignature: !prev.showSignature }))}
                   >
                     <span className="text-[10px] font-black text-app-text-muted uppercase tracking-widest group-hover:text-accent transition-colors">Tampilkan di Dokumen</span>
                     <div className={`w-12 h-6 rounded-full transition-all relative ${settings.showSignature ? 'bg-accent' : 'bg-app-border'}`}>
@@ -1119,7 +1119,7 @@ export default function SettingsPage() {
                 Pengaturan Struk
               </h2>
               
-              <div className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" onClick={() => setSettings(prev => ({ ...prev, useTax: !prev.useTax }))}>
+              <div className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" onClick={() => setSettings((prev: any) => ({ ...prev, useTax: !prev.useTax }))}>
                 <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.useTax ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
                   <Check size={14} className="stroke-[4]" />
                 </div>
@@ -1143,7 +1143,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" onClick={() => setSettings(prev => ({ ...prev, showLogoOnReceipt: !prev.showLogoOnReceipt }))}>
+              <div className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" onClick={() => setSettings((prev: any) => ({ ...prev, showLogoOnReceipt: !prev.showLogoOnReceipt }))}>
                 <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.showLogoOnReceipt ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
                   <Check size={14} className="stroke-[4]" />
                 </div>
@@ -1163,7 +1163,7 @@ export default function SettingsPage() {
                     <div 
                       key={toggle.id}
                       className="flex items-center gap-3 p-3 bg-surface border border-app-border rounded-xl cursor-pointer hover:border-accent/30 transition-all group" 
-                      onClick={() => setSettings(prev => ({ ...prev, [toggle.id]: !(prev as any)[toggle.id] }))}
+                      onClick={() => setSettings((prev: any) => ({ ...prev, [toggle.id]: !(prev as any)[toggle.id] }))}
                     >
                       <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
                         (settings as any)[toggle.id] ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'
@@ -1197,7 +1197,7 @@ export default function SettingsPage() {
                      <button
                        key={font.id}
                        type="button"
-                       onClick={() => setSettings(prev => ({ ...prev, storeNameFont: font.id }))}
+                       onClick={() => setSettings((prev: any) => ({ ...prev, storeNameFont: font.id }))}
                        className={`p-3 rounded-xl border-2 text-left transition-all ${
                          settings.storeNameFont === font.id 
                          ? 'border-accent bg-accent/5' 
@@ -1456,7 +1456,7 @@ export default function SettingsPage() {
                       <button
                         key={color}
                         type="button"
-                        onClick={() => setSettings(prev => ({...prev, themeColorHex: color}))}
+                        onClick={() => setSettings((prev: any) => ({...prev, themeColorHex: color}))}
                         className={`w-10 h-10 rounded-full border-2 transition-all shadow-md ${settings.themeColorHex === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'}`}
                         style={{ backgroundColor: color }}
                       />
@@ -1504,7 +1504,7 @@ export default function SettingsPage() {
                <div className="space-y-4">
                   <div 
                     className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer mb-2" 
-                    onClick={() => setSettings(prev => ({ ...prev, joinMarketplace: !prev.joinMarketplace }))}
+                    onClick={() => setSettings((prev: any) => ({ ...prev, joinMarketplace: !prev.joinMarketplace }))}
                   >
                     <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.joinMarketplace ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
                       <Check size={14} className="stroke-[4]" />
@@ -1517,7 +1517,7 @@ export default function SettingsPage() {
 
                   <div 
                     className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
-                    onClick={() => setSettings(prev => ({ ...prev, isOnlineStoreActive: !prev.isOnlineStoreActive }))}
+                    onClick={() => setSettings((prev: any) => ({ ...prev, isOnlineStoreActive: !prev.isOnlineStoreActive }))}
                   >
                     <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.isOnlineStoreActive ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
                       <Check size={14} className="stroke-[4]" />
@@ -1530,7 +1530,7 @@ export default function SettingsPage() {
 
                   <div 
                     className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
-                    onClick={() => setSettings(prev => ({ ...prev, allowPickup: !prev.allowPickup }))}
+                    onClick={() => setSettings((prev: any) => ({ ...prev, allowPickup: !prev.allowPickup }))}
                   >
                     <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.allowPickup ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
                       <Check size={14} className="stroke-[4]" />
@@ -1543,7 +1543,7 @@ export default function SettingsPage() {
 
                   <div 
                     className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-accent/30 transition-all group cursor-pointer" 
-                    onClick={() => setSettings(prev => ({ ...prev, allowDelivery: !prev.allowDelivery }))}
+                    onClick={() => setSettings((prev: any) => ({ ...prev, allowDelivery: !prev.allowDelivery }))}
                   >
                     <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.allowDelivery ? 'bg-accent border-accent text-foreground' : 'bg-transparent border-app-border text-transparent'}`}>
                       <Check size={14} className="stroke-[4]" />
@@ -1632,7 +1632,7 @@ export default function SettingsPage() {
                            accountNumber: accEl.value.trim(),
                            accountHolder: holderEl.value.trim()
                          };
-                         setSettings(prev => ({
+                         setSettings((prev: any) => ({
                            ...prev,
                            storeBanks: [...(prev.storeBanks || []), newBank]
                          }));
@@ -1660,7 +1660,7 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSettings(prev => ({
+                            setSettings((prev: any) => ({
                               ...prev,
                               storeBanks: (prev.storeBanks || []).filter((b: any) => b.id !== bank.id)
                             }));
@@ -1729,7 +1729,7 @@ export default function SettingsPage() {
                            phoneNumber: phoneEl.value.trim(),
                            accountHolder: holderEl.value.trim()
                          };
-                         setSettings(prev => ({
+                         setSettings((prev: any) => ({
                            ...prev,
                            storeEwallets: [...(prev.storeEwallets || []), newEwallet]
                          }));
@@ -1757,7 +1757,7 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSettings(prev => ({
+                            setSettings((prev: any) => ({
                               ...prev,
                               storeEwallets: (prev.storeEwallets || []).filter((ew: any) => ew.id !== ewallet.id)
                             }));
@@ -1882,11 +1882,11 @@ export default function SettingsPage() {
                    Untuk dapat mencetak struk langsung dari browser HP Android ke printer thermal Bluetooth/USB, Anda memerlukan aplikasi <strong className="text-foreground">RawBT</strong>. Aplikasi ini berfungsi sebagai jembatan (driver) komunikasi antara web kasir dan printer Anda.
                 </p>
                 <div className="flex flex-wrap gap-2 text-[10px] font-bold text-app-text-muted italic">
-                   <span>✓ Support Bluetooth</span>
+                   <span>??Support Bluetooth</span>
                    <span className="w-1 h-1 bg-app-border rounded-full self-center"></span>
-                   <span>✓ Support USB/OTG</span>
+                   <span>??Support USB/OTG</span>
                    <span className="w-1 h-1 bg-app-border rounded-full self-center"></span>
-                   <span>✓ Support WiFi Printer</span>
+                   <span>??Support WiFi Printer</span>
                 </div>
              </div>
                 <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -1986,7 +1986,7 @@ export default function SettingsPage() {
                   value={passwordState.oldPassword}
                   onChange={e => setPasswordState(prev => ({ ...prev, oldPassword: e.target.value }))}
                   className="w-full p-4 bg-background border border-app-border rounded-2xl text-foreground font-bold focus:outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 transition-all placeholder:text-app-text-muted/30"
-                  placeholder="••••••"
+                  placeholder="?�••••�?
                 />
              </div>
              <div className="space-y-2">
