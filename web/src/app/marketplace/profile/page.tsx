@@ -78,6 +78,15 @@ export default function MarketplaceProfilePage() {
         localStorage.setItem('customer_phone', formData.phone);
       }
       
+      // Sync to store settings if they have a store
+      if (user.role === 'OWNER') {
+        const storeRef = doc(db, 'settings', `store_${user.uid}`);
+        const storeSnap = await getDoc(storeRef);
+        if (storeSnap.exists()) {
+          await updateDoc(storeRef, { phone: formData.phone });
+        }
+      }
+      
       toast.success('Profil berhasil diperbarui!');
     } catch (error) {
       console.error('Error updating profile:', error);

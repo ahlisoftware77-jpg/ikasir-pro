@@ -519,7 +519,20 @@ export default function SettingsPage() {
         description: `Memperbarui pengaturan toko / informasi struk: ${finalSettings.storeName}`
       });
 
-      toast.success('Pengaturan berhasil disimpan!');
+      // Sync phone to user profile if storeId is the user uid
+      if (storeId && finalSettings.phone) {
+        try {
+          const userRef = doc(db, 'users', storeId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            await updateDoc(userRef, { phone: finalSettings.phone });
+          }
+        } catch (uErr) {
+          console.error("Error updating user phone from settings:", uErr);
+        }
+      }
+
+      toast.success('Pengaturan berhasil disimpan');
     } catch (err) {
       console.error(err);
       toast.error('Gagal menyimpan pengaturan.');

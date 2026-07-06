@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { ArrowLeft, Package, Clock, CheckCircle2, XCircle, Search, MessageSquare } from 'lucide-react';
 import ReviewModal from '@/components/ReviewModal';
 
@@ -22,29 +23,43 @@ export default function MarketplaceOrdersPage() {
   } | null>(null);
 
   useEffect(() => {
-    const savedPhone = localStorage.getItem('customer_phone');
-    if (savedPhone) {
-      setPhoneQuery(savedPhone);
-      fetchOrders(savedPhone);
-    } else {
-      setLoading(false);
-    }
+    const savedPhone = localStorage.getItem('customer_phone') || '';
+    setPhoneQuery(savedPhone);
+    
+    const unsub = onAuthStateChanged(auth, (user) => {
+      fetchOrders(savedPhone, user?.uid || '');
+    });
+    return () => unsub();
   }, []);
 
-  const fetchOrders = async (phone: string) => {
-    if (!phone) return;
+  const fetchOrders = async (phone: string, uid: string) => {
+    if (!phone && !uid) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'transactions'),
-        where('customerPhone', '==', phone)
-      );
-      const snap = await getDocs(q);
-      let list: any[] = [];
+      const queries = [];
+      if (phone) {
+        queries.push(getDocs(query(collection(db, 'transactions'), where('customerPhone', '==', phone))));
+      }
+      if (uid) {
+        queries.push(getDocs(query(collection(db, 'transactions'), where('userId', '==', uid))));
+      }
+
+      const results = await Promise.all(queries);
+      const fetchedMap = new Map();
+      
+      results.forEach(snap => {
+        snap.forEach(document => {
+          fetchedMap.set(document.id, { id: document.id, ...document.data() });
+        });
+      });
+
+      let list: any[] = Array.from(fetchedMap.values());
       const storeNames: Record<string, string> = {};
       
-      for (const document of snap.docs) {
-        const data = document.data();
+      for (const data of list) {
         let sName = '';
         if (data.storeId) {
           if (storeNames[data.storeId]) {
@@ -58,9 +73,9 @@ export default function MarketplaceOrdersPage() {
             }
           }
         }
-        list.push({ id: document.id, storeName: sName, ...data });
+        data.storeName = sName;
       }
-      list.sort((a,b) => b.createdAt - a.createdAt);
+      list.sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       setOrders(list);
     } catch (error) {
       console.error('Error fetching orders:', error);
