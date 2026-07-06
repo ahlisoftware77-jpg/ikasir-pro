@@ -99,7 +99,7 @@ export default function SettingsPage() {
   const [isBackuping, setIsBackuping] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState(0);
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<any>({
     storeName: '',
     address: '',
     phone: '',
