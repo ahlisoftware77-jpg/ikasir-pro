@@ -29,7 +29,7 @@ import { Transaction } from '@/types';
 import toast from 'react-hot-toast';
 import { printReceipt } from '@/lib/printReceipt';
 import Link from 'next/link';
-import { getDoc } from 'firebase/firestore';
+
 import { useBranding } from '@/context/BrandingContext';
 import { exportToExcel } from '@/lib/exportToExcel';
 
