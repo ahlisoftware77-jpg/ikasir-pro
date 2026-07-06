@@ -1374,6 +1374,13 @@ export default function SuperAdminPage() {
          });
       }
 
+      // 7. Update Store in Primary DB
+      primaryBatch.update(fDoc(primaryDb, 'stores', storeToMigrate.id), {
+         targetProjectId: isResetting ? null : targetProj.fb_project_id,
+         infraConfig: isResetting ? null : targetProj,
+         lastMigration: new Date().toISOString()
+      });
+
       await primaryBatch.commit();
       
       const shouldDeleteOld = confirm(
@@ -1384,14 +1391,17 @@ export default function SuperAdminPage() {
          setIsSaving(true);
          try {
             const { deleteDoc: fDeleteDoc } = await import('firebase/firestore');
-            await fDeleteDoc(fDoc(sourceDb, 'stores', storeToMigrate.id)).catch(() => {});
+            if (sourceDb !== primaryDb) {
+               await fDeleteDoc(fDoc(sourceDb, 'stores', storeToMigrate.id)).catch(() => {});
+            }
             await fDeleteDoc(fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`)).catch(() => {});
 
             const collectionsToDelete = [
                'products', 'categories', 'product_extras', 'discounts', 'transactions', 
                'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-               'cash_flow', 'stock_history', 'activity_logs', 'users'
+               'cash_flow', 'stock_history', 'activity_logs'
             ];
+            if (sourceDb !== primaryDb) collectionsToDelete.push('users');
 
             let totalDeleted = 0;
             for (const collName of collectionsToDelete) {

@@ -4,7 +4,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag, X } from 'lucide-react-native';
-import { db, primaryDb, getTenantDb } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
@@ -13,7 +13,7 @@ import { Star } from 'lucide-react-native';
 const { width } = Dimensions.get('window');
 
 export default function MarketplaceProductDetailScreen({ route, navigation }: any) {
-  const { productId, storeId: routeStoreId } = route.params;
+  const { productId } = route.params;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   
@@ -36,25 +36,14 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
   const fetchProductDetail = async () => {
     try {
-      let tDb = db; // default
-
-      // Fetch store's infraConfig to know which tenant DB to use
-      if (routeStoreId) {
-        const storeDoc = await getDoc(doc(primaryDb, 'stores', routeStoreId));
-        if (storeDoc.exists()) {
-          const cfg = storeDoc.data().infraConfig || { projectId: 'default_primary' };
-          tDb = getTenantDb(cfg);
-        }
-      }
-
-      const pRef = doc(tDb, 'products', productId);
+      const pRef = doc(db, 'products', productId);
       const pSnap = await getDoc(pRef);
       
       if (pSnap.exists()) {
         const pData = pSnap.data();
         
         // Fetch active discounts for this product
-        const dq = query(collection(tDb, 'discounts'), where('isActive', '==', true));
+        const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
         const dSnap = await getDocs(dq);
         const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
         const now = new Date();
@@ -74,7 +63,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         
         // Fetch store settings for WhatsApp number
         if (pData.storeId) {
-          const sRef = doc(tDb, 'settings', `store_${pData.storeId}`);
+          const sRef = doc(db, 'settings', `store_${pData.storeId}`);
           const sSnap = await getDoc(sRef);
           if (sSnap.exists()) {
             setStorePhone(sSnap.data().phone || '');
@@ -84,7 +73,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       }
 
       // Fetch Reviews
-      const rQuery = query(collection(tDb, 'reviews'), where('productId', '==', productId));
+      const rQuery = query(collection(db, 'reviews'), where('productId', '==', productId));
       const rSnap = await getDocs(rQuery);
       const fetchedReviews = rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
       setReviews(fetchedReviews);
@@ -97,7 +86,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       // Check if user can review
       if (user) {
         const userId = user.uid || user.phone;
-        const oQuery = query(collection(tDb, 'orders'), where('userId', '==', userId), where('orderStatus', '==', 'completed'));
+        const oQuery = query(collection(db, 'orders'), where('userId', '==', userId), where('orderStatus', '==', 'completed'));
         const oSnap = await getDocs(oQuery);
         let hasPurchased = false;
         oSnap.docs.forEach(doc => {

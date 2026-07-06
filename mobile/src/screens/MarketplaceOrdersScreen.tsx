@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
-import { db, primaryDb, getTenantDb } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
 import dayjs from 'dayjs';
@@ -28,15 +28,7 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
       for (const order of orders) {
         if (order.storeId && !newNames[order.storeId]) {
           try {
-            // Kita butuh infraConfig toko untuk getTenantDb
-            const pStoreSnap = await getDoc(doc(primaryDb, 'stores', order.storeId));
-            let tDb = db;
-            if (pStoreSnap.exists()) {
-              const cfg = pStoreSnap.data().infraConfig || { projectId: 'default_primary' };
-              tDb = getTenantDb(cfg);
-            }
-
-            const snap = await getDoc(doc(tDb, 'settings', `store_${order.storeId}`));
+            const snap = await getDoc(doc(db, 'settings', `store_${order.storeId}`));
             if (snap.exists() && snap.data().storeName) {
               newNames[order.storeId] = snap.data().storeName;
               changed = true;
@@ -81,70 +73,41 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
       AsyncStorage.setItem('@marketplace_orders_state', JSON.stringify(stateToSave)).catch(console.error);
     };
 
-    const fetchFederatedOrders = async () => {
-      // 1. Dapatkan daftar tenant db dari active stores
-      const storesQ = query(collection(primaryDb, 'stores'));
-      let tenantConfigs = new Map<string, any>();
-      try {
-        const storesSnap = await getDocs(storesQ);
-        storesSnap.forEach(d => {
-          const cfg = d.data().infraConfig || { projectId: 'default_primary' };
-          tenantConfigs.set(cfg.projectId, cfg);
+    // Ambil berdasarkan userId
+    const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+    const unsub1 = onSnapshot(q1, (snap) => {
+      snap.forEach(doc => {
+        fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
+      });
+      // Handle deleted documents
+      snap.docChanges().forEach(change => {
+        if (change.type === 'removed') {
+          fetchedMap.delete(change.doc.id);
+        }
+      });
+      updateOrders();
+    });
+
+    let unsub2: any = null;
+    // Tambahkan juga berdasar phone jika ada dan berbeda dengan userId
+    if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+      const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+      unsub2 = onSnapshot(q2, (snap) => {
+        snap.forEach(doc => {
+          fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
         });
-      } catch (e) {}
-
-      // Jika kosong (karena error atau belum ada toko aktif), tambahkan primary db sebagai fallback
-      if (tenantConfigs.size === 0) {
-        tenantConfigs.set('default_primary', { projectId: 'default_primary' });
-      }
-
-      const unsubs: any[] = [];
-
-      for (const cfg of tenantConfigs.values()) {
-        try {
-          const tDb = getTenantDb(cfg);
-          const ordersRef = collection(tDb, 'transactions');
-          
-          const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
-          unsubs.push(onSnapshot(q1, (snap) => {
-            snap.forEach(doc => {
-              fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
-            });
-            snap.docChanges().forEach(change => {
-              if (change.type === 'removed') {
-                fetchedMap.delete(change.doc.id);
-              }
-            });
-            updateOrders();
-          }));
-
-          if (phoneToSearch && phoneToSearch !== userIdToSearch) {
-            const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
-            unsubs.push(onSnapshot(q2, (snap) => {
-              snap.forEach(doc => {
-                fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
-              });
-              snap.docChanges().forEach(change => {
-                if (change.type === 'removed') {
-                  fetchedMap.delete(change.doc.id);
-                }
-              });
-              updateOrders();
-            }));
+        snap.docChanges().forEach(change => {
+          if (change.type === 'removed') {
+            fetchedMap.delete(change.doc.id);
           }
-        } catch (e) {}
-      }
-
-      return () => {
-        unsubs.forEach(fn => fn());
-      };
-    };
-
-    let cleanup: any = null;
-    fetchFederatedOrders().then(fn => cleanup = fn);
+        });
+        updateOrders();
+      });
+    }
 
     return () => {
-      if (cleanup) cleanup();
+      unsub1();
+      if (unsub2) unsub2();
     };
   }, [user]);
 

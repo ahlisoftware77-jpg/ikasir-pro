@@ -79,35 +79,5 @@ export const primaryDb: Firestore = dataApp === primaryApp ? db : (() => {
 
 export const storage = getStorage(dataApp);
 
-export const getTenantDb = (config: any): Firestore => {
-  if (!config || !config.projectId || config.projectId === defaultFirebaseConfig.projectId || config.projectId === 'default_primary') {
-    return primaryDb;
-  }
-  
-  const appName = `DataApp_${config.projectId}`;
-  let tApp: FirebaseApp;
-  const existingApp = getApps().find(a => a.name === appName);
-  
-  if (existingApp) {
-    tApp = existingApp;
-  } else {
-    tApp = initializeApp(config, appName);
-  }
-
-  let tDb: Firestore;
-  try {
-    tDb = initializeFirestore(tApp, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      }),
-      experimentalForceLongPolling: true
-    });
-  } catch {
-    tDb = getFirestore(tApp);
-  }
-
-  return tDb;
-};
-
 export default primaryApp;
 

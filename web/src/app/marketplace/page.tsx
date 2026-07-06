@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { db, primaryDb, getTenantDb } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -72,76 +72,49 @@ function MarketplaceContent() {
     async function fetchMarketplaceData() {
       setLoading(true);
       try {
-        const storesQ = query(collection(primaryDb, 'stores'));
-        const storesSnap = await getDocs(storesQ);
-        
-        const tenantConfigs = new Map<string, any>();
-        const storeToConfigMap: Record<string, any> = {};
-        
-        storesSnap.forEach(doc => {
-          const sData = doc.data();
-          const cfg = sData.infraConfig || { projectId: 'default_primary' };
-          tenantConfigs.set(cfg.projectId, cfg);
-          storeToConfigMap[doc.id] = cfg;
-        });
-
+        const q = query(collection(db, 'products'), where('joinMarketplace', '==', true));
+        const snap = await getDocs(q);
         const list: Product[] = [];
         const uniqueStoreIds = new Set<string>();
 
-        const fetchPromises = Array.from(tenantConfigs.values()).map(async (cfg) => {
-          try {
-            const tDb = getTenantDb(cfg);
-            const q = query(collection(tDb, 'products'), where('joinMarketplace', '==', true));
-            const pSnap = await getDocs(q);
-            
-            pSnap.forEach((d) => {
-              const data = d.data();
-              list.push({
-                id: d.id,
-                name: data.name || '',
-                price: data.price || 0,
-                category: data.category || 'Umum',
-                imageUrl: data.imageUrl || '',
-                imageUrls: data.imageUrls || [],
-                description: data.description || '',
-                videoUrl: data.videoUrl || '',
-                storeId: data.storeId || '',
-                storeName: data.storeName || 'Toko Mitra',
-                stock: data.stock !== undefined ? data.stock : 0,
-                manageStock: data.manageStock !== undefined ? data.manageStock : true,
-              });
-              if (data.storeId) {
-                uniqueStoreIds.add(data.storeId);
-              }
-            });
-          } catch (e) {
-            console.warn(`Failed to fetch from tenant db ${cfg.projectId}`, e);
+        snap.forEach((d) => {
+          const data = d.data();
+          list.push({
+            id: d.id,
+            name: data.name || '',
+            price: data.price || 0,
+            category: data.category || 'Umum',
+            imageUrl: data.imageUrl || '',
+            imageUrls: data.imageUrls || [],
+            description: data.description || '',
+            videoUrl: data.videoUrl || '',
+            storeId: data.storeId || '',
+            storeName: data.storeName || 'Toko Mitra',
+            stock: data.stock !== undefined ? data.stock : 0,
+            manageStock: data.manageStock !== undefined ? data.manageStock : true,
+          });
+          if (data.storeId) {
+            uniqueStoreIds.add(data.storeId);
           }
         });
-
-        await Promise.all(fetchPromises);
 
         // Fetch store contacts, addresses, and logos
         const phonesMap: Record<string, string> = {};
         const addressMap: Record<string, string> = {};
         const logosMap: Record<string, string> = {};
         const hiddenCatsMap: Record<string, string[]> = {};
-        await Promise.all(Array.from(uniqueStoreIds).map(async (sId) => {
-          try {
-            const cfg = storeToConfigMap[sId] || { projectId: 'default_primary' };
-            const tDb = getTenantDb(cfg);
-            const settingsSnap = await getDoc(doc(tDb, 'settings', `store_${sId}`));
-            if (settingsSnap.exists()) {
-              const sData = settingsSnap.data();
-              phonesMap[sId] = sData.phone || '';
-              addressMap[sId] = sData.address || '';
-              logosMap[sId] = sData.logoUrl || '';
-              if (sData.hiddenMarketplaceCategories) {
-                hiddenCatsMap[sId] = sData.hiddenMarketplaceCategories;
-              }
+        for (const sId of Array.from(uniqueStoreIds)) {
+          const settingsSnap = await getDoc(doc(db, 'settings', `store_${sId}`));
+          if (settingsSnap.exists()) {
+            const sData = settingsSnap.data();
+            phonesMap[sId] = sData.phone || '';
+            addressMap[sId] = sData.address || '';
+            logosMap[sId] = sData.logoUrl || '';
+            if (sData.hiddenMarketplaceCategories) {
+              hiddenCatsMap[sId] = sData.hiddenMarketplaceCategories;
             }
-          } catch (e) {}
-        }));
+          }
+        }
         setStorePhones(phonesMap);
         setStoreAddresses(addressMap);
         setStoreLogos(logosMap);
@@ -161,12 +134,10 @@ function MarketplaceContent() {
 
         // Fetch flash sales for all stores in marketplace
         const allFlashSales: any[] = [];
-        await Promise.all(Array.from(uniqueStoreIds).map(async (sId) => {
+        for (const sId of Array.from(uniqueStoreIds)) {
           try {
-            const cfg = storeToConfigMap[sId] || { projectId: 'default_primary' };
-            const tDb = getTenantDb(cfg);
             const fsQuery = query(
-              collection(tDb, 'flash_sales'),
+              collection(db, 'flash_sales'),
               where('storeId', '==', sId),
               where('isActive', '==', true)
             );
@@ -177,7 +148,7 @@ function MarketplaceContent() {
           } catch (fsErr) {
             console.error(`Error fetching flash sales for store ${sId}:`, fsErr);
           }
-        }));
+        }
         setFlashSales(allFlashSales);
       } catch (err) {
         console.error("Error fetching marketplace products:", err);
