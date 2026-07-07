@@ -13,7 +13,7 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
   const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -93,18 +93,29 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
         <Text style={[styles.productName, { color: colors.text }]}>{productName}</Text>
         
         <View style={styles.ratingContainer}>
-          <Text style={[styles.ratingLabel, { color: colors.text }]}>Beri Nilai Rating:</Text>
+          <Text style={[styles.ratingLabel, { color: colors.text }]}>Beri Nilai Kualitas Produk:</Text>
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map(star => (
-              <TouchableOpacity key={star} onPress={() => setRating(star)} style={styles.starBtn}>
+              <TouchableOpacity key={star} onPress={() => setRating(star)} style={styles.starBtn} activeOpacity={0.7}>
                 <Star 
                   color={star <= rating ? '#f59e0b' : colors.border} 
                   fill={star <= rating ? '#f59e0b' : 'transparent'} 
-                  size={40} 
+                  size={46} 
                 />
               </TouchableOpacity>
             ))}
           </View>
+          {rating > 0 ? (
+            <View style={[styles.ratingLabelBadge, { backgroundColor: '#fef3c7' }]}>
+              <Text style={styles.ratingLabelText}>
+                {rating === 1 ? 'Sangat Buruk 😞' : rating === 2 ? 'Buruk 😕' : rating === 3 ? 'Cukup 😐' : rating === 4 ? 'Baik 🙂' : 'Sangat Baik 🤩'}
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.ratingLabelBadge, { backgroundColor: colors.border }]}>
+              <Text style={[styles.ratingLabelText, { color: colors.textMuted }]}>Pilih Rating</Text>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.commentLabel, { color: colors.text }]}>Tulis Komentar Ulasan:</Text>
@@ -120,9 +131,14 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
         />
 
         <TouchableOpacity 
-          style={[styles.submitBtn, { backgroundColor: colors.accent, opacity: submitting ? 0.7 : 1 }]}
+          style={[
+            styles.submitBtn, 
+            { backgroundColor: colors.accent }, 
+            (submitting || rating === 0 || !comment.trim()) && { opacity: 0.5 }
+          ]}
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || rating === 0 || !comment.trim()}
+          activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator color="#fff" />
@@ -173,19 +189,37 @@ const styles = StyleSheet.create({
   ratingContainer: {
     alignItems: 'center',
     marginBottom: 32,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    padding: 20,
+    borderRadius: 16,
   },
   ratingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '700',
     fontFamily: 'System',
-    marginBottom: 12,
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   starsRow: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 16,
   },
   starBtn: {
-    padding: 4,
+    padding: 2,
+  },
+  ratingLabelBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  ratingLabelText: {
+    color: '#d97706',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   commentLabel: {
     fontSize: 14,
@@ -195,17 +229,22 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 15,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 14,
     fontFamily: 'System',
     minHeight: 120,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   submitBtn: {
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   submitBtnText: {
     color: '#fff',

@@ -25,7 +25,8 @@ export default function ReviewModal({
   customerName,
   customerPhone,
 }: ReviewModalProps) {
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -107,24 +108,31 @@ export default function ReviewModal({
           {/* Rating */}
           <div className="flex flex-col items-center gap-3">
             <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Kualitas Produk</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" onMouseLeave={() => setHoverRating(0)}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoverRating(star)}
                   className="p-1 hover:scale-110 active:scale-95 transition-transform"
                 >
                   <Star 
-                    size={40} 
-                    className={`${star <= rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-100 text-slate-200 dark:fill-slate-800 dark:text-slate-700'}`} 
+                    size={44} 
+                    className={`transition-colors ${star <= (hoverRating || rating) ? 'fill-amber-400 text-amber-400 drop-shadow-md' : 'fill-slate-100 text-slate-200 dark:fill-slate-800 dark:text-slate-700'}`} 
                   />
                 </button>
               ))}
             </div>
-            <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full uppercase tracking-wider">
-              {rating === 1 ? 'Sangat Buruk' : rating === 2 ? 'Buruk' : rating === 3 ? 'Cukup' : rating === 4 ? 'Baik' : 'Sangat Baik'}
-            </span>
+            {rating > 0 || hoverRating > 0 ? (
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-4 py-1.5 rounded-full uppercase tracking-wider animate-in zoom-in duration-200">
+                {(hoverRating || rating) === 1 ? 'Sangat Buruk 😞' : (hoverRating || rating) === 2 ? 'Buruk 😕' : (hoverRating || rating) === 3 ? 'Cukup 😐' : (hoverRating || rating) === 4 ? 'Baik 🙂' : 'Sangat Baik 🤩'}
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-4 py-1.5 rounded-full uppercase tracking-wider">
+                Pilih Rating
+              </span>
+            )}
           </div>
 
           {/* Comment */}
