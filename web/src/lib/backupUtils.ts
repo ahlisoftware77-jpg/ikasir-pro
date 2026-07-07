@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db, primaryDb, getTenantDb } from './firebase';
 import { collection, query, where, getDocs, getDoc, doc, setDoc, writeBatch } from 'firebase/firestore';
 
 /**
@@ -75,13 +75,26 @@ export const handleImportStoreJSON = async (file: File, targetStoreId: string) =
         const collections = Object.keys(backupData.data);
         let totalRestored = 0;
 
+        let tDb = db;
+        try {
+          const storeDoc = await getDoc(doc(primaryDb, 'stores', targetStoreId));
+          if (storeDoc.exists()) {
+            const cfg = storeDoc.data().infraConfig;
+            if (cfg) {
+              tDb = getTenantDb(cfg);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch tenant config during import", e);
+        }
+
         for (const collName of collections) {
           const docs = backupData.data[collName];
           if (!Array.isArray(docs)) continue;
 
           // Split into batches of 500 (Firestore limit)
           for (let i = 0; i < docs.length; i += 500) {
-            const batch = writeBatch(db);
+            const batch = writeBatch(tDb);
             const chunk = docs.slice(i, i + 500);
             
             chunk.forEach((docData: any) => {
@@ -105,7 +118,7 @@ export const handleImportStoreJSON = async (file: File, targetStoreId: string) =
                 }
               }
 
-              const ref = doc(db, collName, targetDocId);
+              const ref = doc(tDb, collName, targetDocId);
               batch.set(ref, dataToSave, { merge: true });
               totalRestored++;
             });
@@ -155,6 +168,21 @@ export const handleExportJSON = async (storeId: string) => {
   };
 
   try {
+    let tDb = db;
+    if (!isGlobal) {
+      try {
+        const storeDoc = await getDoc(doc(primaryDb, 'stores', storeId));
+        if (storeDoc.exists()) {
+          const cfg = storeDoc.data().infraConfig;
+          if (cfg) {
+            tDb = getTenantDb(cfg);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch tenant config during export", e);
+      }
+    }
+
     // 1. Export Settings Document(s)
     if (isGlobal) {
       const storesSnap = await getDocs(collection(db, 'stores'));
@@ -167,12 +195,12 @@ export const handleExportJSON = async (storeId: string) => {
       settingsSnap.forEach(d => settingsData.push({ id: d.id, ...d.data() }));
       backupData.data['settings'] = settingsData;
     } else if (settingsRef) {
-      const storeSnap = await getDoc(settingsRef);
+      const storeSnap = await getDoc(doc(primaryDb, 'stores', storeId));
       if (storeSnap.exists()) {
         backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
       }
       
-      const specificSettings = await getDoc(doc(db, 'settings', `store_${storeId}`));
+      const specificSettings = await getDoc(doc(tDb, 'settings', `store_${storeId}`));
       if (specificSettings.exists()) {
         backupData.data['settings'] = [{ id: specificSettings.id, ...specificSettings.data() }];
       }
@@ -185,7 +213,7 @@ export const handleExportJSON = async (storeId: string) => {
             if (isGlobal) {
               snap = await getDocs(collection(db, collName));
             } else {
-              const q = query(collection(db, collName), where('storeId', '==', storeId));
+              const q = query(collection(tDb, collName), where('storeId', '==', storeId));
               snap = await getDocs(q);
             }
             
