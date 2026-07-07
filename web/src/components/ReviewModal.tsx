@@ -29,8 +29,17 @@ export default function ReviewModal({
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   if (!isOpen) return null;
+
+  const maskName = (name: string) => {
+    if (!name || name.length <= 2) return name;
+    const firstTwo = name.substring(0, 2);
+    const lastOne = name.substring(name.length - 1);
+    const stars = '*'.repeat(Math.max(1, name.length - 3));
+    return `${firstTwo}${stars}${lastOne}`;
+  };
 
   const handleSubmit = async () => {
     if (rating < 1 || rating > 5) {
@@ -55,13 +64,16 @@ export default function ReviewModal({
         }
       }
 
+      const actualName = customerName || customerPhone || 'Pengguna';
+      const finalName = isAnonymous ? maskName(actualName) : actualName;
+
       // 1. Add review to 'reviews' collection
       await addDoc(collection(tDb, 'reviews'), {
         productId,
         productName,
         storeId,
         userId: customerPhone || 'anonymous',
-        userName: customerName || customerPhone || 'Pengguna',
+        userName: finalName,
         rating,
         comment: comment.trim(),
         orderId: orderId || null,
@@ -171,8 +183,15 @@ export default function ReviewModal({
               onChange={(e) => setComment(e.target.value)}
               placeholder="Bagaimana kualitas produk ini? Apakah sesuai dengan deskripsi?"
               rows={4}
-              className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 resize-none font-medium"
+              className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 resize-none font-medium mb-3"
             />
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-colors ${isAnonymous ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 dark:border-slate-600 group-hover:border-emerald-400'}`}>
+                {isAnonymous && <span className="text-white text-xs font-bold">✓</span>}
+              </div>
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Sembunyikan nama (Anonim)</span>
+              <input type="checkbox" className="hidden" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
+            </label>
           </div>
         </div>
 

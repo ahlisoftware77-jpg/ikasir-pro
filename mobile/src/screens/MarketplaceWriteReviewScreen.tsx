@@ -16,6 +16,15 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
+  const maskName = (name: string) => {
+    if (!name || name.length <= 2) return name;
+    const firstTwo = name.substring(0, 2);
+    const lastOne = name.substring(name.length - 1);
+    const stars = '*'.repeat(Math.max(1, name.length - 3));
+    return `${firstTwo}${stars}${lastOne}`;
+  };
 
   const handleSubmit = async () => {
     if (!user) {
@@ -45,12 +54,15 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
         }
       }
 
+      const actualName = user.name || user.phone || 'Pengguna';
+      const finalName = isAnonymous ? maskName(actualName) : actualName;
+
       await addDoc(collection(tDb, 'reviews'), {
         productId,
         productName,
         storeId,
         userId: user.uid || user.phone || 'anonymous',
-        userName: user.name || user.phone || 'Pengguna',
+        userName: finalName,
         rating,
         comment: comment.trim(),
         orderId: orderId || null,
@@ -148,7 +160,7 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
 
         <Text style={[styles.commentLabel, { color: colors.text }]}>Tulis Komentar Ulasan:</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border, marginBottom: 16 }]}
           placeholder="Tuliskan pendapat Anda tentang produk ini..."
           placeholderTextColor={colors.text + '80'}
           multiline
@@ -157,6 +169,17 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
           value={comment}
           onChangeText={setComment}
         />
+
+        <TouchableOpacity 
+          style={styles.anonymousToggle} 
+          onPress={() => setIsAnonymous(!isAnonymous)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.checkbox, { borderColor: colors.border, backgroundColor: isAnonymous ? colors.accent : 'transparent' }]}>
+            {isAnonymous && <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✓</Text>}
+          </View>
+          <Text style={[styles.anonymousText, { color: colors.text }]}>Sembunyikan nama (Anonim)</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity 
           style={[
@@ -279,5 +302,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     fontFamily: 'System',
-  }
+  },
+  anonymousToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 32,
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anonymousText: {
+    fontSize: 14,
+    fontFamily: 'System',
+    fontWeight: '500',
+  },
 });
