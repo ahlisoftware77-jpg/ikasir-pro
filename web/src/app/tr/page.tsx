@@ -384,49 +384,68 @@ function PublicOrderContent() {
       return;
     }
 
-    const fetchSettings = async () => {
+    let unsubscribeProducts: any = null;
+    let unsubscribeFlash: any = null;
+
+    const loadData = async () => {
       try {
-        const docRef = doc(db, 'settings', "store_" + storeId);
+        let tDb = db;
+        // Check if store is a tenant
+        const storeDoc = await getDoc(doc(primaryDb, 'stores', storeId));
+        if (storeDoc.exists()) {
+          const cfg = storeDoc.data().infraConfig;
+          if (cfg) {
+            tDb = getTenantDb(cfg);
+          }
+        }
+
+        const docRef = doc(tDb, 'settings', "store_" + storeId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
           setStoreSettings(data);
           
-          // Auto-adjust fulfillment type based on settings
           if (data.allowPickup === false && data.allowDelivery !== false) {
             setFulfillmentType('delivery');
           } else if (data.allowDelivery === false && data.allowPickup !== false) {
             setFulfillmentType('pickup');
           }
+        } else {
+          // If settings don't exist, stop loading to avoid infinite spinner
+          setStoreSettings({ isOnlineStoreActive: false });
         }
+
+        const q = query(collection(tDb, 'products'), where('storeId', '==', storeId));
+        unsubscribeProducts = onSnapshot(q, (snapshot) => {
+          const items: Product[] = [];
+          snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() } as Product));
+          setProducts(items);
+          setIsLoading(false);
+        });
+
+        const qFlash = query(
+          collection(tDb, 'flash_sales'),
+          where('storeId', '==', storeId),
+          where('isActive', '==', true)
+        );
+        unsubscribeFlash = onSnapshot(qFlash, (snapshot) => {
+          const items: any[] = [];
+          snapshot.forEach((doc) => {
+            items.push({ id: doc.id, ...doc.data() });
+          });
+          setFlashSales(items);
+        }, (err) => {
+          console.error("Error loading flash sales in online store:", err);
+        });
       } catch (err) {
-        console.error("Gagal memuat pengaturan toko", err);
+        console.error("Gagal memuat data toko", err);
+        setIsLoading(false);
       }
     };
-    fetchSettings();
 
-    const q = query(collection(db, 'products'), where('storeId', '==', storeId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items: Product[] = [];
-      snapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() } as Product));
-      setProducts(items);
-      setIsLoading(false);
-    });
+    loadData();
 
-    const qFlash = query(
-      collection(db, 'flash_sales'),
-      where('storeId', '==', storeId),
-      where('isActive', '==', true)
-    );
-    const unsubscribeFlash = onSnapshot(qFlash, (snapshot) => {
-      const items: any[] = [];
-      snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() });
-      });
-      setFlashSales(items);
-    }, (err) => {
-      console.error("Error loading flash sales in online store:", err);
-    });
+
 
     const savedGuestId = localStorage.getItem('guest_id') || ('guest_' + Math.random().toString(36).substring(2, 9));
     const savedOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
@@ -439,8 +458,8 @@ function PublicOrderContent() {
     }
 
     return () => {
-      unsubscribe();
-      unsubscribeFlash();
+      if (unsubscribeProducts) unsubscribeProducts();
+      if (unsubscribeFlash) unsubscribeFlash();
     };
   }, [storeId]);
 
@@ -525,24 +544,38 @@ function PublicOrderContent() {
     };
 
     // 1. GUEST SYNC (By specific IDs in localStorage)
-    if (myOrderIds.length > 0) {
-      const qGuest = query(
-        collection(db, 'transactions'), 
-        where('storeId', '==', storeId),
-        where('id', 'in', myOrderIds.slice(0, 10))
-      );
-      unsubGuest = onSnapshot(qGuest, (snap) => handleSnapshot(snap, 'guest'));
-    }
+    const loadOrders = async () => {
+      let tDb = db;
+      try {
+        const storeDoc = await getDoc(doc(primaryDb, 'stores', storeId));
+        if (storeDoc.exists()) {
+          const cfg = storeDoc.data().infraConfig;
+          if (cfg) {
+            tDb = getTenantDb(cfg);
+          }
+        }
+      } catch(e) {}
 
-    // 2. ACCOUNT SYNC (Only if user is logged in as customer)
-    if (authUser) {
-      const qAccount = query(
-        collection(db, 'transactions'),
-        where('storeId', '==', storeId),
-        where('guestId', '==', authUser.uid)
-      );
-      unsubAccount = onSnapshot(qAccount, (snap) => handleSnapshot(snap, 'account'));
-    }
+      if (myOrderIds.length > 0) {
+        const qGuest = query(
+          collection(tDb, 'transactions'), 
+          where('storeId', '==', storeId),
+          where('id', 'in', myOrderIds.slice(0, 10))
+        );
+        unsubGuest = onSnapshot(qGuest, (snap) => handleSnapshot(snap, 'guest'));
+      }
+
+      // 2. ACCOUNT SYNC (Only if user is logged in as customer)
+      if (authUser) {
+        const qAccount = query(
+          collection(tDb, 'transactions'),
+          where('storeId', '==', storeId),
+          where('guestId', '==', authUser.uid)
+        );
+        unsubAccount = onSnapshot(qAccount, (snap) => handleSnapshot(snap, 'account'));
+      }
+    };
+    loadOrders();
 
     return () => {
       unsubGuest?.();
@@ -816,6 +849,17 @@ function PublicOrderContent() {
 
     setIsProcessing(true);
     try {
+      let tDb = db;
+      try {
+        const storeDoc = await getDoc(doc(primaryDb, 'stores', storeId));
+        if (storeDoc.exists()) {
+          const cfg = storeDoc.data().infraConfig;
+          if (cfg) {
+            tDb = getTenantDb(cfg);
+          }
+        }
+      } catch(e) {}
+
       const sub = subtotalSum;
       const fee = (fulfillmentType === 'delivery' ? (storeSettings?.deliveryFee || 0) : 0);
       const taxRate = (storeSettings?.taxRate || 0);
@@ -834,8 +878,11 @@ function PublicOrderContent() {
           qty: item.cartQty,
           subtotal: item.displayPrice * item.cartQty,
           selectedExtras: item.selectedExtras,
-          note: item.note || ''
+          note: item.note || '',
+          imageUrl: item.imageUrl || '',
+          storeName: storeSettings?.storeName || '',
         })),
+        storeName: storeSettings?.storeName || '',
         subtotal: sub,
         tax: taxAmount,
         deliveryFee: fee,
@@ -862,8 +909,8 @@ function PublicOrderContent() {
 
       let finalId = '';
       
-      await runTransaction(db, async (transaction) => {
-        const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      await runTransaction(tDb, async (transaction) => {
+        const settingsRef = doc(tDb, 'settings', `store_${storeId}`);
         const settingsSnap = await transaction.get(settingsRef);
         
         let currentCounter = 0;
@@ -895,7 +942,7 @@ function PublicOrderContent() {
           if (activeFs) {
             const hasProduct = activeFs.products?.some((p: any) => p.productId === item.id);
             if (hasProduct) {
-              const fsRef = doc(db, 'flash_sales', activeFs.id);
+              const fsRef = doc(tDb, 'flash_sales', activeFs.id);
               const fsDoc = await transaction.get(fsRef);
               if (fsDoc.exists()) {
                 const fsData = fsDoc.data();
@@ -912,7 +959,7 @@ function PublicOrderContent() {
           }
         }
 
-        transaction.set(doc(db, 'transactions', finalId), orderData);
+        transaction.set(doc(tDb, 'transactions', finalId), orderData);
         transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
       });
       
