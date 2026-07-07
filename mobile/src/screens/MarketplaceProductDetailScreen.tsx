@@ -29,6 +29,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [canReview, setCanReview] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<'cart' | 'buy'>('cart');
 
   useEffect(() => {
     fetchProductDetail();
@@ -167,7 +168,8 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         imageUrl: product.imageUrl || product.imageUrls?.[0],
         stock: product.stock || 999
       });
-      useCartStore.getState().setQty(product.id, 1);
+      useCartStore.getState().setQty(product.id, qty);
+      setIsCartModalVisible(false);
       navigation.navigate('MarketplaceCheckoutScreen', { storeId: product.storeId });
     }
   };
@@ -398,6 +400,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
             <TouchableOpacity 
               style={[styles.actionBtn, { backgroundColor: colors.surface, flex: 1, borderWidth: 1, borderColor: colors.accent }]} 
               onPress={() => {
+                setModalType('cart');
                 setQty(1);
                 setIsCartModalVisible(true);
               }}
@@ -409,7 +412,11 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
             
             <TouchableOpacity 
               style={[styles.actionBtn, { backgroundColor: colors.accent, flex: 1 }]} 
-              onPress={handleBuyNow}
+              onPress={() => {
+                setModalType('buy');
+                setQty(1);
+                setIsCartModalVisible(true);
+              }}
               activeOpacity={0.8}
             >
               <Text style={styles.actionBtnText}>Beli Sekarang</Text>
@@ -432,7 +439,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           />
           <View style={[styles.modalContent, { backgroundColor: colors.surface, paddingBottom: (insets.bottom || 16) + 16 }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Masukkan Keranjang</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {modalType === 'cart' ? 'Masukkan Keranjang' : 'Beli Sekarang'}
+              </Text>
               <TouchableOpacity onPress={() => setIsCartModalVisible(false)}>
                 <X color={colors.textMuted} size={24} />
               </TouchableOpacity>
@@ -485,10 +494,10 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
             <TouchableOpacity 
               style={[styles.actionBtn, { backgroundColor: colors.accent, width: '100%', flex: 0, paddingVertical: 14, minHeight: 48 }]} 
-              onPress={handleAddToCart}
+              onPress={modalType === 'cart' ? handleAddToCart : handleBuyNow}
             >
               <Text style={{ color: '#ffffff', fontFamily: 'System', fontWeight: '800', fontSize: 14, textAlign: 'center' }}>
-                Masukkan Keranjang
+                {modalType === 'cart' ? 'Masukkan Keranjang' : 'Beli Sekarang'}
               </Text>
             </TouchableOpacity>
           </View>
