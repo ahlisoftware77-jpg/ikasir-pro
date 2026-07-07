@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, Linking, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Package, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
+import { ChevronLeft, Package, Clock, CheckCircle2, XCircle, MessageCircle } from 'lucide-react-native';
 import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '../store/authStore';
@@ -149,6 +149,52 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
     }
   };
 
+  const handleChatSeller = async (order: any) => {
+    try {
+      let storePhone = order.items?.[0]?.storePhone || '';
+      
+      if (!storePhone && order.storeId) {
+        const sRefPrimary = doc(primaryDb, 'stores', order.storeId);
+        const sSnapPrimary = await getDoc(sRefPrimary);
+        if (sSnapPrimary.exists()) {
+          const cfg = sSnapPrimary.data().infraConfig;
+          const tDb = cfg ? getTenantDb(cfg) : primaryDb;
+          const sRef = doc(tDb, 'settings', `store_${order.storeId}`);
+          const sSnap = await getDoc(sRef);
+          if (sSnap.exists()) {
+             storePhone = sSnap.data().phone || sSnap.data().storePhone || '';
+          }
+        }
+      }
+      
+      if (!storePhone) {
+        Alert.alert('Info', 'Nomor WhatsApp toko tidak tersedia.');
+        return;
+      }
+
+      let formattedPhone = storePhone.replace(/[^0-9]/g, '');
+      if (formattedPhone.startsWith('0')) formattedPhone = '62' + formattedPhone.slice(1);
+      
+      let message = `Halo, saya memesan dari Marketplace iKasir (Order ID: ${order.id}):\n\n`;
+      (order.items || []).forEach((item: any) => {
+        message += `- *${item.name || item.productName}* (${item.qty}x) = Rp ${((item.price || 0) * (item.qty || 1)).toLocaleString('id-ID')}\n`;
+      });
+      message += `\n*Total: Rp ${(order.total || order.totalAmount || 0).toLocaleString('id-ID')}*`;
+      
+      const url = `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
+      
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'WhatsApp tidak terpasang di perangkat ini.');
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Gagal memuat kontak penjual.');
+    }
+  };
+
   const renderOrderItem = ({ item }: any) => {
     let finalStatus = item.status;
     if (item.paymentStatus === 'paid' || item.paymentStatus === 'completed') {
@@ -188,10 +234,32 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
           
           <View style={styles.itemsList}>
             {item.items?.map((prod: any, idx: number) => (
-              <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Text style={[styles.itemText, { color: colors.textMuted, flex: 1 }]} numberOfLines={1}>
-                  {prod.qty}x {prod.name}
-                </Text>
+              <TouchableOpacity 
+                key={idx} 
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}
+                onPress={() => {
+                  const pid = prod.id || prod.productId;
+                  if (pid) {
+                    navigation.navigate('MarketplaceProductDetail', { productId: pid, storeId: item.storeId });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: colors.bg, overflow: 'hidden', marginRight: 12, borderWidth: 1, borderColor: colors.border }}>
+                  {prod.imageUrl || prod.image ? (
+                    <Image source={{ uri: prod.imageUrl || prod.image }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <Package color={colors.textMuted} size={20} style={{ margin: 12 }} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.itemText, { color: colors.text, fontWeight: '700' }]} numberOfLines={1}>
+                    {prod.name || prod.productName}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 2 }}>
+                    {prod.qty} x Rp {(prod.price || 0).toLocaleString('id-ID')}
+                  </Text>
+                </View>
                 {finalStatus === 'paid' && (
                   !prod.isReviewed ? (
                     <TouchableOpacity
@@ -211,9 +279,22 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
                     </View>
                   )
                 )}
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
+          
+          {finalStatus !== 'cancelled' && (
+            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border }} 
+                onPress={() => handleChatSeller(item)}
+                activeOpacity={0.7}
+              >
+                <MessageCircle size={16} color={colors.textMuted} />
+                <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 12 }}>Chat Penjual via WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </View>
     );
