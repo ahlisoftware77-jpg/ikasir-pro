@@ -28,10 +28,17 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
       for (const order of orders) {
         if (order.storeId && !newNames[order.storeId]) {
           try {
-            const snap = await getDoc(doc(db, 'settings', `store_${order.storeId}`));
+            const snap = await getDoc(doc(primaryDb, 'stores', order.storeId));
             if (snap.exists() && snap.data().storeName) {
               newNames[order.storeId] = snap.data().storeName;
               changed = true;
+            } else {
+              // Fallback to settings if needed
+              const setSnap = await getDoc(doc(db, 'settings', `store_${order.storeId}`));
+              if (setSnap.exists() && setSnap.data().storeName) {
+                newNames[order.storeId] = setSnap.data().storeName;
+                changed = true;
+              }
             }
           } catch (e) {}
         }
