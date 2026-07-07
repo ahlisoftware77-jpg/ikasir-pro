@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Star, X, Loader2 } from 'lucide-react';
-import { db } from '@/lib/firebase';
+import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
@@ -45,8 +45,18 @@ export default function ReviewModal({
 
     setSubmitting(true);
     try {
+      let tDb = db;
+      if (storeId) {
+        const sRef = doc(primaryDb || db, 'stores', storeId);
+        const sSnap = await getDoc(sRef);
+        if (sSnap.exists()) {
+          const cfg = sSnap.data().infraConfig;
+          if (cfg) tDb = getTenantDb(cfg);
+        }
+      }
+
       // 1. Add review to 'reviews' collection
-      await addDoc(collection(db, 'reviews'), {
+      await addDoc(collection(tDb, 'reviews'), {
         productId,
         productName,
         storeId,
@@ -59,7 +69,7 @@ export default function ReviewModal({
       });
 
       // 2. Update product aggregate rating
-      const pRef = doc(db, 'products', productId);
+      const pRef = doc(tDb, 'products', productId);
       const pSnap = await getDoc(pRef);
       if (pSnap.exists()) {
         const pData = pSnap.data();
@@ -77,7 +87,7 @@ export default function ReviewModal({
 
       // 3. Update order document to mark item as reviewed
       if (orderId) {
-        const oRef = doc(db, 'orders', orderId);
+        const oRef = doc(tDb, 'transactions', orderId);
         const oSnap = await getDoc(oRef);
         if (oSnap.exists()) {
           const oData = oSnap.data();

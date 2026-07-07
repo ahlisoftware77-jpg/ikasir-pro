@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Star } from 'lucide-react-native';
-import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 
 export default function MarketplaceWriteReviewScreen({ route, navigation }: any) {
@@ -35,7 +35,17 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'reviews'), {
+      let tDb = db;
+      if (storeId) {
+        const sRef = doc(primaryDb || db, 'stores', storeId);
+        const sSnap = await getDoc(sRef);
+        if (sSnap.exists()) {
+          const cfg = sSnap.data().infraConfig;
+          if (cfg) tDb = getTenantDb(cfg);
+        }
+      }
+
+      await addDoc(collection(tDb, 'reviews'), {
         productId,
         productName,
         storeId,
@@ -48,7 +58,7 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
       });
       
       // Update product rating aggregate
-      const pRef = doc(db, 'products', productId);
+      const pRef = doc(tDb, 'products', productId);
       const pSnap = await getDoc(pRef);
       if (pSnap.exists()) {
         const pData = pSnap.data();
@@ -66,7 +76,7 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
       
       // Update order document to mark item as reviewed
       if (orderId) {
-        const oRef = doc(db, 'orders', orderId);
+        const oRef = doc(tDb, 'transactions', orderId);
         const oSnap = await getDoc(oRef);
         if (oSnap.exists()) {
           const oData = oSnap.data();
