@@ -16,7 +16,7 @@ import {
   runTransaction,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth, storage } from '@/lib/firebase';
+import { db, auth, storage, primaryDb, getTenantDb } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser, updateProfile } from 'firebase/auth';
 import toast from 'react-hot-toast';
