@@ -193,17 +193,23 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
                   {prod.qty}x {prod.name}
                 </Text>
                 {finalStatus === 'paid' && (
-                  <TouchableOpacity
-                    style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginLeft: 8 }}
-                    onPress={() => navigation.navigate('MarketplaceWriteReview', {
-                      productId: prod.id,
-                      productName: prod.name,
-                      storeId: item.storeId,
-                      orderId: item.id
-                    })}
-                  >
-                    <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>Beri Ulasan</Text>
-                  </TouchableOpacity>
+                  !prod.isReviewed ? (
+                    <TouchableOpacity
+                      style={{ backgroundColor: colors.accent + '15', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginLeft: 8 }}
+                      onPress={() => navigation.navigate('MarketplaceWriteReview', {
+                        productId: prod.id || prod.productId,
+                        productName: prod.name || prod.productName,
+                        storeId: item.storeId,
+                        orderId: item.id
+                      })}
+                    >
+                      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '900' }}>Beri Ulasan</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{ backgroundColor: colors.border + '50', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginLeft: 8 }}>
+                      <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '900' }}>Telah Diulas</Text>
+                    </View>
+                  )
                 )}
               </View>
             ))}

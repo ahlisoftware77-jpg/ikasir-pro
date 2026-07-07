@@ -188,19 +188,25 @@ export default function MarketplaceOrdersPage() {
                               <p className="text-[10px] text-slate-500">{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</p>
                             </div>
                             {isFinished && (
-                              <button
-                                onClick={() => setReviewProduct({
-                                  productId: item.productId,
-                                  productName: item.productName,
-                                  storeId: order.storeId || '',
-                                  orderId: order.id,
-                                  customerName: order.customerName || phoneQuery,
-                                  customerPhone: phoneQuery
-                                })}
-                                className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors shrink-0"
-                              >
-                                Beri Ulasan
-                              </button>
+                              !item.isReviewed ? (
+                                <button
+                                  onClick={() => setReviewProduct({
+                                    productId: item.productId || item.id,
+                                    productName: item.productName || item.name,
+                                    storeId: order.storeId || '',
+                                    orderId: order.id,
+                                    customerName: order.customerName || phoneQuery,
+                                    customerPhone: phoneQuery
+                                  })}
+                                  className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-lg border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-100 transition-colors shrink-0"
+                                >
+                                  Beri Ulasan
+                                </button>
+                              ) : (
+                                <span className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 text-[9px] font-black uppercase tracking-widest rounded-lg border border-slate-200 dark:border-slate-800 shrink-0 flex items-center gap-1">
+                                  Telah Diulas
+                                </span>
+                              )
                             )}
                           </div>
                         ))}

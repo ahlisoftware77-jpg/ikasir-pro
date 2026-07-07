@@ -75,6 +75,24 @@ export default function ReviewModal({
         });
       }
 
+      // 3. Update order document to mark item as reviewed
+      if (orderId) {
+        const oRef = doc(db, 'orders', orderId);
+        const oSnap = await getDoc(oRef);
+        if (oSnap.exists()) {
+          const oData = oSnap.data();
+          if (oData.items) {
+            const updatedItems = oData.items.map((item: any) => {
+              if (item.productId === productId || item.id === productId) {
+                return { ...item, isReviewed: true };
+              }
+              return item;
+            });
+            await updateDoc(oRef, { items: updatedItems });
+          }
+        }
+      }
+
       toast.success('Ulasan berhasil dikirim. Terima kasih!');
       onClose();
     } catch (error) {
