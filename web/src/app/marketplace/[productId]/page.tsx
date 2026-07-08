@@ -586,8 +586,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       toast.success("Pesanan Anda berhasil dikirim!");
       setIsCheckoutOpen(false);
 
-      // Redirect user to the Online Store `/tr?s=storeId` to view order list/status
-      router.push(`/tr?s=${product.storeId}&open_checkout=false`);
+      // Redirect user to Marketplace Orders history
+      router.push('/marketplace/orders');
     } catch (err: any) {
       console.error(err);
       alert("Gagal memproses pesanan: " + err.message);
