@@ -58,6 +58,8 @@ interface Product {
   stock?: number;
   manageStock?: boolean;
   reviewCount?: number;
+  hasExtras?: boolean;
+  extras?: string[];
   averageRating?: number;
 }
 
@@ -96,6 +98,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
   const [product, setProduct] = useState<Product | null>(null);
   const [otherProducts, setOtherProducts] = useState<Product[]>([]);
+  const [productExtras, setProductExtras] = useState<any[]>([]);
+  const [selectedExtras, setSelectedExtras] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -227,8 +231,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
             manageStock: data.manageStock !== undefined ? data.manageStock : true,
             reviewCount: data.reviewCount || 0,
             averageRating: data.averageRating || 0,
+            hasExtras: data.hasExtras,
+            extras: data.extras || []
           };
           setProduct(prodObj);
+
+          if (data.hasExtras && data.extras && data.extras.length > 0) {
+            const exts: any[] = [];
+            for (const extraId of data.extras) {
+              const eRef = doc(tDb, 'product_extras', extraId);
+              const eSnap = await getDoc(eRef);
+              if (eSnap.exists()) {
+                exts.push({ id: eSnap.id, ...eSnap.data() });
+              }
+            }
+            setProductExtras(exts);
+          }
 
           // Fetch reviews
           const reviewsQ = query(collection(tDb, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
@@ -327,8 +345,69 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
     };
   }, [productId]);
 
+  const handleToggleExtra = (group: any, option: any) => {
+    setSelectedExtras(prev => {
+      const currentGroupSelected = prev[group.id] || [];
+      const isAlreadySelected = currentGroupSelected.some(s => s.name === option.name);
+      let nextSelected = [...currentGroupSelected];
+      if (isAlreadySelected) {
+        nextSelected = nextSelected.filter(s => s.name !== option.name);
+      } else {
+        if (!group.allowMultiple) {
+          nextSelected = [option];
+        } else {
+          if (group.hasMaxLimit && nextSelected.length >= group.maxLimit) {
+            toast.error(`Anda hanya bisa memilih maksimal ${group.maxLimit} opsi.`);
+            return prev;
+          }
+          nextSelected.push(option);
+        }
+      }
+      return { ...prev, [group.id]: nextSelected };
+    });
+  };
+
+  const getExtraPriceTotal = () => {
+    let total = 0;
+    Object.values(selectedExtras).forEach(arr => {
+      arr.forEach(opt => { total += Number(opt.price) || 0; });
+    });
+    return total;
+  };
+
+  const getFormattedExtras = () => {
+    const formatted: any[] = [];
+    Object.keys(selectedExtras).forEach(groupId => {
+      const group = productExtras.find(g => g.id === groupId);
+      if (group) {
+        selectedExtras[groupId].forEach(opt => {
+          formatted.push({
+            groupName: group.name,
+            name: opt.name,
+            price: Number(opt.price) || 0
+          });
+        });
+      }
+    });
+    return formatted;
+  };
+
   const handleOpenCheckout = () => {
     if (!product) return;
+    
+    // Validate mandatory extras
+    if (productExtras.length > 0) {
+      for (const group of productExtras) {
+        if (group.isMandatory) {
+          const selectedForGroup = selectedExtras[group.id] || [];
+          if (selectedForGroup.length === 0) {
+            toast.error(`Mohon pilih opsi untuk: ${group.name}`);
+            return;
+          }
+        }
+      }
+    }
+
     setIsCheckoutOpen(true);
     setQty(1);
     setPaymentProofUrl('');
@@ -366,7 +445,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       // Calculate totals
       const ep = getEffectivePrice(product);
       const activePrice = ep.isFlashSale ? ep.price : product.price;
-      const sub = activePrice * qty;
+      const extraTotal = getExtraPriceTotal();
+      const unitPrice = activePrice + extraTotal;
+      const sub = unitPrice * qty;
       const fee = fulfillmentType === 'delivery' ? storeDeliveryFee : 0;
       const taxAmount = storeUseTax ? Math.round((sub * storeTaxRate) / 100) : 0;
       const finalTotal = sub + taxAmount + fee;
@@ -379,10 +460,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         items: [{
           productId: product.id,
           productName: product.name,
-          price: activePrice,
+          price: unitPrice,
           qty: qty,
           subtotal: sub,
-          selectedExtras: [],
+          selectedExtras: getFormattedExtras(),
           note: ''
         }],
         subtotal: sub,
@@ -585,7 +666,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
     flashSaleName: '',
   };
   const activePrice = ep.isFlashSale ? ep.price : (product?.price || 0);
-  const subtotalSum = activePrice * qty;
+  const unitPrice = activePrice + getExtraPriceTotal();
+  const subtotalSum = unitPrice * qty;
   const taxAmount = storeUseTax ? Math.round((subtotalSum * storeTaxRate) / 100) : 0;
   const deliveryFee = fulfillmentType === 'delivery' ? storeDeliveryFee : 0;
   const totalWithFulfillment = subtotalSum + taxAmount + deliveryFee;
@@ -885,6 +967,64 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   </div>
                 );
               })()}
+
+              {/* Product Extras UI */}
+              {productExtras.length > 0 && (
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                  <h3 className="font-bold text-slate-800 dark:text-white">Pilihan Tambahan</h3>
+                  {productExtras.map((extraGroup) => (
+                    <div key={extraGroup.id} className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-slate-700 dark:text-slate-200 text-sm">{extraGroup.name}</p>
+                          {extraGroup.allowMultiple && extraGroup.hasMaxLimit && (
+                            <p className="text-xs text-slate-400 mt-1">Maks. {extraGroup.maxLimit} pilihan</p>
+                          )}
+                        </div>
+                        {extraGroup.isMandatory ? (
+                          <span className="text-[10px] font-black tracking-widest text-white bg-rose-500 px-2 py-1 rounded">WAJIB</span>
+                        ) : (
+                          <span className="text-xs text-slate-400">Opsional</span>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {extraGroup.options.map((opt: any, idx: number) => {
+                          const isSelected = selectedExtras[extraGroup.id]?.some((s: any) => s.name === opt.name);
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleToggleExtra(extraGroup, opt)}
+                              className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                                isSelected 
+                                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20' 
+                                  : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-5 h-5 flex items-center justify-center border ${
+                                  extraGroup.allowMultiple ? 'rounded' : 'rounded-full'
+                                } ${
+                                  isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300 dark:border-slate-600'
+                                }`}>
+                                  {isSelected && <Check size={14} className="text-white" />}
+                                </div>
+                                <span className={`text-sm ${isSelected ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                                  {opt.name}
+                                </span>
+                              </div>
+                              {Number(opt.price) > 0 && (
+                                <span className={`text-sm ${isSelected ? 'font-semibold text-emerald-700 dark:text-emerald-400' : 'text-slate-500'}`}>
+                                  +Rp {Number(opt.price).toLocaleString('id-ID')}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Desktop Checkout / Buy Action Buttons */}
               <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
