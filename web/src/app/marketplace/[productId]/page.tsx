@@ -573,15 +573,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
         })
       }).catch(e => console.error('Failed to trigger notification', e));
 
-      // Redirect to WA Chat to Toko
-      let formattedPhone = storePhone.replace(/[^0-9]/g, '');
-      if (formattedPhone.startsWith('0')) {
-        formattedPhone = '62' + formattedPhone.slice(1);
-      }
-      if (formattedPhone) {
-        const textMsg = `Halo ${product.storeName || 'Toko'}, saya telah memesan produk via Marketplace iKasir.\n\n*Detail Pesanan:*\nID Pesanan: #${finalId}\nProduk: *${product.name}* (x${qty})\nTotal Bayar: Rp ${finalTotal.toLocaleString('id-ID')}\nMetode Pembayaran: ${paymentMethod.toUpperCase()}\nPengambilan: ${fulfillmentType === 'delivery' ? 'Kirim ke Alamat' : 'Ambil di Toko'}\n\nMohon konfirmasi pesanan saya, terima kasih!`;
-        window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(textMsg)}`, '_blank');
-      }
 
       toast.success("Pesanan Anda berhasil dikirim!");
       setIsCheckoutOpen(false);
