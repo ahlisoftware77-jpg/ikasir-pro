@@ -159,7 +159,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
 
         const newOrderRef = doc(tDb, 'transactions', finalId);
         transaction.set(newOrderRef, orderData);
-        transaction.update(settingsRef, { trxCounter: currentCounter });
+        transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
       });
 
       if (user?.uid) {

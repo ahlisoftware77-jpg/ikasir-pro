@@ -105,6 +105,7 @@ export default function CartDrawer() {
               subtotal: item.price * item.qty,
               imageUrl: item.imageUrl || '',
               storeName: item.storeName || '',
+              selectedExtras: item.extras || []
             })),
             subtotal: storeTotal,
             taxAmount: 0,
@@ -140,7 +141,7 @@ export default function CartDrawer() {
 
           const newOrderRef = doc(db, 'transactions', finalId);
           transaction.set(newOrderRef, orderData);
-          transaction.update(settingsRef, { trxCounter: currentCounter });
+          transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
           
           return { finalId, storeTotal };
         });
