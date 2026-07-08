@@ -75,12 +75,14 @@ export default function CartDrawer() {
           let currentCounter = 0;
           let prefix = 'TRX';
           let padding = 4;
+          let storePhone = '';
           
           if (settingsSnap.exists()) {
             const data = settingsSnap.data();
             currentCounter = Number(data.trxCounter) || 0;
             prefix = data.trxPrefix || 'TRX';
             padding = data.trxPadding || 4;
+            storePhone = data.phone || data.storePhone || '';
           }
           
           currentCounter += 1;
@@ -143,7 +145,7 @@ export default function CartDrawer() {
           transaction.set(newOrderRef, orderData);
           transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
           
-          return { finalId, storeTotal };
+          return { finalId, storeTotal, storePhone };
         });
 
         // Trigger FCM Push Notification
@@ -157,6 +159,18 @@ export default function CartDrawer() {
             data: { transactionId: result.finalId }
           })
         }).catch(e => console.error('Failed to trigger notification', e));
+
+        if (result.storePhone) {
+          let formattedPhone = result.storePhone.replace(/[^0-9]/g, '');
+          if (formattedPhone.startsWith('0')) {
+            formattedPhone = '62' + formattedPhone.slice(1);
+          }
+          if (formattedPhone) {
+            const itemsText = storeItems.map((item: any) => `- *${item.productName}* (x${item.qty})`).join('\n');
+            const textMsg = `Halo ${storeItems[0]?.storeName || 'Toko'}, saya telah memesan produk via Marketplace iKasir.\n\n*Detail Pesanan:*\nID Pesanan: #${result.finalId}\nProduk:\n${itemsText}\nTotal Bayar: Rp ${result.storeTotal.toLocaleString('id-ID')}\nMetode Pembayaran: Ditempat / Transfer\nPengiriman: Ya\n\nMohon konfirmasi pesanan saya, terima kasih!`;
+            window.open(`https://api.whatsapp.com/send/?phone=${formattedPhone}&text=${encodeURIComponent(textMsg)}&type=phone_number&app_absent=0`, '_blank');
+          }
+        }
       }
 
 
