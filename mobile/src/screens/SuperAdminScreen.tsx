@@ -469,7 +469,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       }
     });
 
-    if (featureId === 'superAdminUsers') {
+    if (featureId === 'superAdminUsers' || featureId === 'superAdminStores' || featureId === 'superAdminManagement') {
       unsubUsers = onSnapshot(collection(primaryDb, 'users'), (snapshot) => {
         const usr: any[] = [];
         snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
@@ -486,22 +486,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       });
     }
 
-    if (featureId === 'superAdminStores') {
-      unsubStores = onSnapshot(collection(primaryDb, 'stores'), (snapshot) => {
-        const str: any[] = [];
-        snapshot.forEach((d) => str.push({ id: d.id, ...d.data() }));
-        setSuperAdminStores(str);
-      });
-      unsubUsers = onSnapshot(collection(primaryDb, 'users'), (snapshot) => {
-        const usr: any[] = [];
-        snapshot.forEach((d) => usr.push({ id: d.id, ...d.data() }));
-        setSuperAdminUsers(usr);
-      });
-      unsubProjects = onSnapshot(collection(primaryDb, 'system_settings', 'database_projects', 'list'), (snapshot) => {
-        const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setDbProjects(projects);
-      });
-    }
+
 
     if (featureId === 'superAdminInfra') {
       unsubInfra = onSnapshot(doc(primaryDb, 'system_settings', 'infrastructure'), (docSnap) => {
