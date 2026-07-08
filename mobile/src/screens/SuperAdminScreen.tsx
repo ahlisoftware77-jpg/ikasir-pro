@@ -2285,7 +2285,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                             }
                           }
 
-                          
+                          return (
                             <View className="mt-2 flex-row justify-between items-center bg-black/10 p-2 rounded-xl">
                               <View className="flex-row items-center gap-1.5">
                                 <Text className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${storeStatusColor}`}>
@@ -2348,7 +2348,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   .filter(s => s.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()))
                   .map((s) => {
                     const activeTenants = superAdminUsers.filter(u => u.storeId === s.id).length;
-                    
+                    return (
                       <View 
                         key={s.id} 
                         className="p-5 rounded-3xl border-l-[6px] border-y border-r mb-3" 
@@ -2434,7 +2434,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               </View>
             </ScrollView>
           </View>
-        )
               </View>
             )}
           </View>
