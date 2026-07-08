@@ -34,6 +34,7 @@ import {
   CreditCard, 
   QrCode,
   CheckCircle,
+  Check,
   Plus,
   Star,
   MessageCircle
