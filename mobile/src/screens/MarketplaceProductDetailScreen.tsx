@@ -200,9 +200,69 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const getExtraPriceTotal = () => {
     let total = 0;
     Object.values(selectedExtras).forEach(arr => {
-      arr.forEach(opt => { total += Number(opt.price) || 0; });
+      arr.forEach((opt: any) => total += opt.price || 0);
     });
     return total;
+  };
+
+  const getDisplayPrice = () => {
+    const extraTotal = getExtraPriceTotal();
+    const unitPrice = finalPrice + extraTotal;
+    
+    if (extraTotal > 0 || productExtras.length === 0) {
+       return `Rp ${unitPrice.toLocaleString('id-ID')}`;
+    }
+    
+    if (finalPrice === 0 && productExtras.length > 0) {
+      let minExtra = 0;
+      let maxExtra = 0;
+      
+      productExtras.forEach(group => {
+        if (group.options && group.options.length > 0) {
+          const prices = group.options.map((opt: any) => Number(opt.price) || 0);
+          const minOpt = Math.min(...prices);
+          const maxOpt = Math.max(...prices);
+          const totalAll = prices.reduce((a: number,b: number) => a+b, 0);
+          
+          if (group.isMandatory) {
+            if (group.allowMultiple) {
+              minExtra += minOpt;
+              if (group.hasMaxLimit && group.maxLimit) {
+                const sortedDesc = [...prices].sort((a,b) => b - a);
+                const topN = sortedDesc.slice(0, group.maxLimit).reduce((a,b) => a+b, 0);
+                maxExtra += topN;
+              } else {
+                maxExtra += totalAll;
+              }
+            } else {
+              minExtra += minOpt;
+              maxExtra += maxOpt;
+            }
+          } else {
+            if (group.allowMultiple) {
+              if (group.hasMaxLimit && group.maxLimit) {
+                const sortedDesc = [...prices].sort((a,b) => b - a);
+                const topN = sortedDesc.slice(0, group.maxLimit).reduce((a,b) => a+b, 0);
+                maxExtra += topN;
+              } else {
+                maxExtra += totalAll;
+              }
+            } else {
+              maxExtra += maxOpt;
+            }
+          }
+        }
+      });
+      
+      const min = finalPrice + minExtra;
+      const max = finalPrice + maxExtra;
+      if (min === max) {
+         return `Rp ${min.toLocaleString('id-ID')}`;
+      }
+      return `Rp ${min.toLocaleString('id-ID')} - ${max.toLocaleString('id-ID')}`;
+    }
+    
+    return `Rp ${unitPrice.toLocaleString('id-ID')}`;
   };
 
   const handleAddToCart = () => {
@@ -412,12 +472,12 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
                 Rp {product.price.toLocaleString('id-ID')}
               </Text>
               <Text style={[styles.productPrice, { color: colors.accent }]}>
-                Rp {finalPrice.toLocaleString('id-ID')}
+                {getDisplayPrice()}
               </Text>
             </View>
           ) : (
             <Text style={[styles.productPrice, { color: colors.accent }]}>
-              Rp {product.price.toLocaleString('id-ID')}
+              {getDisplayPrice()}
             </Text>
           )}
 
@@ -616,7 +676,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
                   {product.name}
                 </Text>
                 <Text style={[styles.modalProductPrice, { color: colors.accent }]}>
-                  Rp {(finalPrice + getExtraPriceTotal()).toLocaleString('id-ID')}
+                  {getDisplayPrice()}
                 </Text>
                 {product.manageStock !== false && (
                   <Text style={[styles.modalProductStock, { color: colors.textMuted }]}>

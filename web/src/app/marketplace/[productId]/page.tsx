@@ -660,6 +660,63 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   const activePrice = ep.isFlashSale ? ep.price : (product?.price || 0);
   const unitPrice = activePrice + getExtraPriceTotal();
   const subtotalSum = unitPrice * qty;
+
+  const getDisplayPrice = () => {
+    const extraTotal = getExtraPriceTotal();
+    if (extraTotal > 0 || productExtras.length === 0) {
+       return `Rp ${unitPrice.toLocaleString('id-ID')}`;
+    }
+    if (activePrice === 0 && productExtras.length > 0) {
+      let minExtra = 0;
+      let maxExtra = 0;
+      
+      productExtras.forEach(group => {
+        if (group.options && group.options.length > 0) {
+          const prices = group.options.map((opt: any) => Number(opt.price) || 0);
+          const minOpt = Math.min(...prices);
+          const maxOpt = Math.max(...prices);
+          const totalAll = prices.reduce((a: number,b: number) => a+b, 0);
+          
+          if (group.isMandatory) {
+            if (group.allowMultiple) {
+              minExtra += minOpt;
+              if (group.hasMaxLimit && group.maxLimit) {
+                const sortedDesc = [...prices].sort((a,b) => b - a);
+                const topN = sortedDesc.slice(0, group.maxLimit).reduce((a,b) => a+b, 0);
+                maxExtra += topN;
+              } else {
+                maxExtra += totalAll;
+              }
+            } else {
+              minExtra += minOpt;
+              maxExtra += maxOpt;
+            }
+          } else {
+            if (group.allowMultiple) {
+              if (group.hasMaxLimit && group.maxLimit) {
+                const sortedDesc = [...prices].sort((a,b) => b - a);
+                const topN = sortedDesc.slice(0, group.maxLimit).reduce((a,b) => a+b, 0);
+                maxExtra += topN;
+              } else {
+                maxExtra += totalAll;
+              }
+            } else {
+              maxExtra += maxOpt;
+            }
+          }
+        }
+      });
+      
+      const min = activePrice + minExtra;
+      const max = activePrice + maxExtra;
+      if (min === max) {
+         return `Rp ${min.toLocaleString('id-ID')}`;
+      }
+      return `Rp ${min.toLocaleString('id-ID')} - ${max.toLocaleString('id-ID')}`;
+    }
+    
+    return `Rp ${unitPrice.toLocaleString('id-ID')}`;
+  };
   const taxAmount = storeUseTax ? Math.round((subtotalSum * storeTaxRate) / 100) : 0;
   const deliveryFee = fulfillmentType === 'delivery' ? storeDeliveryFee : 0;
   const totalWithFulfillment = subtotalSum + taxAmount + deliveryFee;
@@ -1336,7 +1393,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                   
                   {/* Quantity Control */}
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs font-black text-emerald-500">Rp {activePrice.toLocaleString('id-ID')}</span>
+                    <span className="text-xs font-black text-emerald-500">{getDisplayPrice()}</span>
                     <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-xl shadow-inner scale-90">
                       <button 
                         onClick={() => setQty(prev => Math.max(1, prev - 1))}
@@ -1743,7 +1800,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">{product.name}</h4>
-                  <p className="text-emerald-500 font-black text-sm mt-1">Rp {activePrice.toLocaleString('id-ID')}</p>
+                  <p className="text-emerald-500 font-black text-sm mt-1">{getDisplayPrice()}</p>
                   {product.manageStock !== false && (
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1">Sisa Stok: <span className="text-slate-700 dark:text-slate-300">{product.stock || 0}</span></p>
                   )}
