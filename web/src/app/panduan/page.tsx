@@ -8,7 +8,7 @@ const CHAPTERS = [
   {
     id: 'ch_0',
     title: "BAB 1: Pendahuluan & Persiapan Awal",
-    rawText: `BAB 1: Pendahuluan & Persiapan Awal  ### 1. Pendaftaran & Login 1. Buka aplikasi IKASIR PRO di perangkat Mobile atau akses tautan Web. 2. Di layar utama, Anda dapat memilih untuk masuk menggunakan **Akun Google** atau kombinasi **Email & Kata Sandi**. 3. Jika belum memiliki akun, silakan klik **Daftar Akun Baru**. Lengkapi informasi dasar seperti Nama, Email, Kata Sandi, dan Nama Toko.  ### 2. Konsep Multi-Toko (Multi-Tenant) Satu akun Pengguna (User) dapat tergabung dalam beberapa toko yang berbeda. - Jika Anda adalah pemilik sistem, Anda dapat membuat banyak cabang toko. - Jika Anda adalah kasir/admin, Anda hanya akan melihat toko tempat Anda didaftarkan. - **Cara Pindah Toko:** Pada menu **Pengaturan (Settings)**, klik menu **Toko**. Anda akan melihat daftar toko yang hak aksesnya Anda miliki. Klik salah satu toko untuk beralih.  --- `.toLowerCase(),
+    rawText: `BAB 1: Pendahuluan & Persiapan Awal  ### 1. Pendaftaran & Login 1. Buka aplikasi IKASIR PRO di perangkat Mobile atau akses tautan Web. 2. Di layar utama, Anda dapat memilih untuk masuk menggunakan **Akun Google** atau kombinasi **Email & Kata Sandi**. 3. Jika belum memiliki akun, silakan klik **Daftar Akun Baru**. Lengkapi informasi dasar seperti Nama, Email, Kata Sandi, dan Nama Toko.  --- `.toLowerCase(),
     content: (
       <div className="mb-10">
         <h2 className="text-xl font-bold mb-4 text-slate-900 dark:text-white border-b border-slate-200 dark:border-white/10 pb-2">BAB 1: Pendahuluan & Persiapan Awal</h2>
@@ -18,13 +18,7 @@ const CHAPTERS = [
   <li>Di layar utama, Anda dapat memilih untuk masuk menggunakan <strong className="text-slate-800 dark:text-slate-200">Akun Google</strong> atau kombinasi <strong className="text-slate-800 dark:text-slate-200">Email & Kata Sandi</strong>.</li>
   <li>Jika belum memiliki akun, silakan klik <strong className="text-slate-800 dark:text-slate-200">Daftar Akun Baru</strong>. Lengkapi informasi dasar seperti Nama, Email, Kata Sandi, dan Nama Toko.</li>
 </ul>
-<h3 className="text-lg font-bold mt-6 mb-3 text-teal-400">2. Konsep Multi-Toko (Multi-Tenant)</h3>
-<p className="mb-4 text-slate-600 dark:text-slate-300 leading-relaxed">Satu akun Pengguna (User) dapat tergabung dalam beberapa toko yang berbeda.</p>
-<ul className="list-disc pl-5 mb-4 space-y-2 text-slate-600 dark:text-slate-300">
-  <li>Jika Anda adalah pemilik sistem, Anda dapat membuat banyak cabang toko.</li>
-  <li>Jika Anda adalah kasir/admin, Anda hanya akan melihat toko tempat Anda didaftarkan.</li>
-  <li><strong className="text-slate-800 dark:text-slate-200">Cara Pindah Toko:</strong> Pada menu <strong className="text-slate-800 dark:text-slate-200">Pengaturan (Settings)</strong>, klik menu <strong className="text-slate-800 dark:text-slate-200">Toko</strong>. Anda akan melihat daftar toko yang hak aksesnya Anda miliki. Klik salah satu toko untuk beralih.</li>
-</ul>
+
 <hr className="my-8 border-slate-200 dark:border-white/10" />
       </div>
     )
