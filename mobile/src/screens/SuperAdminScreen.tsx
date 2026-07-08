@@ -153,6 +153,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
   const [broadcastsList, setBroadcastsList] = useState<any[]>([]);
   const [managementTab, setManagementTab] = useState<'users' | 'stores'>('users');
+  const [selectedDbFilter, setSelectedDbFilter] = useState<string>('all');
   
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -2101,10 +2102,13 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     switch (featureId) {
       case 'superAdminManagement': {
 // Group users by store for hierarchical display
-        const filteredMobileUsers = superAdminUsers.filter(u => 
-          u.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) || 
-          u.email?.toLowerCase().includes(superAdminSearchQuery.toLowerCase())
-        );
+        const filteredMobileUsers = superAdminUsers.filter(u => {
+          const matchesSearch = u.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) || 
+                                u.email?.toLowerCase().includes(superAdminSearchQuery.toLowerCase());
+          const userDb = u.targetProjectId || 'default';
+          const matchesDb = selectedDbFilter === 'all' || userDb === selectedDbFilter;
+          return matchesSearch && matchesDb;
+        });
         const mobileStoreMap = new Map<string, any[]>();
         filteredMobileUsers.forEach(u => {
           const sid = u.storeId || '__no_store__';
@@ -2145,6 +2149,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
         
           <View className="flex-1">
+            {/* Database Filter */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+              <TouchableOpacity 
+                onPress={() => setSelectedDbFilter('all')}
+                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'all' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+              >
+                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'all' ? 'text-white' : 'text-slate-400'}`}>Semua Database</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                onPress={() => setSelectedDbFilter('default')}
+                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'default' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+              >
+                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'default' ? 'text-white' : 'text-slate-400'}`}>Default (Internal)</Text>
+              </TouchableOpacity>
+
+              {dbProjects.map(proj => (
+                <TouchableOpacity 
+                  key={proj.id}
+                  onPress={() => setSelectedDbFilter(proj.fb_project_id)}
+                  className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === proj.fb_project_id ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+                >
+                  <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === proj.fb_project_id ? 'text-white' : 'text-slate-400'}`}>{proj.fb_project_id}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             {/* Search & Buat Akun */}
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1 flex-row items-center border rounded-2xl px-4 py-1" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
@@ -2306,6 +2336,32 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               <View className="flex-1">
 
           <View className="flex-1">
+            {/* Database Filter */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+              <TouchableOpacity 
+                onPress={() => setSelectedDbFilter('all')}
+                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'all' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+              >
+                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'all' ? 'text-white' : 'text-slate-400'}`}>Semua Database</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                onPress={() => setSelectedDbFilter('default')}
+                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'default' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+              >
+                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'default' ? 'text-white' : 'text-slate-400'}`}>Default (Internal)</Text>
+              </TouchableOpacity>
+
+              {dbProjects.map(proj => (
+                <TouchableOpacity 
+                  key={proj.id}
+                  onPress={() => setSelectedDbFilter(proj.fb_project_id)}
+                  className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === proj.fb_project_id ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+                >
+                  <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === proj.fb_project_id ? 'text-white' : 'text-slate-400'}`}>{proj.fb_project_id}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             {/* Search & Tambah Toko */}
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1 flex-row items-center border rounded-2xl px-4 py-1" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
@@ -2330,7 +2386,12 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
               <View className="space-y-4 pb-20">
                 {superAdminStores
-                  .filter(s => s.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()))
+                  .filter(s => {
+                    const matchesSearch = s.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase());
+                    const storeDb = s.targetProjectId || 'default';
+                    const matchesDb = selectedDbFilter === 'all' || storeDb === selectedDbFilter;
+                    return matchesSearch && matchesDb;
+                  })
                   .map((s) => {
                     const activeTenants = superAdminUsers.filter(u => u.storeId === s.id).length;
                     return (
