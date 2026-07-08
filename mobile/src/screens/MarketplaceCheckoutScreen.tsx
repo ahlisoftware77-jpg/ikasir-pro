@@ -121,6 +121,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
             subtotal: item.price * item.qty,
             imageUrl: item.imageUrl || '',
             storeName: item.storeName || '',
+            selectedExtras: item.extras || []
           })),
           subtotal: totalAmount,
           taxAmount: 0,

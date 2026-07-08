@@ -752,7 +752,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                                 </View>
                               )}
                               {item.selectedExtras?.map((ext: any, eIdx: number) => (
-                                <Text key={eIdx} className="text-[9px] text-slate-400 mt-1 pl-1">+ {ext.optionName} (Rp {ext.price?.toLocaleString('id-ID')})</Text>
+                                <Text key={eIdx} className="text-[9px] text-slate-400 mt-1 pl-1">+ {ext.name || ext.optionName} (Rp {ext.price?.toLocaleString('id-ID')})</Text>
                               ))}
                             </View>
                           </View>
@@ -1202,7 +1202,7 @@ export default function TransactionDetailScreen({ route, navigation }: any) {
                       <View className="pl-2 border-l border-slate-100 mt-1 space-y-0.5">
                         {item.selectedExtras.map((ex: any, ei: number) => (
                           <View key={ei} className="flex-row justify-between">
-                            <Text className="font-mono text-[9px] text-slate-400">+ {ex.optionName}</Text>
+                            <Text className="font-mono text-[9px] text-slate-400">+ {ex.name || ex.optionName}</Text>
                             <Text className="font-mono text-[9px] text-slate-400">Rp {(ex.price || 0).toLocaleString('id-ID')}</Text>
                           </View>
                         ))}
