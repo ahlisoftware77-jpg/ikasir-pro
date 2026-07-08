@@ -2150,31 +2150,45 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         
           <View className="flex-1">
             {/* Database Filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-              <TouchableOpacity 
-                onPress={() => setSelectedDbFilter('all')}
-                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'all' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
-              >
-                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'all' ? 'text-white' : 'text-slate-400'}`}>Semua Database</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                onPress={() => setSelectedDbFilter('default')}
-                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'default' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
-              >
-                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'default' ? 'text-white' : 'text-slate-400'}`}>Default (Internal)</Text>
-              </TouchableOpacity>
-
-              {dbProjects.map(proj => (
+            <View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
                 <TouchableOpacity 
-                  key={proj.id}
-                  onPress={() => setSelectedDbFilter(proj.fb_project_id)}
-                  className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === proj.fb_project_id ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+                  onPress={() => setSelectedDbFilter('all')}
+                  className="px-4 py-1.5 rounded-full border mr-2 items-center justify-center"
+                  style={{ 
+                    backgroundColor: selectedDbFilter === 'all' ? colors.text : 'transparent',
+                    borderColor: selectedDbFilter === 'all' ? colors.text : colors.border
+                  }}
                 >
-                  <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === proj.fb_project_id ? 'text-white' : 'text-slate-400'}`}>{proj.fb_project_id}</Text>
+                  <Text className="text-xs font-bold" style={{ color: selectedDbFilter === 'all' ? colors.bg : colors.textMuted }}>Semua</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+                
+                <TouchableOpacity 
+                  onPress={() => setSelectedDbFilter('default')}
+                  className="px-4 py-1.5 rounded-full border mr-2 items-center justify-center"
+                  style={{ 
+                    backgroundColor: selectedDbFilter === 'default' ? colors.text : 'transparent',
+                    borderColor: selectedDbFilter === 'default' ? colors.text : colors.border
+                  }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: selectedDbFilter === 'default' ? colors.bg : colors.textMuted }}>Default (Internal)</Text>
+                </TouchableOpacity>
+
+                {dbProjects.map(proj => (
+                  <TouchableOpacity 
+                    key={proj.id}
+                    onPress={() => setSelectedDbFilter(proj.fb_project_id)}
+                    className="px-4 py-1.5 rounded-full border mr-2 items-center justify-center"
+                    style={{ 
+                      backgroundColor: selectedDbFilter === proj.fb_project_id ? colors.text : 'transparent',
+                      borderColor: selectedDbFilter === proj.fb_project_id ? colors.text : colors.border
+                    }}
+                  >
+                    <Text className="text-xs font-bold" style={{ color: selectedDbFilter === proj.fb_project_id ? colors.bg : colors.textMuted }}>{proj.fb_project_id}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
             {/* Search & Buat Akun */}
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1 flex-row items-center border rounded-2xl px-4 py-1" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
@@ -2337,31 +2351,45 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
           <View className="flex-1">
             {/* Database Filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-              <TouchableOpacity 
-                onPress={() => setSelectedDbFilter('all')}
-                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'all' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
-              >
-                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'all' ? 'text-white' : 'text-slate-400'}`}>Semua Database</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                onPress={() => setSelectedDbFilter('default')}
-                className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === 'default' ? 'bg-teal-500' : 'bg-slate-500/20'}`}
-              >
-                <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === 'default' ? 'text-white' : 'text-slate-400'}`}>Default (Internal)</Text>
-              </TouchableOpacity>
-
-              {dbProjects.map(proj => (
+            <View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
                 <TouchableOpacity 
-                  key={proj.id}
-                  onPress={() => setSelectedDbFilter(proj.fb_project_id)}
-                  className={`px-4 py-2 rounded-xl mr-2 ${selectedDbFilter === proj.fb_project_id ? 'bg-teal-500' : 'bg-slate-500/20'}`}
+                  onPress={() => setSelectedDbFilter('all')}
+                  className="px-4 py-1.5 rounded-full border mr-2 items-center justify-center"
+                  style={{ 
+                    backgroundColor: selectedDbFilter === 'all' ? colors.text : 'transparent',
+                    borderColor: selectedDbFilter === 'all' ? colors.text : colors.border
+                  }}
                 >
-                  <Text className={`text-[10px] font-black uppercase ${selectedDbFilter === proj.fb_project_id ? 'text-white' : 'text-slate-400'}`}>{proj.fb_project_id}</Text>
+                  <Text className="text-xs font-bold" style={{ color: selectedDbFilter === 'all' ? colors.bg : colors.textMuted }}>Semua</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+                
+                <TouchableOpacity 
+                  onPress={() => setSelectedDbFilter('default')}
+                  className="px-4 py-1.5 rounded-full border mr-2 items-center justify-center"
+                  style={{ 
+                    backgroundColor: selectedDbFilter === 'default' ? colors.text : 'transparent',
+                    borderColor: selectedDbFilter === 'default' ? colors.text : colors.border
+                  }}
+                >
+                  <Text className="text-xs font-bold" style={{ color: selectedDbFilter === 'default' ? colors.bg : colors.textMuted }}>Default (Internal)</Text>
+                </TouchableOpacity>
+
+                {dbProjects.map(proj => (
+                  <TouchableOpacity 
+                    key={proj.id}
+                    onPress={() => setSelectedDbFilter(proj.fb_project_id)}
+                    className="px-4 py-1.5 rounded-full border mr-2 items-center justify-center"
+                    style={{ 
+                      backgroundColor: selectedDbFilter === proj.fb_project_id ? colors.text : 'transparent',
+                      borderColor: selectedDbFilter === proj.fb_project_id ? colors.text : colors.border
+                    }}
+                  >
+                    <Text className="text-xs font-bold" style={{ color: selectedDbFilter === proj.fb_project_id ? colors.bg : colors.textMuted }}>{proj.fb_project_id}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
             {/* Search & Tambah Toko */}
             <View className="flex-row gap-3 mb-4">
               <View className="flex-1 flex-row items-center border rounded-2xl px-4 py-1" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
