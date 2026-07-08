@@ -30,6 +30,8 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [averageRating, setAverageRating] = useState(0);
   const [isCartModalVisible, setIsCartModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'cart' | 'buy'>('cart');
+  const [productExtras, setProductExtras] = useState<any[]>([]);
+  const [selectedExtras, setSelectedExtras] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     fetchProductDetail();
@@ -72,6 +74,19 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
         setProduct({ id: pSnap.id, ...pData });
         
+        // Fetch extras if any
+        if (pData.hasExtras && pData.extras && pData.extras.length > 0) {
+          const exts: any[] = [];
+          for (const extraId of pData.extras) {
+            const eRef = doc(tDb, 'product_extras', extraId);
+            const eSnap = await getDoc(eRef);
+            if (eSnap.exists()) {
+              exts.push({ id: eSnap.id, ...eSnap.data() });
+            }
+          }
+          setProductExtras(exts);
+        }
+
         // Fetch store settings for WhatsApp number
         if (pData.storeId) {
           const sRef = doc(tDb, 'settings', `store_${pData.storeId}`);
@@ -140,16 +155,75 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
     });
   };
 
+  const handleToggleExtra = (group: any, option: any) => {
+    setSelectedExtras(prev => {
+      const currentGroupSelected = prev[group.id] || [];
+      const isAlreadySelected = currentGroupSelected.some(s => s.name === option.name);
+      
+      let nextSelected = [...currentGroupSelected];
+      
+      if (isAlreadySelected) {
+        nextSelected = nextSelected.filter(s => s.name !== option.name);
+      } else {
+        if (!group.allowMultiple) {
+          nextSelected = [option];
+        } else {
+          if (group.hasMaxLimit && nextSelected.length >= group.maxLimit) {
+            Alert.alert('Batas Maksimal', `Anda hanya bisa memilih maksimal ${group.maxLimit} opsi.`);
+            return prev;
+          }
+          nextSelected.push(option);
+        }
+      }
+      
+      return { ...prev, [group.id]: nextSelected };
+    });
+  };
+
+  const getFormattedExtras = () => {
+    const formatted: any[] = [];
+    Object.keys(selectedExtras).forEach(groupId => {
+      const group = productExtras.find(g => g.id === groupId);
+      if (group) {
+        selectedExtras[groupId].forEach(opt => {
+          formatted.push({
+            groupName: group.name,
+            name: opt.name,
+            price: Number(opt.price) || 0
+          });
+        });
+      }
+    });
+    return formatted;
+  };
+
+  const getExtraPriceTotal = () => {
+    let total = 0;
+    Object.values(selectedExtras).forEach(arr => {
+      arr.forEach(opt => { total += Number(opt.price) || 0; });
+    });
+    return total;
+  };
+
   const handleAddToCart = () => {
     if (product) {
+      let finalPrice = product.price;
+      if (product.discount) {
+        finalPrice = product.discount.type === 'percent' 
+          ? product.price - (product.price * product.discount.value / 100)
+          : Math.max(0, product.price - product.discount.value);
+      }
+      const totalPrice = finalPrice + getExtraPriceTotal();
+
       addToCart({
         productId: product.id,
         name: product.name,
-        price: product.price,
+        price: totalPrice,
         storeId: product.storeId || 'unknown',
         storeName: product.storeName || 'Toko Mitra',
         imageUrl: product.imageUrl || product.imageUrls?.[0],
-        stock: product.stock || 999
+        stock: product.stock || 999,
+        extras: getFormattedExtras()
       });
       useCartStore.getState().setQty(product.id, qty);
       Alert.alert('Sukses', 'Produk berhasil ditambahkan ke keranjang');
@@ -159,19 +233,46 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
   const handleBuyNow = () => {
     if (product) {
+      let finalPrice = product.price;
+      if (product.discount) {
+        finalPrice = product.discount.type === 'percent' 
+          ? product.price - (product.price * product.discount.value / 100)
+          : Math.max(0, product.price - product.discount.value);
+      }
+      const totalPrice = finalPrice + getExtraPriceTotal();
+
       addToCart({
         productId: product.id,
         name: product.name,
-        price: product.price,
+        price: totalPrice,
         storeId: product.storeId || 'unknown',
         storeName: product.storeName || 'Toko Mitra',
         imageUrl: product.imageUrl || product.imageUrls?.[0],
-        stock: product.stock || 999
+        stock: product.stock || 999,
+        extras: getFormattedExtras()
       });
       useCartStore.getState().setQty(product.id, qty);
       setIsCartModalVisible(false);
       navigation.navigate('MarketplaceCheckoutScreen', { storeId: product.storeId });
     }
+  };
+
+  const validateAndOpenModal = (type: 'cart' | 'buy') => {
+    // Validate mandatory extras
+    if (productExtras.length > 0) {
+      for (const group of productExtras) {
+        if (group.isMandatory) {
+          const selectedForGroup = selectedExtras[group.id] || [];
+          if (selectedForGroup.length === 0) {
+            Alert.alert('Perhatian', `Mohon pilih opsi untuk: ${group.name}`);
+            return;
+          }
+        }
+      }
+    }
+    setModalType(type);
+    setQty(1);
+    setIsCartModalVisible(true);
   };
 
   const handleShare = async () => {
@@ -344,6 +445,69 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           </View>
         </View>
 
+        {productExtras.length > 0 && (
+          <View style={[styles.infoSection, { backgroundColor: colors.surface, marginTop: 8 }]}>
+            <Text style={[styles.descTitle, { color: colors.text, marginBottom: 12 }]}>Pilihan Tambahan</Text>
+            {productExtras.map((extraGroup) => (
+              <View key={extraGroup.id} style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <View>
+                    <Text style={{ fontWeight: 'bold', color: colors.text, fontSize: 14 }}>{extraGroup.name}</Text>
+                    {extraGroup.allowMultiple && extraGroup.hasMaxLimit && (
+                      <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>Maks. {extraGroup.maxLimit} pilihan</Text>
+                    )}
+                  </View>
+                  {extraGroup.isMandatory ? (
+                    <View style={{ backgroundColor: '#ef444420', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: 'bold' }}>WAJIB</Text>
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 11, color: colors.textMuted }}>Opsional</Text>
+                  )}
+                </View>
+                
+                {extraGroup.options.map((opt: any, idx: number) => {
+                  const isSelected = selectedExtras[extraGroup.id]?.some(s => s.name === opt.name);
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => handleToggleExtra(extraGroup, opt)}
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingVertical: 12,
+                        paddingHorizontal: 14,
+                        borderWidth: 1,
+                        borderColor: isSelected ? colors.accent : colors.border,
+                        borderRadius: 12,
+                        marginBottom: 8,
+                        backgroundColor: isSelected ? (colors.accent + '15') : 'transparent'
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ 
+                          width: 18, height: 18, borderRadius: extraGroup.allowMultiple ? 4 : 9, 
+                          borderWidth: 1.5, borderColor: isSelected ? colors.accent : colors.border,
+                          marginRight: 12, justifyContent: 'center', alignItems: 'center',
+                          backgroundColor: isSelected ? colors.accent : 'transparent'
+                        }}>
+                          {isSelected && <View style={{ width: 8, height: 8, borderRadius: extraGroup.allowMultiple ? 2 : 4, backgroundColor: '#fff' }} />}
+                        </View>
+                        <Text style={{ color: isSelected ? colors.accent : colors.text, fontWeight: isSelected ? '600' : 'normal', fontSize: 14 }}>{opt.name}</Text>
+                      </View>
+                      {Number(opt.price) > 0 && (
+                        <Text style={{ color: isSelected ? colors.accent : colors.textMuted, fontSize: 13 }}>+Rp {Number(opt.price).toLocaleString('id-ID')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={[styles.reviewSection, { backgroundColor: colors.surface }]}>
           <View style={styles.reviewHeader}>
             <Text style={[styles.descTitle, { color: colors.text, marginBottom: 0 }]}>Ulasan Produk</Text>
@@ -399,11 +563,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <>
             <TouchableOpacity 
               style={[styles.actionBtn, { backgroundColor: colors.surface, flex: 1, borderWidth: 1, borderColor: colors.accent }]} 
-              onPress={() => {
-                setModalType('cart');
-                setQty(1);
-                setIsCartModalVisible(true);
-              }}
+              onPress={() => validateAndOpenModal('cart')}
               activeOpacity={0.8}
             >
               <ShoppingCart color={colors.accent} size={20} />
@@ -412,11 +572,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
             
             <TouchableOpacity 
               style={[styles.actionBtn, { backgroundColor: colors.accent, flex: 1 }]} 
-              onPress={() => {
-                setModalType('buy');
-                setQty(1);
-                setIsCartModalVisible(true);
-              }}
+              onPress={() => validateAndOpenModal('buy')}
               activeOpacity={0.8}
             >
               <Text style={styles.actionBtnText}>Beli Sekarang</Text>
@@ -460,7 +616,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
                   {product.name}
                 </Text>
                 <Text style={[styles.modalProductPrice, { color: colors.accent }]}>
-                  Rp {finalPrice.toLocaleString('id-ID')}
+                  Rp {(finalPrice + getExtraPriceTotal()).toLocaleString('id-ID')}
                 </Text>
                 {product.manageStock !== false && (
                   <Text style={[styles.modalProductStock, { color: colors.textMuted }]}>
