@@ -152,6 +152,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [superAdminSearchQuery, setSuperAdminSearchQuery] = useState('');
   const [broadcastsList, setBroadcastsList] = useState<any[]>([]);
+  const [managementTab, setManagementTab] = useState<'users' | 'stores'>('users');
   
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -2113,8 +2114,27 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   // --- RENDER CONTENT BY FEATURE ID ---
   const renderContent = () => {
     switch (featureId) {
-      case 'superAdminUsers': {
-        // Group users by store for hierarchical display
+      case 'superAdminManagement': {
+        return (
+          <View className="flex-1">
+            <View className="flex-row p-1 rounded-2xl mb-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              <TouchableOpacity
+                onPress={() => setManagementTab('users')}
+                className={`flex-1 py-2.5 items-center justify-center rounded-xl ${managementTab === 'users' ? 'bg-black/5 dark:bg-white/10' : ''}`}
+              >
+                <Text className={`text-xs font-black ${managementTab === 'users' ? '' : 'text-slate-400'}`} style={{ color: managementTab === 'users' ? colors.text : undefined }}>Data Pengguna</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setManagementTab('stores')}
+                className={`flex-1 py-2.5 items-center justify-center rounded-xl ${managementTab === 'stores' ? 'bg-black/5 dark:bg-white/10' : ''}`}
+              >
+                <Text className={`text-xs font-black ${managementTab === 'stores' ? '' : 'text-slate-400'}`} style={{ color: managementTab === 'stores' ? colors.text : undefined }}>Daftar Toko</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {managementTab === 'users' ? (
+              <View className="flex-1">
+// Group users by store for hierarchical display
         const filteredMobileUsers = superAdminUsers.filter(u => 
           u.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) || 
           u.email?.toLowerCase().includes(superAdminSearchQuery.toLowerCase())
@@ -2138,7 +2158,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           users: mobileStoreMap.get(sid)!
         }));
 
-        return (
+        
           <View className="flex-1">
             {/* Search & Buat Akun */}
             <View className="flex-row gap-3 mb-4">
@@ -2265,7 +2285,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                             }
                           }
 
-                          return (
+                          
                             <View className="mt-2 flex-row justify-between items-center bg-black/10 p-2 rounded-xl">
                               <View className="flex-row items-center gap-1.5">
                                 <Text className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${storeStatusColor}`}>
@@ -2295,10 +2315,11 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             </ScrollView>
           </View>
         );
-      }
 
-      case 'superAdminStores':
-        return (
+              </View>
+            ) : (
+              <View className="flex-1">
+
           <View className="flex-1">
             {/* Search & Tambah Toko */}
             <View className="flex-row gap-3 mb-4">
@@ -2327,7 +2348,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   .filter(s => s.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()))
                   .map((s) => {
                     const activeTenants = superAdminUsers.filter(u => u.storeId === s.id).length;
-                    return (
+                    
                       <View 
                         key={s.id} 
                         className="p-5 rounded-3xl border-l-[6px] border-y border-r mb-3" 
@@ -2413,9 +2434,13 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               </View>
             </ScrollView>
           </View>
+        )
+              </View>
+            )}
+          </View>
         );
-
-      case 'superAdminBranding':
+      }
+      case 'superAdminBranding':      case 'superAdminBranding':
         return (
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="space-y-6 pb-20">

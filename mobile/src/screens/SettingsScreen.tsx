@@ -1788,13 +1788,9 @@ export default function SettingsScreen({ navigation, route }: any) {
               🔑 Panel Superadmin
             </Text>
             <View className="flex-row flex-wrap">
-              {renderMenuItem('Data User', '👥', '#f59e0b', () => {
+              {renderMenuItem('Data Master', '👥', '#3b82f6', () => {
                 Vibration.vibrate(10);
-                navigation.navigate('SuperAdminScreen', { featureId: 'superAdminUsers', title: 'Data Pengguna' });
-              })}
-              {renderMenuItem('Kelola Toko', '🏪', '#3b82f6', () => {
-                Vibration.vibrate(10);
-                navigation.navigate('SuperAdminScreen', { featureId: 'superAdminStores', title: 'Kelola Toko' });
+                navigation.navigate('SuperAdminScreen', { featureId: 'superAdminManagement', title: 'Data Pengguna & Toko' });
               })}
               {renderMenuItem('Branding', '🎨', '#ec4899', () => {
                 Vibration.vibrate(10);
