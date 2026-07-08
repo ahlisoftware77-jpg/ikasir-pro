@@ -392,8 +392,8 @@ export default function OrderNotificationListener() {
           const token = tokenData.data;
           console.log('[FG] FCM Device Token:', token);
           
-          // Save to Firestore settings document in primaryDb so Web backend can access it
-          const storeSettingsRef = doc(primaryDb, 'settings', `store_${targetStoreId}`);
+          // Save to Firestore settings document
+          const storeSettingsRef = doc(db, 'settings', `store_${targetStoreId}`);
           await setDoc(storeSettingsRef, {
             fcmTokens: arrayUnion(token)
           }, { merge: true });
