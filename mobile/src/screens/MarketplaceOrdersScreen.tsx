@@ -266,6 +266,11 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
                   <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 2 }}>
                     {prod.qty} x Rp {(prod.price || 0).toLocaleString('id-ID')}
                   </Text>
+                  {prod.selectedExtras && prod.selectedExtras.length > 0 && (
+                    <Text style={{ color: colors.textMuted, fontSize: 9, marginTop: 2 }}>
+                      Ekstra: {prod.selectedExtras.map((e: any) => e.name || e.optionName).join(', ')}
+                    </Text>
+                  )}
                 </View>
                 {finalStatus === 'paid' && (
                   !prod.isReviewed ? (

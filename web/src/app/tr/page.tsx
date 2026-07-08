@@ -1914,7 +1914,7 @@ function PublicOrderContent() {
                                <p className="font-bold text-sm truncate text-slate-900">{item.name}</p>
                                <p className="text-[10px] text-tr font-black">Rp {(item.displayPrice || 0).toLocaleString('id-ID')}</p>
                                {(item.selectedExtras?.length || 0) > 0 && (
-                                 <p className="text-[8px] text-slate-500 mt-1 uppercase font-black tracking-widest leading-none">+ {item.selectedExtras?.map((e:any) => e.optionName).join(', ')}</p>
+                                 <p className="text-[8px] text-slate-500 mt-1 uppercase font-black tracking-widest leading-none">+ {item.selectedExtras?.map((e:any) => e.name || e.optionName).join(', ')}</p>
                                )}
                             </div>
                             <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
