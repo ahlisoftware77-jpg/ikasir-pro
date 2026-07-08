@@ -12,6 +12,7 @@ export interface CartItem {
   qty: number;
   imageUrl?: string;
   isFlashSale?: boolean;
+  extras?: any[];
 }
 
 interface CartContextType {
