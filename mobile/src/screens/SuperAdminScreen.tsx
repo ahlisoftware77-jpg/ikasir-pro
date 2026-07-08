@@ -2115,25 +2115,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const renderContent = () => {
     switch (featureId) {
       case 'superAdminManagement': {
-        return (
-          <View className="flex-1">
-            <View className="flex-row p-1 rounded-2xl mb-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              <TouchableOpacity
-                onPress={() => setManagementTab('users')}
-                className={`flex-1 py-2.5 items-center justify-center rounded-xl ${managementTab === 'users' ? 'bg-black/5 dark:bg-white/10' : ''}`}
-              >
-                <Text className={`text-xs font-black ${managementTab === 'users' ? '' : 'text-slate-400'}`} style={{ color: managementTab === 'users' ? colors.text : undefined }}>Data Pengguna</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setManagementTab('stores')}
-                className={`flex-1 py-2.5 items-center justify-center rounded-xl ${managementTab === 'stores' ? 'bg-black/5 dark:bg-white/10' : ''}`}
-              >
-                <Text className={`text-xs font-black ${managementTab === 'stores' ? '' : 'text-slate-400'}`} style={{ color: managementTab === 'stores' ? colors.text : undefined }}>Daftar Toko</Text>
-              </TouchableOpacity>
-            </View>
-            
-            {managementTab === 'users' ? (
-              <View className="flex-1">
 // Group users by store for hierarchical display
         const filteredMobileUsers = superAdminUsers.filter(u => 
           u.name?.toLowerCase().includes(superAdminSearchQuery.toLowerCase()) || 
@@ -2157,6 +2138,25 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           storeName: superAdminStores.find(s => s.id === sid)?.name || (sid === '__no_store__' ? 'Tanpa Toko' : sid),
           users: mobileStoreMap.get(sid)!
         }));
+        return (
+          <View className="flex-1">
+            <View className="flex-row p-1 rounded-2xl mb-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              <TouchableOpacity
+                onPress={() => setManagementTab('users')}
+                className={`flex-1 py-2.5 items-center justify-center rounded-xl ${managementTab === 'users' ? 'bg-black/5 dark:bg-white/10' : ''}`}
+              >
+                <Text className={`text-xs font-black ${managementTab === 'users' ? '' : 'text-slate-400'}`} style={{ color: managementTab === 'users' ? colors.text : undefined }}>Data Pengguna</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setManagementTab('stores')}
+                className={`flex-1 py-2.5 items-center justify-center rounded-xl ${managementTab === 'stores' ? 'bg-black/5 dark:bg-white/10' : ''}`}
+              >
+                <Text className={`text-xs font-black ${managementTab === 'stores' ? '' : 'text-slate-400'}`} style={{ color: managementTab === 'stores' ? colors.text : undefined }}>Daftar Toko</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {managementTab === 'users' ? (
+              <View className="flex-1">
 
         
           <View className="flex-1">
