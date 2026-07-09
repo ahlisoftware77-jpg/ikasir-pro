@@ -10,14 +10,14 @@ export interface ProductDetailsResponse {
 
 export const validateGeminiApiKey = async (apiKey: string): Promise<{valid: boolean, error?: string}> => {
   try {
-    const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!listResponse.ok) {
-      const errText = await listResponse.text();
-      return { valid: false, error: errText };
-    }
-    const data = await listResponse.json();
-    const models = data.models ? data.models.map((m: any) => m.name.replace('models/', '')).join(', ') : 'No models found';
-    return { valid: false, error: `{"error": {"message": "Available Models: ${models}"}}` };
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'test' }] }] })
+    });
+    if (response.ok) return { valid: true };
+    const errText = await response.text();
+    return { valid: false, error: errText };
   } catch (err: any) {
     return { valid: false, error: err.message };
   }
@@ -72,8 +72,8 @@ Tulis JSON murni saja.
       ]
     };
 
-    // 3. Panggil API Gemini 1.5 Pro
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
+    // 3. Panggil API Gemini 2.5 Pro
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
