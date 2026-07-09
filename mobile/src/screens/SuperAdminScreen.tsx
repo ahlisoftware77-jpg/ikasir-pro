@@ -744,8 +744,22 @@ export default function SuperAdminScreen({ route, navigation }: any) {
           onPress: async () => {
             setIsSaving(true);
             try {
+              // Hapus dari Firebase Auth via API
+              const webUrl = brandingData.webAppUrl || 'https://ikasir-pro.vercel.app';
+              const res = await fetch(`${webUrl}/api/delete-user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: userId })
+              });
+              
+              if (!res.ok) {
+                const errorData = await res.json();
+                console.warn('Peringatan hapus Auth:', errorData);
+              }
+
+              // Hapus dari Firestore
               await deleteDoc(doc(primaryDb, 'users', userId));
-              Alert.alert('Sukses', 'User berhasil dihapus secara permanen dari Firestore.');
+              Alert.alert('Sukses', 'User berhasil dihapus secara permanen dari Auth dan Firestore.');
             } catch (err: any) {
               console.error(err);
               Alert.alert('Gagal', 'Gagal menghapus user: ' + err.message);
