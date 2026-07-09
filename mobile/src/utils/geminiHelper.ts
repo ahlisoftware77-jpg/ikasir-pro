@@ -8,16 +8,18 @@ export interface ProductDetailsResponse {
   category: string;
 }
 
-export const validateGeminiApiKey = async (apiKey: string): Promise<boolean> => {
+export const validateGeminiApiKey = async (apiKey: string): Promise<{valid: boolean, error?: string}> => {
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: 'test' }] }] })
     });
-    return response.ok;
-  } catch {
-    return false;
+    if (response.ok) return { valid: true };
+    const errText = await response.text();
+    return { valid: false, error: errText };
+  } catch (err: any) {
+    return { valid: false, error: err.message };
   }
 };
 

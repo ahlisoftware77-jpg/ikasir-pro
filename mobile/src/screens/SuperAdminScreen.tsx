@@ -1213,9 +1213,16 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     }
     setIsSaving(true);
     try {
-      const isValid = await validateGeminiApiKey(infraData.gemini_api_key);
-      if (!isValid) {
-        Alert.alert('API Key Tidak Valid', 'API Key Gemini yang dimasukkan tidak valid atau kuota telah habis.');
+      const validation = await validateGeminiApiKey(infraData.gemini_api_key);
+      if (!validation.valid) {
+        let errMsg = 'API Key Gemini yang dimasukkan tidak valid atau kuota telah habis.';
+        try {
+            const parsedErr = JSON.parse(validation.error || '{}');
+            if (parsedErr.error && parsedErr.error.message) {
+                errMsg = parsedErr.error.message;
+            }
+        } catch(e) {}
+        Alert.alert('API Key Tidak Valid', errMsg);
         setIsSaving(false);
         return;
       }
