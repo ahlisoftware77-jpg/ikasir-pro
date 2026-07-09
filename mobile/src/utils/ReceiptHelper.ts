@@ -2806,6 +2806,7 @@ export const generateServiceLabelHtml = (ticket: any, storeSettings?: any) => {
     dateStr = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}`;
   }
   
+  const trackLink = `https://ikasir.my.id/tr/service?t=${ticket.id}&s=${ticket.storeId || ''}`;
   return `
     <html>
       <head>
@@ -2824,7 +2825,7 @@ export const generateServiceLabelHtml = (ticket: any, storeSettings?: any) => {
         <p>Plg: ${ticket.customerName || 'Umum'}</p>
         <p>Unit: ${ticket.deviceModel}</p>
         <div class="qr-container">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ticket.id)}" />
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackLink)}" />
         </div>
       </body>
     </html>
