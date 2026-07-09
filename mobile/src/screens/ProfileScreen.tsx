@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Image, Alert, Modal } from 'react-native';
 import { Save, Camera } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
 import { db, auth, storage , primaryDb} from '../lib/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
+import { doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { updateProfile, EmailAuthProvider, reauthenticateWithCredential, deleteUser } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,6 +19,10 @@ export default function ProfileScreen({ navigation }: any) {
   const [editProfilePhoto, setEditProfilePhoto] = useState(user?.photoURL || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const { logout } = useAuthStore();
 
   const handlePickProfilePhoto = async () => {
     try {
@@ -60,6 +64,45 @@ export default function ProfileScreen({ navigation }: any) {
       Alert.alert('Error', 'Gagal memilih atau mengunggah foto profil.');
     } finally {
       setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser || !user) return;
+    
+    // Check if user is using Google Sign In (no password needed/available)
+    const isGoogleUser = auth.currentUser.providerData.some(provider => provider.providerId === 'google.com');
+
+    if (!isGoogleUser && !deletePassword) {
+      Alert.alert('Error', 'Harap masukkan kata sandi Anda untuk konfirmasi.');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    try {
+      if (!isGoogleUser) {
+        const credential = EmailAuthProvider.credential(user.email || '', deletePassword);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+      }
+
+      // Hapus dari Firestore
+      await deleteDoc(doc(primaryDb, 'users', user.uid));
+      
+      // Hapus akun dari Firebase Auth
+      await deleteUser(auth.currentUser);
+
+      setShowDeleteModal(false);
+      Alert.alert('Sukses', 'Akun Anda telah dihapus secara permanen.');
+      logout();
+    } catch (error: any) {
+      console.error('Delete account error:', error);
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        Alert.alert('Gagal', 'Kata sandi salah.');
+      } else {
+        Alert.alert('Gagal', 'Gagal menghapus akun: ' + error.message);
+      }
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -205,8 +248,76 @@ export default function ProfileScreen({ navigation }: any) {
             <Text className="font-black text-white uppercase tracking-wider">SIMPAN PROFIL</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Danger Zone */}
+        <View className="p-6 rounded-3xl border mt-6 bg-rose-500/5 border-rose-500/20">
+          <Text className="text-sm font-black text-rose-500 uppercase tracking-widest mb-2">Zona Berbahaya</Text>
+          <Text className="text-xs text-slate-500 mb-4 leading-5">Menghapus akun Anda secara permanen. Semua data akses akan hilang dan tidak dapat dipulihkan kembali.</Text>
+          <TouchableOpacity
+            onPress={() => setShowDeleteModal(true)}
+            className="w-full h-12 rounded-xl items-center justify-center flex-row gap-2 border border-rose-500"
+            style={{ backgroundColor: 'transparent' }}
+          >
+            <Text className="font-black text-rose-500 uppercase tracking-wider">Hapus Akun Permanen</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       </ScrollView>
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => !isDeletingAccount && setShowDeleteModal(false)}
+      >
+        <View className="flex-1 bg-black/60 justify-center items-center p-6">
+          <View className="w-full rounded-[32px] p-6 border border-rose-500/30" style={{ backgroundColor: colors.surface }}>
+            <Text className="text-lg font-black text-rose-500 mb-2">Konfirmasi Hapus Akun</Text>
+            <Text className="text-xs text-slate-400 mb-6 leading-5">
+              Apakah Anda yakin ingin menghapus akun ini secara permanen?
+              {auth.currentUser?.providerData.some(p => p.providerId === 'google.com') 
+                ? ' Aksi ini tidak dapat dibatalkan.' 
+                : ' Masukkan kata sandi Anda untuk melanjutkan.'}
+            </Text>
+
+            {!auth.currentUser?.providerData.some(p => p.providerId === 'google.com') && (
+              <View className="w-full mb-6">
+                <Text className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2 ml-1">Kata Sandi Akun</Text>
+                <TextInput
+                  value={deletePassword}
+                  onChangeText={setDeletePassword}
+                  placeholder="Masukkan kata sandi..."
+                  secureTextEntry
+                  placeholderTextColor={colors.textMuted}
+                  className="w-full h-12 px-4 rounded-xl font-bold text-sm"
+                  style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border, borderWidth: 1 }}
+                />
+              </View>
+            )}
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setShowDeleteModal(false)}
+                disabled={isDeletingAccount}
+                className="flex-1 h-12 items-center justify-center rounded-xl border border-slate-700 bg-slate-800"
+              >
+                <Text className="text-xs font-black uppercase text-slate-400">Batal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="flex-1 h-12 items-center justify-center rounded-xl bg-rose-600"
+              >
+                {isDeletingAccount ? <ActivityIndicator color="white" /> : (
+                  <Text className="text-xs font-black uppercase text-white">Hapus Permanen</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
