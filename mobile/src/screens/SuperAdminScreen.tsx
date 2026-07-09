@@ -415,6 +415,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [infraData, setInfraData] = useState<any>({
     cloudinary_cloud_name: '',
     cloudinary_upload_preset: '',
+    gemini_api_key: '',
     fb_api_key: '',
     fb_auth_domain: '',
     fb_project_id: '',
@@ -1234,6 +1235,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
       setInfraData({
         cloudinary_cloud_name: '',
         cloudinary_upload_preset: '',
+        gemini_api_key: '',
         fb_api_key: '',
         fb_auth_domain: '',
         fb_project_id: '',
@@ -3179,6 +3181,26 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     className="p-3 border rounded-xl font-bold text-xs"
                     style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
                   />
+                </View>
+
+                {/* Gemini AI Config */}
+                <View className="mt-4 p-4 rounded-2xl border bg-purple-500/5 border-purple-500/20">
+                  <View className="flex-row items-center gap-2 mb-3">
+                    <Sparkles size={16} color="#a855f7" />
+                    <Text className="font-black text-xs uppercase tracking-widest text-purple-500">Konfigurasi Gemini AI</Text>
+                  </View>
+                  <View className="space-y-1">
+                    <Text className="text-[8px] font-black uppercase tracking-wider text-slate-400">Gemini API Key</Text>
+                    <TextInput
+                      value={infraData.gemini_api_key || ''}
+                      onChangeText={(txt) => setInfraData({ ...infraData, gemini_api_key: txt })}
+                      secureTextEntry
+                      placeholder="AIzaSy..."
+                      placeholderTextColor={colors.textMuted}
+                      className="p-3 border rounded-xl font-bold text-xs"
+                      style={{ backgroundColor: colors.bg, borderColor: colors.border, color: colors.text }}
+                    />
+                  </View>
                 </View>
 
                 <TouchableOpacity

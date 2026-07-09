@@ -23,6 +23,7 @@ import {
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
 , Scan } from 'lucide-react-native';
 import { printReceipt, printA4, printServiceReceipt, printServiceA4, shareReceiptPDF, printServiceLabel } from '../utils/ReceiptHelper';
+import { generateProductInfoFromImage } from '../utils/geminiHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -74,6 +75,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const { featureId, title } = route.params;
   const { storeId, user, role, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [search, setSearch] = useState('');
   const [showServiceScanner, setShowServiceScanner] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -3282,7 +3284,45 @@ export default function FeatureScreen({ route, navigation }: any) {
     </View>
   );
 
+
+  const handleAutoFillWithAI = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Izin Ditolak', 'Akses kamera dibutuhkan untuk memfoto barang.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets[0].base64) {
+        return;
+      }
+
+      setIsAutoFilling(true);
+      const productInfo = await generateProductInfoFromImage(result.assets[0].base64);
+      
+      if (productInfo.name) setFormName(productInfo.name);
+      if (productInfo.baseCost) setFormBaseCost(String(productInfo.baseCost));
+      if (productInfo.price) setFormPrice(String(productInfo.price));
+      
+      Alert.alert('Sukses', 'AI berhasil menebak data produk!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal Auto-Fill', err.message || 'Terjadi kesalahan saat memproses gambar.');
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
+
   const renderFormFields = () => {
+
     switch (featureId) {
       case 'service_elektronik':
         return (
@@ -3404,6 +3444,20 @@ export default function FeatureScreen({ route, navigation }: any) {
       case 'estimasi':
         return (
           <>
+            <TouchableOpacity 
+              onPress={handleAutoFillWithAI}
+              disabled={isAutoFilling}
+              className="flex-row items-center justify-center gap-2 mb-4 py-3 rounded-xl border border-purple-500/20 bg-purple-500/10"
+            >
+              {isAutoFilling ? (
+                <ActivityIndicator size="small" color="#a855f7" />
+              ) : (
+                <>
+                  <Camera size={18} color="#a855f7" />
+                  <Text className="text-xs font-black text-purple-500 uppercase tracking-widest">Auto-Fill via Foto (AI)</Text>
+                </>
+              )}
+            </TouchableOpacity>
             {renderTextInput('Nama Menu / Resep', formName, setFormName, 'e.g. Nasi Goreng Spesial')}
             {renderTextInput('HPP / Bahan Pokok (Rp)', formBaseCost, setFormBaseCost, 'e.g. 8000', 'numeric')}
             {renderTextInput('Harga Jual POS (Rp)', formPrice, setFormPrice, 'e.g. 15000', 'numeric')}
