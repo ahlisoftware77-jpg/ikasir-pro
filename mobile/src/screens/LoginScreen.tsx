@@ -694,20 +694,25 @@ export default function LoginScreen() {
             <Text className="text-xl font-black mb-4" style={{ color: colors.text }}>Kebijakan Privasi & Keamanan Data AI</Text>
             
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>1. Data Apa yang Dikumpulkan AI?</Text>
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>1. Data Apa yang Dikumpulkan?</Text>
               <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
-                Saat Anda menggunakan fitur Auto-Fill via Foto (AI), kami mengumpulkan gambar produk dan instruksi pemrosesan untuk diekstrak menjadi 6 data utama: Nama Produk, Harga Modal (berdasarkan pencarian internet real-time), Harga Jual, Kategori, Variasi, dan Satuan.
+                Saat menggunakan fitur AI (seperti Auto-Fill via Foto), kami mengumpulkan data berupa gambar produk yang Anda unggah, instruksi pemrosesan terkait, serta data profil pendaftaran Anda (Nama, Email, dan Nama Toko).
               </Text>
 
-              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>2. Siapa yang Mengakses Data Tersebut?</Text>
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>2. Untuk Tujuan Apa Data Digunakan?</Text>
               <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
-                <Text style={{ fontWeight: 'bold', color: colors.text }}>Saat Diproses:</Text> Foto dan data dikirim secara aman ke server Google (Gemini API) untuk dianalisis sementara. Google tidak menggunakan data pribadi atau produk Anda untuk melatih model AI publik mereka.{"\n\n"}
-                <Text style={{ fontWeight: 'bold', color: colors.text }}>Saat Disimpan:</Text> Data disimpan di database cloud aman (Firebase). Hanya Anda (Super Admin), dan Kasir/Pegawai yang Anda berikan akses yang dapat melihat data produk dan toko Anda. Kami menjamin data Anda tidak akan bocor ke pengguna toko lain.
+                Data gambar digunakan semata-mata untuk diekstrak menjadi informasi produk yang relevan (seperti Nama Barang, Harga Modal, Harga Jual, Kategori, Variasi, dan Satuan) guna mempercepat proses input data di kasir Anda.
               </Text>
 
-              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>3. Perlindungan Server AI</Text>
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>3. Siapa yang Dapat Mengaksesnya?</Text>
               <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
-                Sistem kami dilengkapi dengan pelindung *Auto-Retry* yang memastikan koneksi AI tetap stabil dan lancar di latar belakang, meskipun server pusat mengalami kepadatan lalu lintas.
+                <Text style={{ fontWeight: 'bold', color: colors.text }}>Saat Diproses:</Text> Data dikirim secara aman melalui enkripsi ke server Google (Gemini API) hanya untuk dianalisis sementara.{"\n"}
+                <Text style={{ fontWeight: 'bold', color: colors.text }}>Saat Disimpan:</Text> Data akhir disimpan dengan aman di database cloud (Firebase). Akses sepenuhnya dibatasi hanya untuk Anda (Pemilik Toko) dan Kasir/Pegawai yang Anda izinkan. Kami, pembuat aplikasi, tidak memiliki akses untuk membaca atau memodifikasi data rahasia toko Anda.
+              </Text>
+
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>4. Kerahasiaan Data (Tidak Dijual/Dibagikan)</Text>
+              <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
+                Kami menjamin bahwa <Text style={{ fontWeight: 'bold', color: colors.text }}>data Anda tidak dijual, disewakan, atau dibagikan kepada pihak ketiga mana pun</Text> tanpa persetujuan tertulis dari Anda. Google juga tidak menggunakan data dari sistem ini untuk melatih model AI publik mereka.
               </Text>
             </ScrollView>
 
