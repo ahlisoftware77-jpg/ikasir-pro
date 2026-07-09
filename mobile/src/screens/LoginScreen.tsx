@@ -35,6 +35,7 @@ export default function LoginScreen() {
   // Google Registration State
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [googleUser, setGoogleUser] = useState<any>(null);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -518,6 +519,17 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          {mode === 'register' && (
+            <TouchableOpacity onPress={() => setShowPrivacyPolicy(true)} className="mt-4 flex-row items-start px-1">
+              <View className="w-4 h-4 rounded border mt-0.5 mr-2 items-center justify-center" style={{ borderColor: colors.accent, backgroundColor: colors.accent }}>
+                <Text style={{ color: colors.text, fontSize: 10, fontWeight: 'bold' }}>✓</Text>
+              </View>
+              <Text className="text-[10px] flex-1" style={{ color: colors.textMuted }}>
+                Dengan mendaftar, Anda menyetujui <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Kebijakan Privasi & Keamanan Data AI</Text> kami.
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {mode === 'login' && (
             <TouchableOpacity onPress={handleResetPassword} className="mt-3 self-end">
               <Text className="text-[10px] font-black uppercase text-blue-500">Lupa Kata Sandi?</Text>
@@ -637,6 +649,15 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            <TouchableOpacity onPress={() => setShowPrivacyPolicy(true)} className="mb-6 flex-row items-start">
+              <View className="w-4 h-4 rounded border mt-0.5 mr-2 items-center justify-center" style={{ borderColor: colors.accent, backgroundColor: colors.accent }}>
+                <Text style={{ color: colors.text, fontSize: 10, fontWeight: 'bold' }}>✓</Text>
+              </View>
+              <Text className="text-[10px] flex-1" style={{ color: colors.textMuted }}>
+                Dengan melanjutkan, Anda menyetujui <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Kebijakan Privasi & Keamanan Data AI</Text> kami.
+              </Text>
+            </TouchableOpacity>
+
             <View className="flex-row gap-3">
               <TouchableOpacity
                 onPress={() => setShowGoogleModal(false)}
@@ -656,6 +677,47 @@ export default function LoginScreen() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Privacy Policy Modal */}
+      <Modal
+        visible={showPrivacyPolicy}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPrivacyPolicy(false)}
+      >
+        <View className="flex-1 justify-end">
+          <View className="w-full h-[80%] rounded-t-[32px] p-6" style={{ backgroundColor: colors.surface }}>
+            <View className="w-12 h-1 rounded-full self-center mb-6" style={{ backgroundColor: colors.border }} />
+            <Text className="text-xl font-black mb-4" style={{ color: colors.text }}>Kebijakan Privasi & Keamanan Data AI</Text>
+            
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>1. Data Apa yang Dikumpulkan AI?</Text>
+              <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
+                Saat Anda menggunakan fitur Auto-Fill via Foto (AI), kami mengumpulkan gambar produk dan instruksi pemrosesan untuk diekstrak menjadi 6 data utama: Nama Produk, Harga Modal (berdasarkan pencarian internet real-time), Harga Jual, Kategori, Variasi, dan Satuan.
+              </Text>
+
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>2. Siapa yang Mengakses Data Tersebut?</Text>
+              <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
+                <Text style={{ fontWeight: 'bold', color: colors.text }}>Saat Diproses:</Text> Foto dan data dikirim secara aman ke server Google (Gemini API) untuk dianalisis sementara. Google tidak menggunakan data pribadi atau produk Anda untuk melatih model AI publik mereka.{"\n\n"}
+                <Text style={{ fontWeight: 'bold', color: colors.text }}>Saat Disimpan:</Text> Data disimpan di database cloud aman (Firebase). Hanya Anda (Super Admin), dan Kasir/Pegawai yang Anda berikan akses yang dapat melihat data produk dan toko Anda. Kami menjamin data Anda tidak akan bocor ke pengguna toko lain.
+              </Text>
+
+              <Text className="text-sm font-bold mb-2" style={{ color: colors.text }}>3. Perlindungan Server AI</Text>
+              <Text className="text-xs mb-4 leading-5" style={{ color: colors.textMuted }}>
+                Sistem kami dilengkapi dengan pelindung *Auto-Retry* yang memastikan koneksi AI tetap stabil dan lancar di latar belakang, meskipun server pusat mengalami kepadatan lalu lintas.
+              </Text>
+            </ScrollView>
+
+            <TouchableOpacity
+              onPress={() => setShowPrivacyPolicy(false)}
+              className="mt-4 h-14 items-center justify-center rounded-2xl shadow-lg"
+              style={{ backgroundColor: colors.accent, shadowColor: colors.accent }}
+            >
+              <Text className="text-xs font-black uppercase tracking-[1px]" style={{ color: colors.text }}>Saya Mengerti & Setuju</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
