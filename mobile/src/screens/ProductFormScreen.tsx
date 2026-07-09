@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera, Image as ImageIcon, Save, ArrowLeft, Trash2, Camera as CameraIcon, Scan, X, Calendar, Layers, Shield, ChevronDown, Check, CheckSquare, Square, Sparkles, AlertCircle, Info, Plus, Store } from 'lucide-react-native';
 import { CameraView, useCameraPermissions, Camera as ExpoCamera } from 'expo-camera';
 import { Video, ResizeMode } from 'expo-av';
+import { generateProductInfoFromImage } from '../utils/geminiHelper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProductFormScreen({ route, navigation }: any) {
@@ -42,6 +43,7 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
   const [images, setImages] = useState<string[]>(editProduct?.imageUrls || (editProduct?.imageUrl ? [editProduct?.imageUrl] : []));
   const [isSaving, setIsSaving] = useState(false);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
 
   const [showScanner, setShowScanner] = useState(false);
   const [scanTarget, setScanTarget] = useState<'sku' | 'barcode'>('sku');
@@ -230,6 +232,46 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
     setFormData(prev => ({ ...prev, sku: prefix }));
     Vibration.vibrate(10);
+  };
+
+  const handleAutoFillWithAI = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Izin Ditolak', 'Akses kamera dibutuhkan untuk memfoto barang.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets[0].base64) {
+        return;
+      }
+
+      setIsAutoFilling(true);
+      const productInfo = await generateProductInfoFromImage(result.assets[0].base64);
+      
+      setFormData(prev => ({
+        ...prev,
+        name: productInfo.name || prev.name,
+        purchasePrice: productInfo.baseCost ? String(productInfo.baseCost) : prev.purchasePrice,
+        price: productInfo.price ? String(productInfo.price) : prev.price,
+        category: productInfo.category || prev.category
+      }));
+      
+      Alert.alert('Sukses', 'AI berhasil menebak data produk!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal Auto-Fill', err.message || 'Terjadi kesalahan saat memproses gambar.');
+    } finally {
+      setIsAutoFilling(false);
+    }
   };
 
   const handleSave = async () => {
@@ -497,6 +539,21 @@ export default function ProductFormScreen({ route, navigation }: any) {
 
             {/* General Fields */}
             <View>
+              <TouchableOpacity 
+                onPress={handleAutoFillWithAI}
+                disabled={isAutoFilling}
+                className="flex-row items-center justify-center gap-2 mb-4 py-3 rounded-xl border border-purple-500/20 bg-purple-500/10"
+              >
+                {isAutoFilling ? (
+                  <ActivityIndicator size="small" color="#a855f7" />
+                ) : (
+                  <>
+                    <Camera size={18} color="#a855f7" />
+                    <Text className="text-xs font-black text-purple-500 uppercase tracking-widest">Auto-Fill via Foto (AI)</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
               <Text className="text-[10px] font-black uppercase tracking-[2px] mb-2 ml-1" style={{ color: colors.textMuted }}>Nama Barang</Text>
               <TextInput
                 placeholder="Contoh: Kopi Gula Aren"
