@@ -6,6 +6,8 @@ export interface ProductDetailsResponse {
   baseCost: number;
   price: number;
   category: string;
+  variation?: string;
+  unit?: string;
 }
 
 export const validateGeminiApiKey = async (apiKey: string): Promise<{valid: boolean, error?: string}> => {
@@ -51,6 +53,8 @@ Tolong identifikasi barang tersebut dan hasilkan perkiraan data untuk aplikasi k
 - "baseCost": Perkiraan harga beli / modal wajar dalam Rupiah (angka saja, contoh: 2500)
 - "price": Perkiraan harga jual pasaran yang wajar dalam Rupiah (angka saja, contoh: 3500)
 - "category": Kategori barang (Pilih salah satu atau buat yang relevan: Makanan, Minuman, Sembako, Rokok, Elektronik, Jasa, Lainnya)
+- "variation": Variasi barang (opsional, contoh: "Merah, XL", "Rasa Coklat")
+- "unit": Satuan barang (opsional, contoh: "pcs", "kg", "liter", "box", "pack")
 
 Jika foto adalah kemasan kosong, usahakan tetap menebak sesuai merek. Jika barcode tidak ada konteks, coba tebak dari bentuk barang.
 Tulis JSON murni saja.
@@ -101,7 +105,9 @@ Tulis JSON murni saja.
         name: parsedData.name || '',
         baseCost: Number(parsedData.baseCost) || 0,
         price: Number(parsedData.price) || 0,
-        category: parsedData.category || 'Lainnya'
+        category: parsedData.category || 'Lainnya',
+        variation: parsedData.variation || '',
+        unit: parsedData.unit || ''
       };
     } catch (parseError) {
       console.error('Failed to parse Gemini output:', textOutput);

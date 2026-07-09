@@ -255,12 +255,18 @@ export default function ProductFormScreen({ route, navigation }: any) {
       setIsAutoFilling(true);
       const productInfo = await generateProductInfoFromImage(result.assets[0].base64);
       
+      if (productInfo.unit && productInfo.unit.toLowerCase() !== 'pcs') {
+        setUseAdvancedUnit(true);
+      }
+
       setFormData(prev => ({
         ...prev,
         name: productInfo.name || prev.name,
         purchasePrice: productInfo.baseCost ? String(productInfo.baseCost) : prev.purchasePrice,
         price: productInfo.price ? String(productInfo.price) : prev.price,
-        category: productInfo.category || prev.category
+        category: productInfo.category || prev.category,
+        variation: productInfo.variation || prev.variation,
+        unit: productInfo.unit || prev.unit
       }));
       
       setImages(prev => {
