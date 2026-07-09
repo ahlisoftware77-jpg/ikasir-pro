@@ -76,19 +76,32 @@ Tulis JSON murni saja.
       ]
     };
 
-    // 3. Panggil API Gemini 2.5 Flash
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
+    // 3. Panggil API Gemini 2.5 Flash dengan mekanisme Auto-Retry
+    let response;
+    let retries = 3;
+    while (retries > 0) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
+      if (response.ok || (response.status !== 503 && response.status !== 500)) {
+        break; // Sukses atau error bukan karena server sibuk
+      }
+      
+      retries--;
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Tunggu 1.5 detik sebelum mencoba lagi
+      }
+    }
+
+    if (!response || !response.ok) {
+      const errText = response ? await response.text() : 'No response';
       console.error('Gemini API Error:', errText);
-      throw new Error(`Gagal menghubungi server Gemini API: ${response.status}`);
+      throw new Error(`Gagal menghubungi server Gemini API: ${response?.status || 'Unknown'}`);
     }
 
     const responseJson = await response.json();
