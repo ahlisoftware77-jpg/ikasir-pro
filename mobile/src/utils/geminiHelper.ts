@@ -50,7 +50,7 @@ Anda adalah AI asisten kasir yang ahli mengenali barang dari gambar.
 Saya memberikan foto sebuah produk/barang dagangan.
 Tolong identifikasi barang tersebut dan hasilkan perkiraan data untuk aplikasi kasir dalam format JSON murni TANPA markdown (\`\`\`), dengan properti berikut:
 - "name": Nama produk lengkap (contoh: "Aqua Botol 600ml", "Indomie Goreng")
-- "baseCost": Perkiraan harga beli / modal wajar dalam Rupiah (angka saja, contoh: 2500)
+- "baseCost": Perkiraan harga beli / modal wajar dalam Rupiah (angka saja). Referensi: jika Makanan/Minuman/Sembako/Kebutuhan Pokok tebak menggunakan harga kulakan di Indogrosir, jika Sparepart/Elektronik/Lainnya tebak menggunakan harga termurah di Shopee.
 - "price": Perkiraan harga jual pasaran yang wajar dalam Rupiah (angka saja, contoh: 3500)
 - "category": Kategori barang (Pilih salah satu atau buat yang relevan: Makanan, Minuman, Sembako, Rokok, Elektronik, Jasa, Lainnya)
 - "variation": Variasi barang (opsional, contoh: "Merah, XL", "Rasa Coklat")
