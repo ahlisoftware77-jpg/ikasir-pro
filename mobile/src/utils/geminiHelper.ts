@@ -49,9 +49,9 @@ export const generateProductInfoFromImage = async (base64Image: string): Promise
 Anda adalah AI asisten kasir yang ahli mengenali barang dari gambar.
 Saya memberikan foto sebuah produk/barang dagangan.
 Tolong identifikasi barang tersebut dan hasilkan perkiraan data untuk aplikasi kasir dalam format JSON murni TANPA markdown (\`\`\`), dengan properti berikut:
-- "name": Nama produk lengkap (contoh: "Aqua Botol 600ml", "Indomie Goreng")
-- "baseCost": Perkiraan harga beli / modal wajar dalam Rupiah (angka saja). Referensi: jika Makanan/Minuman/Sembako/Kebutuhan Pokok tebak menggunakan harga kulakan di Indogrosir, jika Sparepart/Elektronik/Lainnya tebak menggunakan harga termurah di Shopee. PENTING: Gunakan fitur pencarian web (Google Search) untuk mencari harga paling akurat dan real-time di pasaran saat ini, jangan asal menebak!
-- "price": Perkiraan harga jual pasaran yang wajar dalam Rupiah (angka saja, contoh: 3500)
+- "name": Nama produk lengkap (contoh: "Aqua Botol 600ml", "Xiaomi Outdoor Camera CW300")
+- "baseCost": WAJIB MENGGUNAKAN GOOGLE SEARCH UNTUK MENDAPATKAN HARGA ASLI SAAT INI. Jika barang Sparepart/Elektronik/Lainnya, gunakan referensi harga beli/termurah dari Shopee. Jika Makanan/Minuman/Sembako, gunakan referensi harga dari Indogrosir. JANGAN MENEBAK HARGA SECARA ACAK! (angka saja dalam Rupiah)
+- "price": Perkiraan harga jual pasaran yang wajar ke konsumen (harus lebih tinggi dari baseCost, angka saja)
 - "category": Kategori barang (Pilih salah satu atau buat yang relevan: Makanan, Minuman, Sembako, Rokok, Elektronik, Jasa, Lainnya)
 - "variation": Variasi barang (opsional, contoh: "Merah, XL", "Rasa Coklat")
 - "unit": Satuan barang (opsional, contoh: "pcs", "kg", "liter", "box", "pack")
