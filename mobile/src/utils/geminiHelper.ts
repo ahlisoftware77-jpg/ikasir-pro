@@ -10,7 +10,7 @@ export interface ProductDetailsResponse {
 
 export const validateGeminiApiKey = async (apiKey: string): Promise<{valid: boolean, error?: string}> => {
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: 'test' }] }] })
@@ -72,8 +72,8 @@ Tulis JSON murni saja.
       ]
     };
 
-    // 3. Panggil API Gemini 1.5 Flash
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+    // 3. Panggil API Gemini 1.5 Pro
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
