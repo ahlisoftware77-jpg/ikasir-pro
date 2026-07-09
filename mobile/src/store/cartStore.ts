@@ -11,6 +11,7 @@ export interface CartItem {
   storeId: string;
   storeName: string;
   stock: number;
+  extras?: any[];
 }
 
 interface CartState {

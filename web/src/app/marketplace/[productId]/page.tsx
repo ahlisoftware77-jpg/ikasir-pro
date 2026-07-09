@@ -577,7 +577,24 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
       toast.success("Pesanan Anda berhasil dikirim!");
       setIsCheckoutOpen(false);
 
-      // Redirect user to Marketplace Orders history
+      // Open WhatsApp and Redirect user to Marketplace Orders history
+      if (storePhone) {
+        // Format phone number to start with 62 if it starts with 0
+        let formattedPhone = storePhone.trim();
+        if (formattedPhone.startsWith('0')) {
+          formattedPhone = '62' + formattedPhone.slice(1);
+        } else if (formattedPhone.startsWith('+')) {
+          formattedPhone = formattedPhone.slice(1);
+        }
+        
+        const storeNameUrl = encodeURIComponent(product.storeName || 'Toko');
+        const productNameUrl = encodeURIComponent(product.name);
+        const fulfillmentText = fulfillmentType === 'pickup' ? 'Ambil+di+Toko' : 'Kirim+ke+Alamat';
+        const waUrl = `https://api.whatsapp.com/send/?phone=${formattedPhone}&text=Halo+${storeNameUrl}%2C+saya+telah+memesan+produk+via+Marketplace+iKasir.%0A%0A%2ADetail+Pesanan%3A%2A%0AID+Pesanan%3A+${finalId}%0AProduk%3A+%2A${productNameUrl}%2A+%28x${qty}%29%0ATotal+Bayar%3A+Rp+${finalTotal.toLocaleString('id-ID')}%0AMetode+Pembayaran%3A+${paymentMethod.toUpperCase()}%0APengambilan%3A+${fulfillmentText}%0A%0AMohon+konfirmasi+pesanan+saya%2C+terima+kasih%21&type=phone_number&app_absent=0`;
+        
+        window.open(waUrl, '_blank');
+      }
+
       router.push('/marketplace/orders');
     } catch (err: any) {
       console.error(err);
@@ -1774,8 +1791,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
 
       {/* Add to Cart Popup Modal */}
       {isCartPopupOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/75 dark:bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-white sm:bg-slate-900/75 dark:bg-slate-950 sm:dark:bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-sm flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 mb-16 sm:mb-0">
             
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-base font-black text-slate-900 dark:text-white">Masukkan Keranjang</h3>

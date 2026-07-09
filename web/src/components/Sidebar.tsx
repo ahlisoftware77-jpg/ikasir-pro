@@ -160,7 +160,7 @@ export default function Sidebar({ isOpen, onClose, logoUrl, onOpenNotifications 
     localStorage.removeItem('my_orders');
     
     setShowLogoutModal(false);
-    window.location.href = '/login';
+    setTimeout(() => { window.location.href = '/login'; }, 100);
   };
 
   const toggleMenu = (path: string) => {

@@ -21,7 +21,7 @@ import {
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
 } from 'lucide-react-native';
-import { printReceipt, printA4, printServiceReceipt, printServiceA4, shareReceiptPDF } from '../utils/ReceiptHelper';
+import { printReceipt, printA4, printServiceReceipt, printServiceA4, shareReceiptPDF, printServiceLabel } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -558,6 +558,16 @@ export default function FeatureScreen({ route, navigation }: any) {
       await printServiceA4(ticket, settingsData);
     } catch (err: any) {
       Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak A4: ' + (err.message || String(err)));
+    }
+  };
+
+  const handlePrintServiceLabel = async (ticket: any) => {
+    try {
+      const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+      const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
+      await printServiceLabel(ticket, settingsData);
+    } catch (err: any) {
+      Alert.alert('Gagal', 'Terjadi kesalahan saat memproses cetak label: ' + (err.message || String(err)));
     }
   };
 
@@ -9029,18 +9039,26 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={() => handlePrintServiceA4(selectedServiceTicket)}
-                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-amber-500/10 border border-amber-500/20"
+                  className="flex-1 py-3 rounded-2xl items-center justify-center bg-amber-500/10 border border-amber-500/20"
                 >
-                  <Text className="font-black text-xs uppercase tracking-widest text-amber-500">
+                  <Text className="font-black text-[10px] uppercase tracking-widest text-amber-500 text-center">
                     Cetak A4
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handlePrintServiceReceipt(selectedServiceTicket)}
-                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-emerald-500/10 border border-emerald-500/20"
+                  className="flex-1 py-3 rounded-2xl items-center justify-center bg-emerald-500/10 border border-emerald-500/20"
                 >
-                  <Text className="font-black text-xs uppercase tracking-widest text-emerald-500">
+                  <Text className="font-black text-[10px] uppercase tracking-widest text-emerald-500 text-center">
                     Cetak Struk
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handlePrintServiceLabel(selectedServiceTicket)}
+                  className="flex-1 py-3 rounded-2xl items-center justify-center bg-purple-500/10 border border-purple-500/20"
+                >
+                  <Text className="font-black text-[10px] uppercase tracking-widest text-purple-500 text-center">
+                    Cetak Label
                   </Text>
                 </TouchableOpacity>
               </View>

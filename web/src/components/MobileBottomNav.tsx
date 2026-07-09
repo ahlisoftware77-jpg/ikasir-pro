@@ -273,7 +273,7 @@ export default function MobileBottomNav() {
     if (typeof window !== 'undefined' && window.history.state?.type === 'nav-logout-modal') {
       window.history.back();
     }
-    window.location.href = '/login';
+    setTimeout(() => { window.location.href = '/login'; }, 100);
   };
 
   if (pathname.startsWith('/marketplace')) return null;

@@ -36,7 +36,7 @@ export default function BlockingModal() {
       router.push('/login');
     } catch (err) {
       console.error(err);
-      window.location.href = '/login';
+      setTimeout(() => { window.location.href = '/login'; }, 100);
     }
   };
 
