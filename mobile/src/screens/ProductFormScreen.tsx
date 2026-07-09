@@ -263,6 +263,13 @@ export default function ProductFormScreen({ route, navigation }: any) {
         category: productInfo.category || prev.category
       }));
       
+      setImages(prev => {
+        if (prev.length < 5 && !prev.includes(result.assets[0].uri)) {
+          return [...prev, result.assets[0].uri];
+        }
+        return prev;
+      });
+      
       Alert.alert('Sukses', 'AI berhasil menebak data produk!');
     } catch (err: any) {
       console.error(err);
