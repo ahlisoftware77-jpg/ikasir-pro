@@ -21,7 +21,7 @@ import {
   CheckCircle, ArrowUpRight, ArrowDownLeft, X, Edit2, Trash2, Check, CheckSquare, Square,
   ArrowRightLeft, ChevronRight, Circle, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingBag, Activity, ListFilter, Info,
   Printer, UserCog, Download, CalendarDays, Calendar, LayoutGrid, Wrench, User, Phone, Share2, Camera
-} from 'lucide-react-native';
+, Scan } from 'lucide-react-native';
 import { printReceipt, printA4, printServiceReceipt, printServiceA4, shareReceiptPDF, printServiceLabel } from '../utils/ReceiptHelper';
 import SwipeableItem from '../components/SwipeableItem';
 import { Calendar as RNCalendar } from 'react-native-calendars';
@@ -75,6 +75,8 @@ export default function FeatureScreen({ route, navigation }: any) {
   const { storeId, user, role, isSubscriptionExpired, subscriptionUntil } = useAuthStore();
 
   const [search, setSearch] = useState('');
+  const [showServiceScanner, setShowServiceScanner] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [isSearchVisible, setIsSearchVisible] = useState(true);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isSelectCustomerVisible, setIsSelectCustomerVisible] = useState(false);
@@ -230,8 +232,6 @@ export default function FeatureScreen({ route, navigation }: any) {
   // --- SYNCED SERVIS ELEKTRONIK STATES ---
   const [serviceTickets, setServiceTickets] = useState<any[]>([]);
   const [serviceSearch, setServiceSearch] = useState('');
-  const [showServiceScanner, setShowServiceScanner] = useState(false);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [serviceStatusFilter, setServiceStatusFilter] = useState<'all' | 'active' | 'completed' | 'taken' | 'cancelled'>('all');
   const [selectedServiceTicket, setSelectedServiceTicket] = useState<any | null>(null);
   const [isServiceDetailVisible, setIsServiceDetailVisible] = useState(false);
@@ -4093,6 +4093,7 @@ export default function FeatureScreen({ route, navigation }: any) {
             (t.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.deviceModel || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.serialNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+            (t.id || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.ticketNo || '').toLowerCase().includes(search.toLowerCase()) ||
             (t.customerPhone || '').includes(search);
             
@@ -4118,10 +4119,34 @@ export default function FeatureScreen({ route, navigation }: any) {
                   placeholder="Cari nama pelanggan, nomor tiket, S/N..."
                   placeholderTextColor={colors.textMuted}
                   value={search}
-                  onChangeText={setSearch}
+                  onChangeText={(val) => {
+                    let queryStr = val;
+                    if (queryStr.includes('t=')) {
+                      const match = queryStr.match(/[?&]t=([^&]+)/);
+                      if (match && match[1]) {
+                        queryStr = match[1];
+                      }
+                    }
+                    setSearch(queryStr);
+                  }}
                   className="flex-1 font-bold text-xs"
                   style={{ color: colors.text }}
                 />
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (!cameraPermission?.granted) {
+                      const res = await requestCameraPermission();
+                      if (!res.granted) {
+                        Alert.alert("Izin Ditolak", "Akses kamera dibutuhkan untuk scan QR code.");
+                        return;
+                      }
+                    }
+                    setShowServiceScanner(true);
+                  }}
+                  className="ml-2 w-8 h-8 rounded-lg items-center justify-center bg-emerald-500/10"
+                >
+                  <Scan size={18} className='text-emerald-500' color='#10b981' />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -6719,55 +6744,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     </View>
                   </View>
             
-      <Modal
-        visible={showServiceScanner}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowServiceScanner(false)}
-      >
-        <View className="flex-1 bg-black/90 justify-center">
-          <View className="absolute top-10 right-4 z-50">
-            <TouchableOpacity 
-              onPress={() => setShowServiceScanner(false)}
-              className="w-10 h-10 bg-white/20 rounded-full items-center justify-center"
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <View className="items-center mb-10 mt-20">
-            <Text className="text-white font-bold text-lg mb-2">Scan QR Tiket Servis</Text>
-            <Text className="text-slate-300 text-xs text-center px-10">Arahkan kamera ke QR code yang tertera pada label servis</Text>
-          </View>
-
-          <View className="h-[400px] w-full items-center justify-center overflow-hidden">
-            <CameraView
-              style={{ width: '100%', height: '100%' }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'code128', 'ean13', 'ean8', 'upc_e'],
-              }}
-              onBarcodeScanned={(result) => {
-                if (result.data) {
-                  // If it's a URL, extract the t parameter
-                  let queryStr = result.data;
-                  if (queryStr.includes('t=')) {
-                    const match = queryStr.match(/[?&]t=([^&]+)/);
-                    if (match && match[1]) {
-                      queryStr = match[1];
-                    }
-                  }
-                  setServiceSearch(queryStr);
-                  setShowServiceScanner(false);
-                }
-              }}
-            />
-            <View className="absolute w-[250px] h-[250px] border-2 border-emerald-500 rounded-3xl" />
-          </View>
-        </View>
-      </Modal>
-
-    </KeyboardAvoidingView>
+</KeyboardAvoidingView>
               </Modal>
             )}
 
@@ -6828,55 +6805,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     </Pressable>
                   </Pressable>
             
-      <Modal
-        visible={showServiceScanner}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowServiceScanner(false)}
-      >
-        <View className="flex-1 bg-black/90 justify-center">
-          <View className="absolute top-10 right-4 z-50">
-            <TouchableOpacity 
-              onPress={() => setShowServiceScanner(false)}
-              className="w-10 h-10 bg-white/20 rounded-full items-center justify-center"
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <View className="items-center mb-10 mt-20">
-            <Text className="text-white font-bold text-lg mb-2">Scan QR Tiket Servis</Text>
-            <Text className="text-slate-300 text-xs text-center px-10">Arahkan kamera ke QR code yang tertera pada label servis</Text>
-          </View>
-
-          <View className="h-[400px] w-full items-center justify-center overflow-hidden">
-            <CameraView
-              style={{ width: '100%', height: '100%' }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'code128', 'ean13', 'ean8', 'upc_e'],
-              }}
-              onBarcodeScanned={(result) => {
-                if (result.data) {
-                  // If it's a URL, extract the t parameter
-                  let queryStr = result.data;
-                  if (queryStr.includes('t=')) {
-                    const match = queryStr.match(/[?&]t=([^&]+)/);
-                    if (match && match[1]) {
-                      queryStr = match[1];
-                    }
-                  }
-                  setServiceSearch(queryStr);
-                  setShowServiceScanner(false);
-                }
-              }}
-            />
-            <View className="absolute w-[250px] h-[250px] border-2 border-emerald-500 rounded-3xl" />
-          </View>
-        </View>
-      </Modal>
-
-    </KeyboardAvoidingView>
+</KeyboardAvoidingView>
               </Modal>
             )}
           </View>
@@ -7121,55 +7050,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             </View>
           </View>
     
-      <Modal
-        visible={showServiceScanner}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowServiceScanner(false)}
-      >
-        <View className="flex-1 bg-black/90 justify-center">
-          <View className="absolute top-10 right-4 z-50">
-            <TouchableOpacity 
-              onPress={() => setShowServiceScanner(false)}
-              className="w-10 h-10 bg-white/20 rounded-full items-center justify-center"
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <View className="items-center mb-10 mt-20">
-            <Text className="text-white font-bold text-lg mb-2">Scan QR Tiket Servis</Text>
-            <Text className="text-slate-300 text-xs text-center px-10">Arahkan kamera ke QR code yang tertera pada label servis</Text>
-          </View>
-
-          <View className="h-[400px] w-full items-center justify-center overflow-hidden">
-            <CameraView
-              style={{ width: '100%', height: '100%' }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'code128', 'ean13', 'ean8', 'upc_e'],
-              }}
-              onBarcodeScanned={(result) => {
-                if (result.data) {
-                  // If it's a URL, extract the t parameter
-                  let queryStr = result.data;
-                  if (queryStr.includes('t=')) {
-                    const match = queryStr.match(/[?&]t=([^&]+)/);
-                    if (match && match[1]) {
-                      queryStr = match[1];
-                    }
-                  }
-                  setServiceSearch(queryStr);
-                  setShowServiceScanner(false);
-                }
-              }}
-            />
-            <View className="absolute w-[250px] h-[250px] border-2 border-emerald-500 rounded-3xl" />
-          </View>
-        </View>
-      </Modal>
-
-    </KeyboardAvoidingView>
+</KeyboardAvoidingView>
       </Modal>
 
       {/* Select Customer Sub-Modal */}
@@ -7386,55 +7267,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             </View>
           </View>
     
-      <Modal
-        visible={showServiceScanner}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowServiceScanner(false)}
-      >
-        <View className="flex-1 bg-black/90 justify-center">
-          <View className="absolute top-10 right-4 z-50">
-            <TouchableOpacity 
-              onPress={() => setShowServiceScanner(false)}
-              className="w-10 h-10 bg-white/20 rounded-full items-center justify-center"
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <View className="items-center mb-10 mt-20">
-            <Text className="text-white font-bold text-lg mb-2">Scan QR Tiket Servis</Text>
-            <Text className="text-slate-300 text-xs text-center px-10">Arahkan kamera ke QR code yang tertera pada label servis</Text>
-          </View>
-
-          <View className="h-[400px] w-full items-center justify-center overflow-hidden">
-            <CameraView
-              style={{ width: '100%', height: '100%' }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'code128', 'ean13', 'ean8', 'upc_e'],
-              }}
-              onBarcodeScanned={(result) => {
-                if (result.data) {
-                  // If it's a URL, extract the t parameter
-                  let queryStr = result.data;
-                  if (queryStr.includes('t=')) {
-                    const match = queryStr.match(/[?&]t=([^&]+)/);
-                    if (match && match[1]) {
-                      queryStr = match[1];
-                    }
-                  }
-                  setServiceSearch(queryStr);
-                  setShowServiceScanner(false);
-                }
-              }}
-            />
-            <View className="absolute w-[250px] h-[250px] border-2 border-emerald-500 rounded-3xl" />
-          </View>
-        </View>
-      </Modal>
-
-    </KeyboardAvoidingView>
+</KeyboardAvoidingView>
       </Modal>
 
       {/* STOCK OPNAME/ADJUSTMENT MODAL */}
@@ -7551,55 +7384,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             </View>
           </View>
     
-      <Modal
-        visible={showServiceScanner}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowServiceScanner(false)}
-      >
-        <View className="flex-1 bg-black/90 justify-center">
-          <View className="absolute top-10 right-4 z-50">
-            <TouchableOpacity 
-              onPress={() => setShowServiceScanner(false)}
-              className="w-10 h-10 bg-white/20 rounded-full items-center justify-center"
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <View className="items-center mb-10 mt-20">
-            <Text className="text-white font-bold text-lg mb-2">Scan QR Tiket Servis</Text>
-            <Text className="text-slate-300 text-xs text-center px-10">Arahkan kamera ke QR code yang tertera pada label servis</Text>
-          </View>
-
-          <View className="h-[400px] w-full items-center justify-center overflow-hidden">
-            <CameraView
-              style={{ width: '100%', height: '100%' }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'code128', 'ean13', 'ean8', 'upc_e'],
-              }}
-              onBarcodeScanned={(result) => {
-                if (result.data) {
-                  // If it's a URL, extract the t parameter
-                  let queryStr = result.data;
-                  if (queryStr.includes('t=')) {
-                    const match = queryStr.match(/[?&]t=([^&]+)/);
-                    if (match && match[1]) {
-                      queryStr = match[1];
-                    }
-                  }
-                  setServiceSearch(queryStr);
-                  setShowServiceScanner(false);
-                }
-              }}
-            />
-            <View className="absolute w-[250px] h-[250px] border-2 border-emerald-500 rounded-3xl" />
-          </View>
-        </View>
-      </Modal>
-
-    </KeyboardAvoidingView>
+</KeyboardAvoidingView>
       </Modal>
 
       {/* PRODUCT & CATEGORY SELECTOR MODAL FOR DISCOUNTS */}
@@ -8188,55 +7973,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
             </View>
           </View>
     
-      <Modal
-        visible={showServiceScanner}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowServiceScanner(false)}
-      >
-        <View className="flex-1 bg-black/90 justify-center">
-          <View className="absolute top-10 right-4 z-50">
-            <TouchableOpacity 
-              onPress={() => setShowServiceScanner(false)}
-              className="w-10 h-10 bg-white/20 rounded-full items-center justify-center"
-            >
-              <X size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          <View className="items-center mb-10 mt-20">
-            <Text className="text-white font-bold text-lg mb-2">Scan QR Tiket Servis</Text>
-            <Text className="text-slate-300 text-xs text-center px-10">Arahkan kamera ke QR code yang tertera pada label servis</Text>
-          </View>
-
-          <View className="h-[400px] w-full items-center justify-center overflow-hidden">
-            <CameraView
-              style={{ width: '100%', height: '100%' }}
-              facing="back"
-              barcodeScannerSettings={{
-                barcodeTypes: ['qr', 'code128', 'ean13', 'ean8', 'upc_e'],
-              }}
-              onBarcodeScanned={(result) => {
-                if (result.data) {
-                  // If it's a URL, extract the t parameter
-                  let queryStr = result.data;
-                  if (queryStr.includes('t=')) {
-                    const match = queryStr.match(/[?&]t=([^&]+)/);
-                    if (match && match[1]) {
-                      queryStr = match[1];
-                    }
-                  }
-                  setServiceSearch(queryStr);
-                  setShowServiceScanner(false);
-                }
-              }}
-            />
-            <View className="absolute w-[250px] h-[250px] border-2 border-emerald-500 rounded-3xl" />
-          </View>
-        </View>
-      </Modal>
-
-    </KeyboardAvoidingView>
+</KeyboardAvoidingView>
       </Modal>
 
       {/* 5. MODAL EDIT IZIN AKSES */}
