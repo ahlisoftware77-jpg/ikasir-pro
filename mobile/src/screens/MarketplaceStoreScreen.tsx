@@ -43,7 +43,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
   const [storeReviews, setStoreReviews] = useState<any[]>([]);
   
   // Store info
-  const [storeInfo, setStoreInfo] = useState<{name: string, logoUrl: string, desc?: string, phone?: string}>({
+  const [storeInfo, setStoreInfo] = useState<{name: string, logoUrl: string, desc?: string, phone?: string, address?: string}>({
     name: initialStoreName || 'Toko',
     logoUrl: ''
   });
@@ -73,7 +73,9 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
         setStoreInfo({
           name: sData.storeName || initialStoreName || 'Toko',
           logoUrl: sData.logoUrl || '',
-          desc: sData.storeDescription || ''
+          desc: sData.storeDescription || '',
+          phone: sData.phone || '',
+          address: sData.address || ''
         });
       }
 
@@ -372,6 +374,9 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
                 </View>
               )}
               <Text style={[styles.storeProfileName, { color: colors.text }]}>{storeInfo.name}</Text>
+              {!!storeInfo.address && (
+                <Text style={[styles.storeProfileDesc, { color: colors.text, marginTop: 4, fontWeight: 'bold' }]} numberOfLines={2}>{storeInfo.address}</Text>
+              )}
               {!!storeInfo.desc && (
                 <Text style={[styles.storeProfileDesc, { color: colors.textMuted }]} numberOfLines={3}>{storeInfo.desc}</Text>
               )}

@@ -303,6 +303,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
     isOnlineStoreActive: true,
     joinMarketplace: false,
     hiddenMarketplaceCategories: [] as string[],
+    hiddenOnlineStoreCategories: [] as string[],
     
     trxPrefix: 'TRX-',
     trxPadding: 4,
@@ -1329,6 +1330,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
               isOnlineStoreActive: data.isOnlineStoreActive !== false,
               joinMarketplace: data.joinMarketplace === true,
               hiddenMarketplaceCategories: data.hiddenMarketplaceCategories || [],
+              hiddenOnlineStoreCategories: data.hiddenOnlineStoreCategories || [],
               
               trxPrefix: data.trxPrefix || 'TRX-',
               trxPadding: data.trxPadding || 4,
@@ -2230,6 +2232,43 @@ export default function StoreSettingsScreen({ navigation }: any) {
                         thumbColor="#ffffff"
                       />
                     </View>
+
+                    {/* hiddenOnlineStoreCategories */}
+                    {storeSettings.isOnlineStoreActive && storeCategories.length > 0 && (
+                      <View className="mb-4 space-y-2">
+                        <Text className="text-[10px] font-black uppercase tracking-widest pl-1" style={{ color: colors.accent }}>Visibilitas Kategori</Text>
+                        <View className="p-3 rounded-2xl border flex-row flex-wrap" style={{ backgroundColor: colors.surface, borderColor: colors.border, gap: 8 }}>
+                          {storeCategories.map((cat, idx) => {
+                            const isHidden = storeSettings.hiddenOnlineStoreCategories?.includes(cat);
+                            return (
+                              <TouchableOpacity
+                                key={idx}
+                                onPress={() => {
+                                  setStoreSettings(prev => {
+                                    const hidden = prev.hiddenOnlineStoreCategories || [];
+                                    if (isHidden) {
+                                      return { ...prev, hiddenOnlineStoreCategories: hidden.filter(c => c !== cat) };
+                                    } else {
+                                      return { ...prev, hiddenOnlineStoreCategories: [...hidden, cat] };
+                                    }
+                                  });
+                                }}
+                                className="flex-row items-center px-3 py-1.5 rounded-full border"
+                                style={{
+                                  backgroundColor: isHidden ? colors.surface : colors.accent,
+                                  borderColor: isHidden ? colors.border : colors.accent
+                                }}
+                              >
+                                <Text className="text-[10px] font-bold" style={{ color: isHidden ? colors.text : '#fff' }}>
+                                  {cat}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+
 
                     {/* allowPickup Toggle */}
                     <View 

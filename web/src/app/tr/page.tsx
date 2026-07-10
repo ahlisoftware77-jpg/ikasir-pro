@@ -583,12 +583,17 @@ function PublicOrderContent() {
     };
   }, [myOrderIds, authUser, storeId]);
 
-  const categories = useMemo(() => {
-    const cats = ['Semua', ...new Set(products.map(p => p.category || 'Umum'))];
-    return cats;
-  }, [products]);
+  const visibleProducts = useMemo(() => {
+    if (!storeSettings?.hiddenOnlineStoreCategories || storeSettings.hiddenOnlineStoreCategories.length === 0) return products;
+    return products.filter(p => !storeSettings.hiddenOnlineStoreCategories.includes(p.category || 'Umum'));
+  }, [products, storeSettings]);
 
-  const filteredProducts = products.filter(p => {
+  const categories = useMemo(() => {
+    const cats = ['Semua', ...new Set(visibleProducts.map(p => p.category || 'Umum'))];
+    return cats;
+  }, [visibleProducts]);
+
+  const filteredProducts = visibleProducts.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const prodCategory = p.category || 'Umum';
     const matchesCategory = selectedCategory === 'Semua' || prodCategory === selectedCategory;
