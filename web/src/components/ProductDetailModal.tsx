@@ -1109,7 +1109,7 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                   onClick={() => {
                     addToCart({
                       ...product,
-                      price: getEffectivePrice(product).finalPrice,
+                      price: getEffectivePrice(product).price,
                       id: product.id,
                       name: product.name,
                       category: product.category,
