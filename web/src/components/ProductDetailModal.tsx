@@ -832,12 +832,12 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
   const previewMedia = previewIndex !== -1 ? gallery[previewIndex] : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 pb-24 lg:pb-8">
+    <div className="fixed inset-0 z-[100] overflow-y-auto min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 pb-24 lg:pb-8">
       {/* Navigation Bar */}
       <nav className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
         <button 
           onClick={() => {
-            router.push('/marketplace');
+            onClose();
           }}
           className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
         >
