@@ -1593,7 +1593,7 @@ export default function SettingsScreen({ navigation, route }: any) {
                 {user?.name || user?.email?.split('@')[0]}
               </Text>
               <Text className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">
-                {role === 'admin' ? 'Owner (Admin)' : 'Kasir'}
+                {role === 'super-admin' || role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Owner (Admin)' : 'Kasir'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -1957,7 +1957,7 @@ export default function SettingsScreen({ navigation, route }: any) {
               </TouchableOpacity>
               
               <Text className="text-xs font-bold uppercase tracking-widest text-teal-500 mb-1">
-                {role === 'admin' ? 'Owner (Admin)' : 'Kasir'}
+                {role === 'super-admin' || role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Owner (Admin)' : 'Kasir'}
               </Text>
 
               <View className="w-full">

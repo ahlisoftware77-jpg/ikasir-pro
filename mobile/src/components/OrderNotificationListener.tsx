@@ -396,8 +396,7 @@ export default function OrderNotificationListener() {
   // 1.5 Get FCM Device Token and save to Firestore
   useEffect(() => {
     async function registerFCMToken() {
-      const targetStoreId = (role === 'superadmin' || role === 'super-admin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel)) ? 'superadmin' : storeId;
-      if (!targetStoreId) return;
+      if (!storeId) return;
       try {
         const { status } = await Notifications.getPermissionsAsync();
         if (status !== 'granted') return;
@@ -409,10 +408,19 @@ export default function OrderNotificationListener() {
           console.log('[FG] FCM Device Token:', token);
           
           // Save to Firestore settings document in primaryDb so Web backend can access it
-          const storeSettingsRef = doc(primaryDb, 'settings', `store_${targetStoreId}`);
+          const storeSettingsRef = doc(primaryDb, 'settings', `store_${storeId}`);
           await setDoc(storeSettingsRef, {
             fcmTokens: arrayUnion(token)
           }, { merge: true });
+
+          // Also save to superadmin store if user has superadmin rights
+          const isSuperAdmin = role === 'superadmin' || role === 'super-admin' || !!(permissions && (permissions as any).canAccessSuperAdminPanel);
+          if (isSuperAdmin) {
+            const superAdminRef = doc(primaryDb, 'settings', `store_superadmin`);
+            await setDoc(superAdminRef, {
+              fcmTokens: arrayUnion(token)
+            }, { merge: true });
+          }
         }
       } catch (err) {
         console.warn('[FG] Failed to get/save FCM token. Please ensure google-services.json is configured:', err);
