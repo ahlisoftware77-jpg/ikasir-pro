@@ -118,8 +118,24 @@ const orderListenerTask = async (_taskData?: { delay: number }) => {
   const checkNewOrders = async (sid: string) => {
     try {
       console.log(`[BG-SERVICE] Polling orders for store: ${sid} via REST API`);
-      const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'kasir-3d12b';
-      const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAzmifpFOz0asKVDjLJDXVAvfTPNmOEiUw';
+      let projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'kasir-3d12b';
+      let apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAzmifpFOz0asKVDjLJDXVAvfTPNmOEiUw';
+      
+      try {
+        const rawInfra = await AsyncStorage.getItem('infra_config_fb');
+        if (rawInfra) {
+          const parsedInfra = JSON.parse(rawInfra);
+          if (parsedInfra.projectId && parsedInfra.apiKey) {
+            projectId = parsedInfra.projectId;
+            apiKey = parsedInfra.apiKey;
+          } else if (parsedInfra.fb_project_id && parsedInfra.fb_api_key) {
+            projectId = parsedInfra.fb_project_id;
+            apiKey = parsedInfra.fb_api_key;
+          }
+        }
+      } catch (e) {
+        console.error('[BG-SERVICE] Error reading infra_config_fb:', e);
+      }
       const token = await AsyncStorage.getItem('firebase_id_token');
 
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery?key=${apiKey}`;
