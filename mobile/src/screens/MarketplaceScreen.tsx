@@ -234,6 +234,8 @@ export default function MarketplaceScreen() {
       
       const tenantConfigs = new Map<string, any>();
       const storeToConfigMap: Record<string, any> = {};
+      const storeOwnerMap: Record<string, string> = {};
+      const primaryStoreLocMap: Record<string, {lat: number, lng: number}> = {};
       
       storesSnap.forEach(doc => {
         const sData = doc.data();
@@ -241,6 +243,22 @@ export default function MarketplaceScreen() {
         const pId = cfg.projectId || cfg.fb_project_id;
         if (pId) tenantConfigs.set(pId, cfg);
         storeToConfigMap[doc.id] = cfg;
+        
+        if (sData.ownerUid) storeOwnerMap[doc.id] = sData.ownerUid;
+        if (sData.latitude && sData.longitude) {
+           primaryStoreLocMap[doc.id] = { lat: sData.latitude, lng: sData.longitude };
+        }
+      });
+      
+      // Fetch users collection as a fallback source for GPS
+      const usersQ = query(collection(primaryDb, 'users'));
+      const usersSnap = await getDocs(usersQ);
+      const userLocMap: Record<string, { lat: number, lng: number }> = {};
+      usersSnap.forEach(doc => {
+        const u = doc.data();
+        if (u.latitude && u.longitude) {
+           userLocMap[doc.id] = { lat: u.latitude, lng: u.longitude };
+        }
       });
 
       const list: Product[] = [];
@@ -342,11 +360,28 @@ export default function MarketplaceScreen() {
 
       setStoreLogos(logoMap);
 
-      // Map latitude and longitude to products
+      // Map latitude and longitude to products with robust fallback across databases
       list.forEach(p => {
+         // Priority 1: Tenant settings
          if (locMap[p.storeId]) {
             p.storeLatitude = locMap[p.storeId].lat;
             p.storeLongitude = locMap[p.storeId].lng;
+         } 
+         // Priority 2: Primary stores collection
+         else if (primaryStoreLocMap[p.storeId]) {
+            p.storeLatitude = primaryStoreLocMap[p.storeId].lat;
+            p.storeLongitude = primaryStoreLocMap[p.storeId].lng;
+         } 
+         // Priority 3: Primary users collection (using store's ownerId)
+         else if (storeOwnerMap[p.storeId] && userLocMap[storeOwnerMap[p.storeId]]) {
+            const ownerId = storeOwnerMap[p.storeId];
+            p.storeLatitude = userLocMap[ownerId].lat;
+            p.storeLongitude = userLocMap[ownerId].lng;
+         } 
+         // Priority 4: Primary users collection (using storeId directly as fallback)
+         else if (userLocMap[p.storeId]) {
+            p.storeLatitude = userLocMap[p.storeId].lat;
+            p.storeLongitude = userLocMap[p.storeId].lng;
          }
       });
 
