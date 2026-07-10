@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, RefreshControl, Alert } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, ShoppingBag, Store, MapPin, ShoppingCart, Clock, PlayCircle, Tag, XCircle, Star } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ExpoLocation from 'expo-location';
 
 interface Product {
   id: string;
@@ -23,6 +24,8 @@ interface Product {
   manageStock?: boolean;
   averageRating?: number;
   reviewCount?: number;
+  storeLatitude?: number;
+  storeLongitude?: number;
   discount?: {
     type: 'percent' | 'fixed';
     value: number;
@@ -108,10 +111,53 @@ export default function MarketplaceScreen() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
+  const [radiusFilter, setRadiusFilter] = useState('Semua');
+  const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  
+  // Haversine formula
+  const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);  
+    const dLon = (lon2 - lon1) * (Math.PI / 180); 
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c; 
+  };
+  
+  const handleSetRadius = async (radius: string) => {
+    if (radius !== 'Semua' && !userLocation) {
+      setIsGettingLocation(true);
+      try {
+        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan izin akses lokasi (GPS) untuk mengatur radius jangkauan.');
+          setIsGettingLocation(false);
+          return;
+        }
+        
+        const location = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+      } catch (error: any) {
+        console.error(error);
+        Alert.alert('Gagal', 'Gagal mendapatkan lokasi. Pastikan GPS perangkat menyala.');
+        setIsGettingLocation(false);
+        return; // Don't set radius if location fails
+      }
+      setIsGettingLocation(false);
+    }
+    setRadiusFilter(radius);
+  };
   const [categories, setCategories] = useState<string[]>(['Semua']);
-  const [refreshing, setRefreshing] = useState(false);
   const [hasNewUpdate, setHasNewUpdate] = useState(false);
   const { user } = useAuthStore();
   
@@ -183,6 +229,18 @@ export default function MarketplaceScreen() {
     try {
       const storesQ = query(collection(primaryDb, 'stores'));
       const storesSnap = await getDocs(storesQ);
+      
+      // Fetch users to get latitude & longitude
+      const usersQ = query(collection(primaryDb, 'users'));
+      const usersSnap = await getDocs(usersQ);
+      const storeLocations: Record<string, { lat: number, lng: number }> = {};
+      usersSnap.forEach(doc => {
+        const u = doc.data();
+        if (u.latitude && u.longitude) {
+           storeLocations[doc.id] = { lat: u.latitude, lng: u.longitude };
+        }
+      });
+      
       const tenantConfigs = new Map<string, any>();
       const storeToConfigMap: Record<string, any> = {};
       
@@ -213,9 +271,12 @@ export default function MarketplaceScreen() {
               else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
             }
 
+            const loc = storeLocations[data.storeId];
             list.push({
               id: d.id,
               name: data.name || '',
+              storeLatitude: loc?.lat,
+              storeLongitude: loc?.lng,
               price: data.price || 0,
               category: data.category || 'Umum',
               imageUrl: finalImageUrl,
@@ -320,9 +381,25 @@ export default function MarketplaceScreen() {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             (p.storeName || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCat = selectedCategory === 'Semua' || p.category === selectedCategory;
-      return matchesSearch && matchesCat;
+      
+      let matchesRadius = true;
+      if (radiusFilter !== 'Semua') {
+        if (userLocation && p.storeLatitude && p.storeLongitude) {
+          const dist = getDistanceFromLatLonInKm(
+            userLocation.latitude, userLocation.longitude,
+            p.storeLatitude, p.storeLongitude
+          );
+          const maxDist = parseInt(radiusFilter);
+          matchesRadius = dist <= maxDist;
+        } else {
+          // If no location data for user or store, don't show it if a radius is active
+          matchesRadius = false; 
+        }
+      }
+
+      return matchesSearch && matchesCat && matchesRadius;
     });
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, searchQuery, selectedCategory, radiusFilter, userLocation]);
 
   const renderProductCard = ({ item }: { item: Product }) => {
     const outOfStock = item.manageStock !== false && (item.stock || 0) <= 0;
@@ -390,6 +467,14 @@ export default function MarketplaceScreen() {
           <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
+          {/* Radius Filter */}
+          <View className="mb-4">
+            <View className="flex-row items-center px-4 mb-2">
+              <MapPin size={14} color={colors.textMuted} />
+              <Text className="text-[10px] font-black uppercase tracking-widest ml-1" style={{ color: colors.textMuted }}>Radius Jangkauan</Text>
+              {isGettingLocation && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
+            </View>
+          </View>
           {hasDiscount ? (
             <View style={styles.priceContainer}>
               <Text style={[styles.originalPrice, { color: colors.textMuted }]}>
@@ -487,6 +572,36 @@ export default function MarketplaceScreen() {
                 </TouchableOpacity>
               );
             }}
+          />
+        </View>
+        
+        {/* Radius Filter */}
+        <View className="mb-4">
+          <View className="flex-row items-center px-4 mb-2">
+            <MapPin size={14} color={colors.textMuted} />
+            <Text className="text-[10px] font-black uppercase tracking-widest ml-1" style={{ color: colors.textMuted }}>Radius Jangkauan</Text>
+            {isGettingLocation && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
+          </View>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={['Semua', '5', '10', '25', '50']}
+            keyExtractor={(item) => item}
+            contentContainerStyle={styles.categoriesList}
+            renderItem={({ item: r }) => (
+              <TouchableOpacity
+                onPress={() => handleSetRadius(r)}
+                className="mr-2 px-3 py-1.5 rounded-full border"
+                style={{
+                  backgroundColor: radiusFilter === r ? colors.accent : colors.surface,
+                  borderColor: radiusFilter === r ? colors.accent : colors.border
+                }}
+              >
+                <Text className="text-[10px] font-bold" style={{ color: radiusFilter === r ? '#fff' : colors.text }}>
+                  {r === 'Semua' ? 'Semua Jarak' : `< ${r} km`}
+                </Text>
+              </TouchableOpacity>
+            )}
           />
         </View>
       </View>

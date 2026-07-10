@@ -204,6 +204,8 @@ export default function DashboardScreen({ navigation }: any) {
   const [showCategorySettings, setShowCategorySettings] = useState(false);
   const [storeCategories, setStoreCategories] = useState<string[]>([]);
   const [hiddenMarketplaceCategories, setHiddenMarketplaceCategories] = useState<string[]>([]);
+  const [hiddenOnlineStoreCategories, setHiddenOnlineStoreCategories] = useState<string[]>([]);
+  const [categorySettingsTab, setCategorySettingsTab] = useState<'marketplace' | 'online'>('marketplace');
 
   const toggleCategorySettings = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -222,6 +224,24 @@ export default function DashboardScreen({ navigation }: any) {
       const { doc, updateDoc } = await import('firebase/firestore');
       const settingsRef = doc(db, 'settings', `store_${storeId}`);
       await updateDoc(settingsRef, { hiddenMarketplaceCategories: newHidden });
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', 'Gagal mengatur visibilitas kategori: ' + err.message);
+    }
+  };
+
+  const handleToggleOnlineCategory = async (cat: string) => {
+    try {
+      const isHidden = hiddenOnlineStoreCategories.includes(cat);
+      const newHidden = isHidden 
+        ? hiddenOnlineStoreCategories.filter(c => c !== cat)
+        : [...hiddenOnlineStoreCategories, cat];
+        
+      setHiddenOnlineStoreCategories(newHidden); // optimis
+      
+      const { doc, updateDoc } = await import('firebase/firestore');
+      const settingsRef = doc(db, 'settings', `store_${storeId}`);
+      await updateDoc(settingsRef, { hiddenOnlineStoreCategories: newHidden });
     } catch (err: any) {
       console.error(err);
       Alert.alert('Gagal', 'Gagal mengatur visibilitas kategori: ' + err.message);
@@ -308,6 +328,7 @@ export default function DashboardScreen({ navigation }: any) {
         setJoinMarketplace(data.joinMarketplace === true);
         setIsOnlineStoreActive(data.isOnlineStoreActive !== false);
         setHiddenMarketplaceCategories(data.hiddenMarketplaceCategories || []);
+        setHiddenOnlineStoreCategories(data.hiddenOnlineStoreCategories || []);
       }
     });
 

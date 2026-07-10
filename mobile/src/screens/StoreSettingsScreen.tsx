@@ -29,6 +29,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
+import * as ExpoLocation from 'expo-location';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import SignaturePad from '../components/SignaturePad';
@@ -279,6 +280,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
   const [storeSettings, setStoreSettings] = useState({
     storeName: '',
     address: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
     phone: '',
     npwp: '',
     bankInfo: '',
@@ -1306,6 +1309,8 @@ export default function StoreSettingsScreen({ navigation }: any) {
             const parsedSettings = {
               storeName: data.storeName || '',
               address: data.address || '',
+              latitude: data.latitude || null,
+              longitude: data.longitude || null,
               phone: data.phone || '',
               npwp: data.npwp || '',
               bankInfo: data.bankInfo || '',
@@ -1422,6 +1427,33 @@ export default function StoreSettingsScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, storeSettings, initialStoreSettings, isSavingSettings]);
 
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  const handleGetLocation = async () => {
+    setIsGettingLocation(true);
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan izin akses lokasi (GPS) untuk mengatur radius toko.');
+        setIsGettingLocation(false);
+        return;
+      }
+      
+      const location = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced });
+      setStoreSettings(prev => ({
+        ...prev,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      }));
+      Alert.alert('Sukses', 'Lokasi (GPS) berhasil didapatkan.');
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Gagal', 'Gagal mendapatkan lokasi. Pastikan GPS perangkat menyala.');
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
   const handleSaveStoreSettings = async () => {
     if (!storeId) return;
     Vibration.vibrate(15);
@@ -1467,14 +1499,16 @@ export default function StoreSettingsScreen({ navigation }: any) {
       }).catch(() => {});
       
       // Sync phone and address to user profile
-      if (storeSettings.phone || storeSettings.address) {
+      if (storeSettings.phone || storeSettings.address || storeSettings.latitude) {
         try {
           const userRef = doc(primaryDb, 'users', storeId);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             await updateDoc(userRef, { 
               phone: storeSettings.phone || '',
-              address: storeSettings.address || ''
+              address: storeSettings.address || '',
+              latitude: storeSettings.latitude || null,
+              longitude: storeSettings.longitude || null
             });
           }
         } catch (uErr) {
