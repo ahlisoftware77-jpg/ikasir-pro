@@ -1221,7 +1221,7 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
       </main>
 
       {/* Bottom Action Bar (All Views) */}
-            <div className="relative z-40 w-full mt-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-4 flex items-center justify-between gap-3">
+            <div className="fixed bottom-0 left-0 right-0 z-50 w-full mt-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-4 flex items-center justify-between gap-3">
               {(() => {
                 return (
                   <>
