@@ -230,16 +230,7 @@ export default function MarketplaceScreen() {
       const storesQ = query(collection(primaryDb, 'stores'));
       const storesSnap = await getDocs(storesQ);
       
-      // Fetch users to get latitude & longitude
-      const usersQ = query(collection(primaryDb, 'users'));
-      const usersSnap = await getDocs(usersQ);
-      const storeLocations: Record<string, { lat: number, lng: number }> = {};
-      usersSnap.forEach(doc => {
-        const u = doc.data();
-        if (u.latitude && u.longitude) {
-           storeLocations[doc.id] = { lat: u.latitude, lng: u.longitude };
-        }
-      });
+      // Coordinates are now fetched from store settings concurrently later.
       
       const tenantConfigs = new Map<string, any>();
       const storeToConfigMap: Record<string, any> = {};
@@ -271,12 +262,12 @@ export default function MarketplaceScreen() {
               else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
             }
 
-            const loc = storeLocations[data.storeId];
+            // Coordinates will be injected later
             list.push({
               id: d.id,
               name: data.name || '',
-              storeLatitude: loc?.lat,
-              storeLongitude: loc?.lng,
+              storeLatitude: undefined,
+              storeLongitude: undefined,
               price: data.price || 0,
               category: data.category || 'Umum',
               imageUrl: finalImageUrl,
@@ -329,6 +320,7 @@ export default function MarketplaceScreen() {
       // Fetch store details concurrently
       const logoMap: Record<string, string> = {};
       const hiddenCatMap: Record<string, string[]> = {};
+      const locMap: Record<string, { lat: number, lng: number }> = {};
       await Promise.all(
         Array.from(uniqueStoreIds).map(async (storeId) => {
           try {
@@ -340,12 +332,23 @@ export default function MarketplaceScreen() {
               const sData = sSnap.data();
               if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
               if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
+              if (sData.latitude && sData.longitude) {
+                 locMap[storeId] = { lat: sData.latitude, lng: sData.longitude };
+              }
             }
           } catch (e) {}
         })
       );
 
       setStoreLogos(logoMap);
+
+      // Map latitude and longitude to products
+      list.forEach(p => {
+         if (locMap[p.storeId]) {
+            p.storeLatitude = locMap[p.storeId].lat;
+            p.storeLongitude = locMap[p.storeId].lng;
+         }
+      });
 
       // Filter products based on store's hidden categories
       const visibleList = list.filter(p => {
