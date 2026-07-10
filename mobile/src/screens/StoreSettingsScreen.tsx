@@ -20,7 +20,7 @@ import {
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
   Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save, Landmark, Wallet,
   Printer
-} from 'lucide-react-native';
+, MapPin } from 'lucide-react-native';
 import { printReceipt } from '../utils/ReceiptHelper';
 import { db, auth, storage , primaryDb} from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
@@ -1754,6 +1754,17 @@ export default function StoreSettingsScreen({ navigation }: any) {
                         className="p-4 rounded-2xl border font-bold text-xs min-h-[80px]"
                         style={{ backgroundColor: colors.surface, borderColor: colors.border, color: colors.text, textAlignVertical: 'top' }}
                       />
+                      <TouchableOpacity
+                        onPress={handleGetLocation}
+                        disabled={isGettingLocation}
+                        className="flex-row items-center justify-center p-3 rounded-xl border mt-2"
+                        style={{ backgroundColor: storeSettings.latitude ? 'rgba(16, 185, 129, 0.1)' : colors.surface, borderColor: storeSettings.latitude ? '#10b981' : colors.border }}
+                      >
+                        <MapPin size={16} color={storeSettings.latitude ? '#10b981' : colors.textMuted} style={{ marginRight: 8 }} />
+                        <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: storeSettings.latitude ? '#10b981' : colors.text }}>
+                          {isGettingLocation ? 'Mencari Lokasi...' : (storeSettings.latitude ? 'Kordinat GPS Tersimpan (Perbarui)' : 'Ambil Kordinat GPS Saat Ini')}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
 
                     {/* Phone Input */}
