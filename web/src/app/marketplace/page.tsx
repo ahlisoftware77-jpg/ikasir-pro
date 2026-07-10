@@ -8,6 +8,7 @@ import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Z
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
 import CartButton from '@/components/CartButton';
+import ProductDetailModal from '@/components/ProductDetailModal';
 
 interface Product {
   id: string;
@@ -43,6 +44,10 @@ function MarketplaceContent() {
   const [storeAddresses, setStoreAddresses] = useState<Record<string, string>>({});
   const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
   
+  // Product Detail Modal state
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedProductStoreId, setSelectedProductStoreId] = useState<string | null>(null);
+
   // Flash Sale state
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
@@ -406,7 +411,7 @@ function MarketplaceContent() {
                             return (
                               <button
                                 key={fsProd.productId}
-                                onClick={() => router.push(`/marketplace/${prod.id}?s=${prod.storeId}`)}
+                                onClick={() => { setSelectedProductId(prod.id); setSelectedProductStoreId(prod.storeId); }}
                                 className="flex-shrink-0 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-700 rounded-2xl p-3 w-36 md:w-44 text-left transition-all hover:scale-95 active:scale-90 relative overflow-hidden shadow-sm"
                               >
                                 <h5 className="font-extrabold text-xs truncate text-slate-800 dark:text-slate-200 leading-snug">{prod.name}</h5>
@@ -465,7 +470,7 @@ function MarketplaceContent() {
                   key={prod.id} 
                   onClick={() => {
                     // Navigate to the dynamic detail page
-                    router.push(`/marketplace/${prod.id}?s=${prod.storeId}`);
+                    { setSelectedProductId(prod.id); setSelectedProductStoreId(prod.storeId); }
                   }}
                   className="group bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col hover:border-emerald-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/5 hover:-translate-y-1 cursor-pointer shadow-sm"
                 >
@@ -614,6 +619,12 @@ function MarketplaceContent() {
       </footer>
 
       <CartButton />
+      <ProductDetailModal 
+        isOpen={!!selectedProductId} 
+        productId={selectedProductId} 
+        routeStoreId={selectedProductStoreId} 
+        onClose={() => setSelectedProductId(null)} 
+      />
     </div>
   );
 }

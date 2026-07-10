@@ -90,11 +90,8 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
   return uploadResult.secure_url;
 };
 
-export default function ProductDetailPage({ params }: { params: Promise<{ productId: string }> }) {
-  const { productId } = use(params);
+export default function ProductDetailModal({ productId, routeStoreId, isOpen, onClose }: { productId: string | null; routeStoreId: string | null; isOpen: boolean; onClose: () => void }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const routeStoreId = searchParams.get('s');
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -103,6 +100,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
   const [selectedExtras, setSelectedExtras] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  if (!isOpen) return null;
 
   // Store metadata mappings
   const [storePhone, setStorePhone] = useState('');
@@ -1109,8 +1107,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ produc
                 <button
                   disabled={product.manageStock !== false && (product.stock || 0) <= 0}
                   onClick={() => {
-                    setCartQty(1);
-                    setIsCartPopupOpen(true);
+                    addToCart({
+                      ...product,
+                      price: finalPrice,
+                      id: product.id,
+                      name: product.name,
+                      category: product.category,
+                      storeId: product.storeId,
+                    }, 1);
+                    toast.success('Berhasil ditambahkan ke keranjang!');
                   }}
                   className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
                     product.manageStock !== false && (product.stock || 0) <= 0
