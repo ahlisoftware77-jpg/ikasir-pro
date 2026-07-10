@@ -100,8 +100,6 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
   const [selectedExtras, setSelectedExtras] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  if (!isOpen) return null;
-
   // Store metadata mappings
   const [storePhone, setStorePhone] = useState('');
   const [storeAddress, setStoreAddress] = useState('');
@@ -801,6 +799,8 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
     
     return list.length > 0 ? list : [{ type: 'image', url: '' }];
   };
+
+  if (!isOpen) return null;
 
   if (loading) {
     return (
