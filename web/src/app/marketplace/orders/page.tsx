@@ -241,10 +241,20 @@ export default function MarketplaceOrdersPage() {
                               let storePhone = '';
                               try {
                                 if (order.storeId) {
-                                  const storeRef = doc(db, 'settings', `store_${order.storeId}`);
-                                  const storeSnap = await getDoc(storeRef);
-                                  if (storeSnap.exists()) {
-                                    storePhone = storeSnap.data().phone || storeSnap.data().storePhone || '';
+                                  // First try stores collection in primaryDb
+                                  const sRef = doc(primaryDb, 'stores', order.storeId);
+                                  const sSnap = await getDoc(sRef);
+                                  if (sSnap.exists() && sSnap.data().phone) {
+                                    storePhone = sSnap.data().phone;
+                                  } else {
+                                    // Fallback to users collection
+                                    let ownerId = sSnap.exists() ? sSnap.data().ownerId : order.storeId;
+                                    if (!ownerId) ownerId = order.storeId;
+                                    const uRef = doc(primaryDb, 'users', ownerId);
+                                    const uSnap = await getDoc(uRef);
+                                    if (uSnap.exists() && uSnap.data().phone) {
+                                      storePhone = uSnap.data().phone;
+                                    }
                                   }
                                 }
                               } catch (e) {
