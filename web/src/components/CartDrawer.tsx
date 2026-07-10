@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, runTransaction, serverTimestamp, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -61,13 +61,25 @@ export default function CartDrawer() {
       // Create a transaction for each store
       // Create a transaction for each store sequentially to avoid counter collision
       for (const [storeId, storeItems] of Object.entries(itemsByStore)) {
-        const result = await runTransaction(db, async (transaction) => {
-          const settingsRef = doc(db, 'settings', `store_${storeId}`);
+        let tDb = db;
+        try {
+          const sRefPrimary = doc(primaryDb, 'stores', storeId);
+          const sSnapPrimary = await getDoc(sRefPrimary);
+          if (sSnapPrimary.exists()) {
+            const cfg = sSnapPrimary.data().infraConfig;
+            tDb = cfg ? getTenantDb(cfg) : primaryDb;
+          }
+        } catch (e) {
+          console.warn("Failed to fetch tenant config", e);
+        }
+
+        const result = await runTransaction(tDb, async (transaction) => {
+          const settingsRef = doc(tDb, 'settings', `store_${storeId}`);
           const settingsSnap = await transaction.get(settingsRef);
           
           const productReads = [];
           for (const item of storeItems) {
-            const pRef = doc(db, 'products', item.productId);
+            const pRef = doc(tDb, 'products', item.productId);
             const pSnap = await transaction.get(pRef);
             productReads.push({ ref: pRef, snap: pSnap, item });
           }
@@ -139,7 +151,7 @@ export default function CartDrawer() {
             }
           }
 
-          const newOrderRef = doc(db, 'transactions', finalId);
+          const newOrderRef = doc(tDb, 'transactions', finalId);
           transaction.set(newOrderRef, orderData);
           transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
           
