@@ -1251,7 +1251,7 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                           qty: 1,
                           imageUrl: product.imageUrl,
                           isFlashSale: ep.isFlashSale,
-                          selectedExtras: selectedExtras
+                          extras: getFormattedExtras()
                         });
                         toast.success('Berhasil dimasukkan ke keranjang');
                       }}
