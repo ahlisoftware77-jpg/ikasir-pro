@@ -1107,14 +1107,18 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                 <button
                   disabled={product.manageStock !== false && (product.stock || 0) <= 0}
                   onClick={() => {
+                    const ep = getEffectivePrice(product);
                     addToCart({
-                      ...product,
-                      price: getEffectivePrice(product).price,
-                      id: product.id,
-                      name: product.name,
-                      category: product.category,
+                      productId: product.id,
+                      productName: product.name,
+                      price: ep.price,
                       storeId: product.storeId,
-                    }, 1);
+                      storeName: product.storeName || 'Toko',
+                      storePhone: storePhone || '',
+                      qty: 1,
+                      imageUrl: product.imageUrl,
+                      isFlashSale: ep.isFlashSale
+                    });
                     toast.success('Berhasil ditambahkan ke keranjang!');
                   }}
                   className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
