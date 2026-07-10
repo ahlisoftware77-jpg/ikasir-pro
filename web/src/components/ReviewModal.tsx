@@ -13,6 +13,7 @@ interface ReviewModalProps {
   orderId: string;
   customerName: string;
   customerPhone: string;
+  onSuccess?: () => void;
 }
 
 export default function ReviewModal({
@@ -24,6 +25,7 @@ export default function ReviewModal({
   orderId,
   customerName,
   customerPhone,
+  onSuccess,
 }: ReviewModalProps) {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -116,6 +118,7 @@ export default function ReviewModal({
       }
 
       toast.success('Ulasan berhasil dikirim. Terima kasih!');
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error) {
       console.error('Error submitting review:', error);

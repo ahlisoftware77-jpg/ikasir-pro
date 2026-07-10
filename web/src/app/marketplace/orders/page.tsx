@@ -528,6 +528,22 @@ export default function MarketplaceOrdersPage() {
         <ReviewModal
           isOpen={true}
           onClose={() => setReviewProduct(null)}
+          onSuccess={() => {
+            setOrders(prev => prev.map(order => {
+              if (order.id === reviewProduct.orderId) {
+                return {
+                  ...order,
+                  items: order.items?.map((item: any) => {
+                    if (item.productId === reviewProduct.productId || item.id === reviewProduct.productId) {
+                      return { ...item, isReviewed: true };
+                    }
+                    return item;
+                  })
+                };
+              }
+              return order;
+            }));
+          }}
           {...reviewProduct}
         />
       )}
