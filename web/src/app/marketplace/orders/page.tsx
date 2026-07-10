@@ -54,6 +54,7 @@ export default function MarketplaceOrdersPage() {
 
       const fetchedMap = new Map();
       const storeNames: Record<string, string> = {};
+      const storePhones: Record<string, string> = {};
 
       await Promise.all(Array.from(tenantConfigs.values()).map(async (cfg) => {
         try {
@@ -83,6 +84,9 @@ export default function MarketplaceOrdersPage() {
               if (sData.storeName) {
                 storeNames[sId] = sData.storeName;
               }
+              if (sData.phone) {
+                storePhones[sId] = sData.phone;
+              }
             }
           });
         } catch (tErr) {
@@ -93,8 +97,9 @@ export default function MarketplaceOrdersPage() {
       let list: any[] = Array.from(fetchedMap.values());
       
       for (const data of list) {
-        if (data.storeId && storeNames[data.storeId]) {
-          data.storeName = storeNames[data.storeId];
+        if (data.storeId) {
+          if (storeNames[data.storeId]) data.storeName = storeNames[data.storeId];
+          if (storePhones[data.storeId]) data.storePhone = storePhones[data.storeId];
         }
       }
       
@@ -262,7 +267,7 @@ export default function MarketplaceOrdersPage() {
                               }
                               
                               if (!storePhone) {
-                                storePhone = order.items?.[0]?.storePhone || '';
+                                storePhone = order.storePhone || order.items?.[0]?.storePhone || '';
                               }
 
                               let formattedPhone = storePhone.replace(/[^0-9]/g, '');
