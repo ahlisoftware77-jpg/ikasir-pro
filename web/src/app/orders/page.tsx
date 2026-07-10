@@ -629,7 +629,7 @@ export default function OrdersPage() {
                                     {item.qty}x
                                  </div>
                                  <div className="flex-1">
-                                     <p className="text-sm font-black text-foreground">{item.productName}</p>
+                                     <p className="text-sm font-black text-foreground">{item.productName || item.name}</p>
                                      <div className="flex gap-2">
                                         <p className="text-[10px] text-app-text-muted font-bold">Rp {item.price.toLocaleString('id-ID')}</p>
                                         {item.selectedExtras?.length > 0 && (
@@ -1126,7 +1126,7 @@ export default function OrdersPage() {
                     {viewingReceipt.items?.map((item: any, i: number) => (
                       <div key={i} className="space-y-1">
                          <div className="flex justify-between text-slate-900 font-bold uppercase">
-                            <span className="flex-1 mr-4">{item.productName}</span>
+                             <span className="flex-1 mr-4">{item.productName || item.name}</span>
                             <span>Rp {(item.subtotal || (item.price * item.qty) || 0).toLocaleString('id-ID')}</span>
                          </div>
                          <div className="flex justify-between text-slate-500">

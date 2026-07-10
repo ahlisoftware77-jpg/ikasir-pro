@@ -190,10 +190,10 @@ export default function MarketplaceOrdersPage() {
                             className={`flex gap-3 items-center ${item.productId ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2 -mx-2 rounded-xl transition-colors' : ''}`}
                           >
                             <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-hidden shrink-0">
-                              {item.imageUrl ? <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" /> : <Package className="w-full h-full p-3 text-slate-300" />}
+                              {item.imageUrl ? <img src={item.imageUrl} alt={item.productName || item.name} className="w-full h-full object-cover" /> : <Package className="w-full h-full p-3 text-slate-300" />}
                             </div>
                             <div className="flex-1">
-                              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{item.productName}</h4>
+                              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{item.productName || item.name}</h4>
                               <p className="text-[10px] text-slate-500">{item.qty} x Rp {item.price?.toLocaleString('id-ID')}</p>
                               {item.selectedExtras && item.selectedExtras.length > 0 && (
                                 <div className="mt-1 space-y-0.5">
@@ -280,7 +280,7 @@ export default function MarketplaceOrdersPage() {
 
                               let message = `Halo, saya memesan dari Marketplace iKasir (Order ID: ${order.id}):\n\n`;
                               (order.items || []).forEach((item: any) => {
-                                message += `- *${item.productName}* (${item.qty}x) = Rp ${(item.price * item.qty).toLocaleString('id-ID')}\n`;
+                                message += `- *${item.productName || item.name}* (${item.qty}x) = Rp ${(item.price * item.qty).toLocaleString('id-ID')}\n`;
                               });
                               message += `\n*Total: Rp ${(order.total || order.totalAmount || 0).toLocaleString('id-ID')}*`;
                               
