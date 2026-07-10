@@ -1090,58 +1090,7 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                 </div>
               )}
 
-              {/* Desktop Checkout / Buy Action Buttons */}
-              <div className="flex flex-wrap sm:flex-nowrap gap-3 pt-2">
-                <button
-                  disabled={product.manageStock !== false && (product.stock || 0) <= 0}
-                  onClick={() => handleOpenCheckout()}
-                  className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md ${
-                    product.manageStock !== false && (product.stock || 0) <= 0
-                      ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
-                      : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
-                  }`}
-                >
-                  <ShoppingBag size={16} />
-                  <span>Beli Sekarang</span>
-                </button>
-                <button
-                  disabled={product.manageStock !== false && (product.stock || 0) <= 0}
-                  onClick={() => {
-                    const ep = getEffectivePrice(product);
-                    addToCart({
-                      productId: product.id,
-                      productName: product.name,
-                      price: ep.price,
-                      storeId: product.storeId,
-                      storeName: product.storeName || 'Toko',
-                      storePhone: storePhone || '',
-                      qty: 1,
-                      imageUrl: product.imageUrl,
-                      isFlashSale: ep.isFlashSale
-                    });
-                    toast.success('Berhasil ditambahkan ke keranjang!');
-                  }}
-                  className={`flex-1 py-4 px-2 rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
-                    product.manageStock !== false && (product.stock || 0) <= 0
-                      ? 'border-slate-300 dark:border-slate-800 text-slate-400 cursor-not-allowed'
-                      : 'border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30'
-                  }`}
-                >
-                  <Plus size={16} className="stroke-[3]" />
-                  <span>+ Keranjang</span>
-                </button>
-                {waLink && (
-                  <a
-                    href={waLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-none px-5 py-4 border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900/60 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
-                  >
-                    <MessageSquare size={16} />
-                  </a>
-                )}
               </div>
-            </div>
 
             {/* Description Panel */}
             <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-3">
@@ -1271,53 +1220,69 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
         )}
       </main>
 
-      {/* Bottom Bar for Mobile View */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-4 flex items-center justify-between gap-3 lg:hidden">
-        {(() => {
-          return (
-            <>
-              {waLink && (
-                <a
-                  href={waLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-none px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
-                >
-                  <MessageSquare size={18} />
-                </a>
-              )}
-              
-              <button
-                onClick={() => {
-                  setCartQty(1);
-                  setIsCartPopupOpen(true);
-                }}
-                disabled={product.manageStock !== false && (product.stock || 0) <= 0}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm ${
-                  product.manageStock !== false && (product.stock || 0) <= 0
-                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
-                    : 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
-                }`}
-              >
-                <ShoppingBag size={14} className="stroke-[2.5]" />
-                <span>Keranjang</span>
-              </button>
-
-              <button
-                onClick={() => handleOpenCheckout()}
-                disabled={product.manageStock !== false && (product.stock || 0) <= 0}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md ${
-                  product.manageStock !== false && (product.stock || 0) <= 0
-                    ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
-                    : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
-                }`}
-              >
-                <span>Beli Sekarang</span>
-              </button>
-            </>
-          );
-        })()}
-      </div>
+      {/* Bottom Action Bar (All Views) */}
+            <div className="relative z-40 w-full mt-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-4 flex items-center justify-between gap-3">
+              {(() => {
+                return (
+                  <>
+                    {waLink && (
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-none px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-2xl flex items-center justify-center active:scale-95 transition-all"
+                      >
+                        <MessageSquare size={18} />
+                      </a>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        const ep = getEffectivePrice(product);
+                        // Convert selectedExtras object to array format expected by cart if needed, 
+                        // or just pass as is. The cart context can handle it.
+                        addToCart({
+                          productId: product.id,
+                          productName: product.name,
+                          price: unitPrice,
+                          storeId: product.storeId,
+                          storeName: product.storeName || 'Toko Mitra',
+                          storePhone: storePhone,
+                          qty: 1,
+                          imageUrl: product.imageUrl,
+                          isFlashSale: ep.isFlashSale,
+                          selectedExtras: selectedExtras
+                        });
+                        toast.success('Berhasil dimasukkan ke keranjang');
+                      }}
+                      disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+                      className={`flex-1 py-2.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-sm ${
+                        product.manageStock !== false && (product.stock || 0) <= 0
+                          ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 border border-emerald-500'
+                      }`}
+                    >
+                      <ShoppingBag size={14} className="stroke-[2.5]" />
+                      <span>Keranjang</span>
+                    </button>
+      
+                    <button
+                      onClick={() => handleOpenCheckout()}
+                      disabled={product.manageStock !== false && (product.stock || 0) <= 0}
+                      className={`flex-1 py-2.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md ${
+                        product.manageStock !== false && (product.stock || 0) <= 0
+                          ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none'
+                          : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 shadow-emerald-500/20'
+                      }`}
+                    >
+                      <span>Beli Sekarang</span>
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
+      
+            {/* Fullscreen Media Preview Modal
 
       {/* Fullscreen Media Preview Modal (Lightbox) - Bounded Size with Arrows */}
       {previewMedia && (
