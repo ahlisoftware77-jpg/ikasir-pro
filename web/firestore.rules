@@ -13,13 +13,18 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentProofUrl', 'updatedAt']);
     }
 
+    // Fungsi pembantu untuk memvalidasi bahwa pelanggan menandai produk sebagai telah diulas
+    function isCustomerUpdatingReview() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items', 'updatedAt']);
+    }
+
     // Aturan untuk Koleksi Transaksi
     match /transactions/{transactionId} {
       // Izinkan baca untuk siapa saja (pembeli & admin) dalam konteks POS/order online
       allow read: if true;
       
-      // Izinkan update untuk penandatanganan kasir ATAU pengunggahan bukti transfer oleh pelanggan
-      allow update: if (resource.data.isSignatureLinkActive == true && isOnlySigning()) || isCustomerUpdatingProof();
+      // Izinkan update untuk penandatanganan kasir ATAU pengunggahan bukti transfer oleh pelanggan ATAU update status ulasan
+      allow update: if (resource.data.get('isSignatureLinkActive', false) == true && isOnlySigning()) || isCustomerUpdatingProof() || isCustomerUpdatingReview();
       
       // Untuk operasi lainnya (create/delete), diizinkan (arsitektur multi-project)
       allow create, delete: if true; 
@@ -27,8 +32,8 @@ service cloud.firestore {
 
     // Aturan untuk Koleksi Estimasi
     match /estimations/{estimationId} {
-      allow read: if resource.data.isSignatureLinkActive == true;
-      allow update: if resource.data.isSignatureLinkActive == true && isOnlySigning();
+      allow read: if resource.data.get('isSignatureLinkActive', false) == true;
+      allow update: if resource.data.get('isSignatureLinkActive', false) == true && isOnlySigning();
       allow create, delete: if true;
     }
 
