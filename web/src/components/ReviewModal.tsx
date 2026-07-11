@@ -63,6 +63,16 @@ export default function ReviewModal({
         if (sSnap.exists()) {
           const cfg = sSnap.data().infraConfig;
           if (cfg) tDb = getTenantDb(cfg);
+        } else {
+          // Fallback if storeId is actually a projectId (due to old bug)
+          const storesQ = query(collection(primaryDb || db, 'stores'));
+          const storesSnap = await getDocs(storesQ);
+          storesSnap.forEach(d => {
+            const cfg = d.data().infraConfig;
+            if (cfg && cfg.projectId === storeId) {
+              tDb = getTenantDb(cfg);
+            }
+          });
         }
       }
 
@@ -114,15 +124,17 @@ export default function ReviewModal({
             });
             await updateDoc(oRef, { items: updatedItems });
           }
+        } else {
+          console.error("Order not found in DB! orderId:", orderId);
         }
       }
 
       toast.success('Ulasan berhasil dikirim. Terima kasih!');
       if (onSuccess) onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting review:', error);
-      toast.error('Gagal mengirim ulasan. Silakan coba lagi.');
+      toast.error(`Gagal mengirim ulasan: ${error.message || 'Unknown error'}`);
     } finally {
       setSubmitting(false);
     }

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Star } from 'lucide-react-native';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, query, getDocs } from 'firebase/firestore';
 import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 
@@ -51,6 +51,16 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
         if (sSnap.exists()) {
           const cfg = sSnap.data().infraConfig;
           if (cfg) tDb = getTenantDb(cfg);
+        } else {
+          // Fallback if storeId is actually a projectId (due to old bug)
+          const storesQ = query(collection(primaryDb || db, 'stores'));
+          const storesSnap = await getDocs(storesQ);
+          storesSnap.forEach(d => {
+            const cfg = d.data().infraConfig;
+            if (cfg && cfg.projectId === storeId) {
+              tDb = getTenantDb(cfg);
+            }
+          });
         }
       }
 
