@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User } from 'lucide-react';
@@ -29,8 +29,10 @@ function MarketplaceContent() {
   const router = useRouter();
   const { addToCart } = useCart();
   const searchParams = useSearchParams();
+  const params = useParams();
   const storeIdParam = searchParams.get('s') || searchParams.get('storeId');
   const storeNameParam = searchParams.get('storeName');
+  const urlProductId = params?.productId as string;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -45,8 +47,15 @@ function MarketplaceContent() {
   const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
   
   // Product Detail Modal state
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedProductStoreId, setSelectedProductStoreId] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(urlProductId || null);
+  const [selectedProductStoreId, setSelectedProductStoreId] = useState<string | null>(urlProductId ? storeIdParam : null);
+
+  const handleCloseModal = () => {
+    setSelectedProductId(null);
+    if (urlProductId) {
+      router.push('/marketplace' + (storeIdParam ? `?s=${storeIdParam}` : ''));
+    }
+  };
 
   // Flash Sale state
   const [flashSales, setFlashSales] = useState<any[]>([]);
@@ -623,7 +632,7 @@ function MarketplaceContent() {
         isOpen={!!selectedProductId} 
         productId={selectedProductId} 
         routeStoreId={selectedProductStoreId} 
-        onClose={() => setSelectedProductId(null)} 
+        onClose={handleCloseModal} 
       />
     </div>
   );
