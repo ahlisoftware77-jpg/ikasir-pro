@@ -192,11 +192,21 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
         let tDb = db;
         let sSnapPrimary: any = null;
         if (routeStoreId) {
-          const sRefPrimary = doc(primaryDb, 'stores', routeStoreId);
+          const sRefPrimary = doc(primaryDb || db, 'stores', routeStoreId);
           sSnapPrimary = await getDoc(sRefPrimary);
           if (sSnapPrimary.exists()) {
             const cfg = sSnapPrimary.data().infraConfig;
             tDb = cfg ? getTenantDb(cfg) : primaryDb;
+          } else {
+            // Fallback if routeStoreId is actually a projectId (due to old bug)
+            const storesQ = query(collection(primaryDb || db, 'stores'));
+            const storesSnap = await getDocs(storesQ);
+            storesSnap.forEach(d => {
+              const cfg = d.data().infraConfig;
+              if (cfg && cfg.projectId === routeStoreId) {
+                tDb = getTenantDb(cfg);
+              }
+            });
           }
         }
 

@@ -46,6 +46,16 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
           tDb = cfg ? getTenantDb(cfg) : primaryDb;
+        } else {
+          // Fallback if routeStoreId is actually a projectId
+          const storesQ = query(collection(primaryDb || db, 'stores'));
+          const storesSnap = await getDocs(storesQ);
+          storesSnap.forEach(d => {
+            const cfg = d.data().infraConfig;
+            if (cfg && cfg.projectId === routeStoreId) {
+              tDb = getTenantDb(cfg);
+            }
+          });
         }
       }
 
@@ -112,7 +122,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       // Check if user can review
       if (user) {
         const userId = user.uid || user.phone;
-        const oQuery = query(collection(tDb, 'orders'), where('userId', '==', userId), where('orderStatus', '==', 'completed'));
+        const oQuery = query(collection(tDb, 'transactions'), where('customerId', '==', userId), where('orderStatus', '==', 'completed'));
         const oSnap = await getDocs(oQuery);
         let hasPurchased = false;
         oSnap.docs.forEach(doc => {
