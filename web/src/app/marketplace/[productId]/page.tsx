@@ -1,3 +1,5 @@
 'use client';
 import MarketplacePage from '../page';
-export default MarketplacePage;
+export default function ProductIdPage() {
+  return <MarketplacePage />;
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Star, X, Loader2 } from 'lucide-react';
 import { db, primaryDb, getTenantDb } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, query, getDocs } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 interface ReviewModalProps {
