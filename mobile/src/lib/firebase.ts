@@ -32,16 +32,22 @@ export const auth = initializedAuth;
 // Dynamic Data App references
 let dataApp: FirebaseApp = primaryApp;
 
-export let db: Firestore;
+// _primaryFirestore is a CONSTANT reference to the MAIN project's DB.
+// It NEVER changes — used for reading 'stores' collection and cross-tenant lookups.
+let _primaryFirestore: Firestore;
 try {
-  db = initializeFirestore(primaryApp, {
+  _primaryFirestore = initializeFirestore(primaryApp, {
     localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
   });
 } catch {
-  db = getFirestore(primaryApp);
+  _primaryFirestore = getFirestore(primaryApp);
 }
 
-export let primaryDb: Firestore = db;
+// db can be mutated by initDynamicFirebase to point to a tenant DB
+export let db: Firestore = _primaryFirestore;
+
+// primaryDb always resolves back to the MAIN project DB via the constant reference
+export const primaryDb: Firestore = _primaryFirestore;
 
 export let storage: FirebaseStorage;
 try {
@@ -67,7 +73,7 @@ export const initDynamicFirebase = async () => {
       ? (getApps().find(a => a.name === appName) || initializeApp(config, appName))
       : primaryApp;
 
-    // Initialize Tenant DB
+    // Only mutate `db` (not primaryDb) to point to the active tenant
     try {
       db = initializeFirestore(dataApp, {
         localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
@@ -76,16 +82,7 @@ export const initDynamicFirebase = async () => {
       db = getFirestore(dataApp);
     }
 
-    // Initialize Primary DB
-    try {
-      primaryDb = dataApp === primaryApp ? db : getFirestore(primaryApp);
-    } catch {
-      primaryDb = initializeFirestore(primaryApp, {
-        localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-      });
-    }
-
-    // Initialize Storage
+    // Initialize Storage from tenant app
     storage = getStorage(dataApp);
     
     return true;
@@ -96,9 +93,10 @@ export const initDynamicFirebase = async () => {
 };
 
 // Helper for Federated Queries: get Firestore instance for any tenant config
+// Always uses _primaryFirestore as fallback to ensure correct DB lookup
 export const getTenantDb = (config: any): Firestore => {
   const projectId = config?.projectId || config?.fb_project_id;
-  if (!config || !projectId) return primaryDb;
+  if (!config || !projectId) return _primaryFirestore;
   
   const appName = `DataApp_${projectId}`;
   let tApp = getApps().find(a => a.name === appName);

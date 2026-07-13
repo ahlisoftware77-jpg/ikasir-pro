@@ -44,21 +44,30 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
 
     setSubmitting(true);
     try {
-      let tDb = db;
+      // Start from primaryDb as default - it always points to main project
+      let tDb = primaryDb;
       if (storeId) {
-        const sRef = doc(primaryDb || db, 'stores', storeId);
+        // Always look up stores from primaryDb (MAIN project) - never from tenant db
+        const sRef = doc(primaryDb, 'stores', storeId);
         const sSnap = await getDoc(sRef);
         if (sSnap.exists()) {
           const cfg = sSnap.data().infraConfig;
-          if (cfg) tDb = getTenantDb(cfg);
+          if (cfg) {
+            tDb = getTenantDb(cfg);
+            console.log('[Review] Resolved tenant db:', cfg.projectId);
+          } else {
+            console.log('[Review] No infraConfig found, using primaryDb');
+          }
         } else {
-          // Fallback if storeId is actually a projectId (due to old bug)
-          const storesQ = query(collection(primaryDb || db, 'stores'));
+          // Fallback: scan all stores to find by projectId
+          console.log('[Review] Store not found by id, scanning all stores for projectId match...');
+          const storesQ = query(collection(primaryDb, 'stores'));
           const storesSnap = await getDocs(storesQ);
           storesSnap.forEach(d => {
             const cfg = d.data().infraConfig;
             if (cfg && cfg.projectId === storeId) {
               tDb = getTenantDb(cfg);
+              console.log('[Review] Resolved tenant db via fallback scan:', cfg.projectId);
             }
           });
         }
