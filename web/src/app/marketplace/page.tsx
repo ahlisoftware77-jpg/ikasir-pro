@@ -742,6 +742,10 @@ function MarketplaceContent() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (prod.manageStock !== false && (prod.stock || 0) <= 0) {
+                              toast.error('Stok produk habis!');
+                              return;
+                            }
                             const ep = getEffectivePrice(prod);
                             addToCart({
                               productId: prod.id,
@@ -756,10 +760,21 @@ function MarketplaceContent() {
                             });
                             toast.success('Ditambahkan ke keranjang!');
                           }}
-                          className="flex-[2] xs:flex-none px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-500 hover:bg-emerald-450 text-slate-950 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+                          disabled={prod.manageStock !== false && (prod.stock || 0) <= 0}
+                          className={`flex-[2] xs:flex-none px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 transition-all ${
+                            prod.manageStock !== false && (prod.stock || 0) <= 0
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200/50 cursor-not-allowed shadow-none active:scale-100'
+                              : 'bg-emerald-500 hover:bg-emerald-450 text-slate-950 active:scale-95 shadow-md shadow-emerald-500/10'
+                          }`}
                         >
-                          <Plus size={12} className="stroke-[3]" />
-                          <span>Keranjang</span>
+                          {prod.manageStock !== false && (prod.stock || 0) <= 0 ? (
+                            <span>Habis</span>
+                          ) : (
+                            <>
+                              <Plus size={12} className="stroke-[3]" />
+                              <span>Keranjang</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>

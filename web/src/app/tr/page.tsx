@@ -601,6 +601,11 @@ function PublicOrderContent() {
   });
 
   const addToCart = async (product: Product) => {
+    if (product.manageStock !== false && (product.stock === undefined || product.stock === null || product.stock <= 0)) {
+      toast.error('Stok produk habis!');
+      return;
+    }
+
     if (product.hasExtras && product.extras && product.extras.length > 0) {
       setActiveExtrasProduct(product);
       setTempSelections({});
