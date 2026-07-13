@@ -12,7 +12,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from './src/store/authStore';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { db, initDynamicFirebase } from './src/lib/firebase';
+import { db, primaryDb, initDynamicFirebase } from './src/lib/firebase';
 
 let isCleanupDone = false;
 
@@ -426,7 +426,7 @@ function NavigationRoot() {
       }
     }).catch(err => console.error("Error re-reading branding on login:", err));
 
-    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+    const unsubUser = onSnapshot(doc(primaryDb, 'users', user.uid), (docSnap) => {
       if (docSnap.exists()) {
         const userData = docSnap.data();
         
