@@ -144,7 +144,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
   const itemsHtml = (transaction.items || []).map((item: any) => {
     // Resolve warranty dynamically from productsMap if available
     const prodId = item.productId;
-    const prodName = item.productName || item.name;
+    const prodName = item.productName || item.name || 'Produk';
     let catalogProduct = null;
     if (productsMap) {
       if (prodId && productsMap[prodId]) {
@@ -178,7 +178,7 @@ export const generateReceiptHtml = (transaction: any, storeSettings?: any, brand
 
     return `
       <div style="margin-bottom: 5px;">
-        <div style="font-weight: bold; font-size: 12px;">${item.productName || item.name}</div>
+        <div style="font-weight: bold; font-size: 12px;">${item.productName || item.name || 'Produk'}</div>
         ${item.selectedExtras?.map((e: any) => `<div style="font-size: 11px; margin-left: 10px;">+ ${e.optionName || e.name} (Rp ${(e.price || 0).toLocaleString('id-ID')})</div>`).join('') || ''}
         ${item.note ? `<div style="font-size: 11px; text-align: center;">( ${item.note} )</div>` : ''}
         <div class="item-row">
@@ -518,7 +518,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
   const itemsHtml = (trx.items || []).map((item: any) => {
     // Resolve warranty dynamically from productsMap if available
     const prodId = item.productId;
-    const prodName = item.productName || item.name;
+    const prodName = item.productName || item.name || 'Produk';
     let catalogProduct = null;
     if (productsMap) {
       if (prodId && productsMap[prodId]) {
@@ -553,7 +553,7 @@ export const generateA4Html = (trx: any, storeSettings?: any, branding?: any, is
     return `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 10px; text-align: left;">
-          <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+          <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name || 'Produk'}</div>
           ${expiryStr ? `
             <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
               🛡️ Garansi s/d: ${expiryStr} (Mulai ${wStartDate ? wStartDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''})
@@ -1147,7 +1147,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
   for (const item of (trx.items || [])) {
     // Product name (bold)
     await BluetoothEscposPrinter.setBlob(1);
-    await BluetoothEscposPrinter.printText(`${item.productName || item.name}\n\r`, {});
+    await BluetoothEscposPrinter.printText(`${item.productName || item.name || 'Produk'}\n\r`, {});
     await BluetoothEscposPrinter.setBlob(0);
 
     // Extras
@@ -1180,7 +1180,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 
     // Resolve dynamic warranty duration/unit from catalog
     const prodId = item.productId;
-    const prodName = item.productName || item.name;
+    const prodName = item.productName || item.name || 'Produk';
     let catalogProduct = null;
     if (productsMap) {
       if (prodId && productsMap[prodId]) {
@@ -1583,7 +1583,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
   const itemsHtml = (trx.items || []).map((item: any, idx: number) => {
     // Resolve warranty dynamically from productsMap if available
     const prodId = item.productId;
-    const prodName = item.productName || item.name;
+    const prodName = item.productName || item.name || 'Produk';
     let catalogProduct = null;
     if (productsMap) {
       if (prodId && productsMap[prodId]) {
@@ -1619,7 +1619,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 10px; text-align: left; color: #64748b;">${idx + 1}</td>
         <td style="padding: 10px; text-align: left;">
-          <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name}</div>
+          <div style="font-weight: bold; font-size: 12px; color: #1e293b;">${item.productName || item.name || 'Produk'}</div>
           ${expiryStr ? `
             <div style="font-size: 10px; color: #10b981; font-weight: bold; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
               🛡️ Garansi s/d: ${expiryStr} (Mulai ${wStartDate ? wStartDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''})

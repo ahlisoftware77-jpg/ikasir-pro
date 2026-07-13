@@ -244,7 +244,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
   text += `${hr}`;
   
   trx.items.forEach(item => {
-    text += `${item.productName || (item as any).name}\n`;
+    text += `${item.productName || (item as any).name || 'Produk'}\n`;
     if (item.selectedExtras?.length) {
       item.selectedExtras.forEach(ext => {
          text += ` + ${ext.optionName} ${ext.price > 0 ? `(Rp${ext.price})` : ''}\n`;
@@ -252,7 +252,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
     }
     // Resolve dynamic warranty duration/unit from catalog
     const prodId = item.productId;
-    const prodName = item.productName || (item as any).name;
+    const prodName = item.productName || (item as any).name || 'Produk';
     let catalogProduct = null;
     if (prodId && productsMap[prodId]) {
       catalogProduct = productsMap[prodId];
@@ -633,7 +633,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
       <table>
         ${trx.items.map(item => `
           <tr>
-            <td colspan="2" class="font-bold">${item.productName || (item as any).name}</td>
+            <td colspan="2" class="font-bold">${item.productName || (item as any).name || 'Produk'}</td>
           </tr>
           ${item.selectedExtras?.map(ext => `
             <tr>
@@ -644,7 +644,7 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
           `).join('') || ''}
           ${(() => {
             const prodId = item.productId;
-            const prodName = item.productName || (item as any).name;
+            const prodName = item.productName || (item as any).name || 'Produk';
             let catalogProduct = null;
             if (prodId && productsMap[prodId]) {
               catalogProduct = productsMap[prodId];
