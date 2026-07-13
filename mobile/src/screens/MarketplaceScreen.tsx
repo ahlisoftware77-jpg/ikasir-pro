@@ -571,8 +571,11 @@ export default function MarketplaceScreen() {
               onPress={() => navigation.navigate('CartScreen')}
             >
               <ShoppingCart color={colors.accent} size={16} />
+              <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>Keranjang</Text>
               {cartItems.length > 0 && (
-                <View style={[styles.notificationBadge, { right: 4, top: 4, backgroundColor: '#ef4444' }]} />
+                <View style={[styles.notificationBadge, { right: 0, top: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: '#fff', fontSize: 8, fontWeight: 'bold' }}>{cartItems.length}</Text>
+                </View>
               )}
             </TouchableOpacity>
 

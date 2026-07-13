@@ -402,7 +402,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <TouchableOpacity onPress={() => navigation.navigate('CartScreen')} style={styles.backBtn}>
             <ShoppingCart color={colors.text} size={22} />
             {cartItems.length > 0 && (
-              <View style={[styles.notificationBadge, { right: 4, top: 4, backgroundColor: '#ef4444' }]} />
+              <View style={[styles.notificationBadge, { right: -2, top: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#fff', fontSize: 8, fontWeight: 'bold' }}>{cartItems.length}</Text>
+              </View>
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
