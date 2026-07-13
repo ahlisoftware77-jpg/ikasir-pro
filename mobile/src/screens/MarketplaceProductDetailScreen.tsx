@@ -593,7 +593,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <View style={styles.reviewHeader}>
             <Text style={[styles.descTitle, { color: colors.text, marginBottom: 0 }]}>Ulasan Produk</Text>
             {canReview && (
-              <TouchableOpacity onPress={() => navigation.navigate('MarketplaceWriteReview', { productId, productName: product.name, storeId: product.storeId })}>
+              <TouchableOpacity onPress={() => navigation.navigate('MarketplaceWriteReview', { productId, productName: product.name, storeId: product.storeId || routeStoreId })}>
                 <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Tulis Ulasan</Text>
               </TouchableOpacity>
             )}
