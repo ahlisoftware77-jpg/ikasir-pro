@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User, Star } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User, Star, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
 import CartButton from '@/components/CartButton';
@@ -43,6 +43,51 @@ function MarketplaceContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [categories, setCategories] = useState<string[]>(['Semua']);
+  
+  // Geolocation & Radius filter states
+  const [radiusFilter, setRadiusFilter] = useState('Semua');
+  const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const handleSetRadius = (radius: string) => {
+    if (radius !== 'Semua' && !userLocation) {
+      setIsGettingLocation(true);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude
+            });
+            setIsGettingLocation(false);
+          },
+          (error) => {
+            console.error("Error getting browser location:", error);
+            alert("Gagal mendapatkan lokasi Anda. Pastikan izin lokasi browser diaktifkan.");
+            setIsGettingLocation(false);
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+      } else {
+        alert("Browser Anda tidak mendukung layanan lokasi GPS.");
+        setIsGettingLocation(false);
+        return;
+      }
+    }
+    setRadiusFilter(radius);
+  };
   
   // Store-specific settings metadata mappings
   const [storePhones, setStorePhones] = useState<Record<string, string>>({});
@@ -93,11 +138,31 @@ function MarketplaceContent() {
         const storesSnap = await getDocs(storesQ);
         const tenantConfigs = new Map<string, any>();
         
+        const storeOwnerMap: Record<string, string> = {};
+        const primaryStoreLocMap: Record<string, {lat: number, lng: number}> = {};
+        const storeToConfigMap: Record<string, any> = {};
+
         storesSnap.forEach(doc => {
           const sData = doc.data();
           const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
           const pId = cfg.projectId || cfg.fb_project_id;
           if (pId) tenantConfigs.set(pId, cfg);
+          storeToConfigMap[doc.id] = cfg;
+          if (sData.ownerUid) storeOwnerMap[doc.id] = sData.ownerUid;
+          if (sData.latitude && sData.longitude) {
+            primaryStoreLocMap[doc.id] = { lat: Number(sData.latitude), lng: Number(sData.longitude) };
+          }
+        });
+
+        // Fetch users locations fallback
+        const usersQ = query(collection(primaryDb, 'users'));
+        const usersSnap = await getDocs(usersQ);
+        const userLocMap: Record<string, { lat: number, lng: number }> = {};
+        usersSnap.forEach(uDoc => {
+          const uData = uDoc.data();
+          if (uData.latitude && uData.longitude) {
+            userLocMap[uDoc.id] = { lat: Number(uData.latitude), lng: Number(uData.longitude) };
+          }
         });
 
         const list: Product[] = [];
@@ -105,6 +170,7 @@ function MarketplaceContent() {
         const addressMap: Record<string, string> = {};
         const logosMap: Record<string, string> = {};
         const hiddenCatsMap: Record<string, string[]> = {};
+        const locMap: Record<string, { lat: number, lng: number }> = {};
         const allFlashSales: any[] = [];
 
         await Promise.all(Array.from(tenantConfigs.values()).map(async (cfg) => {
@@ -151,6 +217,9 @@ function MarketplaceContent() {
                   phonesMap[sId] = sData.phone || '';
                   addressMap[sId] = sData.address || '';
                   logosMap[sId] = sData.logoUrl || '';
+                  if (sData.latitude && sData.longitude) {
+                    locMap[sId] = { lat: Number(sData.latitude), lng: Number(sData.longitude) };
+                  }
                   if (sData.hiddenMarketplaceCategories) {
                     hiddenCatsMap[sId] = sData.hiddenMarketplaceCategories;
                   }
@@ -166,6 +235,24 @@ function MarketplaceContent() {
         setStorePhones(phonesMap);
         setStoreAddresses(addressMap);
         setStoreLogos(logosMap);
+
+        // Map latitude and longitude to products with robust fallback
+        list.forEach(p => {
+          if (locMap[p.storeId]) {
+            p.storeLatitude = locMap[p.storeId].lat;
+            p.storeLongitude = locMap[p.storeId].lng;
+          } else if (primaryStoreLocMap[p.storeId]) {
+            p.storeLatitude = primaryStoreLocMap[p.storeId].lat;
+            p.storeLongitude = primaryStoreLocMap[p.storeId].lng;
+          } else if (storeOwnerMap[p.storeId] && userLocMap[storeOwnerMap[p.storeId]]) {
+            const ownerId = storeOwnerMap[p.storeId];
+            p.storeLatitude = userLocMap[ownerId].lat;
+            p.storeLongitude = userLocMap[ownerId].lng;
+          } else if (userLocMap[p.storeId]) {
+            p.storeLatitude = userLocMap[p.storeId].lat;
+            p.storeLongitude = userLocMap[p.storeId].lng;
+          }
+        });
 
         // Filter out hidden categories
         const visibleList = list.filter(p => {
@@ -210,8 +297,22 @@ function MarketplaceContent() {
       );
     }
 
+    if (radiusFilter !== 'Semua') {
+      const maxDist = parseInt(radiusFilter);
+      filtered = filtered.filter(p => {
+        if (userLocation && p.storeLatitude && p.storeLongitude) {
+          const dist = getDistanceFromLatLonInKm(
+            userLocation.latitude, userLocation.longitude,
+            p.storeLatitude, p.storeLongitude
+          );
+          return dist <= maxDist;
+        }
+        return false; // hide if location data is not available
+      });
+    }
+
     setFilteredProducts(filtered);
-  }, [searchQuery, selectedCategory, selectedStoreId, products]);
+  }, [searchQuery, selectedCategory, selectedStoreId, products, radiusFilter, userLocation]);
 
   const handleWhatsAppRedirect = (product: Product) => {
     const rawPhone = storePhones[product.storeId] || '';
@@ -350,7 +451,7 @@ function MarketplaceContent() {
         )}
 
         {/* Categories Bar */}
-        <div className="flex gap-2 overflow-x-auto pb-3 md:pb-6 scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto pb-3 md:pb-4 scrollbar-none">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -358,12 +459,38 @@ function MarketplaceContent() {
               className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border shrink-0 transition-all ${
                 selectedCategory === cat
                   ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-lg shadow-emerald-500/20 scale-105'
-                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700'
               }`}
             >
               {cat}
             </button>
           ))}
+        </div>
+
+        {/* Radius Filter Bar */}
+        <div className="flex flex-col gap-2 mb-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-4 rounded-3xl shadow-sm">
+          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-1">
+            <MapPin size={12} className="text-emerald-500" />
+            <span>Radius Jangkauan</span>
+            {isGettingLocation && (
+              <span className="animate-pulse text-emerald-500 normal-case ml-2">Menentukan lokasi GPS Anda...</span>
+            )}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {['Semua', '5', '10', '25', '50'].map((r) => (
+              <button
+                key={r}
+                onClick={() => handleSetRadius(r)}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold border shrink-0 transition-all ${
+                  radiusFilter === r
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-md shadow-emerald-500/20'
+                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                {r === 'Semua' ? 'Semua Jarak' : `< ${r} km`}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Active Flash Sale Banners */}
