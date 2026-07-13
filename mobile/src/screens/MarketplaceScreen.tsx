@@ -565,17 +565,29 @@ export default function MarketplaceScreen() {
             )}
           </View>
           
-          <TouchableOpacity 
-            style={[styles.historyBtn, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40', width: 'auto', paddingHorizontal: 14, flexDirection: 'row', gap: 6 }]}
-            onPress={() => {
-              setHasNewUpdate(false);
-              navigation.navigate('MarketplaceOrders');
-            }}
-          >
-            <ShoppingBag color={colors.accent} size={16} />
-            <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>Pesanan</Text>
-            {hasNewUpdate && <View style={[styles.notificationBadge, { right: 8, top: 6, backgroundColor: '#ef4444' }]} />}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity 
+              style={[styles.historyBtn, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40', width: 'auto', paddingHorizontal: 12, flexDirection: 'row', gap: 6 }]}
+              onPress={() => navigation.navigate('CartScreen')}
+            >
+              <ShoppingCart color={colors.accent} size={16} />
+              {cartItems.length > 0 && (
+                <View style={[styles.notificationBadge, { right: 4, top: 4, backgroundColor: '#ef4444' }]} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.historyBtn, { backgroundColor: colors.accent + '15', borderColor: colors.accent + '40', width: 'auto', paddingHorizontal: 12, flexDirection: 'row', gap: 6 }]}
+              onPress={() => {
+                setHasNewUpdate(false);
+                navigation.navigate('MarketplaceOrders');
+              }}
+            >
+              <ShoppingBag color={colors.accent} size={16} />
+              <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '900' }}>Pesanan</Text>
+              {hasNewUpdate && <View style={[styles.notificationBadge, { right: 8, top: 6, backgroundColor: '#ef4444' }]} />}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.categoriesContainer}>
@@ -671,19 +683,6 @@ export default function MarketplaceScreen() {
             />
           }
         />
-      )}
-
-      {cartItems.length > 0 && (
-        <TouchableOpacity
-          style={[styles.floatingCart, { bottom: insets.bottom + 24, backgroundColor: colors.accent }]}
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate('CartScreen')}
-        >
-          <ShoppingCart color="#fff" size={24} />
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{cartItems.length}</Text>
-          </View>
-        </TouchableOpacity>
       )}
     </View>
   );
