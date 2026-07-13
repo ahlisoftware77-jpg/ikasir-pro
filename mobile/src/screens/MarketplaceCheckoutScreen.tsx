@@ -73,6 +73,21 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
           tDb = cfg ? getTenantDb(cfg) : primaryDb;
+        } else {
+          // Fallback if storeId is actually a projectId
+          let found = false;
+          const storesQ = query(collection(primaryDb || db, 'stores'));
+          const storesSnap = await getDocs(storesQ);
+          storesSnap.forEach(d => {
+            const cfg = d.data().infraConfig;
+            if (cfg && cfg.projectId === storeId) {
+              tDb = getTenantDb(cfg);
+              found = true;
+            }
+          });
+          if (!found) {
+            tDb = primaryDb;
+          }
         }
       }
 
