@@ -712,7 +712,9 @@ export default function SuperAdminScreen({ route, navigation }: any) {
     if (!editingUser) return;
     setIsSaving(true);
     try {
-      await updateDoc(doc(primaryDb, 'users', editingUser.id), {
+      const batch = writeBatch(primaryDb);
+
+      batch.update(doc(primaryDb, 'users', editingUser.id), {
         role: editingUser.role,
         isActive: editingUser.isActive ?? true,
         isSubscribed: editingUser.isSubscribed ?? false,
@@ -722,6 +724,22 @@ export default function SuperAdminScreen({ route, navigation }: any) {
         createdAt: editingUser.createdAt || new Date().toISOString(),
         permissions: editingUser.permissions || {}
       });
+
+      // Sync active date (validUntil) and subscription state to all cashiers/staff belonging to this store
+      if (editingUser.storeId && editingUser.storeId !== 'default-store') {
+        const usersQ = query(collection(primaryDb, 'users'), where('storeId', '==', editingUser.storeId));
+        const usersSnap = await getDocs(usersQ);
+        usersSnap.forEach((uDoc) => {
+          if (uDoc.id !== editingUser.id) {
+            batch.update(uDoc.ref, {
+              validUntil: editingUser.validUntil || '',
+              isSubscribed: editingUser.isSubscribed ?? false
+            });
+          }
+        });
+      }
+
+      await batch.commit();
       Alert.alert('Sukses', 'Data pengguna berhasil diperbarui!');
       setEditingUser(null);
     } catch (err: any) {
