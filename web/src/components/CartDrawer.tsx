@@ -141,13 +141,17 @@ export default function CartDrawer() {
           for (const { ref, snap, item } of productReads) {
             if (snap.exists()) {
               const pData = snap.data();
+              const currentSold = pData.soldCount || 0;
+              const updateFields: any = { soldCount: currentSold + item.qty };
+
               if (pData.manageStock !== false) {
                 const currentStock = pData.stock || 0;
                 if (currentStock < item.qty) {
                   throw new Error(`Stok produk ${item.productName} tidak mencukupi.`);
                 }
-                transaction.update(ref, { stock: currentStock - item.qty });
+                updateFields.stock = currentStock - item.qty;
               }
+              transaction.update(ref, updateFields);
             }
           }
 

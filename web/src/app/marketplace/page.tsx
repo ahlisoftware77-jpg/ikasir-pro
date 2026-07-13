@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User } from 'lucide-react';
+import { Search, ShoppingBag, MessageSquare, Store, AlertCircle, RefreshCw, X, Zap, Plus, Package, User, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
 import CartButton from '@/components/CartButton';
@@ -23,6 +23,9 @@ interface Product {
   storeName?: string;
   stock?: number;
   manageStock?: boolean;
+  averageRating?: number;
+  reviewCount?: number;
+  soldCount?: number;
 }
 
 function MarketplaceContent() {
@@ -126,6 +129,9 @@ function MarketplaceContent() {
                 storeName: data.storeName || 'Toko Mitra',
                 stock: data.stock !== undefined ? data.stock : 0,
                 manageStock: data.manageStock !== undefined ? data.manageStock : true,
+                averageRating: data.averageRating || 0,
+                reviewCount: data.reviewCount || 0,
+                soldCount: data.soldCount || 0,
               });
             });
 
@@ -539,6 +545,22 @@ function MarketplaceContent() {
                       <h3 className="font-bold text-slate-800 dark:text-white text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {prod.name}
                       </h3>
+                      {/* Rating & Sold count */}
+                      <div className="flex items-center gap-1.5 text-[10px] text-slate-550 dark:text-slate-400 font-bold mt-1">
+                        {prod.averageRating && prod.averageRating > 0 ? (
+                          <div className="flex items-center gap-0.5 text-amber-500">
+                            <Star size={10} className="fill-amber-500 text-amber-500" />
+                            <span>{prod.averageRating.toFixed(1)}</span>
+                            <span className="text-slate-400 dark:text-slate-500 font-normal">({prod.reviewCount})</span>
+                          </div>
+                        ) : null}
+                        {prod.averageRating && prod.averageRating > 0 && prod.soldCount && prod.soldCount > 0 ? (
+                          <span className="text-slate-300 dark:text-slate-700">•</span>
+                        ) : null}
+                        {prod.soldCount && prod.soldCount > 0 ? (
+                          <span>Terjual {prod.soldCount}</span>
+                        ) : null}
+                      </div>
                       {/* Description */}
                       {prod.description && (
                         <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 line-clamp-1 sm:line-clamp-2 leading-relaxed pt-0.5 hidden xs:block">

@@ -1096,8 +1096,12 @@ export default function POSPage() {
             }
 
             for (const item of cart) {
-              if (item.manageStock !== false) {
-                t.update(doc(db, 'products', item.id!), { stock: increment(-item.cartQty) });
+              if (item.id) {
+                const updates: any = { soldCount: increment(item.cartQty) };
+                if (item.manageStock !== false) {
+                  updates.stock = increment(-item.cartQty);
+                }
+                t.update(doc(db, 'products', item.id!), updates);
               }
 
               // Update Flash Sale soldCount if applicable

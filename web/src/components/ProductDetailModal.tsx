@@ -552,6 +552,25 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
         if (!finalId) {
           throw new Error("ID Transaksi tidak valid.");
         }
+
+        // Deduct stock and increment soldCount
+        const pRef = doc(tDb, 'products', product.id);
+        const pSnap = await transaction.get(pRef);
+        if (pSnap.exists()) {
+          const pData = pSnap.data();
+          const currentSold = pData.soldCount || 0;
+          const updateFields: any = { soldCount: currentSold + qty };
+
+          if (pData.manageStock !== false) {
+            const currentStock = pData.stock || 0;
+            if (currentStock < qty) {
+              throw new Error(`Stok produk ${product.name} tidak mencukupi.`);
+            }
+            updateFields.stock = currentStock - qty;
+          }
+          transaction.update(pRef, updateFields);
+        }
+
         transaction.set(doc(tDb, 'transactions', finalId), orderData);
         transaction.set(settingsRef, { trxCounter: currentCounter }, { merge: true });
       });

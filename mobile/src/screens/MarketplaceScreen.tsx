@@ -24,6 +24,7 @@ interface Product {
   manageStock?: boolean;
   averageRating?: number;
   reviewCount?: number;
+  soldCount?: number;
   storeLatitude?: number;
   storeLongitude?: number;
   discount?: {
@@ -295,6 +296,7 @@ export default function MarketplaceScreen() {
               manageStock: data.manageStock !== undefined ? data.manageStock : true,
               averageRating: data.averageRating || 0,
               reviewCount: data.reviewCount || 0,
+              soldCount: data.soldCount || 0,
             });
             if (data.storeId) {
               uniqueStoreIds.add(data.storeId);
@@ -480,12 +482,6 @@ export default function MarketplaceScreen() {
           ) : (
             <ShoppingBag color={colors.text} size={32} opacity={0.3} />
           )}
-          {(item.averageRating && item.averageRating > 0) ? (
-            <View style={styles.ratingBadge}>
-              <Star color="#f59e0b" fill="#f59e0b" size={10} style={{ marginRight: 2 }} />
-              <Text style={styles.ratingBadgeText}>{item.averageRating.toFixed(1)}</Text>
-            </View>
-          ) : null}
           {hasDiscount && (
             <View style={styles.discountBadge}>
               <Tag color="#fff" size={10} style={{ marginRight: 2 }} />
@@ -505,14 +501,26 @@ export default function MarketplaceScreen() {
           <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
-          {/* Radius Filter */}
-          <View className="mb-4">
-            <View className="flex-row items-center px-4 mb-2">
-              <MapPin size={14} color={colors.textMuted} />
-              <Text className="text-[10px] font-black uppercase tracking-widest ml-1" style={{ color: colors.textMuted }}>Radius Jangkauan</Text>
-              {isGettingLocation && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
-            </View>
+
+          {/* Rating & Sold count */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 4 }}>
+            {item.averageRating && item.averageRating > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Star color="#f59e0b" fill="#f59e0b" size={10} style={{ marginRight: 2 }} />
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.text }}>
+                  {item.averageRating.toFixed(1)}
+                  {item.reviewCount ? ` (${item.reviewCount})` : ''}
+                </Text>
+              </View>
+            ) : null}
+            {item.averageRating && item.averageRating > 0 && item.soldCount && item.soldCount > 0 ? (
+              <Text style={{ fontSize: 10, color: colors.textMuted }}>|</Text>
+            ) : null}
+            {item.soldCount && item.soldCount > 0 ? (
+              <Text style={{ fontSize: 10, color: colors.textMuted }}>Terjual {item.soldCount}</Text>
+            ) : null}
           </View>
+
           {hasDiscount ? (
             <View style={styles.priceContainer}>
               <Text style={[styles.originalPrice, { color: colors.textMuted }]}>

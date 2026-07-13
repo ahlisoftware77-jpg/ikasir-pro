@@ -2058,8 +2058,12 @@ export default function POSScreen({ route, navigation }: any) {
 
         batch.set(doc(db, 'transactions', finalDocId), transactionData);
         for (const item of cart) {
-          if (item.manageStock !== false && item.id) {
-            batch.update(doc(db, 'products', item.id), { stock: increment(-item.cartQty) });
+          if (item.id) {
+            const updates: any = { soldCount: increment(item.cartQty) };
+            if (item.manageStock !== false) {
+              updates.stock = increment(-item.cartQty);
+            }
+            batch.update(doc(db, 'products', item.id), updates);
           }
         }
 
@@ -2083,10 +2087,14 @@ export default function POSScreen({ route, navigation }: any) {
       batch.set(doc(db, 'transactions', finalDocId), transactionData);
       batch.set(doc(db, 'settings', `store_${storeId}`), { [counterKey]: currentCounter }, { merge: true });
 
-      // Decrement stock
+      // Decrement stock & increment soldCount
       for (const item of cart) {
-        if (item.manageStock !== false && item.id) {
-          batch.update(doc(db, 'products', item.id), { stock: increment(-item.cartQty) });
+        if (item.id) {
+          const updates: any = { soldCount: increment(item.cartQty) };
+          if (item.manageStock !== false) {
+            updates.stock = increment(-item.cartQty);
+          }
+          batch.update(doc(db, 'products', item.id), updates);
         }
       }
 
