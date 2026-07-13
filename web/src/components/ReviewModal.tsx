@@ -79,8 +79,7 @@ export default function ReviewModal({
       const actualName = customerName || customerPhone || 'Pengguna';
       const finalName = isAnonymous ? maskName(actualName) : actualName;
 
-      // 1. Add review to 'reviews' collection
-      await addDoc(collection(tDb, 'reviews'), {
+      const reviewData = {
         productId,
         productName,
         storeId,
@@ -90,7 +89,15 @@ export default function ReviewModal({
         comment: comment.trim(),
         orderId: orderId || null,
         createdAt: serverTimestamp(),
-      });
+      };
+
+      // 1. Add review to 'reviews' collection
+      // Save to BOTH tDb (tenant DB) AND primaryDb so it's visible regardless of which DB mobile/web queries
+      const savePromises = [addDoc(collection(tDb, 'reviews'), reviewData)];
+      if (tDb !== primaryDb) {
+        savePromises.push(addDoc(collection(primaryDb, 'reviews'), reviewData));
+      }
+      await Promise.allSettled(savePromises);
 
       // 2. Update product aggregate rating
       const pRef = doc(tDb, 'products', productId);

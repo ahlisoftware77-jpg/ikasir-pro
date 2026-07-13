@@ -76,7 +76,7 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
       const actualName = user.name || user.phone || 'Pengguna';
       const finalName = isAnonymous ? maskName(actualName) : actualName;
 
-      await addDoc(collection(tDb, 'reviews'), {
+      const reviewData = {
         productId,
         productName,
         storeId,
@@ -86,7 +86,16 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
         comment: comment.trim(),
         orderId: orderId || null,
         createdAt: serverTimestamp(),
-      });
+      };
+
+      // Save review to BOTH tDb (tenant DB) AND primaryDb
+      // This ensures the review is visible from both web and mobile regardless of which DB is queried
+      const savePromises: Promise<any>[] = [addDoc(collection(tDb, 'reviews'), reviewData)];
+      if (tDb !== primaryDb) {
+        savePromises.push(addDoc(collection(primaryDb, 'reviews'), reviewData));
+      }
+      await Promise.allSettled(savePromises);
+      console.log('[Review] Saved to', savePromises.length, 'database(s)');
       
       // Update product rating aggregate
       const pRef = doc(tDb, 'products', productId);
