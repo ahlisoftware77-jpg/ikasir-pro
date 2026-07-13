@@ -1,7 +1,7 @@
 import { Transaction } from '@/types';
 import toast from 'react-hot-toast';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth';
 
 const checkSubscriptionExpired = async (storeId: string | null | undefined): Promise<boolean> => {
@@ -119,6 +119,28 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
   }
 
   const isExpired = await checkSubscriptionExpired(trx.storeId);
+
+  // Check if printing is locked
+  let isPrintLocked = false;
+  try {
+    const infraSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+    if (infraSnap.exists()) {
+      const infraData = infraSnap.data();
+      const isPaidFeature = infraData.paid_print_receipt ?? false;
+      const role = useAuthStore.getState().role;
+      if (isExpired && isPaidFeature && role !== 'super-admin' && role !== 'superadmin') {
+        isPrintLocked = true;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to check print receipt feature lock:", err);
+  }
+
+  if (isPrintLocked) {
+    toast.error("Fitur Cetak Struk Thermal terkunci! Silakan perpanjang paket langganan premium Anda.");
+    return;
+  }
+
   const is80mm = storeSettings.paperSize === '80mm';
   const paperWidth = is80mm ? '300px' : '220px'; // Approx width for browser
   const fontSize = is80mm ? '14px' : '12px';
@@ -808,6 +830,28 @@ export const printReceipt = async (trx: Transaction, storeSettings: any, brandin
 
 export const printServiceReceipt = async (ticket: any, storeSettings: any, branding?: any) => {
   const isExpired = await checkSubscriptionExpired(ticket.storeId);
+
+  // Check if printing is locked
+  let isPrintLocked = false;
+  try {
+    const infraSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+    if (infraSnap.exists()) {
+      const infraData = infraSnap.data();
+      const isPaidFeature = infraData.paid_print_receipt ?? false;
+      const role = useAuthStore.getState().role;
+      if (isExpired && isPaidFeature && role !== 'super-admin' && role !== 'superadmin') {
+        isPrintLocked = true;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to check print receipt feature lock:", err);
+  }
+
+  if (isPrintLocked) {
+    toast.error("Fitur Cetak Struk Thermal terkunci! Silakan perpanjang paket langganan premium Anda.");
+    return;
+  }
+
   const is80mm = storeSettings?.paperSize === '80mm';
   const paperWidth = is80mm ? '300px' : '220px';
   const fontSize = is80mm ? '14px' : '12px';
@@ -979,6 +1023,27 @@ export const printServiceReceipt = async (ticket: any, storeSettings: any, brand
 
 export const printServiceA4 = async (ticket: any, storeSettings: any, branding?: any) => {
   const isExpired = await checkSubscriptionExpired(ticket.storeId);
+
+  // Check if printing is locked
+  let isPrintLocked = false;
+  try {
+    const infraSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+    if (infraSnap.exists()) {
+      const infraData = infraSnap.data();
+      const isPaidFeature = infraData.paid_print_a4 ?? false;
+      const role = useAuthStore.getState().role;
+      if (isExpired && isPaidFeature && role !== 'super-admin' && role !== 'superadmin') {
+        isPrintLocked = true;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to check print receipt feature lock:", err);
+  }
+
+  if (isPrintLocked) {
+    toast.error("Fitur Cetak A4 terkunci! Silakan perpanjang paket langganan premium Anda.");
+    return;
+  }
 
   let logoData = storeSettings?.logoUrl || storeSettings?.thermalLogoUrl || '';
   if (logoData && logoData.startsWith('http')) {

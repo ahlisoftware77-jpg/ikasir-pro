@@ -4,7 +4,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { Loader2, Truck, User, Building, ClipboardCheck } from 'lucide-react';
+import { Loader2, Truck, User, Building, ClipboardCheck, ShieldAlert } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
 
 function DeliveryOrderContent() {
   const searchParams = useSearchParams();
@@ -15,6 +16,8 @@ function DeliveryOrderContent() {
   const [productsMap, setProductsMap] = useState<Record<string, any>>({});
   const [logoDataUri, setLogoDataUri] = useState<string | null>(null);
   const [isLogoReady, setIsLogoReady] = useState(false);
+  const [isExpired, setIsExpired] = useState(true);
+  const [infraData, setInfraData] = useState<any>(null);
 
   // Effect to fetch and convert logo to Base64
   useEffect(() => {
@@ -73,6 +76,37 @@ function DeliveryOrderContent() {
               setSettings(settingsSnap.data());
             }
 
+            // Check subscription status
+            try {
+              const q = query(collection(db, 'users'), where('storeId', '==', storeId));
+              const userSnaps = await getDocs(q);
+              
+              let hasActiveSub = false;
+              const now = new Date();
+              userSnaps.forEach((userDoc: any) => {
+                const uData = userDoc.data();
+                if (uData.validUntil) {
+                  const d = new Date(uData.validUntil);
+                  if (!isNaN(d.getTime()) && d > now) {
+                    hasActiveSub = true;
+                  }
+                }
+              });
+              setIsExpired(!hasActiveSub);
+            } catch (err) {
+              console.warn("Failed to check subscription status:", err);
+            }
+
+            // Fetch infrastructure settings
+            try {
+              const infraSnap = await getDoc(doc(db, 'system_settings', 'infrastructure'));
+              if (infraSnap.exists()) {
+                setInfraData(infraSnap.data());
+              }
+            } catch (err) {
+              console.warn("Failed to fetch infrastructure settings:", err);
+            }
+
             // Fetch products for dynamic warranty lookup
             try {
               const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
@@ -101,8 +135,13 @@ function DeliveryOrderContent() {
     if (id) fetchData();
   }, [id]);
 
+  // Check if feature is locked
+  const { role } = useAuthStore();
+  const isPaidFeature = infraData?.paid_print_delivery ?? false;
+  const isLocked = isExpired && isPaidFeature && role !== 'super-admin' && role !== 'superadmin';
+
   useEffect(() => {
-    if (!loading && trx && isLogoReady) {
+    if (!loading && trx && isLogoReady && !isLocked) {
       // Set document title for suggested PDF filename
       const storeName = (settings?.storeName || 'IKASIR PRO').split('@')[0];
       const docId = trx.id?.substring(0, 10).toUpperCase();
@@ -113,12 +152,36 @@ function DeliveryOrderContent() {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [loading, trx, isLogoReady, settings?.storeName]);
+  }, [loading, trx, isLogoReady, settings?.storeName, isLocked]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+        <div className="bg-white border border-slate-200 p-8 md:p-12 rounded-[2rem] shadow-2xl max-w-md w-full space-y-6">
+          <div className="w-16 h-16 bg-rose-100 dark:bg-rose-950 text-rose-500 rounded-2xl flex items-center justify-center mx-auto animate-bounce">
+            <ShieldAlert size={36} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-slate-900 uppercase tracking-wider">Fitur Premium Terkunci</h2>
+            <p className="text-xs text-slate-500 font-bold leading-relaxed">
+              Fitur pencetakan Surat Jalan A4 saat ini dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Kasir Pro Anda untuk menggunakan fitur ini.
+            </p>
+          </div>
+          <button 
+            onClick={() => window.close()} 
+            className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg"
+          >
+            Tutup Halaman
+          </button>
+        </div>
       </div>
     );
   }
