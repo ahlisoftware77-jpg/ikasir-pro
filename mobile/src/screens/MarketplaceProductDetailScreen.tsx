@@ -23,6 +23,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const addToCart = useCartStore((state) => state.addToCart);
+  const cartItems = useCartStore((state) => state.items);
   
   const { user } = useAuthStore();
   const [reviews, setReviews] = useState<any[]>([]);
@@ -397,9 +398,17 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <ChevronLeft color={colors.text} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Detail Produk</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
-          <Share2 color={colors.text} size={22} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.navigate('CartScreen')} style={[styles.backBtn, { marginRight: 8 }]}>
+            <ShoppingCart color={colors.text} size={22} />
+            {cartItems.length > 0 && (
+              <View style={[styles.notificationBadge, { right: 2, top: 2, backgroundColor: '#ef4444', width: 10, height: 10, borderRadius: 5, position: 'absolute' }]} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
+            <Share2 color={colors.text} size={22} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
