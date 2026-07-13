@@ -86,6 +86,33 @@ const checkSubscriptionExpired = async (storeId: string | null): Promise<boolean
   }
 };
 
+const checkFeatureLocked = async (storeId: string | null, key: string): Promise<boolean> => {
+  try {
+    const { useAuthStore } = require('../store/authStore');
+    const role = useAuthStore.getState().role;
+    if (role === 'super-admin' || role === 'superadmin') {
+      return false; // Superadmin bypass
+    }
+
+    const isExpired = await checkSubscriptionExpired(storeId);
+    if (!isExpired) {
+      return false; // Active subscription bypass
+    }
+
+    const { primaryDb } = require('../lib/firebase');
+    const { doc, getDoc } = require('firebase/firestore');
+    const infraSnap = await getDoc(doc(primaryDb, 'system_settings', 'infrastructure'));
+    if (infraSnap.exists()) {
+      const infraData = infraSnap.data();
+      const isPaidFeature = infraData?.[key] ?? false;
+      return isPaidFeature; // Locked if it's a paid feature
+    }
+  } catch (err) {
+    console.warn("Failed to check feature lock:", err);
+  }
+  return false;
+};
+
 const fetchProductsMap = async (storeId: string | null): Promise<Record<string, any>> => {
   if (!storeId) return {};
   const pMap: Record<string, any> = {};
@@ -1309,6 +1336,12 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 };
 
 export const printReceipt = async (transaction: any, storeSettings?: any, isShort = false) => {
+  if (await checkFeatureLocked(transaction?.storeId, 'paid_print_receipt')) {
+    const { Alert } = require('react-native');
+    Alert.alert("Fitur Terkunci", "Fitur Cetak Struk Kasir Thermal dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    return;
+  }
+
   let settings = storeSettings;
   
   let branding: any = null;
@@ -1428,6 +1461,12 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
 };
 
 export const printA4 = async (trx: any, storeSettings?: any) => {
+  if (await checkFeatureLocked(trx?.storeId, 'paid_print_a4')) {
+    const { Alert } = require('react-native');
+    Alert.alert("Fitur Terkunci", "Fitur Cetak A4 dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    return;
+  }
+
   let settings = storeSettings;
   let branding: any = null;
   const isExpired = await checkSubscriptionExpired(trx?.storeId);
@@ -1751,6 +1790,12 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
 };
 
 export const printA4Delivery = async (trx: any, storeSettings?: any) => {
+  if (await checkFeatureLocked(trx?.storeId, 'paid_print_delivery')) {
+    const { Alert } = require('react-native');
+    Alert.alert("Fitur Terkunci", "Fitur Cetak Surat Jalan A4 dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    return;
+  }
+
   let settings = storeSettings;
   let branding: any = null;
   const isExpired = await checkSubscriptionExpired(trx?.storeId);
@@ -2255,6 +2300,12 @@ export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings
 };
 
 export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
+  if (await checkFeatureLocked(ticket?.storeId, 'paid_print_receipt')) {
+    const { Alert } = require('react-native');
+    Alert.alert("Fitur Terkunci", "Fitur Cetak Struk Thermal dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    return;
+  }
+
   let settings = storeSettings;
   let branding: any = null;
   const isExpired = await checkSubscriptionExpired(ticket?.storeId);
@@ -2588,6 +2639,12 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
 };
 
 export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
+  if (await checkFeatureLocked(ticket?.storeId, 'paid_print_a4')) {
+    const { Alert } = require('react-native');
+    Alert.alert("Fitur Terkunci", "Fitur Cetak A4 dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    return;
+  }
+
   let settings = storeSettings;
   let branding: any = null;
   const isExpired = await checkSubscriptionExpired(ticket?.storeId);
