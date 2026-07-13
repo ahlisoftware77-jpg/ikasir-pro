@@ -110,22 +110,34 @@ export default function ReviewModal({
       }
 
       // 3. Update order document to mark item as reviewed
+      // Order might be in tDb (tenant DB) OR primaryDb — try both
       if (orderId) {
-        const oRef = doc(tDb, 'transactions', orderId);
-        const oSnap = await getDoc(oRef);
-        if (oSnap.exists()) {
-          const oData = oSnap.data();
-          if (oData.items) {
-            const updatedItems = oData.items.map((item: any) => {
-              if (item.productId === productId || item.id === productId) {
-                return { ...item, isReviewed: true };
-              }
-              return item;
-            });
-            await updateDoc(oRef, { items: updatedItems });
+        const updateOrderReviewed = async (dbInstance: typeof tDb) => {
+          const oRef = doc(dbInstance, 'transactions', orderId);
+          const oSnap = await getDoc(oRef);
+          if (oSnap.exists()) {
+            const oData = oSnap.data();
+            if (oData.items) {
+              const updatedItems = oData.items.map((item: any) => {
+                if (item.productId === productId || item.id === productId) {
+                  return { ...item, isReviewed: true };
+                }
+                return item;
+              });
+              await updateDoc(oRef, { items: updatedItems });
+            }
+            return true;
           }
-        } else {
-          console.error("Order not found in DB! orderId:", orderId);
+          return false;
+        };
+
+        // Try tenant DB first, then fall back to primaryDb
+        const foundInTenant = await updateOrderReviewed(tDb);
+        if (!foundInTenant) {
+          const foundInPrimary = await updateOrderReviewed(primaryDb);
+          if (!foundInPrimary) {
+            console.warn('Order not found in any DB, orderId:', orderId);
+          }
         }
       }
 
