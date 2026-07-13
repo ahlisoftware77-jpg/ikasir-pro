@@ -208,7 +208,7 @@ function InvoiceA4Content() {
           <div className="space-y-2">
             <h2 className="text-xl font-black text-slate-900 uppercase tracking-wider">Fitur Premium Terkunci</h2>
             <p className="text-xs text-slate-500 font-bold leading-relaxed">
-              Fitur pencetakan Dokumen A4 saat ini dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Kasir Pro Anda untuk menggunakan fitur ini.
+              Fitur pencetakan Dokumen A4 saat ini dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan perpanjangan paket premium Kasir Pro Anda untuk menggunakan fitur ini.
             </p>
           </div>
           <button 

@@ -1338,7 +1338,7 @@ export const printReceiptViaBluetooth = async (trx: any, storeSettings?: any, br
 export const printReceipt = async (transaction: any, storeSettings?: any, isShort = false) => {
   if (await checkFeatureLocked(transaction?.storeId, 'paid_print_receipt')) {
     const { Alert } = require('react-native');
-    Alert.alert("Fitur Terkunci", "Fitur Cetak Struk Kasir Thermal dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    Alert.alert("Fitur Terkunci", "Fitur Cetak Struk Kasir Thermal dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan perpanjangan paket premium Anda.");
     return;
   }
 
@@ -1463,7 +1463,7 @@ export const printReceipt = async (transaction: any, storeSettings?: any, isShor
 export const printA4 = async (trx: any, storeSettings?: any) => {
   if (await checkFeatureLocked(trx?.storeId, 'paid_print_a4')) {
     const { Alert } = require('react-native');
-    Alert.alert("Fitur Terkunci", "Fitur Cetak A4 dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    Alert.alert("Fitur Terkunci", "Fitur Cetak A4 dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan perpanjangan paket premium Anda.");
     return;
   }
 
@@ -1792,7 +1792,7 @@ export const generateA4DeliveryHtml = (trx: any, storeSettings?: any, branding?:
 export const printA4Delivery = async (trx: any, storeSettings?: any) => {
   if (await checkFeatureLocked(trx?.storeId, 'paid_print_delivery')) {
     const { Alert } = require('react-native');
-    Alert.alert("Fitur Terkunci", "Fitur Cetak Surat Jalan A4 dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    Alert.alert("Fitur Terkunci", "Fitur Cetak Surat Jalan A4 dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan perpanjangan paket premium Anda.");
     return;
   }
 
@@ -2302,7 +2302,7 @@ export const printServiceReceiptViaBluetooth = async (ticket: any, storeSettings
 export const printServiceReceipt = async (ticket: any, storeSettings?: any) => {
   if (await checkFeatureLocked(ticket?.storeId, 'paid_print_receipt')) {
     const { Alert } = require('react-native');
-    Alert.alert("Fitur Terkunci", "Fitur Cetak Struk Thermal dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    Alert.alert("Fitur Terkunci", "Fitur Cetak Struk Thermal dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan perpanjangan paket premium Anda.");
     return;
   }
 
@@ -2641,7 +2641,7 @@ export const generateServiceA4Html = (ticket: any, storeSettings?: any, branding
 export const printServiceA4 = async (ticket: any, storeSettings?: any) => {
   if (await checkFeatureLocked(ticket?.storeId, 'paid_print_a4')) {
     const { Alert } = require('react-native');
-    Alert.alert("Fitur Terkunci", "Fitur Cetak A4 dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan perpanjangan paket premium Anda.");
+    Alert.alert("Fitur Terkunci", "Fitur Cetak A4 dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan perpanjangan paket premium Anda.");
     return;
   }
 

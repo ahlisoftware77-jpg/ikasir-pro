@@ -124,7 +124,7 @@ export default function TransactionsScreen({ navigation }: any) {
     if (isPaidFeature && isSubscriptionExpired) {
       Alert.alert(
         'Fitur Premium Kasir Pro',
-        `Fitur "${featureName}" saat ini dikonfigurasi sebagai fitur berbayar oleh Superadmin. Silakan lakukan langganan / perpanjang paket premium Kasir Pro Anda untuk menggunakan fitur ini.`,
+        `Fitur "${featureName}" saat ini dikonfigurasi sebagai fitur berbayar oleh Developer. Silakan lakukan langganan / perpanjang paket premium Kasir Pro Anda untuk menggunakan fitur ini.`,
         [
           { text: 'Tutup', style: 'cancel' }
         ]
