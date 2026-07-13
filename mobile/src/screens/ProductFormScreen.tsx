@@ -291,6 +291,13 @@ export default function ProductFormScreen({ route, navigation }: any) {
       return;
     }
 
+    const priceNum = Number(formData.price) || 0;
+    const purchasePriceNum = Number(formData.purchasePrice) || 0;
+    if (purchasePriceNum > priceNum) {
+      Alert.alert('Gagal Simpan', 'Harga Beli / Modal tidak boleh lebih besar dari Harga Jual!');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const finalImageUrls: string[] = [];

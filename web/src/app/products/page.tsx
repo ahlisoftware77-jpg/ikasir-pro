@@ -341,6 +341,10 @@ export default function ProductsPage() {
 
   const saveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.purchasePrice > formData.price) {
+      toast.error('Harga Beli / Modal tidak boleh lebih besar dari Harga Jual!');
+      return;
+    }
     setIsSaving(true);
     try {
       const config = await getInfraConfig();

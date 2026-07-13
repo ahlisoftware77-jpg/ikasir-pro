@@ -7037,6 +7037,17 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               className="flex-1 ml-3 font-bold text-xs"
               style={{ color: colors.text }}
             />
+            {search.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => {
+                  Vibration.vibrate(10);
+                  setSearch('');
+                }}
+                className="p-1"
+              >
+                <X size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
