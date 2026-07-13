@@ -53,19 +53,14 @@ export default function MarketplaceWriteReviewScreen({ route, navigation }: any)
           if (cfg) tDb = getTenantDb(cfg);
         } else {
           // Fallback if storeId is actually a projectId (due to old bug)
-          let found = false;
           const storesQ = query(collection(primaryDb || db, 'stores'));
           const storesSnap = await getDocs(storesQ);
           storesSnap.forEach(d => {
             const cfg = d.data().infraConfig;
             if (cfg && cfg.projectId === storeId) {
               tDb = getTenantDb(cfg);
-              found = true;
             }
           });
-          if (!found) {
-            tDb = primaryDb;
-          }
         }
       }
 

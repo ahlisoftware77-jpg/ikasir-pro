@@ -91,11 +91,6 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
           const pId = cfg.projectId || cfg.fb_project_id;
           if (pId) tenantConfigs.set(pId, cfg);
         });
-        
-        // Ensure primaryDb is always included
-        if (!tenantConfigs.has('kasir-3d12b')) {
-           tenantConfigs.set('kasir-3d12b', { projectId: 'kasir-3d12b' });
-        }
 
         Array.from(tenantConfigs.values()).forEach(cfg => {
           try {

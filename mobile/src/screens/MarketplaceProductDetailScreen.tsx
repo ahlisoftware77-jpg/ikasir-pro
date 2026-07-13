@@ -23,7 +23,6 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const addToCart = useCartStore((state) => state.addToCart);
-  const cartItems = useCartStore((state) => state.items);
   
   const { user } = useAuthStore();
   const [reviews, setReviews] = useState<any[]>([]);
@@ -49,19 +48,14 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           tDb = cfg ? getTenantDb(cfg) : primaryDb;
         } else {
           // Fallback if routeStoreId is actually a projectId
-          let found = false;
           const storesQ = query(collection(primaryDb || db, 'stores'));
           const storesSnap = await getDocs(storesQ);
           storesSnap.forEach(d => {
             const cfg = d.data().infraConfig;
             if (cfg && cfg.projectId === routeStoreId) {
               tDb = getTenantDb(cfg);
-              found = true;
             }
           });
-          if (!found) {
-            tDb = primaryDb;
-          }
         }
       }
 
@@ -403,19 +397,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <ChevronLeft color={colors.text} size={24} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Detail Produk</Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('CartScreen')} style={styles.backBtn}>
-            <ShoppingCart color={colors.text} size={22} />
-            {cartItems.length > 0 && (
-              <View style={[styles.notificationBadge, { right: -2, top: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: '#fff', fontSize: 8, fontWeight: 'bold' }}>{cartItems.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
-            <Share2 color={colors.text} size={22} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
+          <Share2 color={colors.text} size={22} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -598,7 +582,7 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           <View style={styles.reviewHeader}>
             <Text style={[styles.descTitle, { color: colors.text, marginBottom: 0 }]}>Ulasan Produk</Text>
             {canReview && (
-              <TouchableOpacity onPress={() => navigation.navigate('MarketplaceWriteReview', { productId, productName: product.name, storeId: product.storeId || routeStoreId })}>
+              <TouchableOpacity onPress={() => navigation.navigate('MarketplaceWriteReview', { productId, productName: product.name, storeId: product.storeId })}>
                 <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Tulis Ulasan</Text>
               </TouchableOpacity>
             )}
@@ -775,15 +759,6 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontWeight: '800',
     fontSize: 16,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ef4444',
   },
   imageContainer: {
     width: width,
