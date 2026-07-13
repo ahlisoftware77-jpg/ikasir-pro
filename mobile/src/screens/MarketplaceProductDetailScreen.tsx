@@ -49,14 +49,19 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
           tDb = cfg ? getTenantDb(cfg) : primaryDb;
         } else {
           // Fallback if routeStoreId is actually a projectId
+          let found = false;
           const storesQ = query(collection(primaryDb || db, 'stores'));
           const storesSnap = await getDocs(storesQ);
           storesSnap.forEach(d => {
             const cfg = d.data().infraConfig;
             if (cfg && cfg.projectId === routeStoreId) {
               tDb = getTenantDb(cfg);
+              found = true;
             }
           });
+          if (!found) {
+            tDb = primaryDb;
+          }
         }
       }
 
