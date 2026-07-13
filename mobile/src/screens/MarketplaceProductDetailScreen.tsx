@@ -109,10 +109,34 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         }
       }
 
-      // Fetch Reviews
-      const rQuery = query(collection(tDb, 'reviews'), where('productId', '==', productId));
-      const rSnap = await getDocs(rQuery);
-      const fetchedReviews = rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      // Fetch Reviews — from BOTH tDb (tenant) AND primaryDb (main)
+      // Reviews may have been written from web (which could use a different DB)
+      const fetchReviewsFrom = async (dbInst: typeof tDb) => {
+        try {
+          const rQuery = query(collection(dbInst, 'reviews'), where('productId', '==', productId));
+          const rSnap = await getDocs(rQuery);
+          return rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+        } catch {
+          return [];
+        }
+      };
+
+      const [reviewsFromTenant, reviewsFromPrimary] = await Promise.all([
+        fetchReviewsFrom(tDb),
+        tDb !== primaryDb ? fetchReviewsFrom(primaryDb) : Promise.resolve([]),
+      ]);
+
+      // Merge and deduplicate by review ID
+      const allReviewsMap = new Map<string, any>();
+      [...reviewsFromPrimary, ...reviewsFromTenant].forEach(r => allReviewsMap.set(r.id, r));
+      const fetchedReviews = Array.from(allReviewsMap.values());
+      // Sort newest first
+      fetchedReviews.sort((a, b) => {
+        const tA = a.createdAt?.seconds || 0;
+        const tB = b.createdAt?.seconds || 0;
+        return tB - tA;
+      });
+
       setReviews(fetchedReviews);
       
       if (fetchedReviews.length > 0) {
