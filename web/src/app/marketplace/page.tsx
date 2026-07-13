@@ -26,6 +26,8 @@ interface Product {
   averageRating?: number;
   reviewCount?: number;
   soldCount?: number;
+  storeLatitude?: number;
+  storeLongitude?: number;
 }
 
 function MarketplaceContent() {
