@@ -569,22 +569,35 @@ export default function CartDrawer() {
                     {/* QRIS Toko */}
                     {paymentMethod === 'qris' && storeEwallets.length > 0 && (
                       <div className="space-y-3">
-                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">QRIS / E-Wallet</label>
-                        <div className="flex flex-col items-center gap-3">
-                          {storeEwallets.map((wallet: any) => (
-                            <div key={wallet.id} className="w-full p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
-                              <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">{wallet.walletName}</p>
-                              {wallet.qrImageUrl ? (
-                                <div className="mt-2 aspect-square max-w-[120px] mx-auto bg-slate-50 border border-slate-100 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                                  <img src={wallet.qrImageUrl} alt="QRIS" className="w-full h-full object-contain" />
+                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pilih QRIS / E-Wallet</label>
+                        <select
+                          value={selectedStoreEwalletId}
+                          onChange={(e) => setSelectedStoreEwalletId(e.target.value)}
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+                        >
+                          {storeEwallets.map((ew: any) => (
+                            <option key={ew.id} value={ew.id}>
+                              {ew.ewalletName} - {ew.phoneNumber}
+                            </option>
+                          ))}
+                        </select>
+                        {(() => {
+                          const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                          if (!activeEw) return null;
+                          return (
+                            <div className="w-full p-3.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center">
+                              <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">{activeEw.ewalletName}</p>
+                              {activeEw.qrCodeUrl ? (
+                                <div className="mt-2 aspect-square w-36 h-36 bg-white border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                                  <img src={activeEw.qrCodeUrl} alt="QRIS" className="w-full h-full object-contain" />
                                 </div>
                               ) : (
-                                <p className="text-[10px] text-slate-400 mt-1">Gunakan nomor e-wallet: {wallet.phoneNumber}</p>
+                                <p className="text-[10px] text-slate-400 mt-2">Gunakan nomor e-wallet: {activeEw.phoneNumber}</p>
                               )}
-                              <p className="text-[9px] text-slate-400 mt-1 font-mono">a.n. {wallet.accountHolder}</p>
+                              <p className="text-[9px] text-slate-400 mt-1 font-mono">a.n. {activeEw.accountHolder}</p>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })()}
                       </div>
                     )}
 
