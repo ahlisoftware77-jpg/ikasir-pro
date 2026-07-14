@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCart, CartItem } from '@/context/CartContext';
-import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare, Loader2, CheckCircle2, Truck, Building, CreditCard, QrCode, Coins, Upload, Camera, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { auth, db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, runTransaction, serverTimestamp, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { getInfraConfig } from '@/lib/infraConfig';
 
 export default function CartDrawer() {
   const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQty, clearStoreItems, clearCart } = useCart();
@@ -15,6 +16,115 @@ export default function CartDrawer() {
 
   const [buyerInfo, setBuyerInfo] = useState({ name: '', phone: '', address: '' });
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  // Advanced Checkout Options
+  const [fulfillmentType, setFulfillmentType] = useState<'delivery' | 'pickup'>('delivery');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'transfer' | 'qris'>('cod');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [storeBanks, setStoreBanks] = useState<any[]>([]);
+  const [storeEwallets, setStoreEwallets] = useState<any[]>([]);
+  const [selectedStoreBankId, setSelectedStoreBankId] = useState('');
+  const [selectedStoreEwalletId, setSelectedStoreEwalletId] = useState('');
+  const [paymentProofUrl, setPaymentProofUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [storeAllowPickup, setStoreAllowPickup] = useState(true);
+  const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
+
+  // Group items by store helper
+  const getItemsByStore = () => {
+    const itemsByStore: Record<string, CartItem[]> = {};
+    items.forEach(item => {
+      if (!itemsByStore[item.storeId]) {
+        itemsByStore[item.storeId] = [];
+      }
+      itemsByStore[item.storeId].push(item);
+    });
+    return itemsByStore;
+  };
+
+  useEffect(() => {
+    const loadStorePaymentSettings = async () => {
+      const itemsByStore = getItemsByStore();
+      const storeIds = Object.keys(itemsByStore);
+      if (storeIds.length === 1) {
+        const storeId = storeIds[0];
+        try {
+          const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
+          if (settingsSnap.exists()) {
+            const sData = settingsSnap.data();
+            setStoreBanks(sData.storeBanks || []);
+            setStoreEwallets(sData.storeEwallets || []);
+            setStoreAllowPickup(sData.allowPickup !== false);
+            setStoreAllowDelivery(sData.allowDelivery !== false);
+            
+            if (sData.allowPickup === false && sData.allowDelivery !== false) {
+              setFulfillmentType('delivery');
+            } else if (sData.allowPickup !== false && sData.allowDelivery === false) {
+              setFulfillmentType('pickup');
+            }
+
+            if (sData.storeBanks && sData.storeBanks.length > 0) {
+              setSelectedStoreBankId(sData.storeBanks[0].id);
+            }
+            if (sData.storeEwallets && sData.storeEwallets.length > 0) {
+              setSelectedStoreEwalletId(sData.storeEwallets[0].id);
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to load store settings in CartDrawer:", e);
+        }
+      } else {
+        setStoreBanks([]);
+        setStoreEwallets([]);
+        setStoreAllowPickup(true);
+        setStoreAllowDelivery(true);
+      }
+    };
+
+    if (isCartOpen && items.length > 0) {
+      loadStorePaymentSettings();
+    }
+  }, [isCartOpen, items.length]);
+
+  useEffect(() => {
+    if (buyerInfo.address) {
+      setDeliveryAddress(buyerInfo.address);
+    }
+  }, [buyerInfo.address]);
+
+  // Cloudinary image upload helper
+  const handleUploadProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const config = await getInfraConfig();
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('upload_preset', config.cloudinary_upload_preset || 'kasirpos');
+
+      const cloudName = config.cloudinary_cloud_name || 'dkcjfwbvc';
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: uploadData
+      });
+
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json();
+        throw new Error(errData.error?.message || 'Gagal mengunggah bukti transfer');
+      }
+
+      const uploadResult = await uploadRes.json();
+      setPaymentProofUrl(uploadResult.secure_url);
+      toast.success('Bukti pembayaran berhasil diunggah!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Gagal mengunggah bukti pembayaran');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -56,9 +166,19 @@ export default function CartDrawer() {
       return;
     }
 
+    if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
+      toast.error('Alamat Pengiriman wajib diisi');
+      return;
+    }
+
+    if ((paymentMethod === 'transfer' || paymentMethod === 'qris') && !paymentProofUrl) {
+      toast.error('Silakan unggah bukti transfer pembayaran terlebih dahulu');
+      return;
+    }
+
     setIsCheckingOut(true);
     try {
-      // Create a transaction for each store
+      const itemsByStore = getItemsByStore();
       // Create a transaction for each store sequentially to avoid counter collision
       for (const [storeId, storeItems] of Object.entries(itemsByStore)) {
         let tDb = db;
@@ -100,6 +220,16 @@ export default function CartDrawer() {
           
           const storeTotal = storeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
           
+          let activeBank = null;
+          let activeEwallet = null;
+          if (settingsSnap.exists()) {
+            const data = settingsSnap.data();
+            const banks = data.storeBanks || [];
+            const ewallets = data.storeEwallets || [];
+            activeBank = banks.find((b: any) => b.id === selectedStoreBankId) || banks[0] || null;
+            activeEwallet = ewallets.find((ew: any) => ew.id === selectedStoreEwalletId) || ewallets[0] || null;
+          }
+
           const orderData = {
             id: finalId,
             queueNumber: currentCounter,
@@ -107,7 +237,7 @@ export default function CartDrawer() {
             storeName: storeItems[0]?.storeName || '',
             customerName: buyerInfo.name,
             customerPhone: buyerInfo.phone,
-            deliveryAddress: buyerInfo.address || '',
+            deliveryAddress: fulfillmentType === 'delivery' ? deliveryAddress.trim() : '',
             items: storeItems.map(item => ({
               productId: item.productId,
               name: item.productName,
@@ -125,9 +255,16 @@ export default function CartDrawer() {
             total: storeTotal,
             status: 'pending',
             orderStatus: 'new',
-            paymentStatus: 'unpaid',
+            paymentMethod: paymentMethod,
+            selectedPaymentDetails: paymentMethod === 'transfer' 
+              ? activeBank
+              : paymentMethod === 'qris' 
+                ? activeEwallet
+                : null,
+            paymentProofUrl: (paymentMethod === 'transfer' || paymentMethod === 'qris') ? paymentProofUrl : '',
+            paymentStatus: paymentMethod === 'cod' ? 'pending' : (paymentProofUrl ? 'pending' : 'unpaid'),
             paymentCategory: 'order',
-            deliveryType: 'delivery',
+            deliveryType: fulfillmentType,
             orderType: 'online',
             cashierName: 'Online (Sistem)',
             cashierId: 'online',
@@ -302,6 +439,199 @@ export default function CartDrawer() {
                   </div>
                 );
               })}
+              {/* PENGIRIMAN & PEMBAYARAN */}
+              <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-5 shadow-sm">
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-3">Metode Pengiriman</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {storeAllowDelivery && (
+                      <button
+                        type="button"
+                        onClick={() => setFulfillmentType('delivery')}
+                        className={`py-3 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                          fulfillmentType === 'delivery'
+                            ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                            : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <Truck size={16} />
+                        <span>Kirim Kurir</span>
+                      </button>
+                    )}
+                    {storeAllowPickup && (
+                      <button
+                        type="button"
+                        onClick={() => setFulfillmentType('pickup')}
+                        className={`py-3 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                          fulfillmentType === 'pickup'
+                            ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                            : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <Building size={16} />
+                        <span>Ambil Sendiri</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {fulfillmentType === 'delivery' && (
+                  <div className="space-y-1.5 animate-fadeIn">
+                    <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Alamat Pengiriman Lengkap</label>
+                    <textarea
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Masukkan alamat pengiriman lengkap Anda..."
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-905 border border-slate-205 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 min-h-[80px] resize-y"
+                    />
+                  </div>
+                )}
+
+                <div className="border-t border-slate-100 dark:border-slate-800/80 pt-4">
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-3">Metode Pembayaran</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cod')}
+                      className={`py-3 px-2 rounded-xl border font-bold text-[10px] sm:text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === 'cod'
+                          ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                          : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <Coins size={16} />
+                      <span>COD</span>
+                    </button>
+                    {(storeBanks.length > 0 || Object.keys(getItemsByStore()).length > 1) && (
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('transfer')}
+                        className={`py-3 px-2 rounded-xl border font-bold text-[10px] sm:text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
+                          paymentMethod === 'transfer'
+                            ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                            : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <CreditCard size={16} />
+                        <span>Transfer</span>
+                      </button>
+                    )}
+                    {(storeEwallets.length > 0 || Object.keys(getItemsByStore()).length > 1) && (
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('qris')}
+                        className={`py-3 px-2 rounded-xl border font-bold text-[10px] sm:text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
+                          paymentMethod === 'qris'
+                            ? 'border-emerald-500 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                            : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <QrCode size={16} />
+                        <span>QRIS</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* PILIHAN REKENING & BUKTI UPLOAD */}
+                {(paymentMethod === 'transfer' || paymentMethod === 'qris') && (
+                  <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 space-y-4 animate-fadeIn">
+                    {/* Rekening Bank Toko */}
+                    {paymentMethod === 'transfer' && storeBanks.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rekening Tujuan</label>
+                        <div className="grid grid-cols-1 gap-2">
+                          {storeBanks.map((bank: any) => (
+                            <button
+                              key={bank.id}
+                              type="button"
+                              onClick={() => setSelectedStoreBankId(bank.id)}
+                              className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
+                                selectedStoreBankId === bank.id
+                                  ? 'border-emerald-500 bg-emerald-500/5 text-slate-900 dark:text-white'
+                                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400'
+                              }`}
+                            >
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-wider">{bank.bankName}</p>
+                                <p className="text-[10px] font-mono mt-0.5">{bank.accountNumber}</p>
+                                <p className="text-[9px] text-slate-400 mt-0.5">a.n. {bank.accountHolder}</p>
+                              </div>
+                              {selectedStoreBankId === bank.id && (
+                                <Check size={16} className="text-emerald-500" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* QRIS Toko */}
+                    {paymentMethod === 'qris' && storeEwallets.length > 0 && (
+                      <div className="space-y-3">
+                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">QRIS / E-Wallet</label>
+                        <div className="flex flex-col items-center gap-3">
+                          {storeEwallets.map((wallet: any) => (
+                            <div key={wallet.id} className="w-full p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                              <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">{wallet.walletName}</p>
+                              {wallet.qrImageUrl ? (
+                                <div className="mt-2 aspect-square max-w-[120px] mx-auto bg-slate-50 border border-slate-100 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                                  <img src={wallet.qrImageUrl} alt="QRIS" className="w-full h-full object-contain" />
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-slate-400 mt-1">Gunakan nomor e-wallet: {wallet.phoneNumber}</p>
+                              )}
+                              <p className="text-[9px] text-slate-400 mt-1 font-mono">a.n. {wallet.accountHolder}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Multiple Stores warning for transfer */}
+                    {Object.keys(getItemsByStore()).length > 1 && (
+                      <div className="p-3 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-xl text-[10px] font-bold leading-normal">
+                        ⚠️ Keranjang Anda memiliki barang dari beberapa toko mitra. Detail rekening bank/QRIS akan dikonfirmasi secara manual via WhatsApp setelah pesanan dibuat. Silakan unggah bukti pembayaran awal Anda jika ada.
+                      </div>
+                    )}
+
+                    {/* Upload Proof */}
+                    <div className="space-y-2">
+                      <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Unggah Bukti Pembayaran</label>
+                      {paymentProofUrl ? (
+                        <div className="relative aspect-[4/3] w-full max-w-[160px] border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 flex items-center justify-center group">
+                          <img src={paymentProofUrl} alt="Bukti Transfer" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setPaymentProofUrl('')}
+                            className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-black uppercase tracking-wider"
+                          >
+                            Hapus Foto
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center aspect-[4/3] w-full max-w-[160px] border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-950 text-slate-400 hover:text-emerald-500 transition-all">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleUploadProof}
+                            disabled={isUploading}
+                            className="hidden"
+                          />
+                          {isUploading ? (
+                            <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                          ) : (
+                            <>
+                              <Camera className="w-6 h-6 mb-1" />
+                              <span className="text-[10px] font-black uppercase tracking-wide">Pilih Foto</span>
+                            </>
+                          )}
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
