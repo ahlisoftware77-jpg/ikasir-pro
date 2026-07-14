@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image as RNImage } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
+import { ChevronLeft, CheckCircle2, Truck, Building, CreditCard, QrCode, Coins, Camera, Trash2, Check } from 'lucide-react-native';
 import { db, primaryDb, getTenantDb } from '../lib/firebase';
 import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const { storeId } = route.params;
@@ -23,6 +24,17 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const [address, setAddress] = useState('');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'delivery'>('pickup');
   const [loading, setLoading] = useState(false);
+
+  // Advanced Payment & Settlement Options
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'transfer' | 'qris'>('cod');
+  const [storeBanks, setStoreBanks] = useState<any[]>([]);
+  const [storeEwallets, setStoreEwallets] = useState<any[]>([]);
+  const [selectedStoreBankId, setSelectedStoreBankId] = useState('');
+  const [selectedStoreEwalletId, setSelectedStoreEwalletId] = useState('');
+  const [paymentProofUrl, setPaymentProofUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [storeAllowPickup, setStoreAllowPickup] = useState(true);
+  const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -54,6 +66,98 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
     fetchUserData();
   }, [user, myStoreId]);
 
+  useEffect(() => {
+    const fetchStoreSettings = async () => {
+      if (!storeId) return;
+      try {
+        let tDb = db;
+        const sRefPrimary = doc(primaryDb, 'stores', storeId);
+        const sSnapPrimary = await getDoc(sRefPrimary);
+        if (sSnapPrimary.exists()) {
+          const cfg = sSnapPrimary.data().infraConfig;
+          tDb = cfg ? getTenantDb(cfg) : primaryDb;
+        }
+        
+        const settingsSnap = await getDoc(doc(tDb, 'settings', `store_${storeId}`));
+        if (settingsSnap.exists()) {
+          const sData = settingsSnap.data();
+          setStoreBanks(sData.storeBanks || []);
+          setStoreEwallets(sData.storeEwallets || []);
+          setStoreAllowPickup(sData.allowPickup !== false);
+          setStoreAllowDelivery(sData.allowDelivery !== false);
+          
+          if (sData.allowPickup === false && sData.allowDelivery !== false) {
+            setDeliveryType('delivery');
+          } else {
+            setDeliveryType('pickup');
+          }
+
+          if (sData.storeBanks && sData.storeBanks.length > 0) {
+            setSelectedStoreBankId(sData.storeBanks[0].id);
+          }
+          if (sData.storeEwallets && sData.storeEwallets.length > 0) {
+            setSelectedStoreEwalletId(sData.storeEwallets[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch store settings:", err);
+      }
+    };
+    
+    fetchStoreSettings();
+  }, [storeId]);
+
+  const pickAndUploadImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Izin akses galeri diperlukan untuk mengunggah bukti transfer.');
+        return;
+      }
+      
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8
+      });
+      
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      
+      const localUri = result.assets[0].uri;
+      setIsUploading(true);
+      
+      // Upload to Cloudinary
+      const formDataUpload = new FormData();
+      const filename = localUri.split('/').pop() || 'file.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      
+      formDataUpload.append('file', { uri: localUri, name: filename, type } as any);
+      formDataUpload.append('upload_preset', 'kasirpos');
+      
+      const uploadRes = await fetch('https://api.cloudinary.com/v1_1/dkcjfwbvc/image/upload', {
+        method: 'POST',
+        body: formDataUpload,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      const uploadResult = await uploadRes.json();
+      if (uploadRes.ok && uploadResult.secure_url) {
+        setPaymentProofUrl(uploadResult.secure_url);
+        Alert.alert('Sukses', 'Bukti pembayaran berhasil diunggah!');
+      } else {
+        throw new Error(uploadResult.error?.message || 'Gagal mengunggah bukti');
+      }
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Gagal', err.message || 'Gagal mengunggah bukti pembayaran.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!name || !phone) {
       Alert.alert('Error', 'Nama dan Nomor HP wajib diisi!');
@@ -61,6 +165,10 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
     }
     if (deliveryType === 'delivery' && !address) {
       Alert.alert('Error', 'Alamat pengiriman wajib diisi untuk opsi Delivery!');
+      return;
+    }
+    if ((paymentMethod === 'transfer' || paymentMethod === 'qris') && !paymentProofUrl) {
+      Alert.alert('Error', 'Silakan unggah bukti transfer pembayaran terlebih dahulu!');
       return;
     }
 
@@ -105,6 +213,16 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
         currentCounter += 1;
         finalId = `${prefix}${String(currentCounter).padStart(padding, '0')}`;
         
+        let activeBank = null;
+        let activeEwallet = null;
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          const banks = data.storeBanks || [];
+          const ewallets = data.storeEwallets || [];
+          activeBank = banks.find((b: any) => b.id === selectedStoreBankId) || banks[0] || null;
+          activeEwallet = ewallets.find((ew: any) => ew.id === selectedStoreEwalletId) || ewallets[0] || null;
+        }
+
         const orderData = {
           id: finalId,
           queueNumber: currentCounter,
@@ -129,7 +247,14 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           total: totalAmount,
           status: 'pending', // Marketplace orders usually wait for confirmation
           orderStatus: 'new',
-          paymentStatus: 'unpaid',
+          paymentMethod: paymentMethod,
+          selectedPaymentDetails: paymentMethod === 'transfer' 
+            ? activeBank
+            : paymentMethod === 'qris' 
+              ? activeEwallet
+              : null,
+          paymentProofUrl: (paymentMethod === 'transfer' || paymentMethod === 'qris') ? paymentProofUrl : '',
+          paymentStatus: paymentMethod === 'cod' ? 'pending' : (paymentProofUrl ? 'pending' : 'unpaid'),
           paymentCategory: 'order',
           deliveryType,
           deliveryAddress: deliveryType === 'delivery' ? address : '',
@@ -278,6 +403,175 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                 multiline
                 numberOfLines={3}
               />
+            </View>
+          )}
+        </View>
+
+        {/* Metode Pembayaran */}
+        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Metode Pembayaran</Text>
+          
+          <View style={{ gap: 10 }}>
+            <TouchableOpacity 
+              style={[styles.radioItem, { borderColor: paymentMethod === 'cod' ? colors.accent : colors.border, flexDirection: 'row', alignItems: 'center' }]}
+              onPress={() => setPaymentMethod('cod')}
+            >
+              <View style={[styles.radioOuter, { borderColor: paymentMethod === 'cod' ? colors.accent : colors.textMuted }]}>
+                {paymentMethod === 'cod' && <View style={[styles.radioInner, { backgroundColor: colors.accent }]} />}
+              </View>
+              <Coins color={paymentMethod === 'cod' ? colors.accent : colors.textMuted} size={18} />
+              <Text style={[styles.radioLabel, { color: colors.text, marginLeft: 8 }]}>COD (Bayar di Tempat)</Text>
+            </TouchableOpacity>
+
+            {storeBanks.length > 0 && (
+              <TouchableOpacity 
+                style={[styles.radioItem, { borderColor: paymentMethod === 'transfer' ? colors.accent : colors.border, flexDirection: 'row', alignItems: 'center' }]}
+                onPress={() => setPaymentMethod('transfer')}
+              >
+                <View style={[styles.radioOuter, { borderColor: paymentMethod === 'transfer' ? colors.accent : colors.textMuted }]}>
+                  {paymentMethod === 'transfer' && <View style={[styles.radioInner, { backgroundColor: colors.accent }]} />}
+                </View>
+                <CreditCard color={paymentMethod === 'transfer' ? colors.accent : colors.textMuted} size={18} />
+                <Text style={[styles.radioLabel, { color: colors.text, marginLeft: 8 }]}>Transfer Bank</Text>
+              </TouchableOpacity>
+            )}
+
+            {storeEwallets.length > 0 && (
+              <TouchableOpacity 
+                style={[styles.radioItem, { borderColor: paymentMethod === 'qris' ? colors.accent : colors.border, flexDirection: 'row', alignItems: 'center' }]}
+                onPress={() => setPaymentMethod('qris')}
+              >
+                <View style={[styles.radioOuter, { borderColor: paymentMethod === 'qris' ? colors.accent : colors.textMuted }]}>
+                  {paymentMethod === 'qris' && <View style={[styles.radioInner, { backgroundColor: colors.accent }]} />}
+                </View>
+                <QrCode color={paymentMethod === 'qris' ? colors.accent : colors.textMuted} size={18} />
+                <Text style={[styles.radioLabel, { color: colors.text, marginLeft: 8 }]}>QRIS / E-Wallet</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Details for Transfer or QRIS */}
+          {(paymentMethod === 'transfer' || paymentMethod === 'qris') && (
+            <View style={{ marginTop: 16, padding: 12, backgroundColor: colors.bg, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+              {paymentMethod === 'transfer' && storeBanks.length > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>Pilih Rekening Bank</Text>
+                  {storeBanks.map((bank: any) => (
+                    <TouchableOpacity
+                      key={bank.id}
+                      onPress={() => setSelectedStoreBankId(bank.id)}
+                      style={{
+                        padding: 10,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: selectedStoreBankId === bank.id ? colors.accent : colors.border,
+                        backgroundColor: colors.surface,
+                        marginBottom: 6,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <View>
+                        <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, textTransform: 'uppercase' }}>{bank.bankName}</Text>
+                        <Text style={{ fontSize: 11, color: colors.text, marginTop: 2, fontFamily: 'monospace' }}>{bank.accountNumber}</Text>
+                        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>a.n. {bank.accountHolder}</Text>
+                      </View>
+                      {selectedStoreBankId === bank.id && (
+                        <Check size={16} color={colors.accent} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {paymentMethod === 'qris' && storeEwallets.length > 0 && (
+                <View style={{ marginBottom: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', alignSelf: 'flex-start' }}>Pilih QRIS / E-Wallet</Text>
+                  
+                  <View style={{ width: '100%', marginBottom: 10 }}>
+                    {storeEwallets.map((wallet: any) => (
+                      <TouchableOpacity
+                        key={wallet.id}
+                        onPress={() => setSelectedStoreEwalletId(wallet.id)}
+                        style={{
+                          padding: 10,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: selectedStoreEwalletId === wallet.id ? colors.accent : colors.border,
+                          backgroundColor: colors.surface,
+                          marginBottom: 6,
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text }}>{wallet.walletName} - {wallet.phoneNumber}</Text>
+                        {selectedStoreEwalletId === wallet.id && (
+                          <Check size={16} color={colors.accent} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {(() => {
+                    const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                    if (!activeEw) return null;
+                    return (
+                      <View style={{ alignItems: 'center', marginTop: 4, width: '100%' }}>
+                        {activeEw.qrCodeUrl ? (
+                          <View style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+                            <RNImage source={{ uri: activeEw.qrCodeUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                          </View>
+                        ) : null}
+                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>a.n. {activeEw.accountHolder}</Text>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+
+              {/* Upload Proof */}
+              <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>Unggah Bukti Pembayaran</Text>
+                {paymentProofUrl ? (
+                  <View style={{ position: 'relative', width: 120, height: 90, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+                    <RNImage source={{ uri: paymentProofUrl }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                    <TouchableOpacity
+                      onPress={() => setPaymentProofUrl('')}
+                      style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }}
+                    >
+                      <Trash2 size={12} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    onPress={pickAndUploadImage}
+                    disabled={isUploading}
+                    style={{
+                      height: 50,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderColor: colors.accent,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      flexDirection: 'row',
+                      gap: 8,
+                      backgroundColor: colors.surface
+                    }}
+                  >
+                    {isUploading ? (
+                      <ActivityIndicator size="small" color={colors.accent} />
+                    ) : (
+                      <>
+                        <Camera size={18} color={colors.accent} />
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.accent }}>Pilih & Upload Foto</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
         </View>
