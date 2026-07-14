@@ -561,39 +561,13 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                 </View>
               )}
 
-              {paymentMethod === 'qris' && storeEwallets.length > 0 && (
+              {paymentMethod === 'qris' && (
                 <View style={{ marginBottom: 12, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', alignSelf: 'flex-start' }}>Pilih QRIS</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', alignSelf: 'flex-start' }}>Scan QRIS Toko</Text>
                   
-                  <View style={{ width: '100%', marginBottom: 10 }}>
-                    {storeEwallets.map((wallet: any) => (
-                      <TouchableOpacity
-                        key={wallet.id}
-                        onPress={() => setSelectedStoreEwalletId(wallet.id)}
-                        style={{
-                          padding: 10,
-                          borderRadius: 10,
-                          borderWidth: 1,
-                          borderColor: selectedStoreEwalletId === wallet.id ? colors.accent : colors.border,
-                          backgroundColor: colors.surface,
-                          marginBottom: 6,
-                          flexDirection: 'row',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text }}>{wallet.ewalletName} - {wallet.phoneNumber}</Text>
-                        {selectedStoreEwalletId === wallet.id && (
-                          <Check size={16} color={colors.accent} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
                   {(() => {
-                    const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
-                    if (!activeEw) return null;
-                    const targetQrUrl = storeQrisUrl || activeEw.qrCodeUrl;
+                    const activeEw = storeEwallets.find((ew: any) => ew.qrCodeUrl) || storeEwallets[0];
+                    const targetQrUrl = storeQrisUrl || activeEw?.qrCodeUrl;
                     return (
                       <View style={{ alignItems: 'center', marginTop: 4, width: '100%' }}>
                         {targetQrUrl ? (
@@ -612,9 +586,11 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                             </TouchableOpacity>
                           </>
                         ) : (
-                          <Text style={{ fontSize: 10, color: colors.textMuted, marginVertical: 8, fontStyle: 'italic' }}>Toko belum mengunggah gambar QR Code untuk e-wallet ini.</Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted, marginVertical: 8, fontStyle: 'italic' }}>Toko belum mengunggah gambar QRIS.</Text>
                         )}
-                        <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>a.n. {activeEw.accountHolder}</Text>
+                        {activeEw && !storeQrisUrl && (
+                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>a.n. {activeEw.accountHolder}</Text>
+                        )}
                       </View>
                     );
                   })()}
@@ -719,18 +695,18 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
             <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>Tutup</Text>
           </TouchableOpacity>
 
-          {(storeQrisUrl || (storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0])?.qrCodeUrl) ? (
+          {(storeQrisUrl || (storeEwallets.find((ew: any) => ew.qrCodeUrl) || storeEwallets[0])?.qrCodeUrl) ? (
             <View style={{ width: '100%', alignItems: 'center' }}>
               <View style={{ width: '90%', aspectRatio: 1, backgroundColor: '#fff', borderRadius: 16, padding: 12, justifyContent: 'center', alignItems: 'center' }}>
                 <RNImage 
-                  source={{ uri: storeQrisUrl || (storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0])?.qrCodeUrl }} 
+                  source={{ uri: storeQrisUrl || (storeEwallets.find((ew: any) => ew.qrCodeUrl) || storeEwallets[0])?.qrCodeUrl }} 
                   style={{ width: '100%', height: '100%', resizeMode: 'contain' }} 
                 />
               </View>
               
               <TouchableOpacity 
                 onPress={() => {
-                  const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                  const activeEw = storeEwallets.find((ew: any) => ew.qrCodeUrl) || storeEwallets[0];
                   handleDownloadQris(storeQrisUrl || activeEw?.qrCodeUrl);
                 }}
                 style={{ marginTop: 24, backgroundColor: colors.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
