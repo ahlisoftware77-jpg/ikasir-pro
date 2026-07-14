@@ -104,9 +104,13 @@ export const getTenantDb = (config: any): Firestore => {
   }
 
   try {
-    return getFirestore(tApp);
+    return initializeFirestore(tApp, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
   } catch {
-    return initializeFirestore(tApp, {});
+    return getFirestore(tApp);
   }
 };
 
