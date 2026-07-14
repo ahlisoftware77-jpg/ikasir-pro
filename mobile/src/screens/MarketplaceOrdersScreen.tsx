@@ -142,18 +142,22 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
     };
   }, [user]);
 
-  const getStatusConfig = (status: string) => {
-    switch(status) {
-      case 'completed':
-      case 'paid':
-      case 'delivered':
-        return { color: '#10b981', icon: CheckCircle2, text: 'Selesai' };
-      case 'cancelled':
-      case 'canceled':
-        return { color: '#ef4444', icon: XCircle, text: 'Dibatalkan' };
-      default:
-        return { color: '#f59e0b', icon: Clock, text: 'Diproses' };
+  const getStatusConfig = (status: string, paymentStatus: string, orderStatus: string) => {
+    const oStatus = orderStatus || 'new';
+    if (paymentStatus === 'paid' || paymentStatus === 'completed' || oStatus === 'completed') {
+      return { color: '#10b981', icon: CheckCircle2, text: 'Selesai' };
     }
+    if (status === 'cancelled' || oStatus === 'cancelled') {
+      return { color: '#ef4444', icon: XCircle, text: 'Dibatalkan' };
+    }
+    if (oStatus === 'processing') {
+      return { color: '#3b82f6', icon: Package, text: 'Diproses' };
+    }
+    if (oStatus === 'ready') {
+      return { color: '#14b8a6', icon: CheckCircle2, text: 'Siap Dikirim/Diambil' };
+    }
+    // Default: 'new'
+    return { color: '#f59e0b', icon: Clock, text: 'Menunggu Konfirmasi' };
   };
 
   const handleChatSeller = async (order: any) => {
@@ -207,7 +211,7 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
     if (item.paymentStatus === 'paid' || item.paymentStatus === 'completed') {
       finalStatus = 'paid';
     }
-    const statusConfig = getStatusConfig(finalStatus);
+    const statusConfig = getStatusConfig(item.status, item.paymentStatus, item.orderStatus);
     const StatusIcon = statusConfig.icon;
     const dateStr = item.timestamp?.seconds 
       ? dayjs(item.timestamp.seconds * 1000).format('DD MMM YYYY, HH:mm') 
