@@ -90,7 +90,19 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
   return uploadResult.secure_url;
 };
 
-export default function ProductDetailModal({ productId, routeStoreId, isOpen, onClose }: { productId: string | null; routeStoreId: string | null; isOpen: boolean; onClose: () => void }) {
+export default function ProductDetailModal({ 
+  productId, 
+  routeStoreId, 
+  isOpen, 
+  onClose,
+  onSelectProduct
+}: { 
+  productId: string | null; 
+  routeStoreId: string | null; 
+  isOpen: boolean; 
+  onClose: () => void;
+  onSelectProduct?: (productId: string, storeId: string) => void;
+}) {
   const router = useRouter();
   const { addToCart } = useCart();
 
@@ -1200,7 +1212,11 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                 <div 
                   key={prod.id} 
                   onClick={() => {
-                    router.push(`/marketplace/${prod.id}`);
+                    if (onSelectProduct) {
+                      onSelectProduct(prod.id, product.storeId);
+                    } else {
+                      router.push(`/marketplace/${prod.id}`);
+                    }
                   }}
                   className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col hover:border-emerald-500/30 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer shadow-sm"
                 >

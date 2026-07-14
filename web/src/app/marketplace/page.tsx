@@ -795,6 +795,11 @@ function MarketplaceContent() {
         productId={selectedProductId} 
         routeStoreId={selectedProductStoreId} 
         onClose={handleCloseModal} 
+        onSelectProduct={(pid, sid) => {
+          setSelectedProductId(pid);
+          setSelectedProductStoreId(sid);
+          window.history.pushState(null, '', `/marketplace/${pid}?s=${sid}`);
+        }}
       />
     </div>
   );
