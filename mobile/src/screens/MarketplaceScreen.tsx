@@ -228,52 +228,38 @@ export default function MarketplaceScreen() {
   const fetchMarketplaceData = async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      const storesQ = query(collection(primaryDb, 'stores'));
-      const storesSnap = await getDocs(storesQ);
-      
-      // Coordinates are now fetched from store settings concurrently later.
-      
+      const storesSnap = await getDocs(collection(primaryDb, 'stores'));
+
       const tenantConfigs = new Map<string, any>();
       const storeToConfigMap: Record<string, any> = {};
-      const storeOwnerMap: Record<string, string> = {};
       const primaryStoreLocMap: Record<string, {lat: number, lng: number}> = {};
-      
-      storesSnap.forEach(doc => {
-        const sData = doc.data();
-        const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' }; // fallback
+
+      storesSnap.forEach(docSnap => {
+        const sData = docSnap.data();
+        const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
         const pId = cfg.projectId || cfg.fb_project_id;
         if (pId) tenantConfigs.set(pId, cfg);
-        storeToConfigMap[doc.id] = cfg;
-        
-        if (sData.ownerUid) storeOwnerMap[doc.id] = sData.ownerUid;
+        storeToConfigMap[docSnap.id] = cfg;
         if (sData.latitude && sData.longitude) {
-           primaryStoreLocMap[doc.id] = { lat: sData.latitude, lng: sData.longitude };
+          primaryStoreLocMap[docSnap.id] = { lat: sData.latitude, lng: sData.longitude };
         }
       });
-      
-      // Fallback location map
-      const userLocMap: Record<string, { lat: number, lng: number }> = {};
 
       const list: Product[] = [];
       const uniqueStoreIds = new Set<string>();
 
-      const fetchPromises = Array.from(tenantConfigs.values()).map(async (cfg) => {
+      // Step 1: Fetch products from all tenants in parallel
+      await Promise.all(Array.from(tenantConfigs.values()).map(async (cfg) => {
         try {
           const tDb = getTenantDb(cfg);
-          const q = query(collection(tDb, 'products'), where('joinMarketplace', '==', true));
-          const pSnap = await getDocs(q);
-          
+          const pSnap = await getDocs(query(collection(tDb, 'products'), where('joinMarketplace', '==', true)));
           pSnap.forEach((d) => {
             const data = d.data();
             let finalImageUrl = data.imageUrl || '';
-            
-            // Fallback ke media array jika imageUrl kosong
             if (!finalImageUrl) {
               if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
               else if (data.media && data.media.length > 0) finalImageUrl = data.media[0].url || data.media[0];
             }
-
-            // Coordinates will be injected later
             list.push({
               id: d.id,
               name: data.name || '',
@@ -290,115 +276,92 @@ export default function MarketplaceScreen() {
               reviewCount: data.reviewCount || 0,
               soldCount: data.soldCount || 0,
             });
-            if (data.storeId) {
-              uniqueStoreIds.add(data.storeId);
-            }
+            if (data.storeId) uniqueStoreIds.add(data.storeId);
           });
         } catch (e) {
           console.warn(`Failed to fetch from tenant db ${cfg.projectId}`, e);
         }
-      });
+      }));
 
-      await Promise.all(fetchPromises);
+      // Step 2: Show products immediately (without store details yet)
+      // Shuffle products first
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [list[i], list[j]] = [list[j], list[i]];
+      }
+      setProducts(list);
+      const initialCategories = ['Semua', ...Array.from(new Set(list.map(p => p.category)))].filter(Boolean);
+      setCategories(initialCategories);
+      setLoading(false); // <-- Tampilkan produk ke layar SEKARANG, jangan tunggu step 3
 
-      // Fetch active discounts
-      const dq = query(collection(db, 'discounts'), where('isActive', '==', true));
-      const dSnap = await getDocs(dq);
-      const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      const now = new Date();
-      
-      const productDiscounts: Record<string, any> = {};
-      activeDiscounts.forEach(disc => {
-        const start = new Date(disc.startDate);
-        const end = new Date(disc.endDate);
-        if (now >= start && now <= end) {
-          disc.appliedProductIds?.forEach((pid: string) => {
-            productDiscounts[pid] = disc;
-          });
-        }
-      });
-
-      // Apply discount to list
-      list.forEach(p => {
-        if (productDiscounts[p.id]) {
-          p.discount = {
-            type: productDiscounts[p.id].type,
-            value: productDiscounts[p.id].value,
-            name: productDiscounts[p.id].name
-          };
-        }
-      });
-
-      // Fetch store details concurrently
+      // Step 3: Load store details & discounts in background (tidak blok UI)
       const logoMap: Record<string, string> = {};
       const hiddenCatMap: Record<string, string[]> = {};
       const locMap: Record<string, { lat: number, lng: number }> = {};
-      await Promise.all(
-        Array.from(uniqueStoreIds).map(async (storeId) => {
+
+      await Promise.all([
+        // Fetch store settings
+        ...Array.from(uniqueStoreIds).map(async (storeId) => {
           try {
             const cfg = storeToConfigMap[storeId] || { projectId: 'kasir-3d12b' };
             const tDb = getTenantDb(cfg);
-            const sRef = doc(tDb, 'settings', `store_${storeId}`);
-            const sSnap = await getDoc(sRef);
+            const sSnap = await getDoc(doc(tDb, 'settings', `store_${storeId}`));
             if (sSnap.exists()) {
               const sData = sSnap.data();
               if (sData.logoUrl) logoMap[storeId] = sData.logoUrl;
               if (sData.hiddenMarketplaceCategories) hiddenCatMap[storeId] = sData.hiddenMarketplaceCategories;
               if (sData.latitude && sData.longitude) {
-                 locMap[storeId] = { lat: sData.latitude, lng: sData.longitude };
+                locMap[storeId] = { lat: sData.latitude, lng: sData.longitude };
               }
             }
           } catch (e) {}
-        })
-      );
+        }),
+        // Fetch discounts concurrently
+        (async () => {
+          try {
+            const dSnap = await getDocs(query(collection(db, 'discounts'), where('isActive', '==', true)));
+            const now = new Date();
+            dSnap.docs.forEach(docSnap => {
+              const disc = docSnap.data();
+              const start = new Date(disc.startDate);
+              const end = new Date(disc.endDate);
+              if (now >= start && now <= end) {
+                disc.appliedProductIds?.forEach((pid: string) => {
+                  const prod = list.find(p => p.id === pid);
+                  if (prod) prod.discount = { type: disc.type, value: disc.value, name: disc.name };
+                });
+              }
+            });
+          } catch (e) {}
+        })()
+      ]);
 
       setStoreLogos(logoMap);
 
-      // Map latitude and longitude to products with robust fallback across databases
+      // Apply location & filter hidden categories
       list.forEach(p => {
-         // Priority 1: Tenant settings
-         if (locMap[p.storeId]) {
-            p.storeLatitude = locMap[p.storeId].lat;
-            p.storeLongitude = locMap[p.storeId].lng;
-         } 
-         // Priority 2: Primary stores collection
-         else if (primaryStoreLocMap[p.storeId]) {
-            p.storeLatitude = primaryStoreLocMap[p.storeId].lat;
-            p.storeLongitude = primaryStoreLocMap[p.storeId].lng;
-         } 
-         // Priority 3: Primary users collection (using store's ownerId)
-         else if (storeOwnerMap[p.storeId] && userLocMap[storeOwnerMap[p.storeId]]) {
-            const ownerId = storeOwnerMap[p.storeId];
-            p.storeLatitude = userLocMap[ownerId].lat;
-            p.storeLongitude = userLocMap[ownerId].lng;
-         } 
-         // Priority 4: Primary users collection (using storeId directly as fallback)
-         else if (userLocMap[p.storeId]) {
-            p.storeLatitude = userLocMap[p.storeId].lat;
-            p.storeLongitude = userLocMap[p.storeId].lng;
-         }
+        if (locMap[p.storeId]) {
+          p.storeLatitude = locMap[p.storeId].lat;
+          p.storeLongitude = locMap[p.storeId].lng;
+        } else if (primaryStoreLocMap[p.storeId]) {
+          p.storeLatitude = primaryStoreLocMap[p.storeId].lat;
+          p.storeLongitude = primaryStoreLocMap[p.storeId].lng;
+        }
       });
 
-      // Filter products based on store's hidden categories
       const visibleList = list.filter(p => {
         const hiddenCats = hiddenCatMap[p.storeId] || [];
         return !hiddenCats.includes(p.category);
       });
 
-      const uniqueCategories = ['Semua', ...Array.from(new Set(visibleList.map(p => p.category)))].filter(Boolean);
-      setCategories(uniqueCategories);
+      const updatedCategories = ['Semua', ...Array.from(new Set(visibleList.map(p => p.category)))].filter(Boolean);
+      setCategories(updatedCategories);
+      setProducts([...visibleList]); // Update with final filtered + discounts
 
-      // Randomize products
-      for (let i = visibleList.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [visibleList[i], visibleList[j]] = [visibleList[j], visibleList[i]];
-      }
-
-      setProducts(visibleList);
     } catch (err) {
       console.error('Error fetching marketplace data:', err);
-    } finally {
       setLoading(false);
+    } finally {
       if (isRefresh) setRefreshing(false);
     }
   };
