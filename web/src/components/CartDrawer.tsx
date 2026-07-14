@@ -6,7 +6,7 @@ import { X, ShoppingBag, Plus, Minus, Trash2, MessageSquare, Loader2, CheckCircl
 import { useRouter } from 'next/navigation';
 import { auth, db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, runTransaction, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, getDoc, getDocs, query, runTransaction, serverTimestamp, collection } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { getInfraConfig } from '@/lib/infraConfig';
 
@@ -50,26 +50,55 @@ export default function CartDrawer() {
       if (storeIds.length === 1) {
         const storeId = storeIds[0];
         try {
-          const settingsSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
-          if (settingsSnap.exists()) {
-            const sData = settingsSnap.data();
-            setStoreBanks(sData.storeBanks || []);
-            setStoreEwallets(sData.storeEwallets || []);
-            setStoreAllowPickup(sData.allowPickup !== false);
-            setStoreAllowDelivery(sData.allowDelivery !== false);
-            setStoreQrisUrl(sData.qrisUrl || '');
+          // Resolve correct tenant DB candidate
+          let tDb = db;
+          const sRefPrimary = doc(primaryDb || db, 'stores', storeId);
+          const sSnapPrimary = await getDoc(sRefPrimary);
+          if (sSnapPrimary.exists()) {
+            const cfg = sSnapPrimary.data().infraConfig;
+            tDb = cfg ? getTenantDb(cfg) : primaryDb;
+          } else {
+            // Scan fallback
+            const storesSnap = await getDocs(query(collection(primaryDb || db, 'stores')));
+            storesSnap.forEach(d => {
+              const cfg = d.data().infraConfig;
+              if (cfg && cfg.projectId === storeId) {
+                tDb = getTenantDb(cfg);
+              }
+            });
+          }
+
+          // Try each candidate DB until we find settings doc
+          const dbCandidates = [tDb, db, primaryDb];
+          let settingsData: any = null;
+          for (const candidateDb of dbCandidates) {
+            try {
+              const snap = await getDoc(doc(candidateDb, 'settings', `store_${storeId}`));
+              if (snap.exists()) {
+                settingsData = snap.data();
+                break;
+              }
+            } catch (e) {}
+          }
+
+          if (settingsData) {
+            setStoreBanks(settingsData.storeBanks || []);
+            setStoreEwallets(settingsData.storeEwallets || []);
+            setStoreAllowPickup(settingsData.allowPickup !== false);
+            setStoreAllowDelivery(settingsData.allowDelivery !== false);
+            setStoreQrisUrl(settingsData.qrisUrl || '');
             
-            if (sData.allowPickup === false && sData.allowDelivery !== false) {
+            if (settingsData.allowPickup === false && settingsData.allowDelivery !== false) {
               setFulfillmentType('delivery');
-            } else if (sData.allowPickup !== false && sData.allowDelivery === false) {
+            } else if (settingsData.allowPickup !== false && settingsData.allowDelivery === false) {
               setFulfillmentType('pickup');
             }
 
-            if (sData.storeBanks && sData.storeBanks.length > 0) {
-              setSelectedStoreBankId(sData.storeBanks[0].id);
+            if (settingsData.storeBanks && settingsData.storeBanks.length > 0) {
+              setSelectedStoreBankId(settingsData.storeBanks[0].id);
             }
-            if (sData.storeEwallets && sData.storeEwallets.length > 0) {
-              setSelectedStoreEwalletId(sData.storeEwallets[0].id);
+            if (settingsData.storeEwallets && settingsData.storeEwallets.length > 0) {
+              setSelectedStoreEwalletId(settingsData.storeEwallets[0].id);
             }
           }
         } catch (e) {

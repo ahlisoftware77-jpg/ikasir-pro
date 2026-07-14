@@ -242,136 +242,168 @@ export default function ProductDetailModal({
 
         const productRef = doc(tDb, 'products', productId);
         const productSnap = await getDoc(productRef);
-        
-        console.log("[DEBUG] Fetching product:", productId, "from store:", routeStoreId);
-        console.log("[DEBUG] sSnapPrimary exists?", sSnapPrimary?.exists());
-        if (sSnapPrimary?.exists()) {
-          console.log("[DEBUG] infraConfig:", sSnapPrimary.data().infraConfig);
+
+        if (!productSnap.exists()) {
+          setLoading(false);
+          return;
         }
-        console.log("[DEBUG] tDb project ID:", tDb.app.options.projectId);
-        console.log("[DEBUG] productSnap exists?", productSnap.exists());
 
-        if (productSnap.exists()) {
-          const data = productSnap.data();
-          const prodObj: Product = {
-            id: productSnap.id,
-            name: data.name || '',
-            price: data.price || 0,
-            category: data.category || 'Umum',
-            imageUrl: data.imageUrl || '',
-            imageUrls: data.imageUrls || [],
-            description: data.description || '',
-            videoUrl: data.videoUrl || '',
-            storeId: data.storeId || '',
-            storeName: data.storeName || 'Toko Mitra',
-            stock: data.stock !== undefined ? data.stock : 0,
-            manageStock: data.manageStock !== undefined ? data.manageStock : true,
-            reviewCount: data.reviewCount || 0,
-            averageRating: data.averageRating || 0,
-            hasExtras: data.hasExtras,
-            extras: data.extras || []
-          };
-          setProduct(prodObj);
+        const data = productSnap.data();
+        const prodObj: Product = {
+          id: productSnap.id,
+          name: data.name || '',
+          price: data.price || 0,
+          category: data.category || 'Umum',
+          imageUrl: data.imageUrl || '',
+          imageUrls: data.imageUrls || [],
+          description: data.description || '',
+          videoUrl: data.videoUrl || '',
+          storeId: data.storeId || '',
+          storeName: data.storeName || 'Toko Mitra',
+          stock: data.stock !== undefined ? data.stock : 0,
+          manageStock: data.manageStock !== undefined ? data.manageStock : true,
+          reviewCount: data.reviewCount || 0,
+          averageRating: data.averageRating || 0,
+          hasExtras: data.hasExtras,
+          extras: data.extras || []
+        };
+        setProduct(prodObj);
+        setLoading(false); // Render product immediately without blocking on other details!
 
-          if (data.hasExtras && data.extras && data.extras.length > 0) {
-            const exts: any[] = [];
-            for (const extraId of data.extras) {
-              const eRef = doc(tDb, 'product_extras', extraId);
-              const eSnap = await getDoc(eRef);
-              if (eSnap.exists()) {
-                exts.push({ id: eSnap.id, ...eSnap.data() });
-              }
-            }
-            setProductExtras(exts);
-          }
+        // Load background/secondary data concurrently
+        const loadSecondaryData = async () => {
+          try {
+            const promises: Promise<any>[] = [];
 
-          // Fetch reviews
-          const reviewsQ = query(collection(tDb, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
-          unsubReviews = onSnapshot(reviewsQ, (snap) => {
-            const revs: any[] = [];
-            snap.forEach(doc => revs.push({ id: doc.id, ...doc.data() }));
-            setReviews(revs);
-          });
-
-          // Fetch store details
-          if (data.storeId) {
-            const settingsSnap = await getDoc(doc(tDb, 'settings', `store_${data.storeId}`));
-            if (settingsSnap.exists()) {
-              const sData = settingsSnap.data();
-              setStorePhone(sData.phone || '');
-              setStoreAddress(sData.address || '');
-              setStoreLogo(sData.logoUrl || '');
-              
-              setStoreBanks(sData.storeBanks || []);
-              setStoreEwallets(sData.storeEwallets || []);
-              setStoreBankInfo(sData.bankInfo || '');
-              setStoreEwalletInfo(sData.ewalletInfo || '');
-              setStoreQrisUrl(sData.qrisUrl || '');
-              setStoreUseTax(!!sData.useTax);
-              setStoreTaxRate(Number(sData.taxRate) || 0);
-              setStoreDeliveryFee(Number(sData.deliveryFee) || 0);
-              setStoreAllowPickup(sData.allowPickup !== false);
-              setStoreAllowDelivery(sData.allowDelivery !== false);
-              
-              if (sData.allowPickup === false && sData.allowDelivery !== false) {
-                setFulfillmentType('delivery');
-              } else {
-                setFulfillmentType('pickup');
-              }
-
-              if (sData.storeBanks && sData.storeBanks.length > 0) {
-                setSelectedStoreBankId(sData.storeBanks[0].id);
-              }
-              if (sData.storeEwallets && sData.storeEwallets.length > 0) {
-                setSelectedStoreEwalletId(sData.storeEwallets[0].id);
-              }
+            // 1. Fetch Extras in parallel
+            if (data.hasExtras && data.extras && data.extras.length > 0) {
+              promises.push(
+                Promise.all(
+                  data.extras.map(async (extraId: string) => {
+                    try {
+                      const eSnap = await getDoc(doc(tDb, 'product_extras', extraId));
+                      return eSnap.exists() ? { id: eSnap.id, ...eSnap.data() } : null;
+                    } catch (e) {
+                      return null;
+                    }
+                  })
+                ).then(results => {
+                  setProductExtras(results.filter(Boolean));
+                })
+              );
             }
 
-            // Fetch other products from same store
-            const q = query(
-              collection(tDb, 'products'), 
-              where('storeId', '==', data.storeId), 
-              where('joinMarketplace', '==', true)
-            );
-            const otherSnap = await getDocs(q);
-            const list: Product[] = [];
-            otherSnap.forEach((d) => {
-              if (d.id !== productSnap.id) {
-                const oData = d.data();
-                list.push({
-                  id: d.id,
-                  name: oData.name || '',
-                  price: oData.price || 0,
-                  category: oData.category || 'Umum',
-                  imageUrl: oData.imageUrl || '',
-                  storeId: oData.storeId || '',
-                  storeName: oData.storeName || 'Toko Mitra',
-                });
-              }
+            // 2. Fetch reviews
+            const reviewsQ = query(collection(tDb, 'reviews'), where('productId', '==', productId), orderBy('createdAt', 'desc'));
+            unsubReviews = onSnapshot(reviewsQ, (snap) => {
+              const revs: any[] = [];
+              snap.forEach(doc => revs.push({ id: doc.id, ...doc.data() }));
+              setReviews(revs);
             });
-            setOtherProducts(list.slice(0, 4));
 
-            // Fetch flash sales for this store
-            try {
+            // 3. Fetch Store settings from candidate DBs (tDb, db, primaryDb)
+            if (data.storeId) {
+              const fetchSettings = async () => {
+                const dbCandidates = [tDb, db, primaryDb];
+                let settingsData: any = null;
+                for (const candidateDb of dbCandidates) {
+                  try {
+                    const snap = await getDoc(doc(candidateDb, 'settings', `store_${data.storeId}`));
+                    if (snap.exists()) {
+                      settingsData = snap.data();
+                      break;
+                    }
+                  } catch (e) {}
+                }
+
+                if (settingsData) {
+                  setStorePhone(settingsData.phone || '');
+                  setStoreAddress(settingsData.address || '');
+                  setStoreLogo(settingsData.logoUrl || '');
+                  
+                  setStoreBanks(settingsData.storeBanks || []);
+                  setStoreEwallets(settingsData.storeEwallets || []);
+                  setStoreBankInfo(settingsData.bankInfo || '');
+                  setStoreEwalletInfo(settingsData.ewalletInfo || '');
+                  setStoreQrisUrl(settingsData.qrisUrl || '');
+                  setStoreUseTax(!!settingsData.useTax);
+                  setStoreTaxRate(Number(settingsData.taxRate) || 0);
+                  setStoreDeliveryFee(Number(settingsData.deliveryFee) || 0);
+                  setStoreAllowPickup(settingsData.allowPickup !== false);
+                  setStoreAllowDelivery(settingsData.allowDelivery !== false);
+                  
+                  if (settingsData.allowPickup === false && settingsData.allowDelivery !== false) {
+                    setFulfillmentType('delivery');
+                  } else {
+                    setFulfillmentType('pickup');
+                  }
+
+                  if (settingsData.storeBanks && settingsData.storeBanks.length > 0) {
+                    setSelectedStoreBankId(settingsData.storeBanks[0].id);
+                  }
+                  if (settingsData.storeEwallets && settingsData.storeEwallets.length > 0) {
+                    setSelectedStoreEwalletId(settingsData.storeEwallets[0].id);
+                  }
+                }
+              };
+              promises.push(fetchSettings());
+
+              // 4. Fetch other products from same store
+              const otherProductsQ = query(
+                collection(tDb, 'products'), 
+                where('storeId', '==', data.storeId), 
+                where('joinMarketplace', '==', true)
+              );
+              promises.push(
+                getDocs(otherProductsQ).then(otherSnap => {
+                  const list: Product[] = [];
+                  otherSnap.forEach((d) => {
+                    if (d.id !== productSnap.id) {
+                      const oData = d.data();
+                      list.push({
+                        id: d.id,
+                        name: oData.name || '',
+                        price: oData.price || 0,
+                        category: oData.category || 'Umum',
+                        imageUrl: oData.imageUrl || '',
+                        storeId: oData.storeId || '',
+                        storeName: oData.storeName || 'Toko Mitra',
+                      });
+                    }
+                  });
+                  setOtherProducts(list.slice(0, 4));
+                })
+              );
+
+              // 5. Fetch flash sales
               const fsQuery = query(
                 collection(tDb, 'flash_sales'),
                 where('storeId', '==', data.storeId),
                 where('isActive', '==', true)
               );
-              const fsSnap = await getDocs(fsQuery);
-              const fsList: any[] = [];
-              fsSnap.forEach((fsDoc) => {
-                fsList.push({ id: fsDoc.id, ...fsDoc.data() });
-              });
-              setFlashSales(fsList);
-            } catch (fsErr) {
-              console.error('Error fetching flash sales:', fsErr);
+              promises.push(
+                getDocs(fsQuery).then(fsSnap => {
+                  const fsList: any[] = [];
+                  fsSnap.forEach((fsDoc) => {
+                    fsList.push({ id: fsDoc.id, ...fsDoc.data() });
+                  });
+                  setFlashSales(fsList);
+                }).catch(fsErr => {
+                  console.error('Error fetching flash sales:', fsErr);
+                })
+              );
             }
+
+            await Promise.all(promises);
+          } catch (e) {
+            console.error("Error loading secondary product details in background:", e);
           }
-        }
+        };
+
+        loadSecondaryData();
+
       } catch (err) {
         console.error("Error loading product detail page:", err);
-      } finally {
         setLoading(false);
       }
     }
