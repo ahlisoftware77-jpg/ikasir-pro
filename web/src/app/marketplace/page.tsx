@@ -95,6 +95,7 @@ function MarketplaceContent() {
   const [storePhones, setStorePhones] = useState<Record<string, string>>({});
   const [storeAddresses, setStoreAddresses] = useState<Record<string, string>>({});
   const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
+  const [storeNames, setStoreNames] = useState<Record<string, string>>({});
   
   // Product Detail Modal state
   const [selectedProductId, setSelectedProductId] = useState<string | null>(urlProductId || null);
@@ -124,13 +125,13 @@ function MarketplaceContent() {
   useEffect(() => {
     if (storeIdParam) {
       setSelectedStoreId(storeIdParam);
-      setSelectedStoreName(storeNameParam || 'Toko');
+      setSelectedStoreName(storeNameParam || storeNames[storeIdParam] || 'Toko');
       localStorage.setItem('marketplace_store_id', storeIdParam);
     } else {
       setSelectedStoreId(null);
       setSelectedStoreName(null);
     }
-  }, [storeIdParam, storeNameParam]);
+  }, [storeIdParam, storeNameParam, storeNames]);
 
   useEffect(() => {
     async function fetchMarketplaceData() {
@@ -171,6 +172,7 @@ function MarketplaceContent() {
         const phonesMap: Record<string, string> = {};
         const addressMap: Record<string, string> = {};
         const logosMap: Record<string, string> = {};
+        const namesMap: Record<string, string> = {};
         const hiddenCatsMap: Record<string, string[]> = {};
         const locMap: Record<string, { lat: number, lng: number }> = {};
         const allFlashSales: any[] = [];
@@ -219,6 +221,7 @@ function MarketplaceContent() {
                   phonesMap[sId] = sData.phone || '';
                   addressMap[sId] = sData.address || '';
                   logosMap[sId] = sData.logoUrl || '';
+                  namesMap[sId] = sData.storeName || '';
                   if (sData.latitude && sData.longitude) {
                     locMap[sId] = { lat: Number(sData.latitude), lng: Number(sData.longitude) };
                   }
@@ -237,6 +240,7 @@ function MarketplaceContent() {
         setStorePhones(phonesMap);
         setStoreAddresses(addressMap);
         setStoreLogos(logosMap);
+        setStoreNames(namesMap);
 
         // Map latitude and longitude to products with robust fallback
         list.forEach(p => {
