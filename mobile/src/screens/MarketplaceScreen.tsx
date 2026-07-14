@@ -251,16 +251,8 @@ export default function MarketplaceScreen() {
         }
       });
       
-      // Fetch users collection as a fallback source for GPS
-      const usersQ = query(collection(primaryDb, 'users'));
-      const usersSnap = await getDocs(usersQ);
+      // Fallback location map
       const userLocMap: Record<string, { lat: number, lng: number }> = {};
-      usersSnap.forEach(doc => {
-        const u = doc.data();
-        if (u.latitude && u.longitude) {
-           userLocMap[doc.id] = { lat: u.latitude, lng: u.longitude };
-        }
-      });
 
       const list: Product[] = [];
       const uniqueStoreIds = new Set<string>();

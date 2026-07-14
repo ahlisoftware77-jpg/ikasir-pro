@@ -157,16 +157,8 @@ function MarketplaceContent() {
           }
         });
 
-        // Fetch users locations fallback
-        const usersQ = query(collection(primaryDb, 'users'));
-        const usersSnap = await getDocs(usersQ);
+        // Fallback location map
         const userLocMap: Record<string, { lat: number, lng: number }> = {};
-        usersSnap.forEach(uDoc => {
-          const uData = uDoc.data();
-          if (uData.latitude && uData.longitude) {
-            userLocMap[uDoc.id] = { lat: Number(uData.latitude), lng: Number(uData.longitude) };
-          }
-        });
 
         const list: Product[] = [];
         const phonesMap: Record<string, string> = {};
