@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image as RNImage } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, Image as RNImage, Modal, Linking } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle2, Truck, Building, CreditCard, QrCode, Coins, Camera, Trash2, Check } from 'lucide-react-native';
@@ -8,6 +8,8 @@ import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebas
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const { storeId } = route.params;
@@ -36,6 +38,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const [storeAllowPickup, setStoreAllowPickup] = useState(true);
   const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
   const [storeQrisUrl, setStoreQrisUrl] = useState('');
+  const [isQrisPreviewVisible, setIsQrisPreviewVisible] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -157,6 +160,32 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
       Alert.alert('Gagal', err.message || 'Gagal mengunggah bukti pembayaran.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDownloadQris = async (url: string) => {
+    if (!url) return;
+    try {
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (!isSharingAvailable) {
+        Alert.alert('Info', 'Fitur sharing tidak tersedia di perangkat Anda.');
+        return;
+      }
+      const extension = url.split('.').pop()?.split('?')[0] || 'png';
+      const localUri = `${FileSystem.documentDirectory}qris_pembayaran.${extension}`;
+
+      const downloadResult = await FileSystem.downloadAsync(url, localUri);
+      if (downloadResult.status === 200) {
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+          dialogTitle: 'Unduh / Simpan QRIS',
+        });
+      } else {
+        Alert.alert('Gagal', 'Gagal mengunduh gambar QRIS.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      Linking.openURL(url);
     }
   };
 
@@ -564,16 +593,24 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                   {(() => {
                     const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
                     if (!activeEw) return null;
+                    const targetQrUrl = storeQrisUrl || activeEw.qrCodeUrl;
                     return (
                       <View style={{ alignItems: 'center', marginTop: 4, width: '100%' }}>
-                        {storeQrisUrl ? (
-                          <View style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
-                            <RNImage source={{ uri: storeQrisUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
-                          </View>
-                        ) : activeEw.qrCodeUrl ? (
-                          <View style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
-                            <RNImage source={{ uri: activeEw.qrCodeUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
-                          </View>
+                        {targetQrUrl ? (
+                          <>
+                            <TouchableOpacity 
+                              onPress={() => setIsQrisPreviewVisible(true)}
+                              style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}
+                            >
+                              <RNImage source={{ uri: targetQrUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setIsQrisPreviewVisible(true)} style={{ marginBottom: 6 }}>
+                              <Text style={{ fontSize: 10, color: colors.accent, fontWeight: 'bold' }}>🔍 Ketuk untuk Perbesar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDownloadQris(targetQrUrl)} style={{ marginBottom: 12, backgroundColor: colors.accent + '15', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 }}>
+                              <Text style={{ fontSize: 10, color: colors.accent, fontWeight: 'bold' }}>⬇️ Simpan / Bagikan QRIS</Text>
+                            </TouchableOpacity>
+                          </>
                         ) : (
                           <Text style={{ fontSize: 10, color: colors.textMuted, marginVertical: 8, fontStyle: 'italic' }}>Toko belum mengunggah gambar QR Code untuk e-wallet ini.</Text>
                         )}
@@ -666,6 +703,46 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* QRIS Image Preview Modal */}
+      <Modal
+        visible={isQrisPreviewVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsQrisPreviewVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <TouchableOpacity 
+            style={{ position: 'absolute', top: 40, right: 20, padding: 10, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 }}
+            onPress={() => setIsQrisPreviewVisible(false)}
+          >
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>Tutup</Text>
+          </TouchableOpacity>
+
+          {(storeQrisUrl || (storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0])?.qrCodeUrl) ? (
+            <View style={{ width: '100%', alignItems: 'center' }}>
+              <View style={{ width: '90%', aspectRatio: 1, backgroundColor: '#fff', borderRadius: 16, padding: 12, justifyContent: 'center', alignItems: 'center' }}>
+                <RNImage 
+                  source={{ uri: storeQrisUrl || (storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0])?.qrCodeUrl }} 
+                  style={{ width: '100%', height: '100%', resizeMode: 'contain' }} 
+                />
+              </View>
+              
+              <TouchableOpacity 
+                onPress={() => {
+                  const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                  handleDownloadQris(storeQrisUrl || activeEw?.qrCodeUrl);
+                }}
+                style={{ marginTop: 24, backgroundColor: colors.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+              >
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'black', uppercase: true }}>Simpan ke Galeri / Bagikan</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Text style={{ color: '#fff' }}>QRIS tidak tersedia</Text>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }

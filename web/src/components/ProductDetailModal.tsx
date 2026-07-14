@@ -94,6 +94,23 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
   const router = useRouter();
   const { addToCart } = useCart();
 
+  const handleDownloadImage = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
+    }
+  };
+
   const [product, setProduct] = useState<Product | null>(null);
   const [otherProducts, setOtherProducts] = useState<Product[]>([]);
   const [productExtras, setProductExtras] = useState<any[]>([]);
@@ -110,6 +127,7 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
   const [storeEwallets, setStoreEwallets] = useState<any[]>([]);
   const [storeBankInfo, setStoreBankInfo] = useState('');
   const [storeEwalletInfo, setStoreEwalletInfo] = useState('');
+  const [storeQrisUrl, setStoreQrisUrl] = useState('');
   const [storeUseTax, setStoreUseTax] = useState(false);
   const [storeTaxRate, setStoreTaxRate] = useState(0);
   const [storeDeliveryFee, setStoreDeliveryFee] = useState(0);
@@ -272,11 +290,11 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
               setStoreAddress(sData.address || '');
               setStoreLogo(sData.logoUrl || '');
               
-              // Load payment & fulfillment settings
               setStoreBanks(sData.storeBanks || []);
               setStoreEwallets(sData.storeEwallets || []);
               setStoreBankInfo(sData.bankInfo || '');
               setStoreEwalletInfo(sData.ewalletInfo || '');
+              setStoreQrisUrl(sData.qrisUrl || '');
               setStoreUseTax(!!sData.useTax);
               setStoreTaxRate(Number(sData.taxRate) || 0);
               setStoreDeliveryFee(Number(sData.deliveryFee) || 0);
@@ -1624,11 +1642,34 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                         </select>
                         {(() => {
                           const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                          const targetQrUrl = storeQrisUrl || activeEw.qrCodeUrl;
                           return (
                             <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold space-y-2 text-slate-700 dark:text-slate-350 shadow-inner flex flex-col items-center">
-                              {activeEw.qrCodeUrl && (
-                                <div className="w-40 h-40 border border-slate-200 dark:border-slate-700 bg-white p-2 rounded-xl mb-2">
-                                  <img src={activeEw.qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                              {targetQrUrl && (
+                                <div className="flex flex-col items-center">
+                                  <div 
+                                    onClick={() => window.open(targetQrUrl, '_blank')}
+                                    title="Klik untuk membuka di tab baru"
+                                    className="w-40 h-40 border border-slate-200 dark:border-slate-700 bg-white p-2 rounded-xl mb-2 cursor-pointer hover:opacity-90 transition-opacity flex items-center justify-center"
+                                  >
+                                    <img src={targetQrUrl} alt="QR Code" className="w-full h-full object-contain" />
+                                  </div>
+                                  <div className="flex gap-3 mb-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => window.open(targetQrUrl, '_blank')}
+                                      className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                    >
+                                      🔍 Perbesar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadImage(targetQrUrl, 'qris_pembayaran.png')}
+                                      className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                    >
+                                      ⬇️ Unduh QRIS
+                                    </button>
+                                  </div>
                                 </div>
                               )}
                               <div className="w-full space-y-1">
@@ -1649,9 +1690,31 @@ export default function ProductDetailModal({ productId, routeStoreId, isOpen, on
                           );
                         })()}
                       </div>
-                    ) : storeEwalletInfo ? (
+                    ) : (storeQrisUrl || storeEwalletInfo) ? (
                       <div className="flex flex-col items-center bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-center">
-                        <img src={storeEwalletInfo} alt="QRIS" className="w-40 h-40 object-contain rounded mb-2" />
+                        <div 
+                          onClick={() => window.open(storeQrisUrl || storeEwalletInfo, '_blank')}
+                          title="Klik untuk membuka di tab baru"
+                          className="w-40 h-40 flex items-center justify-center p-1 cursor-pointer hover:opacity-90 transition-opacity mb-2"
+                        >
+                          <img src={storeQrisUrl || storeEwalletInfo} alt="QRIS" className="w-full h-full object-contain rounded" />
+                        </div>
+                        <div className="flex gap-3 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => window.open(storeQrisUrl || storeEwalletInfo, '_blank')}
+                            className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                          >
+                            🔍 Perbesar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadImage(storeQrisUrl || storeEwalletInfo, 'qris_pembayaran.png')}
+                            className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                          >
+                            ⬇️ Unduh QRIS
+                          </button>
+                        </div>
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Pindai kode QRIS Toko di atas</p>
                       </div>
                     ) : (

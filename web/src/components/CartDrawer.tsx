@@ -95,6 +95,23 @@ export default function CartDrawer() {
     }
   }, [buyerInfo.address]);
 
+  const handleDownloadImage = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      window.open(url, '_blank');
+    }
+  };
+
   // Cloudinary image upload helper
   const handleUploadProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -587,12 +604,35 @@ export default function CartDrawer() {
                         {(() => {
                           const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
                           if (!activeEw) return null;
+                          const targetQrUrl = storeQrisUrl || activeEw.qrCodeUrl;
                           return (
                             <div className="w-full p-3.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center">
                               <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">{activeEw.ewalletName}</p>
-                              {activeEw.qrCodeUrl ? (
-                                <div className="mt-2 aspect-square w-36 h-36 bg-white border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                                  <img src={activeEw.qrCodeUrl} alt="QRIS" className="w-full h-full object-contain" />
+                              {targetQrUrl ? (
+                                <div className="flex flex-col items-center">
+                                  <div 
+                                    onClick={() => window.open(targetQrUrl, '_blank')}
+                                    title="Klik untuk membuka di tab baru"
+                                    className="mt-2 aspect-square w-36 h-36 bg-white border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1 cursor-pointer hover:opacity-90 transition-opacity"
+                                  >
+                                    <img src={targetQrUrl} alt="QRIS" className="w-full h-full object-contain" />
+                                  </div>
+                                  <div className="mt-2 flex gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => window.open(targetQrUrl, '_blank')}
+                                      className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                    >
+                                      🔍 Perbesar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadImage(targetQrUrl, 'qris_pembayaran.png')}
+                                      className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                    >
+                                      ⬇️ Unduh QRIS
+                                    </button>
+                                  </div>
                                 </div>
                               ) : (
                                 <p className="text-[10px] text-slate-400 mt-2">Gunakan nomor e-wallet: {activeEw.phoneNumber}</p>
