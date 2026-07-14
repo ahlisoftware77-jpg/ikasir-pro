@@ -29,6 +29,7 @@ export default function CartDrawer() {
   const [isUploading, setIsUploading] = useState(false);
   const [storeAllowPickup, setStoreAllowPickup] = useState(true);
   const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
+  const [storeQrisUrl, setStoreQrisUrl] = useState('');
 
   // Group items by store helper
   const getItemsByStore = () => {
@@ -56,6 +57,7 @@ export default function CartDrawer() {
             setStoreEwallets(sData.storeEwallets || []);
             setStoreAllowPickup(sData.allowPickup !== false);
             setStoreAllowDelivery(sData.allowDelivery !== false);
+            setStoreQrisUrl(sData.qrisUrl || '');
             
             if (sData.allowPickup === false && sData.allowDelivery !== false) {
               setFulfillmentType('delivery');
@@ -78,6 +80,7 @@ export default function CartDrawer() {
         setStoreEwallets([]);
         setStoreAllowPickup(true);
         setStoreAllowDelivery(true);
+        setStoreQrisUrl('');
       }
     };
 

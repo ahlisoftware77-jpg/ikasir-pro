@@ -26,7 +26,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const [loading, setLoading] = useState(false);
 
   // Advanced Payment & Settlement Options
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'transfer' | 'qris'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'transfer' | 'ewallet' | 'qris'>('cod');
   const [storeBanks, setStoreBanks] = useState<any[]>([]);
   const [storeEwallets, setStoreEwallets] = useState<any[]>([]);
   const [selectedStoreBankId, setSelectedStoreBankId] = useState('');
@@ -35,6 +35,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
   const [isUploading, setIsUploading] = useState(false);
   const [storeAllowPickup, setStoreAllowPickup] = useState(true);
   const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
+  const [storeQrisUrl, setStoreQrisUrl] = useState('');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -85,6 +86,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           setStoreEwallets(sData.storeEwallets || []);
           setStoreAllowPickup(sData.allowPickup !== false);
           setStoreAllowDelivery(sData.allowDelivery !== false);
+          setStoreQrisUrl(sData.qrisUrl || '');
           
           if (sData.allowPickup === false && sData.allowDelivery !== false) {
             setDeliveryType('delivery');
@@ -518,7 +520,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                       }}
                     >
                       <View>
-                        <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, textTransform: 'uppercase' }}>{wallet.walletName}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, textTransform: 'uppercase' }}>{wallet.ewalletName}</Text>
                         <Text style={{ fontSize: 11, color: colors.text, marginTop: 2, fontFamily: 'monospace' }}>{wallet.phoneNumber}</Text>
                         <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>a.n. {wallet.accountHolder}</Text>
                       </View>
@@ -551,7 +553,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                           alignItems: 'center'
                         }}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text }}>{wallet.walletName} - {wallet.phoneNumber}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text }}>{wallet.ewalletName} - {wallet.phoneNumber}</Text>
                         {selectedStoreEwalletId === wallet.id && (
                           <Check size={16} color={colors.accent} />
                         )}
@@ -564,7 +566,11 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                     if (!activeEw) return null;
                     return (
                       <View style={{ alignItems: 'center', marginTop: 4, width: '100%' }}>
-                        {activeEw.qrCodeUrl ? (
+                        {storeQrisUrl ? (
+                          <View style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+                            <RNImage source={{ uri: storeQrisUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                          </View>
+                        ) : activeEw.qrCodeUrl ? (
                           <View style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
                             <RNImage source={{ uri: activeEw.qrCodeUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
                           </View>
