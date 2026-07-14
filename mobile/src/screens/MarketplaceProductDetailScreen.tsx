@@ -40,129 +40,131 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
 
   const fetchProductDetail = async () => {
     try {
+      // --- Phase 1: Resolve the correct tenant DB ---
       let tDb = db;
       if (routeStoreId) {
-        const sRefPrimary = doc(primaryDb, 'stores', routeStoreId);
-        const sSnapPrimary = await getDoc(sRefPrimary);
+        const sSnapPrimary = await getDoc(doc(primaryDb, 'stores', routeStoreId));
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
           tDb = cfg ? getTenantDb(cfg) : primaryDb;
         } else {
-          // Fallback if routeStoreId is actually a projectId
-          const storesQ = query(collection(primaryDb || db, 'stores'));
-          const storesSnap = await getDocs(storesQ);
+          // Fallback: scan all stores to match by projectId
+          const storesSnap = await getDocs(collection(primaryDb, 'stores'));
           storesSnap.forEach(d => {
             const cfg = d.data().infraConfig;
-            if (cfg && cfg.projectId === routeStoreId) {
-              tDb = getTenantDb(cfg);
-            }
+            if (cfg && cfg.projectId === routeStoreId) tDb = getTenantDb(cfg);
           });
         }
       }
 
-      const pRef = doc(tDb, 'products', productId);
-      const pSnap = await getDoc(pRef);
-      
-      if (pSnap.exists()) {
-        const pData = pSnap.data();
-        
-        // Fetch active discounts for this product
-        const dq = query(collection(tDb, 'discounts'), where('isActive', '==', true));
-        const dSnap = await getDocs(dq);
-        const activeDiscounts = dSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        const now = new Date();
-        let appliedDiscount = null;
-        activeDiscounts.forEach(disc => {
-          const start = new Date(disc.startDate);
-          const end = new Date(disc.endDate);
-          if (now >= start && now <= end) {
-            if (disc.appliedProductIds?.includes(productId)) {
-              appliedDiscount = { type: disc.type, value: disc.value, name: disc.name };
-            }
-          }
-        });
-        if (appliedDiscount) pData.discount = appliedDiscount;
-
-        setProduct({ id: pSnap.id, ...pData });
-        
-        // Fetch extras if any
-        if (pData.hasExtras && pData.extras && pData.extras.length > 0) {
-          const exts: any[] = [];
-          for (const extraId of pData.extras) {
-            const eRef = doc(tDb, 'product_extras', extraId);
-            const eSnap = await getDoc(eRef);
-            if (eSnap.exists()) {
-              exts.push({ id: eSnap.id, ...eSnap.data() });
-            }
-          }
-          setProductExtras(exts);
-        }
-
-        // Fetch store settings for WhatsApp number
-        if (pData.storeId) {
-          const sRef = doc(tDb, 'settings', `store_${pData.storeId}`);
-          const sSnap = await getDoc(sRef);
-          if (sSnap.exists()) {
-            setStorePhone(sSnap.data().phone || '');
-            setStoreLogo(sSnap.data().logoUrl || '');
-          }
-        }
+      // --- Phase 2: Fetch the product document ---
+      const pSnap = await getDoc(doc(tDb, 'products', productId));
+      if (!pSnap.exists()) {
+        setLoading(false);
+        return;
       }
 
-      // Fetch Reviews — from BOTH tDb (tenant) AND primaryDb (main)
-      // Reviews may have been written from web (which could use a different DB)
-      const fetchReviewsFrom = async (dbInst: typeof tDb) => {
-        try {
-          const rQuery = query(collection(dbInst, 'reviews'), where('productId', '==', productId));
-          const rSnap = await getDocs(rQuery);
-          return rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-        } catch {
-          return [];
-        }
-      };
+      const pData = pSnap.data();
+      // Show product immediately — stop the full-screen spinner right here
+      setProduct({ id: pSnap.id, ...pData });
+      setLoading(false); // <-- UI is now unblocked
 
-      const [reviewsFromTenant, reviewsFromPrimary] = await Promise.all([
-        fetchReviewsFrom(tDb),
-        tDb !== primaryDb ? fetchReviewsFrom(primaryDb) : Promise.resolve([]),
+      // --- Phase 3: Load all secondary data in parallel (background) ---
+      await Promise.all([
+        // 3a. Store settings (phone + logo)
+        (async () => {
+          if (!pData.storeId) return;
+          try {
+            const sSnap = await getDoc(doc(tDb, 'settings', `store_${pData.storeId}`));
+            if (sSnap.exists()) {
+              setStorePhone(sSnap.data().phone || '');
+              setStoreLogo(sSnap.data().logoUrl || '');
+            }
+          } catch (e) {}
+        })(),
+
+        // 3b. Active discounts for this product
+        (async () => {
+          try {
+            const dSnap = await getDocs(query(collection(tDb, 'discounts'), where('isActive', '==', true)));
+            const now = new Date();
+            let appliedDiscount: any = null;
+            dSnap.docs.forEach(d => {
+              const disc = d.data();
+              const start = new Date(disc.startDate);
+              const end = new Date(disc.endDate);
+              if (now >= start && now <= end && disc.appliedProductIds?.includes(productId)) {
+                appliedDiscount = { type: disc.type, value: disc.value, name: disc.name };
+              }
+            });
+            if (appliedDiscount) {
+              setProduct((prev: any) => prev ? { ...prev, discount: appliedDiscount } : prev);
+            }
+          } catch (e) {}
+        })(),
+
+        // 3c. Product extras
+        (async () => {
+          if (!pData.hasExtras || !pData.extras?.length) return;
+          try {
+            const exts = await Promise.all(
+              pData.extras.map(async (extraId: string) => {
+                const eSnap = await getDoc(doc(tDb, 'product_extras', extraId));
+                return eSnap.exists() ? { id: eSnap.id, ...eSnap.data() } : null;
+              })
+            );
+            setProductExtras(exts.filter(Boolean));
+          } catch (e) {}
+        })(),
+
+        // 3d. Reviews (from tenant + primaryDb, merged)
+        (async () => {
+          try {
+            const fetchReviewsFrom = async (dbInst: typeof tDb) => {
+              try {
+                const rSnap = await getDocs(query(collection(dbInst, 'reviews'), where('productId', '==', productId)));
+                return rSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+              } catch { return []; }
+            };
+
+            const [reviewsFromTenant, reviewsFromPrimary] = await Promise.all([
+              fetchReviewsFrom(tDb),
+              tDb !== primaryDb ? fetchReviewsFrom(primaryDb) : Promise.resolve([]),
+            ]);
+
+            const allReviewsMap = new Map<string, any>();
+            [...reviewsFromPrimary, ...reviewsFromTenant].forEach(r => allReviewsMap.set(r.id, r));
+            const fetchedReviews = Array.from(allReviewsMap.values()).sort((a, b) =>
+              (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+            );
+            setReviews(fetchedReviews);
+            if (fetchedReviews.length > 0) {
+              const sum = fetchedReviews.reduce((acc, curr) => acc + curr.rating, 0);
+              setAverageRating(sum / fetchedReviews.length);
+            }
+
+            // 3e. Check if user can review (needs reviews to be fetched first)
+            if (user) {
+              const userId = user.uid || user.phone;
+              try {
+                const oSnap = await getDocs(query(collection(tDb, 'transactions'), where('customerId', '==', userId), where('orderStatus', '==', 'completed')));
+                let hasPurchased = false;
+                oSnap.docs.forEach(d => {
+                  const oData = d.data();
+                  if (oData.items?.some((item: any) => item.id === productId || item.productId === productId)) {
+                    hasPurchased = true;
+                  }
+                });
+                const hasReviewed = fetchedReviews.some(r => r.userId === userId);
+                setCanReview(hasPurchased && !hasReviewed);
+              } catch (e) {}
+            }
+          } catch (e) {}
+        })(),
       ]);
-
-      // Merge and deduplicate by review ID
-      const allReviewsMap = new Map<string, any>();
-      [...reviewsFromPrimary, ...reviewsFromTenant].forEach(r => allReviewsMap.set(r.id, r));
-      const fetchedReviews = Array.from(allReviewsMap.values());
-      // Sort newest first
-      fetchedReviews.sort((a, b) => {
-        const tA = a.createdAt?.seconds || 0;
-        const tB = b.createdAt?.seconds || 0;
-        return tB - tA;
-      });
-
-      setReviews(fetchedReviews);
-      
-      if (fetchedReviews.length > 0) {
-        const sum = fetchedReviews.reduce((acc, curr) => acc + curr.rating, 0);
-        setAverageRating(sum / fetchedReviews.length);
-      }
-
-      // Check if user can review
-      if (user) {
-        const userId = user.uid || user.phone;
-        const oQuery = query(collection(tDb, 'transactions'), where('customerId', '==', userId), where('orderStatus', '==', 'completed'));
-        const oSnap = await getDocs(oQuery);
-        let hasPurchased = false;
-        oSnap.docs.forEach(doc => {
-          const oData = doc.data();
-          if (oData.items && oData.items.some((item: any) => item.id === productId || item.productId === productId)) {
-            hasPurchased = true;
-          }
-        });
-        const hasReviewed = fetchedReviews.some(r => r.userId === userId);
-        setCanReview(hasPurchased && !hasReviewed);
-      }
 
     } catch (err) {
       console.error('Error fetching product detail:', err);
-    } finally {
       setLoading(false);
     }
   };
