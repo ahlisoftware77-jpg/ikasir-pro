@@ -551,7 +551,7 @@ export default function CartDrawer() {
                       <Coins size={16} />
                       <span>COD</span>
                     </button>
-                    {(storeBanks.length > 0 || Object.keys(getItemsByStore()).length > 1) && (
+                    {(storeBanks.length > 0 || storeBankInfo.length > 0 || Object.keys(getItemsByStore()).length > 1) && (
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('transfer')}
@@ -565,7 +565,7 @@ export default function CartDrawer() {
                         <span>Transfer</span>
                       </button>
                     )}
-                    {(storeEwallets.length > 0 || Object.keys(getItemsByStore()).length > 1) && (
+                    {(storeQrisUrl.length > 0 || storeEwallets.length > 0 || storeEwalletInfo.length > 0 || Object.keys(getItemsByStore()).length > 1) && (
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('qris')}
@@ -616,60 +616,99 @@ export default function CartDrawer() {
                     )}
 
                     {/* QRIS Toko */}
-                    {paymentMethod === 'qris' && storeEwallets.length > 0 && (
-                      <div className="space-y-3">
-                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pilih QRIS / E-Wallet</label>
-                        <select
-                          value={selectedStoreEwalletId}
-                          onChange={(e) => setSelectedStoreEwalletId(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
-                        >
-                          {storeEwallets.map((ew: any) => (
-                            <option key={ew.id} value={ew.id}>
-                              {ew.ewalletName} - {ew.phoneNumber}
-                            </option>
-                          ))}
-                        </select>
-                        {(() => {
-                          const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
-                          if (!activeEw) return null;
-                          const targetQrUrl = storeQrisUrl || activeEw.qrCodeUrl;
-                          return (
-                            <div className="w-full p-3.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center">
-                              <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">{activeEw.ewalletName}</p>
-                              {targetQrUrl ? (
-                                <div className="flex flex-col items-center">
-                                  <div 
-                                    onClick={() => window.open(targetQrUrl, '_blank')}
-                                    title="Klik untuk membuka di tab baru"
-                                    className="mt-2 aspect-square w-36 h-36 bg-white border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1 cursor-pointer hover:opacity-90 transition-opacity"
-                                  >
-                                    <img src={targetQrUrl} alt="QRIS" className="w-full h-full object-contain" />
-                                  </div>
-                                  <div className="mt-2 flex gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => window.open(targetQrUrl, '_blank')}
-                                      className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
-                                    >
-                                      🔍 Perbesar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDownloadImage(targetQrUrl, 'qris_pembayaran.png')}
-                                      className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
-                                    >
-                                      ⬇️ Unduh QRIS
-                                    </button>
-                                  </div>
+                    {paymentMethod === 'qris' && (storeQrisUrl.length > 0 || storeEwallets.length > 0 || storeEwalletInfo.length > 0) && (
+                      <div className="space-y-3 animate-fadeIn">
+                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Metode QRIS / E-Wallet</label>
+                        {storeEwallets.length > 0 ? (
+                          <div className="space-y-3">
+                            <select
+                              value={selectedStoreEwalletId}
+                              onChange={(e) => setSelectedStoreEwalletId(e.target.value)}
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none"
+                            >
+                              {storeEwallets.map((ew: any) => (
+                                <option key={ew.id} value={ew.id}>
+                                  {ew.ewalletName || ew.name || 'E-Wallet'} - {ew.phoneNumber || ew.accountNumber || ''}
+                                </option>
+                              ))}
+                            </select>
+                            {(() => {
+                              const activeEw = storeEwallets.find((ew: any) => ew.id === selectedStoreEwalletId) || storeEwallets[0];
+                              if (!activeEw) return null;
+                              const targetQrUrl = storeQrisUrl || activeEw.qrCodeUrl;
+                              return (
+                                <div className="w-full p-3.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center">
+                                  <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">{activeEw.ewalletName || activeEw.name || 'E-Wallet'}</p>
+                                  {targetQrUrl ? (
+                                    <div className="flex flex-col items-center">
+                                      <div 
+                                        onClick={() => window.open(targetQrUrl, '_blank')}
+                                        title="Klik untuk membuka di tab baru"
+                                        className="mt-2 aspect-square w-36 h-36 bg-white border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1 cursor-pointer hover:opacity-90 transition-opacity"
+                                      >
+                                        <img src={targetQrUrl} alt="QRIS" className="w-full h-full object-contain" />
+                                      </div>
+                                      <div className="mt-2 flex gap-3">
+                                        <button
+                                          type="button"
+                                          onClick={() => window.open(targetQrUrl, '_blank')}
+                                          className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                        >
+                                          🔍 Perbesar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDownloadImage(targetQrUrl, 'qris_pembayaran.png')}
+                                          className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                        >
+                                          ⬇️ Unduh QRIS
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="text-[10px] text-slate-400 mt-2">Gunakan nomor e-wallet: {activeEw.phoneNumber || activeEw.accountNumber || ''}</p>
+                                  )}
+                                  <p className="text-[9px] text-slate-400 mt-1 font-mono">a.n. {activeEw.accountHolder || activeEw.holderName || ''}</p>
                                 </div>
-                              ) : (
-                                <p className="text-[10px] text-slate-400 mt-2">Gunakan nomor e-wallet: {activeEw.phoneNumber}</p>
-                              )}
-                              <p className="text-[9px] text-slate-400 mt-1 font-mono">a.n. {activeEw.accountHolder}</p>
-                            </div>
-                          );
-                        })()}
+                              );
+                            })()}
+                          </div>
+                        ) : (storeQrisUrl || storeEwalletInfo) ? (
+                          <div className="w-full p-3.5 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-center flex flex-col items-center">
+                            <p className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-350">QRIS Toko</p>
+                            {storeQrisUrl ? (
+                              <div className="flex flex-col items-center">
+                                <div 
+                                  onClick={() => window.open(storeQrisUrl, '_blank')}
+                                  title="Klik untuk membuka di tab baru"
+                                  className="mt-2 aspect-square w-36 h-36 bg-white border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1 cursor-pointer hover:opacity-90 transition-opacity"
+                                >
+                                  <img src={storeQrisUrl} alt="QRIS" className="w-full h-full object-contain" />
+                                </div>
+                                <div className="mt-2 flex gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(storeQrisUrl, '_blank')}
+                                    className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                  >
+                                    🔍 Perbesar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDownloadImage(storeQrisUrl, 'qris_pembayaran.png')}
+                                    className="text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-500 transition-colors"
+                                  >
+                                    ⬇️ Unduh QRIS
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-xs font-bold text-slate-800 dark:text-slate-300 bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800 whitespace-pre-line text-center">{storeEwalletInfo}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 italic text-center">Toko belum menyantumkan e-wallet atau QRIS.</p>
+                        )}
                       </div>
                     )}
 
