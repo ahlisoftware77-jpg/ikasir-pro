@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, CheckCircle2, Truck, Building, CreditCard, QrCode, Coins, Camera, Trash2, Check } from 'lucide-react-native';
 import { db, primaryDb, getTenantDb } from '../lib/firebase';
-import { doc, getDoc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import * as ImagePicker from 'expo-image-picker';
@@ -75,16 +75,36 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
       if (!storeId) return;
       try {
         let tDb = db;
-        const sRefPrimary = doc(primaryDb, 'stores', storeId);
-        const sSnapPrimary = await getDoc(sRefPrimary);
+
+        // Step 1: Try direct lookup by storeId in primaryDb.stores
+        const sSnapPrimary = await getDoc(doc(primaryDb, 'stores', storeId));
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
           tDb = cfg ? getTenantDb(cfg) : primaryDb;
+          console.log('[Checkout] Found store via direct lookup, projectId:', cfg?.projectId);
+        } else {
+          // Step 2: Fallback - scan all stores to match by storeId field
+          console.log('[Checkout] Direct lookup miss, scanning all stores...');
+          const allStores = await getDocs(collection(primaryDb, 'stores'));
+          allStores.forEach(d => {
+            if (d.id === storeId) {
+              const cfg = d.data().infraConfig;
+              if (cfg) tDb = getTenantDb(cfg);
+            }
+          });
         }
-        
-        const settingsSnap = await getDoc(doc(tDb, 'settings', `store_${storeId}`));
+
+        // Step 3: Try to get settings from tenant DB first, then fallback to primaryDb
+        let settingsSnap = await getDoc(doc(tDb, 'settings', `store_${storeId}`));
+        if (!settingsSnap.exists() && tDb !== primaryDb) {
+          console.log('[Checkout] Settings not found in tenant DB, trying primaryDb...');
+          settingsSnap = await getDoc(doc(primaryDb, 'settings', `store_${storeId}`));
+        }
+
+        console.log('[Checkout] settingsSnap.exists:', settingsSnap.exists());
         if (settingsSnap.exists()) {
           const sData = settingsSnap.data();
+          console.log('[Checkout] storeBanks:', sData.storeBanks?.length, 'ewallets:', sData.storeEwallets?.length, 'qrisUrl:', !!sData.qrisUrl);
           setStoreBanks(sData.storeBanks || []);
           setStoreEwallets(sData.storeEwallets || []);
           setStoreAllowPickup(sData.allowPickup !== false);
@@ -103,6 +123,8 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
           if (sData.storeEwallets && sData.storeEwallets.length > 0) {
             setSelectedStoreEwalletId(sData.storeEwallets[0].id);
           }
+        } else {
+          console.warn('[Checkout] Store settings NOT FOUND for storeId:', storeId);
         }
       } catch (err) {
         console.error("Failed to fetch store settings:", err);
@@ -111,6 +133,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
     
     fetchStoreSettings();
   }, [storeId]);
+
 
   const pickAndUploadImage = async () => {
     try {
