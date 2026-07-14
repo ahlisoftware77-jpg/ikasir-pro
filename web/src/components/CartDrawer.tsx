@@ -30,6 +30,8 @@ export default function CartDrawer() {
   const [storeAllowPickup, setStoreAllowPickup] = useState(true);
   const [storeAllowDelivery, setStoreAllowDelivery] = useState(true);
   const [storeQrisUrl, setStoreQrisUrl] = useState('');
+  const [storeBankInfo, setStoreBankInfo] = useState('');
+  const [storeEwalletInfo, setStoreEwalletInfo] = useState('');
 
   // Group items by store helper
   const getItemsByStore = () => {
@@ -87,6 +89,8 @@ export default function CartDrawer() {
             setStoreAllowPickup(settingsData.allowPickup !== false);
             setStoreAllowDelivery(settingsData.allowDelivery !== false);
             setStoreQrisUrl(settingsData.qrisUrl || '');
+            setStoreBankInfo(settingsData.bankInfo || '');
+            setStoreEwalletInfo(settingsData.ewalletInfo || '');
             
             if (settingsData.allowPickup === false && settingsData.allowDelivery !== false) {
               setFulfillmentType('delivery');
@@ -110,6 +114,8 @@ export default function CartDrawer() {
         setStoreAllowPickup(true);
         setStoreAllowDelivery(true);
         setStoreQrisUrl('');
+        setStoreBankInfo('');
+        setStoreEwalletInfo('');
       }
     };
 
