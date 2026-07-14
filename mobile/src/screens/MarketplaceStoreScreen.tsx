@@ -104,6 +104,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
           manageStock: data.manageStock !== undefined ? data.manageStock : true,
           averageRating: data.averageRating || 0,
           reviewCount: data.reviewCount || 0,
+          soldCount: data.soldCount || 0,
         } as any);
       });
 
@@ -300,6 +301,23 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
               Rp {item.price.toLocaleString('id-ID')}
             </Text>
           )}
+          
+          {/* Rating & Sold count */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+            {item.averageRating && item.averageRating > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 4 }}>
+                <Star color="#f59e0b" fill="#f59e0b" size={10} style={{ marginRight: 2 }} />
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.text }}>{item.averageRating.toFixed(1)}</Text>
+                <Text style={{ fontSize: 10, color: colors.textMuted }}>({item.reviewCount})</Text>
+              </View>
+            ) : null}
+            {item.averageRating && item.averageRating > 0 && item.soldCount && item.soldCount > 0 ? (
+              <Text style={{ fontSize: 10, color: colors.textMuted, marginRight: 4 }}>|</Text>
+            ) : null}
+            {item.soldCount && item.soldCount > 0 ? (
+              <Text style={{ fontSize: 10, color: colors.textMuted }}>Terjual {item.soldCount}</Text>
+            ) : null}
+          </View>
         </View>
       </TouchableOpacity>
     );
