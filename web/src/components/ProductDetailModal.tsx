@@ -222,7 +222,7 @@ export default function ProductDetailModal({
         let tDb = db;
         let sSnapPrimary: any = null;
         
-        const cachedConfig = typeof window !== 'undefined' ? (window as any).storeConfigCache?.[routeStoreId] : null;
+        const cachedConfig = (typeof window !== 'undefined' && routeStoreId) ? (window as any).storeConfigCache?.[routeStoreId] : null;
         if (cachedConfig) {
           tDb = getTenantDb(cachedConfig);
         } else if (routeStoreId) {
