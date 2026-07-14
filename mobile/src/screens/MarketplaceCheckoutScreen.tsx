@@ -74,57 +74,64 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
     const fetchStoreSettings = async () => {
       if (!storeId) return;
       try {
-        let tDb = db;
+        // Collect all DB candidates to try
+        const dbCandidates: any[] = [db, primaryDb]; // default + primary always tried
 
-        // Step 1: Try direct lookup by storeId in primaryDb.stores
+        // Try to resolve the store's specific tenant DB from primaryDb.stores
         const sSnapPrimary = await getDoc(doc(primaryDb, 'stores', storeId));
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;
-          tDb = cfg ? getTenantDb(cfg) : primaryDb;
-          console.log('[Checkout] Found store via direct lookup, projectId:', cfg?.projectId);
+          if (cfg) {
+            const tenantDb = getTenantDb(cfg);
+            // Insert tenant DB at front (highest priority)
+            dbCandidates.unshift(tenantDb);
+            console.log('[Checkout] Resolved tenant DB for storeId:', storeId, 'projectId:', cfg.projectId);
+          }
         } else {
-          // Step 2: Fallback - scan all stores to match by storeId field
-          console.log('[Checkout] Direct lookup miss, scanning all stores...');
+          // Fallback: scan all stores to find the correct tenant DB
+          console.log('[Checkout] Store not found by direct ID, scanning all stores...');
           const allStores = await getDocs(collection(primaryDb, 'stores'));
           allStores.forEach(d => {
             if (d.id === storeId) {
               const cfg = d.data().infraConfig;
-              if (cfg) tDb = getTenantDb(cfg);
+              if (cfg) dbCandidates.unshift(getTenantDb(cfg));
             }
           });
         }
 
-        // Step 3: Try to get settings from tenant DB first, then fallback to primaryDb
-        let settingsSnap = await getDoc(doc(tDb, 'settings', `store_${storeId}`));
-        if (!settingsSnap.exists() && tDb !== primaryDb) {
-          console.log('[Checkout] Settings not found in tenant DB, trying primaryDb...');
-          settingsSnap = await getDoc(doc(primaryDb, 'settings', `store_${storeId}`));
+        // Try each DB candidate until we find the settings document
+        let settingsData: any = null;
+        for (const candidateDb of dbCandidates) {
+          try {
+            const snap = await getDoc(doc(candidateDb, 'settings', `store_${storeId}`));
+            if (snap.exists()) {
+              settingsData = snap.data();
+              console.log('[Checkout] Settings found in candidate DB, banks:', settingsData.storeBanks?.length, 'ewallets:', settingsData.storeEwallets?.length, 'qrisUrl:', !!settingsData.qrisUrl);
+              break;
+            }
+          } catch (e) {}
         }
 
-        console.log('[Checkout] settingsSnap.exists:', settingsSnap.exists());
-        if (settingsSnap.exists()) {
-          const sData = settingsSnap.data();
-          console.log('[Checkout] storeBanks:', sData.storeBanks?.length, 'ewallets:', sData.storeEwallets?.length, 'qrisUrl:', !!sData.qrisUrl);
-          setStoreBanks(sData.storeBanks || []);
-          setStoreEwallets(sData.storeEwallets || []);
-          setStoreAllowPickup(sData.allowPickup !== false);
-          setStoreAllowDelivery(sData.allowDelivery !== false);
-          setStoreQrisUrl(sData.qrisUrl || '');
-          
-          if (sData.allowPickup === false && sData.allowDelivery !== false) {
+        if (settingsData) {
+          setStoreBanks(settingsData.storeBanks || []);
+          setStoreEwallets(settingsData.storeEwallets || []);
+          setStoreAllowPickup(settingsData.allowPickup !== false);
+          setStoreAllowDelivery(settingsData.allowDelivery !== false);
+          setStoreQrisUrl(settingsData.qrisUrl || '');
+
+          if (settingsData.allowPickup === false && settingsData.allowDelivery !== false) {
             setDeliveryType('delivery');
           } else {
             setDeliveryType('pickup');
           }
-
-          if (sData.storeBanks && sData.storeBanks.length > 0) {
-            setSelectedStoreBankId(sData.storeBanks[0].id);
+          if (settingsData.storeBanks && settingsData.storeBanks.length > 0) {
+            setSelectedStoreBankId(settingsData.storeBanks[0].id);
           }
-          if (sData.storeEwallets && sData.storeEwallets.length > 0) {
-            setSelectedStoreEwalletId(sData.storeEwallets[0].id);
+          if (settingsData.storeEwallets && settingsData.storeEwallets.length > 0) {
+            setSelectedStoreEwalletId(settingsData.storeEwallets[0].id);
           }
         } else {
-          console.warn('[Checkout] Store settings NOT FOUND for storeId:', storeId);
+          console.warn('[Checkout] Store settings NOT FOUND in any DB for storeId:', storeId);
         }
       } catch (err) {
         console.error("Failed to fetch store settings:", err);
@@ -133,6 +140,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
     
     fetchStoreSettings();
   }, [storeId]);
+
 
 
   const pickAndUploadImage = async () => {
