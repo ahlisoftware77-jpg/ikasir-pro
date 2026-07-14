@@ -68,8 +68,10 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       // 1. Fetch Store Info
       const sRef = doc(tDb, 'settings', `store_${storeId}`);
       const sSnap = await getDoc(sRef);
+      let hiddenCats: string[] = [];
       if (sSnap.exists()) {
         const sData = sSnap.data();
+        hiddenCats = sData.hiddenMarketplaceCategories || [];
         setStoreInfo({
           name: sData.storeName || initialStoreName || 'Toko',
           logoUrl: sData.logoUrl || '',
@@ -86,6 +88,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
 
       snap.forEach((d) => {
         const data = d.data();
+        if (hiddenCats.includes(data.category)) return;
         let finalImageUrl = data.imageUrl || '';
         if (!finalImageUrl) {
           if (data.imageUrls && data.imageUrls.length > 0) finalImageUrl = data.imageUrls[0];
@@ -239,7 +242,7 @@ export default function MarketplaceStoreScreen({ route, navigation }: any) {
       <TouchableOpacity 
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, width: CARD_WIDTH }]}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id })}
+        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id, storeId: storeId || item.storeId })}
       >
         <View style={[styles.imageContainer, { backgroundColor: colors.bg }]}>
           {item.imageUrl ? (
