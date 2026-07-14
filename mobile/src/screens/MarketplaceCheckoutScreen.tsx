@@ -438,6 +438,19 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
 
             {storeEwallets.length > 0 && (
               <TouchableOpacity 
+                style={[styles.radioItem, { borderColor: paymentMethod === 'ewallet' ? colors.accent : colors.border, flexDirection: 'row', alignItems: 'center' }]}
+                onPress={() => setPaymentMethod('ewallet')}
+              >
+                <View style={[styles.radioOuter, { borderColor: paymentMethod === 'ewallet' ? colors.accent : colors.textMuted }]}>
+                  {paymentMethod === 'ewallet' && <View style={[styles.radioInner, { backgroundColor: colors.accent }]} />}
+                </View>
+                <CreditCard color={paymentMethod === 'ewallet' ? colors.accent : colors.textMuted} size={18} />
+                <Text style={[styles.radioLabel, { color: colors.text, marginLeft: 8 }]}>E-Wallet</Text>
+              </TouchableOpacity>
+            )}
+
+            {storeEwallets.length > 0 && (
+              <TouchableOpacity 
                 style={[styles.radioItem, { borderColor: paymentMethod === 'qris' ? colors.accent : colors.border, flexDirection: 'row', alignItems: 'center' }]}
                 onPress={() => setPaymentMethod('qris')}
               >
@@ -445,13 +458,13 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                   {paymentMethod === 'qris' && <View style={[styles.radioInner, { backgroundColor: colors.accent }]} />}
                 </View>
                 <QrCode color={paymentMethod === 'qris' ? colors.accent : colors.textMuted} size={18} />
-                <Text style={[styles.radioLabel, { color: colors.text, marginLeft: 8 }]}>QRIS / E-Wallet</Text>
+                <Text style={[styles.radioLabel, { color: colors.text, marginLeft: 8 }]}>QRIS (Scan Barcode)</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Details for Transfer or QRIS */}
-          {(paymentMethod === 'transfer' || paymentMethod === 'qris') && (
+          {/* Details for Transfer or QRIS or E-Wallet */}
+          {(paymentMethod === 'transfer' || paymentMethod === 'ewallet' || paymentMethod === 'qris') && (
             <View style={{ marginTop: 16, padding: 12, backgroundColor: colors.bg, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
               {paymentMethod === 'transfer' && storeBanks.length > 0 && (
                 <View style={{ marginBottom: 12 }}>
@@ -485,9 +498,41 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                 </View>
               )}
 
+              {paymentMethod === 'ewallet' && storeEwallets.length > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>Pilih Akun E-Wallet</Text>
+                  {storeEwallets.map((wallet: any) => (
+                    <TouchableOpacity
+                      key={wallet.id}
+                      onPress={() => setSelectedStoreEwalletId(wallet.id)}
+                      style={{
+                        padding: 10,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: selectedStoreEwalletId === wallet.id ? colors.accent : colors.border,
+                        backgroundColor: colors.surface,
+                        marginBottom: 6,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <View>
+                        <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, textTransform: 'uppercase' }}>{wallet.walletName}</Text>
+                        <Text style={{ fontSize: 11, color: colors.text, marginTop: 2, fontFamily: 'monospace' }}>{wallet.phoneNumber}</Text>
+                        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>a.n. {wallet.accountHolder}</Text>
+                      </View>
+                      {selectedStoreEwalletId === wallet.id && (
+                        <Check size={16} color={colors.accent} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               {paymentMethod === 'qris' && storeEwallets.length > 0 && (
                 <View style={{ marginBottom: 12, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', alignSelf: 'flex-start' }}>Pilih QRIS / E-Wallet</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', alignSelf: 'flex-start' }}>Pilih QRIS</Text>
                   
                   <View style={{ width: '100%', marginBottom: 10 }}>
                     {storeEwallets.map((wallet: any) => (
@@ -523,7 +568,9 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                           <View style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
                             <RNImage source={{ uri: activeEw.qrCodeUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
                           </View>
-                        ) : null}
+                        ) : (
+                          <Text style={{ fontSize: 10, color: colors.textMuted, marginVertical: 8, fontStyle: 'italic' }}>Toko belum mengunggah gambar QR Code untuk e-wallet ini.</Text>
+                        )}
                         <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>a.n. {activeEw.accountHolder}</Text>
                       </View>
                     );
