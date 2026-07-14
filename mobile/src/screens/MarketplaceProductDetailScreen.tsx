@@ -13,7 +13,7 @@ import { Star } from 'lucide-react-native';
 const { width } = Dimensions.get('window');
 
 export default function MarketplaceProductDetailScreen({ route, navigation }: any) {
-  const { productId, storeId: routeStoreId } = route.params;
+  const { productId, storeId: routeStoreId, infraConfig: routeInfraConfig } = route.params;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   
@@ -42,7 +42,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
     try {
       // --- Phase 1: Resolve the correct tenant DB ---
       let tDb = db;
-      if (routeStoreId) {
+      if (routeInfraConfig) {
+        tDb = getTenantDb(routeInfraConfig);
+      } else if (routeStoreId) {
         const sSnapPrimary = await getDoc(doc(primaryDb, 'stores', routeStoreId));
         if (sSnapPrimary.exists()) {
           const cfg = sSnapPrimary.data().infraConfig;

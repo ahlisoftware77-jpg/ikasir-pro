@@ -104,6 +104,9 @@ const getCategoryIcon = (catName: string) => {
   return '📦';
 };
 
+// Module-level config cache to speed up Product Detail navigation
+export const storeConfigCache: Record<string, any> = {};
+
 export default function MarketplaceScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -240,6 +243,7 @@ export default function MarketplaceScreen() {
         const pId = cfg.projectId || cfg.fb_project_id;
         if (pId) tenantConfigs.set(pId, cfg);
         storeToConfigMap[docSnap.id] = cfg;
+        storeConfigCache[docSnap.id] = cfg; // Save to global cache
         if (sData.latitude && sData.longitude) {
           primaryStoreLocMap[docSnap.id] = { lat: sData.latitude, lng: sData.longitude };
         }
@@ -414,7 +418,11 @@ export default function MarketplaceScreen() {
       <TouchableOpacity 
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, width: CARD_WIDTH }]}
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('MarketplaceProductDetail', { productId: item.id, storeId: item.storeId })}
+        onPress={() => navigation.navigate('MarketplaceProductDetail', { 
+          productId: item.id, 
+          storeId: item.storeId,
+          infraConfig: storeConfigCache[item.storeId]
+        })}
       >
         <View style={[styles.imageContainer, { backgroundColor: colors.bg }]}>
           {item.imageUrl ? (

@@ -145,7 +145,7 @@ function MarketplaceContent() {
         const primaryStoreLocMap: Record<string, {lat: number, lng: number}> = {};
         const storeToConfigMap: Record<string, any> = {};
 
-        storesSnap.forEach(doc => {
+        storesSnap.forEach((doc) => {
           const sData = doc.data();
           const cfg = sData.infraConfig || { projectId: 'kasir-3d12b' };
           const pId = cfg.projectId || cfg.fb_project_id;
@@ -156,6 +156,10 @@ function MarketplaceContent() {
             primaryStoreLocMap[doc.id] = { lat: Number(sData.latitude), lng: Number(sData.longitude) };
           }
         });
+
+        if (typeof window !== 'undefined') {
+          (window as any).storeConfigCache = storeToConfigMap;
+        }
 
         // Fallback location map
         const userLocMap: Record<string, { lat: number, lng: number }> = {};

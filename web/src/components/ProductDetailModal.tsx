@@ -221,7 +221,11 @@ export default function ProductDetailModal({
       try {
         let tDb = db;
         let sSnapPrimary: any = null;
-        if (routeStoreId) {
+        
+        const cachedConfig = typeof window !== 'undefined' ? (window as any).storeConfigCache?.[routeStoreId] : null;
+        if (cachedConfig) {
+          tDb = getTenantDb(cachedConfig);
+        } else if (routeStoreId) {
           const sRefPrimary = doc(primaryDb || db, 'stores', routeStoreId);
           sSnapPrimary = await getDoc(sRefPrimary);
           if (sSnapPrimary.exists()) {
