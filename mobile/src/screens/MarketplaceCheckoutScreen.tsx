@@ -480,7 +480,7 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
               </TouchableOpacity>
             )}
 
-            {storeEwallets.length > 0 && (
+            {storeQrisUrl.length > 0 && (
               <TouchableOpacity 
                 style={[styles.radioItem, { borderColor: paymentMethod === 'qris' ? colors.accent : colors.border, flexDirection: 'row', alignItems: 'center' }]}
                 onPress={() => setPaymentMethod('qris')}
@@ -549,9 +549,9 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                       }}
                     >
                       <View>
-                        <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, textTransform: 'uppercase' }}>{wallet.ewalletName}</Text>
-                        <Text style={{ fontSize: 11, color: colors.text, marginTop: 2, fontFamily: 'monospace' }}>{wallet.phoneNumber}</Text>
-                        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>a.n. {wallet.accountHolder}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, textTransform: 'uppercase' }}>{wallet.ewalletName || wallet.walletName || wallet.name || 'E-Wallet'}</Text>
+                        <Text style={{ fontSize: 11, color: colors.text, marginTop: 2, fontFamily: 'monospace' }}>{wallet.phoneNumber || wallet.accountNumber || ''}</Text>
+                        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>a.n. {wallet.accountHolder || wallet.holderName || ''}</Text>
                       </View>
                       {selectedStoreEwalletId === wallet.id && (
                         <Check size={16} color={colors.accent} />
@@ -565,35 +565,26 @@ export default function MarketplaceCheckoutScreen({ route, navigation }: any) {
                 <View style={{ marginBottom: 12, alignItems: 'center' }}>
                   <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', alignSelf: 'flex-start' }}>Scan QRIS Toko</Text>
                   
-                  {(() => {
-                    const activeEw = storeEwallets.find((ew: any) => ew.qrCodeUrl) || storeEwallets[0];
-                    const targetQrUrl = storeQrisUrl || activeEw?.qrCodeUrl;
-                    return (
-                      <View style={{ alignItems: 'center', marginTop: 4, width: '100%' }}>
-                        {targetQrUrl ? (
-                          <>
-                            <TouchableOpacity 
-                              onPress={() => setIsQrisPreviewVisible(true)}
-                              style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}
-                            >
-                              <RNImage source={{ uri: targetQrUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setIsQrisPreviewVisible(true)} style={{ marginBottom: 6 }}>
-                              <Text style={{ fontSize: 10, color: colors.accent, fontWeight: 'bold' }}>🔍 Ketuk untuk Perbesar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDownloadQris(targetQrUrl)} style={{ marginBottom: 12, backgroundColor: colors.accent + '15', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 }}>
-                              <Text style={{ fontSize: 10, color: colors.accent, fontWeight: 'bold' }}>⬇️ Simpan / Bagikan QRIS</Text>
-                            </TouchableOpacity>
-                          </>
-                        ) : (
-                          <Text style={{ fontSize: 10, color: colors.textMuted, marginVertical: 8, fontStyle: 'italic' }}>Toko belum mengunggah gambar QRIS.</Text>
-                        )}
-                        {activeEw && !storeQrisUrl && (
-                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: colors.text }}>a.n. {activeEw.accountHolder}</Text>
-                        )}
-                      </View>
-                    );
-                  })()}
+                  <View style={{ alignItems: 'center', marginTop: 4, width: '100%' }}>
+                    {storeQrisUrl ? (
+                      <>
+                        <TouchableOpacity 
+                          onPress={() => setIsQrisPreviewVisible(true)}
+                          style={{ width: 140, height: 140, backgroundColor: '#fff', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}
+                        >
+                          <RNImage source={{ uri: storeQrisUrl }} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setIsQrisPreviewVisible(true)} style={{ marginBottom: 6 }}>
+                          <Text style={{ fontSize: 10, color: colors.accent, fontWeight: 'bold' }}>🔍 Ketuk untuk Perbesar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDownloadQris(storeQrisUrl)} style={{ marginBottom: 12, backgroundColor: colors.accent + '15', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 }}>
+                          <Text style={{ fontSize: 10, color: colors.accent, fontWeight: 'bold' }}>⬇️ Simpan / Bagikan QRIS</Text>
+                        </TouchableOpacity>
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 10, color: colors.textMuted, marginVertical: 8, fontStyle: 'italic' }}>Toko belum mengunggah gambar QRIS.</Text>
+                    )}
+                  </View>
                 </View>
               )}
 
