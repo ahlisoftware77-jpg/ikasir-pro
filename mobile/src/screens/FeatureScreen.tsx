@@ -3444,20 +3444,6 @@ export default function FeatureScreen({ route, navigation }: any) {
       case 'estimasi':
         return (
           <>
-            <TouchableOpacity 
-              onPress={handleAutoFillWithAI}
-              disabled={isAutoFilling}
-              className="flex-row items-center justify-center gap-2 mb-4 py-3 rounded-xl border border-purple-500/20 bg-purple-500/10"
-            >
-              {isAutoFilling ? (
-                <ActivityIndicator size="small" color="#a855f7" />
-              ) : (
-                <>
-                  <Camera size={18} color="#a855f7" />
-                  <Text className="text-xs font-black text-purple-500 uppercase tracking-widest">Auto-Fill via Foto (AI)</Text>
-                </>
-              )}
-            </TouchableOpacity>
             {renderTextInput('Nama Menu / Resep', formName, setFormName, 'e.g. Nasi Goreng Spesial')}
             {renderTextInput('HPP / Bahan Pokok (Rp)', formBaseCost, setFormBaseCost, 'e.g. 8000', 'numeric')}
             {renderTextInput('Harga Jual POS (Rp)', formPrice, setFormPrice, 'e.g. 15000', 'numeric')}
