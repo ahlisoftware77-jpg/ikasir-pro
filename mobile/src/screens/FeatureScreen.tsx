@@ -25,6 +25,7 @@ import {
 import { printReceipt, printA4, printServiceReceipt, printServiceA4, shareReceiptPDF, printServiceLabel } from '../utils/ReceiptHelper';
 import { generateProductInfoFromImage } from '../utils/geminiHelper';
 import SwipeableItem from '../components/SwipeableItem';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -86,7 +87,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [searchSelectCust, setSearchSelectCust] = useState('');
   const [searchSelectProd, setSearchSelectProd] = useState('');
   const [selectedSelectProdCat, setSelectedSelectProdCat] = useState('Semua');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // --- FORM STATES ---
   const [formName, setFormName] = useState('');
@@ -854,9 +855,11 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   }, [route.params, featureId, navigation]);
 
+  // --- FIRESTORE SUBSCRIPTIONS ---
   useEffect(() => {
     if (!storeId) return;
 
+    setLoading(true);
     let q;
     let unsubscribe = () => {};
 
@@ -4258,93 +4261,96 @@ export default function FeatureScreen({ route, navigation }: any) {
               </ScrollView>
             </View>
 
-            <FlatList
-              data={filteredTickets}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 80 }}
-              renderItem={({ item }) => {
-                const color = STATUS_COLORS[item.status] || STATUS_COLORS.received;
-                return (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSelectedServiceTicket(item);
-                      setNewServiceStatus(item.status);
-                      setIsServiceDetailVisible(true);
-                    }}
-                    activeOpacity={0.85}
-                    className="p-4 rounded-3xl border mb-3 flex-col"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                  >
-                    <View className="flex-row justify-between items-center mb-2">
-                      <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>
-                        {item.ticketNo || `ST-${item.id.substring(0, 6).toUpperCase()}`}
-                      </Text>
-                      <View className="px-2 py-0.5 rounded border" style={{ backgroundColor: color.bg, borderColor: color.border }}>
-                        <Text className="text-[8px] font-black uppercase" style={{ color: color.text }}>
-                          {STATUS_LABELS[item.status]}
+            {loading ? (
+              <LoadingSkeleton type="list" count={5} />
+            ) : (
+              <FlatList
+                data={filteredTickets}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 80 }}
+                renderItem={({ item }) => {
+                  const color = STATUS_COLORS[item.status] || STATUS_COLORS.received;
+                  return (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedServiceTicket(item);
+                        setNewServiceStatus(item.status);
+                        setIsServiceDetailVisible(true);
+                      }}
+                      activeOpacity={0.85}
+                      className="p-4 rounded-3xl border mb-3 flex-col"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    >
+                      <View className="flex-row justify-between items-center mb-2">
+                        <Text className="text-[9px] font-black uppercase" style={{ color: colors.textMuted }}>
+                          {item.ticketNo || `ST-${item.id.substring(0, 6).toUpperCase()}`}
                         </Text>
-                      </View>
-                    </View>
-
-                    <Text className="text-sm font-black mb-0.5" style={{ color: colors.text }}>
-                      {(() => {
-                        const cat = getCategories().find((c: any) => c.name === item.deviceCategory);
-                        return cat ? `${cat.emoji} ${item.deviceModel}` : `🔌 ${item.deviceModel}`;
-                      })()}
-                    </Text>
-                    <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>
-                      S/N: {item.serialNumber}
-                    </Text>
-
-                    <View className="border-t pt-3 flex-col gap-1.5" style={{ borderColor: colors.border + '15' }}>
-                      <View className="flex-row items-center gap-1.5">
-                        <User size={12} color={colors.textMuted} />
-                        <Text className="text-xs font-bold" style={{ color: colors.text }}>
-                          {item.customerName}
-                        </Text>
-                      </View>
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-row items-center gap-1.5">
-                          <Phone size={12} color={colors.textMuted} />
-                          <Text className="text-xs font-medium" style={{ color: colors.textMuted }}>
-                            {item.customerPhone}
+                        <View className="px-2 py-0.5 rounded border" style={{ backgroundColor: color.bg, borderColor: color.border }}>
+                          <Text className="text-[8px] font-black uppercase" style={{ color: color.text }}>
+                            {STATUS_LABELS[item.status]}
                           </Text>
                         </View>
-                        {item.customerPhone && item.customerPhone !== '-' && (
-                          <TouchableOpacity
-                            onPress={() => openWhatsApp(item.customerPhone)}
-                            className="px-2 py-1 bg-emerald-500/10 rounded-lg"
-                          >
-                            <Text className="text-[8px] font-black text-emerald-500 uppercase">Hubungi WA</Text>
-                          </TouchableOpacity>
-                        )}
                       </View>
-                      <View className="flex-row items-start gap-1.5 mt-1 bg-black/5 p-2 rounded-xl">
-                        <AlertTriangle size={12} color="#f59e0b" style={{ marginTop: 1 }} />
-                        <Text className="text-[10px] font-medium flex-1" style={{ color: colors.text }}>
-                          {item.damageDescription}
-                        </Text>
-                      </View>
-                    </View>
 
-                    <View className="border-t pt-3 mt-3 flex-row justify-between items-center" style={{ borderColor: colors.border + '15' }}>
-                      <View>
-                        <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>
-                          Estimasi Biaya
-                        </Text>
-                        <Text className="text-xs font-black" style={{ color: colors.text }}>
-                          Rp {item.estimatedCost?.toLocaleString('id-ID')}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const ticketIdentifier = item.ticketNo 
-                            ? `no=${item.ticketNo}` 
-                            : `id=${item.id}`;
-                          const ticketDisplayNo = item.ticketNo || `ST-${item.id.substring(0,8).toUpperCase()}`;
+                      <Text className="text-sm font-black mb-0.5" style={{ color: colors.text }}>
+                        {(() => {
+                          const cat = getCategories().find((c: any) => c.name === item.deviceCategory);
+                          return cat ? `${cat.emoji} ${item.deviceModel}` : `🔌 ${item.deviceModel}`;
+                        })()}
+                      </Text>
+                      <Text className="text-[9px] font-bold mb-3" style={{ color: colors.textMuted }}>
+                        S/N: {item.serialNumber}
+                      </Text>
 
-                          const receiptText = `*IKASIR PRO - Tanda Terima Servis*
+                      <View className="border-t pt-3 flex-col gap-1.5" style={{ borderColor: colors.border + '15' }}>
+                        <View className="flex-row items-center gap-1.5">
+                          <User size={12} color={colors.textMuted} />
+                          <Text className="text-xs font-bold" style={{ color: colors.text }}>
+                            {item.customerName}
+                          </Text>
+                        </View>
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center gap-1.5">
+                            <Phone size={12} color={colors.textMuted} />
+                            <Text className="text-xs font-medium" style={{ color: colors.textMuted }}>
+                              {item.customerPhone}
+                            </Text>
+                          </View>
+                          {item.customerPhone && item.customerPhone !== '-' && (
+                            <TouchableOpacity
+                              onPress={() => openWhatsApp(item.customerPhone)}
+                              className="px-2 py-1 bg-emerald-500/10 rounded-lg"
+                            >
+                              <Text className="text-[8px] font-black text-emerald-500 uppercase">Hubungi WA</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        <View className="flex-row items-start gap-1.5 mt-1 bg-black/5 p-2 rounded-xl">
+                          <AlertTriangle size={12} color="#f59e0b" style={{ marginTop: 1 }} />
+                          <Text className="text-[10px] font-medium flex-1" style={{ color: colors.text }}>
+                            {item.damageDescription}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="border-t pt-3 mt-3 flex-row justify-between items-center" style={{ borderColor: colors.border + '15' }}>
+                        <View>
+                          <Text className="text-[8px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>
+                            Estimasi Biaya
+                          </Text>
+                          <Text className="text-xs font-black" style={{ color: colors.text }}>
+                            Rp {item.estimatedCost?.toLocaleString('id-ID')}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const ticketIdentifier = item.ticketNo 
+                              ? `no=${item.ticketNo}` 
+                              : `id=${item.id}`;
+                            const ticketDisplayNo = item.ticketNo || `ST-${item.id.substring(0,8).toUpperCase()}`;
+
+                            const receiptText = `*IKASIR PRO - Tanda Terima Servis*
 
 No. Tiket: ${ticketDisplayNo}
 Pelanggan: ${item.customerName}
@@ -4355,23 +4361,24 @@ Status: ${STATUS_LABELS[item.status]}
 
 Lacak status perbaikan Anda secara real-time di sini:
 https://ikasir.my.id/tr/service?${ticketIdentifier}`;
-                          Share.share({ message: receiptText });
-                        }}
-                        className="p-2 bg-black/5 rounded-xl"
-                      >
-                        <Share2 size={14} color={colors.text} />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <View className="py-20 items-center justify-center">
-                  <Wrench size={36} color={colors.textMuted} className="mb-3" />
-                  <Text className="text-xs font-bold text-slate-400">Tidak ada tiket servis ditemukan.</Text>
-                </View>
-              }
-            />
+                            Share.share({ message: receiptText });
+                          }}
+                          className="p-2 bg-black/5 rounded-xl"
+                        >
+                          <Share2 size={14} color={colors.text} />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View className="py-20 items-center justify-center">
+                    <Wrench size={36} color={colors.textMuted} className="mb-3" />
+                    <Text className="text-xs font-bold text-slate-400">Tidak ada tiket servis ditemukan.</Text>
+                  </View>
+                }
+              />
+            )}
           </View>
         );
 
@@ -4418,167 +4425,171 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               </TouchableOpacity>
             </View>
 
-            <FlatList
-              data={filteredEstimations}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => {
-                const isValid = item.validUntil ? new Date(item.validUntil) > new Date() : true;
-                const totalVal = item.total ?? item.price ?? 0;
-                const dateStr = item.timestamp ? (item.timestamp.toDate ? item.timestamp.toDate().toLocaleDateString('id-ID') : new Date(item.timestamp).toLocaleDateString('id-ID')) : 'Baru saja';
-                
-                return (
-                  <View className="p-5 rounded-3xl border mb-3 flex gap-3.5 relative overflow-hidden" style={{ backgroundColor: colors.surface, borderColor: !isValid && item.status === 'active' ? '#fca5a5' : colors.border }}>
-                    {!isValid && item.status === 'active' && (
-                      <View className="absolute top-0 right-0 bg-rose-500 px-3 py-1 rounded-bl-2xl" style={{ zIndex: 10 }}>
-                        <Text className="text-[8px] font-black text-white uppercase tracking-widest">EXPIRED</Text>
-                      </View>
-                    )}
-                    <View className="flex-row justify-between items-start">
-                      <View className="flex-1 pr-2">
-                        <Text className="text-sm font-black" style={{ color: colors.text }}>{item.customerName || item.name || 'Menu Estimasi'}</Text>
-                        <Text className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                          Dibuat: {dateStr}
-                        </Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Estimasi</Text>
-                        <Text className="text-sm font-black text-emerald-500">Rp {totalVal.toLocaleString('id-ID')}</Text>
-                      </View>
-                    </View>
-
-                    {item.items && item.items.length > 0 ? (
-                      <View className="p-3 bg-black/10 rounded-2xl flex gap-1.5">
-                        {item.items.slice(0, 3).map((sub: any, idx: number) => (
-                          <View key={idx} className="flex-row justify-between items-center">
-                            <Text className="text-[10px] font-bold" style={{ color: colors.text }}>{sub.qty}x {sub.productName}</Text>
-                            <Text className="text-[10px] font-bold text-slate-400">Rp {sub.subtotal?.toLocaleString('id-ID') || sub.price?.toLocaleString('id-ID')}</Text>
-                          </View>
-                        ))}
-                        {item.items.length > 3 && (
-                          <Text className="text-[9px] text-slate-400 italic">+{item.items.length - 3} item lainnya...</Text>
-                        )}
-                      </View>
-                    ) : (
-                      <View className="p-3 bg-black/5 rounded-2xl">
-                        <Text className="text-[10px] font-bold text-slate-400">HPP: Rp {item.baseCost?.toLocaleString('id-ID')} • Jual: Rp {item.price?.toLocaleString('id-ID')}</Text>
-                      </View>
-                    )}
-
-                    {item.validUntil && (
-                      <View className="flex-row justify-between items-center p-2.5 bg-black/5 rounded-xl border border-black/5" style={{ borderColor: !isValid && item.status === 'active' ? 'rgba(239, 68, 68, 0.2)' : 'transparent' }}>
-                        <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Berlaku Hingga:</Text>
-                        <View className="flex-row items-center gap-1.5" style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text className={`text-[9px] font-black uppercase ${isValid ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {new Date(item.validUntil).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {loading ? (
+              <LoadingSkeleton type="list" count={5} />
+            ) : (
+              <FlatList
+                data={filteredEstimations}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => {
+                  const isValid = item.validUntil ? new Date(item.validUntil) > new Date() : true;
+                  const totalVal = item.total ?? item.price ?? 0;
+                  const dateStr = item.timestamp ? (item.timestamp.toDate ? item.timestamp.toDate().toLocaleDateString('id-ID') : new Date(item.timestamp).toLocaleDateString('id-ID')) : 'Baru saja';
+                  
+                  return (
+                    <View className="p-5 rounded-3xl border mb-3 flex gap-3.5 relative overflow-hidden" style={{ backgroundColor: colors.surface, borderColor: !isValid && item.status === 'active' ? '#fca5a5' : colors.border }}>
+                      {!isValid && item.status === 'active' && (
+                        <View className="absolute top-0 right-0 bg-rose-500 px-3 py-1 rounded-bl-2xl" style={{ zIndex: 10 }}>
+                          <Text className="text-[8px] font-black text-white uppercase tracking-widest">EXPIRED</Text>
+                        </View>
+                      )}
+                      <View className="flex-row justify-between items-start">
+                        <View className="flex-1 pr-2">
+                          <Text className="text-sm font-black" style={{ color: colors.text }}>{item.customerName || item.name || 'Menu Estimasi'}</Text>
+                          <Text className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                            Dibuat: {dateStr}
                           </Text>
-                          {!isValid && item.status === 'active' && (
-                            <View className="bg-rose-500 px-1.5 py-0.5 rounded">
-                              <Text className="text-[7px] font-black text-white uppercase tracking-wider">Expired</Text>
-                            </View>
-                          )}
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Estimasi</Text>
+                          <Text className="text-sm font-black text-emerald-500">Rp {totalVal.toLocaleString('id-ID')}</Text>
                         </View>
                       </View>
-                    )}
 
-                    <View className="flex-row flex-wrap gap-2 pt-2 border-t" style={{ borderColor: colors.border + '15' }}>
-                      {item.status === 'active' && (
-                        <>
-                          <TouchableOpacity
-                            onPress={() => {
-                              Vibration.vibrate(15);
-                              navigation.navigate('Main', {
-                                screen: 'Kasir',
-                                params: { loadEstimate: item, mode: 'convert' }
-                              });
-                            }}
-                            className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex-row items-center justify-center gap-1.5"
-                          >
-                            <CreditCard size={12} color="#10b981" />
-                            <Text className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Proses POS</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => {
-                              Vibration.vibrate(15);
-                              navigation.navigate('Main', {
-                                screen: 'Kasir',
-                                params: { loadEstimate: item, mode: 'edit' }
-                              });
-                            }}
-                            className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex-row items-center justify-center gap-1.5"
-                          >
-                            <Edit2 size={12} color="#d97706" />
-                            <Text className="text-[9px] font-black uppercase text-amber-600 tracking-wider">Edit</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleExtendValidity(item)}
-                            className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-row items-center justify-center gap-1.5"
-                          >
-                            <Calendar size={12} color="#8b5cf6" />
-                            <Text className="text-[9px] font-black uppercase text-purple-600 tracking-wider">Perpanjang</Text>
-                          </TouchableOpacity>
-                        </>
+                      {item.items && item.items.length > 0 ? (
+                        <View className="p-3 bg-black/10 rounded-2xl flex gap-1.5">
+                          {item.items.slice(0, 3).map((sub: any, idx: number) => (
+                            <View key={idx} className="flex-row justify-between items-center">
+                              <Text className="text-[10px] font-bold" style={{ color: colors.text }}>{sub.qty}x {sub.productName}</Text>
+                              <Text className="text-[10px] font-bold text-slate-400">Rp {sub.subtotal?.toLocaleString('id-ID') || sub.price?.toLocaleString('id-ID')}</Text>
+                            </View>
+                          ))}
+                          {item.items.length > 3 && (
+                            <Text className="text-[9px] text-slate-400 italic">+{item.items.length - 3} item lainnya...</Text>
+                          )}
+                        </View>
+                      ) : (
+                        <View className="p-3 bg-black/5 rounded-2xl">
+                          <Text className="text-[10px] font-bold text-slate-400">HPP: Rp {item.baseCost?.toLocaleString('id-ID')} • Jual: Rp {item.price?.toLocaleString('id-ID')}</Text>
+                        </View>
                       )}
-                      <TouchableOpacity
-                        onPress={() => handlePrintA4(item)}
-                        className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex-row items-center justify-center gap-1.5"
-                      >
-                        <FileText size={12} color="#3b82f6" />
-                        <Text className="text-[9px] font-black uppercase text-blue-600 tracking-wider">Cetak A4</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handlePrintThermal(item)}
-                        className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-slate-500/10 border border-slate-500/20 flex-row items-center justify-center gap-1.5"
-                      >
-                        <Printer size={12} color="#64748b" />
-                        <Text className="text-[9px] font-black uppercase text-slate-600 tracking-wider">Thermal</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleSharePDF(item)}
-                        className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex-row items-center justify-center gap-1.5"
-                      >
-                        <Share2 size={12} color="#6366f1" />
-                        <Text className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">Bagikan</Text>
-                      </TouchableOpacity>
-                      {item.status === 'active' && (
+
+                      {item.validUntil && (
+                        <View className="flex-row justify-between items-center p-2.5 bg-black/5 rounded-xl border border-black/5" style={{ borderColor: !isValid && item.status === 'active' ? 'rgba(239, 68, 68, 0.2)' : 'transparent' }}>
+                          <Text className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Berlaku Hingga:</Text>
+                          <View className="flex-row items-center gap-1.5" style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text className={`text-[9px] font-black uppercase ${isValid ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {new Date(item.validUntil).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </Text>
+                            {!isValid && item.status === 'active' && (
+                              <View className="bg-rose-500 px-1.5 py-0.5 rounded">
+                                <Text className="text-[7px] font-black text-white uppercase tracking-wider">Expired</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )}
+
+                      <View className="flex-row flex-wrap gap-2 pt-2 border-t" style={{ borderColor: colors.border + '15' }}>
+                        {item.status === 'active' && (
+                          <>
+                            <TouchableOpacity
+                              onPress={() => {
+                                Vibration.vibrate(15);
+                                navigation.navigate('Main', {
+                                  screen: 'Kasir',
+                                  params: { loadEstimate: item, mode: 'convert' }
+                                });
+                              }}
+                              className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex-row items-center justify-center gap-1.5"
+                            >
+                              <CreditCard size={12} color="#10b981" />
+                              <Text className="text-[9px] font-black uppercase text-emerald-500 tracking-wider">Proses POS</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => {
+                                Vibration.vibrate(15);
+                                navigation.navigate('Main', {
+                                  screen: 'Kasir',
+                                  params: { loadEstimate: item, mode: 'edit' }
+                                });
+                              }}
+                              className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex-row items-center justify-center gap-1.5"
+                            >
+                              <Edit2 size={12} color="#d97706" />
+                              <Text className="text-[9px] font-black uppercase text-amber-600 tracking-wider">Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleExtendValidity(item)}
+                              className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-row items-center justify-center gap-1.5"
+                            >
+                              <Calendar size={12} color="#8b5cf6" />
+                              <Text className="text-[9px] font-black uppercase text-purple-600 tracking-wider">Perpanjang</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                        <TouchableOpacity
+                          onPress={() => handlePrintA4(item)}
+                          className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex-row items-center justify-center gap-1.5"
+                        >
+                          <FileText size={12} color="#3b82f6" />
+                          <Text className="text-[9px] font-black uppercase text-blue-600 tracking-wider">Cetak A4</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handlePrintThermal(item)}
+                          className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-slate-500/10 border border-slate-500/20 flex-row items-center justify-center gap-1.5"
+                        >
+                          <Printer size={12} color="#64748b" />
+                          <Text className="text-[9px] font-black uppercase text-slate-600 tracking-wider">Thermal</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleSharePDF(item)}
+                          className="flex-1 min-w-[45%] py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex-row items-center justify-center gap-1.5"
+                        >
+                          <Share2 size={12} color="#6366f1" />
+                          <Text className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">Bagikan</Text>
+                        </TouchableOpacity>
+                        {item.status === 'active' && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              Vibration.vibrate(10);
+                              Alert.alert('Batalkan Estimasi', 'Yakin ingin membatalkan estimasi ini?', [
+                                { text: 'Tutup', style: 'cancel' },
+                                { text: 'Batalkan', style: 'destructive', onPress: async () => {
+                                  try {
+                                    await updateDoc(doc(db, 'estimations', item.id), { status: 'cancelled' });
+                                  } catch (err) {}
+                                }}
+                              ]);
+                            }}
+                            className="w-full py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-center gap-1.5 mt-1"
+                          >
+                            <X size={12} color="#f43f5e" />
+                            <Text className="text-[9px] font-black uppercase text-rose-500 tracking-wider">Batalkan Estimasi</Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                           onPress={() => {
                             Vibration.vibrate(10);
-                            Alert.alert('Batalkan Estimasi', 'Yakin ingin membatalkan estimasi ini?', [
-                              { text: 'Tutup', style: 'cancel' },
-                              { text: 'Batalkan', style: 'destructive', onPress: async () => {
-                                try {
-                                  await updateDoc(doc(db, 'estimations', item.id), { status: 'cancelled' });
-                                } catch (err) {}
-                              }}
-                            ]);
+                            handleDelete(item.id, 'estimasi');
                           }}
-                          className="w-full py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 flex-row items-center justify-center gap-1.5 mt-1"
+                          className="w-full py-2.5 rounded-xl flex-row items-center justify-center gap-1.5 mt-1"
                         >
-                          <X size={12} color="#f43f5e" />
-                          <Text className="text-[9px] font-black uppercase text-rose-500 tracking-wider">Batalkan Estimasi</Text>
+                          <Trash2 size={12} color={colors.textMuted} />
+                          <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>Hapus Permanen</Text>
                         </TouchableOpacity>
-                      )}
-                      <TouchableOpacity
-                        onPress={() => {
-                          Vibration.vibrate(10);
-                          handleDelete(item.id, 'estimasi');
-                        }}
-                        className="w-full py-2.5 rounded-xl flex-row items-center justify-center gap-1.5 mt-1"
-                      >
-                        <Trash2 size={12} color={colors.textMuted} />
-                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.textMuted }}>Hapus Permanen</Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View className="items-center py-20 opacity-30">
+                    <Calculator color={colors.textMuted} size={48} />
+                    <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada data estimasi</Text>
                   </View>
-                );
-              }}
-              ListEmptyComponent={
-                <View className="items-center py-20 opacity-30">
-                  <Calculator color={colors.textMuted} size={48} />
-                  <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada data estimasi</Text>
-                </View>
-              }
-            />
+                }
+              />
+            )}
           </View>
         );
 
@@ -4631,107 +4642,111 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               ))}
             </View>
 
-            <FlatList
-              data={filteredDebts}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => {
-                const currentPaid = item.paidAmount ?? item.cashReceived ?? 0;
-                const remaining = item.total - currentPaid;
-                const isOverdue = item.dueDate && new Date(item.dueDate).setHours(0,0,0,0) < new Date().setHours(0,0,0,0) && item.paymentStatus !== 'paid';
+            {loading ? (
+              <LoadingSkeleton type="list" count={5} />
+            ) : (
+              <FlatList
+                data={filteredDebts}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => {
+                  const currentPaid = item.paidAmount ?? item.cashReceived ?? 0;
+                  const remaining = item.total - currentPaid;
+                  const isOverdue = item.dueDate && new Date(item.dueDate).setHours(0,0,0,0) < new Date().setHours(0,0,0,0) && item.paymentStatus !== 'paid';
 
-                return (
-                  <View className="p-4 rounded-2xl border mb-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                    <View className="flex-row justify-between items-start mb-2.5">
-                      <View className="flex-1 pr-2">
-                        <Text className="text-sm font-black" style={{ color: colors.text }}>{item.customerName || 'Pelanggan Anonim'}</Text>
-                        <Text className="text-[8px] font-mono text-slate-400 uppercase mt-0.5 tracking-tighter">ID: {item.id.substring(0, 10)}</Text>
-                      </View>
-                      <View className={`px-2 py-0.5 rounded border ${
-                        item.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20' :
-                        item.paymentStatus === 'partially_paid' ? 'bg-amber-500/10 border-amber-500/20' :
-                        'bg-rose-500/10 border-rose-500/20'
-                      }`}>
-                        <Text className={`text-[8px] font-black uppercase ${
-                          item.paymentStatus === 'paid' ? 'text-emerald-500' :
-                          item.paymentStatus === 'partially_paid' ? 'text-amber-500' :
-                          'text-rose-500'
+                  return (
+                    <View className="p-4 rounded-2xl border mb-3" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+                      <View className="flex-row justify-between items-start mb-2.5">
+                        <View className="flex-1 pr-2">
+                          <Text className="text-sm font-black" style={{ color: colors.text }}>{item.customerName || 'Pelanggan Anonim'}</Text>
+                          <Text className="text-[8px] font-mono text-slate-400 uppercase mt-0.5 tracking-tighter">ID: {item.id.substring(0, 10)}</Text>
+                        </View>
+                        <View className={`px-2 py-0.5 rounded border ${
+                          item.paymentStatus === 'paid' ? 'bg-emerald-500/10 border-emerald-500/20' :
+                          item.paymentStatus === 'partially_paid' ? 'bg-amber-500/10 border-amber-500/20' :
+                          'bg-rose-500/10 border-rose-500/20'
                         }`}>
-                          {item.paymentStatus === 'paid' ? 'Lunas' : item.paymentStatus === 'partially_paid' ? 'Cicil' : 'Belum Lunas'}
-                        </Text>
+                          <Text className={`text-[8px] font-black uppercase ${
+                            item.paymentStatus === 'paid' ? 'text-emerald-500' :
+                            item.paymentStatus === 'partially_paid' ? 'text-amber-500' :
+                            'text-rose-500'
+                          }`}>
+                            {item.paymentStatus === 'paid' ? 'Lunas' : item.paymentStatus === 'partially_paid' ? 'Cicil' : 'Belum Lunas'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-row justify-between items-center py-2 bg-black/10 rounded-xl px-3.5 mb-2.5">
+                        <View>
+                          <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Belanja</Text>
+                          <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {item.total.toLocaleString('id-ID')}</Text>
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Sisa Tagihan</Text>
+                          <Text className="text-xs font-black text-rose-500">Rp {remaining.toLocaleString('id-ID')}</Text>
+                        </View>
+                      </View>
+
+                      {item.dueDate && item.paymentStatus !== 'paid' && (
+                        <View className="flex-row items-center gap-1 mb-3">
+                          <CalendarRange size={12} color={isOverdue ? "#f43f5e" : colors.textMuted} />
+                          <Text className="text-[9px] font-bold" style={{ color: isOverdue ? "#f43f5e" : colors.textMuted }}>
+                            Jatuh Tempo: {new Date(item.dueDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </Text>
+                          {isOverdue && (
+                            <View className="bg-rose-500 px-1 rounded ml-1">
+                              <Text className="text-[7px] font-black text-white">OVERDUE</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+
+                      <View className="flex-row gap-2 mt-2">
+                        <TouchableOpacity
+                          onPress={() => {
+                            Vibration.vibrate(10);
+                            setSelectedDebt(item);
+                            setDebtPaymentAmount(remaining > 0 ? remaining.toString() : '0');
+                          }}
+                          activeOpacity={0.8}
+                          className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1"
+                          style={{ backgroundColor: colors.bg, borderColor: colors.border }}
+                        >
+                          <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Detail</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Vibration.vibrate(10);
+                            sendDebtReminder(item);
+                          }}
+                          activeOpacity={0.8}
+                          className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1.5"
+                          style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)', borderColor: 'rgba(37, 211, 102, 0.2)' }}
+                        >
+                          <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: '#25d366' }}>Kirim WA</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Vibration.vibrate(10);
+                            handleShareSignatureLink('deb', item.id);
+                          }}
+                          activeOpacity={0.8}
+                          className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1.5"
+                          style={{ backgroundColor: colors.accent + '10', borderColor: colors.accent + '20' }}
+                        >
+                          <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>Link TTD</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-
-                    <View className="flex-row justify-between items-center py-2 bg-black/10 rounded-xl px-3.5 mb-2.5">
-                      <View>
-                        <Text className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total Belanja</Text>
-                        <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {item.total.toLocaleString('id-ID')}</Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Sisa Tagihan</Text>
-                        <Text className="text-xs font-black text-rose-500">Rp {remaining.toLocaleString('id-ID')}</Text>
-                      </View>
-                    </View>
-
-                    {item.dueDate && item.paymentStatus !== 'paid' && (
-                      <View className="flex-row items-center gap-1 mb-3">
-                        <CalendarRange size={12} color={isOverdue ? "#f43f5e" : colors.textMuted} />
-                        <Text className="text-[9px] font-bold" style={{ color: isOverdue ? "#f43f5e" : colors.textMuted }}>
-                          Jatuh Tempo: {new Date(item.dueDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </Text>
-                        {isOverdue && (
-                          <View className="bg-rose-500 px-1 rounded ml-1">
-                            <Text className="text-[7px] font-black text-white">OVERDUE</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-
-                    <View className="flex-row gap-2 mt-2">
-                      <TouchableOpacity
-                        onPress={() => {
-                          Vibration.vibrate(10);
-                          setSelectedDebt(item);
-                          setDebtPaymentAmount(remaining > 0 ? remaining.toString() : '0');
-                        }}
-                        activeOpacity={0.8}
-                        className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1"
-                        style={{ backgroundColor: colors.bg, borderColor: colors.border }}
-                      >
-                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Detail</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Vibration.vibrate(10);
-                          sendDebtReminder(item);
-                        }}
-                        activeOpacity={0.8}
-                        className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1.5"
-                        style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)', borderColor: 'rgba(37, 211, 102, 0.2)' }}
-                      >
-                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: '#25d366' }}>Kirim WA</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Vibration.vibrate(10);
-                          handleShareSignatureLink('deb', item.id);
-                        }}
-                        activeOpacity={0.8}
-                        className="flex-1 py-3 rounded-xl border flex-row items-center justify-center gap-1.5"
-                        style={{ backgroundColor: colors.accent + '10', borderColor: colors.accent + '20' }}
-                      >
-                        <Text className="text-[9px] font-black uppercase tracking-wider" style={{ color: colors.accent }}>Link TTD</Text>
-                      </TouchableOpacity>
-                    </View>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View className="items-center py-20 opacity-30">
+                    <CreditCard color={colors.textMuted} size={48} />
+                    <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada catatan piutang</Text>
                   </View>
-                );
-              }}
-              ListEmptyComponent={
-                <View className="items-center py-20 opacity-30">
-                  <CreditCard color={colors.textMuted} size={48} />
-                  <Text className="text-xs font-bold mt-4" style={{ color: colors.textMuted }}>Belum ada catatan piutang</Text>
-                </View>
-              }
-            />
+                }
+              />
+            )}
           </View>
         );
 
@@ -6960,14 +6975,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
     'pelanggan', 'staff', 'arus_kas', 'tutup_buku', 'service_elektronik'
   ].includes(featureId);
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 justify-center items-center" style={{ backgroundColor: colors.bg }}>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text className="text-xs font-black uppercase tracking-widest mt-4" style={{ color: colors.textMuted }}>Menyinkronkan Cloud...</Text>
-      </SafeAreaView>
-    );
-  }
+
 
   if (isSubscriptionExpired && featureId === 'staff' && role !== 'super-admin' && role !== 'superadmin') {
     return (
