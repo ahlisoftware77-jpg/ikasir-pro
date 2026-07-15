@@ -1185,7 +1185,7 @@ export default function SuperAdminPage() {
            const collectionsToMigrate = [
               'products', 'categories', 'product_extras', 'discounts', 'transactions', 
               'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-              'cash_flow', 'stock_history', 'activity_logs'
+              'cash_flow', 'stock_history', 'activity_logs', 'service_tickets'
            ];
            
            for (const collName of collectionsToMigrate) {
@@ -1234,7 +1234,7 @@ export default function SuperAdminPage() {
                   const collectionsToDelete = [
                      'products', 'categories', 'product_extras', 'discounts', 'transactions', 
                      'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-                     'cash_flow', 'stock_history', 'activity_logs', 'users'
+                     'cash_flow', 'stock_history', 'activity_logs', 'service_tickets', 'users'
                   ];
 
                   let totalDeleted = 0;
@@ -1342,7 +1342,7 @@ export default function SuperAdminPage() {
       const collectionsToMigrate = [
          'products', 'categories', 'product_extras', 'discounts', 'transactions', 
          'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-         'cash_flow', 'stock_history', 'activity_logs'
+         'cash_flow', 'stock_history', 'activity_logs', 'service_tickets'
       ];
       let totalDocsMigrated = 0;
 
@@ -1417,7 +1417,7 @@ export default function SuperAdminPage() {
             const collectionsToDelete = [
                'products', 'categories', 'product_extras', 'discounts', 'transactions', 
                'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-               'cash_flow', 'stock_history', 'activity_logs'
+               'cash_flow', 'stock_history', 'activity_logs', 'service_tickets'
             ];
             if (sourceDb !== primaryDb) collectionsToDelete.push('users');
 

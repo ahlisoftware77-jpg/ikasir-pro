@@ -856,11 +856,10 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 await fSet(fDoc(targetDb, 'settings', `store_${storeToMigrate.id}`), settingsSnap.data());
               }
 
-              // 5. Migrate Data Elements
               const collectionsToMigrate = [
                  'products', 'categories', 'product_extras', 'discounts', 'transactions', 
                  'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-                 'cash_flow', 'stock_history', 'activity_logs'
+                 'cash_flow', 'stock_history', 'activity_logs', 'service_tickets'
               ];
               let totalDocsMigrated = 0;
 
@@ -939,7 +938,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                         const collectionsToDelete = [
                           'products', 'categories', 'product_extras', 'discounts', 'transactions', 
                           'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
-                          'cash_flow', 'stock_history', 'activity_logs'
+                          'cash_flow', 'stock_history', 'activity_logs', 'service_tickets'
                         ];
                         if (sourceDb !== primaryDb) collectionsToDelete.push('users');
 
