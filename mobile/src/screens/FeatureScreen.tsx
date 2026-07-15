@@ -86,7 +86,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [searchSelectCust, setSearchSelectCust] = useState('');
   const [searchSelectProd, setSearchSelectProd] = useState('');
   const [selectedSelectProdCat, setSelectedSelectProdCat] = useState('Semua');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // --- FORM STATES ---
   const [formName, setFormName] = useState('');
@@ -854,11 +854,9 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
   }, [route.params, featureId, navigation]);
 
-  // --- FIRESTORE SUBSCRIPTIONS ---
   useEffect(() => {
     if (!storeId) return;
 
-    setLoading(true);
     let q;
     let unsubscribe = () => {};
 
