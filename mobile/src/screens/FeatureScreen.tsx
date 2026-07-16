@@ -3222,11 +3222,25 @@ export default function FeatureScreen({ route, navigation }: any) {
     try {
       Vibration.vibrate(10);
       const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'service_tickets' : 'transactions';
+      
+      // Generate secure signatureToken for client verification
+      const generateSecureToken = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 32; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      };
+      
+      const secureToken = generateSecureToken();
+      
       await updateDoc(doc(db, collectionName, id), {
-        isSignatureLinkActive: true
+        isSignatureLinkActive: true,
+        signatureToken: secureToken
       });
       
-      const url = `https://ikasir.my.id/sign?type=${type}&id=${id}`;
+      const url = `https://ikasir.my.id/sign?type=${type}&id=${id}&storeId=${storeId}&token=${secureToken}`;
       
       await Share.share({
         title: 'Form Tanda Tangan',

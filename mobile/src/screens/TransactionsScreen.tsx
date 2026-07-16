@@ -724,12 +724,26 @@ export default function TransactionsScreen({ navigation }: any) {
   const handleShareSignatureLink = async (type: string, id: string) => {
     try {
       const collectionName = type === 'est' ? 'estimations' : 'transactions';
+      
+      // Generate secure signatureToken for client verification
+      const generateSecureToken = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 32; i++) {
+          result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+      };
+      
+      const secureToken = generateSecureToken();
+      
       await updateDoc(doc(db, collectionName, id), {
-        isSignatureLinkActive: true
+        isSignatureLinkActive: true,
+        signatureToken: secureToken
       });
       Vibration.vibrate(15);
       
-      const url = `https://ikasir.my.id/sign?type=${type}&id=${id}`;
+      const url = `https://ikasir.my.id/sign?type=${type}&id=${id}&storeId=${storeId}&token=${secureToken}`;
       
       try {
         await Share.share({

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { db } from '@/lib/firebase';
+import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import SignaturePad from '@/components/SignaturePad';
 import { Loader2, CheckCircle2, FileSignature, AlertCircle } from 'lucide-react';
@@ -14,12 +14,15 @@ function SignatureContent() {
   
   const type = searchParams?.get('type') || '';
   const id = searchParams?.get('id') || '';
+  const storeId = searchParams?.get('storeId') || searchParams?.get('store') || '';
+  const token = searchParams?.get('token') || '';
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [docData, setDocData] = useState<any>(null);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [activeDb, setActiveDb] = useState<any>(db);
 
   const collectionName = type === 'est' ? 'estimations' : type === 'service' ? 'service_tickets' : 'transactions';
 
@@ -32,11 +35,49 @@ function SignatureContent() {
     
     const fetchDoc = async () => {
       try {
-        const docRef = doc(db, collectionName, id);
+        let currentDb = db;
+
+        // Resolve Tenant DB dynamic if storeId exists
+        if (storeId) {
+          const storeRef = doc(primaryDb, 'stores', storeId);
+          const storeSnap = await getDoc(storeRef);
+          if (storeSnap.exists()) {
+            const storeData = storeSnap.data();
+            if (storeData.infraConfig) {
+              currentDb = getTenantDb(storeData.infraConfig);
+              setActiveDb(currentDb);
+            } else {
+              setError('Konfigurasi database toko tidak valid.');
+              setLoading(false);
+              return;
+            }
+          } else {
+            setError('Toko tidak terdaftar.');
+            setLoading(false);
+            return;
+          }
+        }
+
+        const docRef = doc(currentDb, collectionName, id);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
           const data = docSnap.data();
+
+          // Secure token verification for prevention of ID guessing/enumeration
+          if (data.signatureToken && data.signatureToken !== token) {
+            setError('Akses Ditolak: Token tidak valid.');
+            setLoading(false);
+            return;
+          }
+
+          // If the link is explicitly not active
+          if (data.isSignatureLinkActive === false) {
+            setError('Link tanda tangan tidak aktif atau sudah kadaluarsa. Silakan minta link baru kepada admin.');
+            setLoading(false);
+            return;
+          }
+
           setDocData(data);
           if (data.signatureBase64) {
             setSuccess(true);
@@ -56,12 +97,12 @@ function SignatureContent() {
     };
     
     fetchDoc();
-  }, [type, id, collectionName]);
+  }, [type, id, storeId, token, collectionName]);
 
   const handleSaveSignature = async (base64: string) => {
     setSaving(true);
     try {
-      const docRef = doc(db, collectionName, id);
+      const docRef = doc(activeDb, collectionName, id);
       await updateDoc(docRef, {
         signatureBase64: base64,
         isSignatureLinkActive: false, // Matikan link setelah berhasil tanda tangan
