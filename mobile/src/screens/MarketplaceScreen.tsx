@@ -183,41 +183,40 @@ export default function MarketplaceScreen() {
 
         const ordersRef = collection(db, 'transactions');
         
-        const handleSnap = (snap: any) => {
-          let foundNew = false;
-          snap.forEach((doc: any) => {
+        let foundNew = false;
+
+        try {
+          const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
+          const snap1 = await getDocs(q1);
+          snap1.forEach((doc: any) => {
             const data = doc.data();
             const currentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'completed' ? 'paid' : (data.status || 'pending');
-            
-            // Jika ID belum ada di savedState (pesanan baru), atau statusnya berubah
             if (savedState[doc.id] !== currentStatus) {
               foundNew = true;
             }
           });
+
+          if (phoneToSearch && phoneToSearch !== userIdToSearch) {
+            const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
+            const snap2 = await getDocs(q2);
+            snap2.forEach((doc: any) => {
+              const data = doc.data();
+              const currentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'completed' ? 'paid' : (data.status || 'pending');
+              if (savedState[doc.id] !== currentStatus) {
+                foundNew = true;
+              }
+            });
+          }
+
           setHasNewUpdate(foundNew);
-        };
-
-        const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
-        const unsub1 = onSnapshot(q1, handleSnap);
-
-        let unsub2: any = null;
-        if (phoneToSearch && phoneToSearch !== userIdToSearch) {
-          const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
-          unsub2 = onSnapshot(q2, handleSnap);
+        } catch (err) {
+          console.error("Gagal memeriksa pesanan di marketplace:", err);
         }
-
-        return () => {
-          unsub1();
-          if (unsub2) unsub2();
-        };
       };
 
-      let cleanup: any;
-      checkOrders().then(fn => cleanup = fn);
+      checkOrders();
 
-      return () => {
-        if (cleanup) cleanup();
-      };
+      return () => {};
     }, [user])
   );
   

@@ -59,7 +59,6 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
     const phoneToSearch = user.phone || user.phoneNumber || '';
     
     let fetchedMap = new Map();
-    let unsubs: (() => void)[] = [];
     
     const updateOrders = () => {
       const arr = Array.from(fetchedMap.values());
@@ -92,54 +91,41 @@ export default function MarketplaceOrdersScreen({ navigation }: any) {
           if (pId) tenantConfigs.set(pId, cfg);
         });
 
-        Array.from(tenantConfigs.values()).forEach(cfg => {
+        const promises = Array.from(tenantConfigs.values()).map(async (cfg) => {
           try {
             const tDb = getTenantDb(cfg);
             const ordersRef = collection(tDb, 'transactions');
             
             const q1 = query(ordersRef, where('userId', '==', userIdToSearch));
-            const unsub1 = onSnapshot(q1, (snap) => {
-              snap.forEach(doc => {
-                fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
-              });
-              snap.docChanges().forEach(change => {
-                if (change.type === 'removed') fetchedMap.delete(change.doc.id);
-              });
-              updateOrders();
+            const snap1 = await getDocs(q1);
+            snap1.forEach(doc => {
+              fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
             });
-            unsubs.push(unsub1);
 
             if (phoneToSearch && phoneToSearch !== userIdToSearch) {
               const q2 = query(ordersRef, where('customerPhone', '==', phoneToSearch));
-              const unsub2 = onSnapshot(q2, (snap) => {
-                snap.forEach(doc => {
-                  fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
-                });
-                snap.docChanges().forEach(change => {
-                  if (change.type === 'removed') fetchedMap.delete(change.doc.id);
-                });
-                updateOrders();
+              const snap2 = await getDocs(q2);
+              snap2.forEach(doc => {
+                fetchedMap.set(doc.id, { id: doc.id, ...doc.data() });
               });
-              unsubs.push(unsub2);
             }
           } catch (e) {
             console.warn(`Failed to fetch orders from tenant db ${cfg.projectId}`, e);
           }
         });
-        
-        // Timeout in case no tenants
-        setTimeout(() => setLoading(false), 2000);
+
+        await Promise.allSettled(promises);
+        updateOrders();
       } catch (err) {
         console.error("Error fetching stores config for orders", err);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchAllOrders();
 
-    return () => {
-      unsubs.forEach(unsub => unsub());
-    };
+    return () => {};
   }, [user]);
 
   const getStatusConfig = (status: string, paymentStatus: string, orderStatus: string) => {
