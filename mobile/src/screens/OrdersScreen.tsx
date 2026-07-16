@@ -381,23 +381,66 @@ export default function OrdersScreen() {
     const start = new Date();
     start.setDate(start.getDate() - 2); // Get active orders within last 48 hours
 
-    const q = query(
+    const qRecent = query(
       collection(db, 'transactions'),
       where('storeId', '==', storeId),
       where('timestamp', '>=', start),
       orderBy('timestamp', 'desc')
     );
 
+    const qActive = query(
+      collection(db, 'transactions'),
+      where('storeId', '==', storeId),
+      where('orderStatus', 'in', ['new', 'processing', 'ready'])
+    );
+
     setLoading(true);
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs: any[] = [];
-      snapshot.forEach((doc) => {
-        docs.push({ id: doc.id, ...doc.data() });
+    const fetchedMap = new Map<string, any>();
+
+    const updateOrdersState = () => {
+      const arr = Array.from(fetchedMap.values());
+      // Sort in memory by timestamp descending
+      arr.sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
       });
-      setOrders(docs);
+      setOrders(arr);
       setLoading(false);
+    };
+
+    const unsubRecent = onSnapshot(qRecent, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'removed') {
+          const data = change.doc.data();
+          if (data.orderStatus !== 'new' && data.orderStatus !== 'processing' && data.orderStatus !== 'ready') {
+            fetchedMap.delete(change.doc.id);
+          }
+        } else {
+          fetchedMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
+        }
+      });
+      updateOrdersState();
     }, (err) => {
-      console.error("Error loading KDS orders:", err);
+      console.error("Error loading KDS recent orders:", err);
+      setLoading(false);
+    });
+
+    const unsubActive = onSnapshot(qActive, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'removed') {
+          const data = change.doc.data();
+          const docTimestamp = data.timestamp?.toDate ? data.timestamp.toDate() : (data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : null);
+          if (!docTimestamp || docTimestamp < start) {
+            fetchedMap.delete(change.doc.id);
+          }
+        } else {
+          fetchedMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() });
+        }
+      });
+      updateOrdersState();
+    }, (err) => {
+      console.error("Error loading KDS active orders:", err);
       setLoading(false);
     });
 
@@ -421,7 +464,10 @@ export default function OrdersScreen() {
     
     fetchSettings();
 
-    return () => unsubscribe();
+    return () => {
+      unsubRecent();
+      unsubActive();
+    };
   }, [storeId]);
 
   // Derived filter
