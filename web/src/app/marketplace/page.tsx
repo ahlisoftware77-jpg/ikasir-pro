@@ -101,10 +101,25 @@ function MarketplaceContent() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(urlProductId || null);
   const [selectedProductStoreId, setSelectedProductStoreId] = useState<string | null>(urlProductId ? storeIdParam : null);
 
+  useEffect(() => {
+    if (urlProductId && urlProductId !== 'orders' && urlProductId !== 'profile') {
+      setSelectedProductId(urlProductId);
+      if (storeIdParam) {
+        setSelectedProductStoreId(storeIdParam);
+      }
+    } else {
+      setSelectedProductId(null);
+    }
+  }, [urlProductId, storeIdParam]);
+
   const handleCloseModal = () => {
     setSelectedProductId(null);
     if (urlProductId) {
-      router.push('/marketplace' + (storeIdParam ? `?s=${storeIdParam}` : ''));
+      if (typeof window !== 'undefined' && window.history.length > 1) {
+        router.back();
+      } else {
+        router.push('/marketplace' + (storeIdParam ? `?s=${storeIdParam}` : ''));
+      }
     }
   };
 
@@ -613,8 +628,9 @@ function MarketplaceContent() {
                 <div 
                   key={prod.id} 
                   onClick={() => {
-                    // Navigate to the dynamic detail page
-                    { setSelectedProductId(prod.id); setSelectedProductStoreId(prod.storeId); }
+                    setSelectedProductId(prod.id);
+                    setSelectedProductStoreId(prod.storeId);
+                    router.push(`/marketplace/${prod.id}?s=${prod.storeId}`, { scroll: false });
                   }}
                   className="group bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden flex flex-col hover:border-emerald-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/5 hover:-translate-y-1 cursor-pointer shadow-sm"
                 >

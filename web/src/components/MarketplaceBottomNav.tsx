@@ -19,7 +19,11 @@ export default function MarketplaceBottomNav() {
   ];
 
   // Hide on product detail and checkout so it doesn't overlap action buttons
-  if (pathname.match(/^\/marketplace\/[^/]+$/) || pathname.includes('/checkout')) {
+  // Do not hide on tab pages like /marketplace/orders and /marketplace/profile
+  const isProductDetail = pathname.match(/^\/marketplace\/[^/]+$/) && 
+                          pathname !== '/marketplace/orders' && 
+                          pathname !== '/marketplace/profile';
+  if (isProductDetail || pathname.includes('/checkout')) {
     return null;
   }
 

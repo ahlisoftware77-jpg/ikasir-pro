@@ -88,6 +88,7 @@ export default function FeatureScreen({ route, navigation }: any) {
   const [searchSelectProd, setSearchSelectProd] = useState('');
   const [selectedSelectProdCat, setSelectedSelectProdCat] = useState('Semua');
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // --- FORM STATES ---
   const [formName, setFormName] = useState('');
@@ -376,6 +377,7 @@ export default function FeatureScreen({ route, navigation }: any) {
 
       setServiceStatusNote('');
       Alert.alert("Sukses", "Status servis berhasil diperbarui!");
+      setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       console.error(err);
       Alert.alert("Eror", "Gagal memperbarui status: " + err.message);
@@ -399,6 +401,7 @@ export default function FeatureScreen({ route, navigation }: any) {
               setIsServiceDetailVisible(false);
               setSelectedServiceTicket(null);
               Alert.alert("Sukses", "Tiket servis berhasil dihapus!");
+              setRefreshTrigger(prev => prev + 1);
             } catch (err: any) {
               console.error(err);
               Alert.alert("Eror", "Gagal menghapus tiket: " + err.message);
@@ -429,6 +432,7 @@ export default function FeatureScreen({ route, navigation }: any) {
               await updateDoc(docRef, { history: updatedHistory });
               setSelectedServiceTicket((prev: any) => ({ ...prev, history: updatedHistory }));
               Alert.alert("Sukses", "Log riwayat berhasil dihapus!");
+              setRefreshTrigger(prev => prev + 1);
             } catch (err: any) {
               Alert.alert("Gagal", "Gagal menghapus log: " + err.message);
             }
@@ -461,6 +465,7 @@ export default function FeatureScreen({ route, navigation }: any) {
       setEditingLogIndex(null);
       setEditingLogNotes('');
       Alert.alert("Sukses", "Log riwayat berhasil diperbarui!");
+      setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       Alert.alert("Gagal", "Gagal memperbarui log: " + err.message);
     }
@@ -509,6 +514,7 @@ export default function FeatureScreen({ route, navigation }: any) {
       }));
 
       Alert.alert("Sukses", `Status berhasil diperbarui ke ${STATUS_LABELS[targetStatus]}!`);
+      setRefreshTrigger(prev => prev + 1);
     } catch (err: any) {
       Alert.alert("Gagal", "Gagal memperbarui status: " + err.message);
     } finally {
@@ -866,78 +872,87 @@ export default function FeatureScreen({ route, navigation }: any) {
     try {
       switch (featureId) {
         case 'service_elektronik': {
-          q = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
-          const unsubTickets = onSnapshot(q, (snapshot) => {
-            const docs: any[] = [];
-            snapshot.forEach((doc) => {
-              docs.push({ id: doc.id, ...doc.data() });
-            });
-            docs.sort((a, b) => {
-              const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-              const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-              return timeB - timeA;
-            });
-            setServiceTickets(docs);
-            setLoading(false);
-          }, (err) => {
-            console.error("Error loading service tickets:", err);
-            setLoading(false);
+          // Fetch settings for categories
+          getDoc(doc(db, 'settings', `store_${storeId}`)).then(docSnap => {
+            if (docSnap.exists()) {
+              setStoreSettingsData(docSnap.data());
+            }
           });
 
-          const unsubCust = onSnapshot(query(collection(db, 'customers'), where('storeId', '==', storeId)), (snapshot) => {
-            const docs: any[] = [];
-            snapshot.forEach((doc) => {
-              docs.push({ id: doc.id, ...doc.data() });
-            });
-            setCustomers(docs);
-          }, (err) => {
-            console.error("Error loading customers for service:", err);
-          });
+          const fetchServiceData = async () => {
+            try {
+              const qTickets = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
+              const snapTickets = await getDocs(qTickets);
+              const docs: any[] = [];
+              snapTickets.forEach((doc) => {
+                docs.push({ id: doc.id, ...doc.data() });
+              });
+              docs.sort((a, b) => {
+                const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                return timeB - timeA;
+              });
+              setServiceTickets(docs);
 
-          const unsubProds = onSnapshot(query(collection(db, 'products'), where('storeId', '==', storeId)), (snapshot) => {
-            const prods: any[] = [];
-            const cats = new Set<string>();
-            snapshot.forEach((doc) => {
-              const data = doc.data();
-              prods.push({ id: doc.id, ...data });
-              if (data.category) cats.add(data.category);
-            });
-            setAllProducts(prods);
-            setAllCategories(Array.from(cats).sort());
-          }, (err) => {
-            console.error("Error loading products for service:", err);
-          });
+              const qCust = query(collection(db, 'customers'), where('storeId', '==', storeId));
+              const snapCust = await getDocs(qCust);
+              const custs: any[] = [];
+              snapCust.forEach((doc) => {
+                custs.push({ id: doc.id, ...doc.data() });
+              });
+              setCustomers(custs);
 
-          unsubscribe = () => {
-            unsubTickets();
-            unsubCust();
-            unsubProds();
+              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+              const snapProds = await getDocs(qProds);
+              const prods: any[] = [];
+              const cats = new Set<string>();
+              snapProds.forEach((doc) => {
+                const data = doc.data();
+                prods.push({ id: doc.id, ...data });
+                if (data.category) cats.add(data.category);
+              });
+              setAllProducts(prods);
+              setAllCategories(Array.from(cats).sort());
+            } catch (err) {
+              console.error("Error fetching service data:", err);
+            } finally {
+              setLoading(false);
+            }
           };
+
+          fetchServiceData();
+          unsubscribe = () => {};
           break;
         }
 
-        case 'estimasi':
-          q = query(collection(db, 'estimations'), where('storeId', '==', storeId));
-          unsubscribe = onSnapshot(q, (snapshot) => {
-            const docs: any[] = [];
-            snapshot.forEach((doc) => {
-              docs.push({ id: doc.id, ...doc.data() });
-            });
-            // Client side sort by timestamp DESC (like web app)
-            docs.sort((a, b) => {
-              const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-              const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-              return timeB - timeA;
-            });
-            setEstimations(docs);
-            setLoading(false);
-          }, (err) => {
-            console.error("Error loading estimations:", err);
-            setLoading(false);
-          });
-          break;
+        case 'estimasi': {
+          const fetchEstimations = async () => {
+            try {
+              const qEstimations = query(collection(db, 'estimations'), where('storeId', '==', storeId));
+              const snapEstimations = await getDocs(qEstimations);
+              const docs: any[] = [];
+              snapEstimations.forEach((doc) => {
+                docs.push({ id: doc.id, ...doc.data() });
+              });
+              docs.sort((a, b) => {
+                const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+                return timeB - timeA;
+              });
+              setEstimations(docs);
+            } catch (err) {
+              console.error("Error fetching estimations:", err);
+            } finally {
+              setLoading(false);
+            }
+          };
 
-        case 'piutang':
+          fetchEstimations();
+          unsubscribe = () => {};
+          break;
+        }
+
+        case 'piutang': {
           // Fetch settings for store name
           getDoc(doc(db, 'settings', `store_${storeId}`)).then(docSnap => {
             if (docSnap.exists()) {
@@ -945,47 +960,46 @@ export default function FeatureScreen({ route, navigation }: any) {
             }
           });
 
-          // Fetch all products to resolve warranty dynamically
-          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
-          const unsubProds = onSnapshot(qProds, (snap) => {
-            const pMap: Record<string, any> = {};
-            snap.forEach(d => {
-              const data = d.data();
-              pMap[d.id] = data;
-              if (data.name) {
-                pMap[data.name] = data;
-              }
-            });
-            setProductsMap(pMap);
-          }, (err) => console.error("Error loading products snapshot:", err));
+          const fetchPiutangData = async () => {
+            try {
+              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+              const snapProds = await getDocs(qProds);
+              const pMap: Record<string, any> = {};
+              snapProds.forEach(d => {
+                const data = d.data();
+                pMap[d.id] = data;
+                if (data.name) {
+                  pMap[data.name] = data;
+                }
+              });
+              setProductsMap(pMap);
 
-          q = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
-          const unsubDebts = onSnapshot(q, (snapshot) => {
-            const docs: any[] = [];
-            snapshot.forEach((doc) => {
-              const data = doc.data();
-              if (data.paymentStatus !== 'cancelled' && data.orderStatus !== 'cancelled') {
-                docs.push({ id: doc.id, ...data });
-              }
-            });
-            // Client side sort by timestamp DESC (like web app)
-            docs.sort((a, b) => {
-              const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-              const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-              return timeB - timeA;
-            });
-            setDebts(docs);
-            setLoading(false);
-          }, (err) => {
-            console.error("Error loading debts:", err);
-            setLoading(false);
-          });
-
-          unsubscribe = () => {
-            unsubProds();
-            unsubDebts();
+              const qDebts = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
+              const snapDebts = await getDocs(qDebts);
+              const docs: any[] = [];
+              snapDebts.forEach((doc) => {
+                const data = doc.data();
+                if (data.paymentStatus !== 'cancelled' && data.orderStatus !== 'cancelled') {
+                  docs.push({ id: doc.id, ...data });
+                }
+              });
+              docs.sort((a, b) => {
+                const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+                return timeB - timeA;
+              });
+              setDebts(docs);
+            } catch (err) {
+              console.error("Error fetching debts:", err);
+            } finally {
+              setLoading(false);
+            }
           };
+
+          fetchPiutangData();
+          unsubscribe = () => {};
           break;
+        }
 
         case 'gudang':
           q = query(collection(db, 'products'), where('storeId', '==', storeId));
@@ -1429,7 +1443,7 @@ export default function FeatureScreen({ route, navigation }: any) {
     }
 
     return () => unsubscribe();
-  }, [storeId, featureId]);
+  }, [storeId, featureId, refreshTrigger]);
 
   const omzetAvailableYears = useMemo(() => {
     const years = new Set<string>();
@@ -2207,6 +2221,7 @@ export default function FeatureScreen({ route, navigation }: any) {
                   await deleteDoc(doc(db, col, id));
                   Alert.alert('Berhasil', 'Data berhasil dihapus.');
                 }
+                setRefreshTrigger(prev => prev + 1);
               }
             } catch (err) {
               console.error(err);
@@ -2926,6 +2941,7 @@ export default function FeatureScreen({ route, navigation }: any) {
       setTempSelectedProductIds([]);
       
       setIsAddModalVisible(false);
+      setRefreshTrigger(prev => prev + 1);
 
     } catch (error) {
       console.error("Error saving document:", error);
