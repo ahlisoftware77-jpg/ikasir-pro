@@ -901,7 +901,7 @@ export default function SuperAdminPage() {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'system_settings', 'database_projects', 'list'), (snapshot) => {
+    const unsub = onSnapshot(collection(primaryDb, 'system_settings', 'database_projects', 'list'), (snapshot) => {
       const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setDbProjects(projects);
     });
@@ -1075,8 +1075,8 @@ export default function SuperAdminPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const projId = editingProject?.id || doc(collection(db, 'system_settings', 'database_projects', 'list')).id;
-      await setDoc(doc(db, 'system_settings', 'database_projects', 'list', projId), {
+      const projId = editingProject?.id || doc(collection(primaryDb, 'system_settings', 'database_projects', 'list')).id;
+      await setDoc(doc(primaryDb, 'system_settings', 'database_projects', 'list', projId), {
         ...infraData,
         lastUpdated: new Date().toISOString()
       }, { merge: true });
@@ -1103,7 +1103,7 @@ export default function SuperAdminPage() {
   const handleDeleteProject = async (projId: string) => {
     if (confirm('Hapus proyek database ini?')) {
       try {
-        await deleteDoc(doc(db, 'system_settings', 'database_projects', 'list', projId));
+        await deleteDoc(doc(primaryDb, 'system_settings', 'database_projects', 'list', projId));
       } catch (err: any) {
         alert('Gagal hapus: ' + err.message);
       }
