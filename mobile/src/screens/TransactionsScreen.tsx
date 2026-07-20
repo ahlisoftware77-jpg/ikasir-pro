@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Modal, ScrollView, Alert, RefreshControl, Vibration, Pressable, Image, Linking, Share, Clipboard, Dimensions, NativeModules, Platform, PermissionsAndroid } from 'react-native';
-import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, doc, deleteDoc, where, updateDoc, getDoc, getDocs, getDocsFromCache, writeBatch } from 'firebase/firestore';
 import { db, primaryDb } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useAuthStore } from '../store/authStore';
@@ -599,7 +599,22 @@ export default function TransactionsScreen({ navigation }: any) {
       orderBy('timestamp', 'desc'),
       limit(200)
     );
-    
+
+    // 1. Instant cache load
+    try {
+      getDocsFromCache(q).then((cacheSnap) => {
+        if (!cacheSnap.empty) {
+          const cachedTrx: Transaction[] = [];
+          cacheSnap.forEach((doc) => {
+            cachedTrx.push({ id: doc.id, ...doc.data() } as Transaction);
+          });
+          setTransactions(cachedTrx);
+          setLoading(false);
+        }
+      }).catch(() => {});
+    } catch (e) {}
+
+    // 2. Real-time subscription
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const trx: Transaction[] = [];
       snapshot.forEach((doc) => {

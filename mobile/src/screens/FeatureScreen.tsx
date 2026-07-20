@@ -952,6 +952,26 @@ export default function FeatureScreen({ route, navigation }: any) {
           const fetchEstimations = async () => {
             try {
               const qEstimations = query(collection(db, 'estimations'), where('storeId', '==', storeId));
+
+              // 1. Instant cache load
+              try {
+                const snapCache = await getDocsFromCache(qEstimations);
+                if (!snapCache.empty) {
+                  const cachedDocs: any[] = [];
+                  snapCache.forEach((doc) => {
+                    cachedDocs.push({ id: doc.id, ...doc.data() });
+                  });
+                  cachedDocs.sort((a, b) => {
+                    const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                    const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+                    return timeB - timeA;
+                  });
+                  setEstimations(cachedDocs);
+                  setLoading(false);
+                }
+              } catch (e) {}
+
+              // 2. Fetch fresh from server
               const snapEstimations = await getDocs(qEstimations);
               const docs: any[] = [];
               snapEstimations.forEach((doc) => {
@@ -986,7 +1006,35 @@ export default function FeatureScreen({ route, navigation }: any) {
           const fetchPiutangData = async () => {
             try {
               const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
-              const snapProds = await getDocs(qProds);
+              const qDebts = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
+
+              // 1. Instant cache load
+              try {
+                const snapCache = await getDocsFromCache(qDebts);
+                if (!snapCache.empty) {
+                  const cachedDocs: any[] = [];
+                  snapCache.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.paymentStatus !== 'cancelled' && data.orderStatus !== 'cancelled') {
+                      cachedDocs.push({ id: doc.id, ...data });
+                    }
+                  });
+                  cachedDocs.sort((a, b) => {
+                    const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+                    const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+                    return timeB - timeA;
+                  });
+                  setDebts(cachedDocs);
+                  setLoading(false);
+                }
+              } catch (e) {}
+
+              // 2. Fetch fresh in parallel via Promise.all
+              const [snapProds, snapDebts] = await Promise.all([
+                getDocs(qProds),
+                getDocs(qDebts)
+              ]);
+
               const pMap: Record<string, any> = {};
               snapProds.forEach(d => {
                 const data = d.data();
@@ -997,8 +1045,6 @@ export default function FeatureScreen({ route, navigation }: any) {
               });
               setProductsMap(pMap);
 
-              const qDebts = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
-              const snapDebts = await getDocs(qDebts);
               const docs: any[] = [];
               snapDebts.forEach((doc) => {
                 const data = doc.data();

@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Store, MessageCircle, ShoppingBag, ShoppingCart, Minus, Plus, Tag, X, Share2 } from 'lucide-react-native';
 import { db, primaryDb, getTenantDb } from '../lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDocsFromCache, doc, getDoc, getDocFromCache, orderBy } from 'firebase/firestore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { Star } from 'lucide-react-native';
@@ -59,7 +59,15 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
         }
       }
 
-      // --- Phase 2: Fetch the product document ---
+      // --- Phase 2: Fetch the product document (Cache-First) ---
+      try {
+        const cacheSnap = await getDocFromCache(doc(tDb, 'products', productId));
+        if (cacheSnap.exists()) {
+          setProduct({ id: cacheSnap.id, ...cacheSnap.data() });
+          setLoading(false); // Instantly display product in 0ms!
+        }
+      } catch (e) {}
+
       const pSnap = await getDoc(doc(tDb, 'products', productId));
       if (!pSnap.exists()) {
         setLoading(false);
@@ -67,9 +75,9 @@ export default function MarketplaceProductDetailScreen({ route, navigation }: an
       }
 
       const pData = pSnap.data();
-      // Show product immediately — stop the full-screen spinner right here
+      // Show fresh product
       setProduct({ id: pSnap.id, ...pData });
-      setLoading(false); // <-- UI is now unblocked
+      setLoading(false);
 
       // --- Phase 3: Load all secondary data in parallel (background) ---
       await Promise.all([

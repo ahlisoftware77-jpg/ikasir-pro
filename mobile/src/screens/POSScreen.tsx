@@ -36,6 +36,7 @@ import {
   increment, 
   serverTimestamp, 
   getDocs,
+  getDocsFromCache,
   orderBy
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -1559,6 +1560,22 @@ export default function POSScreen({ route, navigation }: any) {
     if (!storeId) return;
     try {
       const q = query(collection(db, 'customers'), where('storeId', '==', storeId));
+
+      // 1. Instant cache load
+      try {
+        const snapCache = await getDocsFromCache(q);
+        if (!snapCache.empty) {
+          const listCache = snapCache.docs.map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            phone: doc.data().phone || ''
+          }));
+          listCache.sort((a, b) => a.name.localeCompare(b.name));
+          setAllCustomers(listCache);
+        }
+      } catch (e) {}
+
+      // 2. Fetch fresh from server
       const snap = await getDocs(q);
       const list = snap.docs.map(doc => ({
         id: doc.id,
