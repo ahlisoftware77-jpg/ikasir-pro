@@ -12,7 +12,7 @@ import { initializeApp, getApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { 
   collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, 
-  orderBy, limit, getDocs, getDoc, setDoc, writeBatch
+  orderBy, limit, getDocs, getDoc, setDoc, writeBatch, getDocsFromCache
 } from 'firebase/firestore';
 import { 
   Plus, Play, Search, Calculator, CreditCard, History, Package, Home, PlusCircle, 
@@ -882,7 +882,34 @@ export default function FeatureScreen({ route, navigation }: any) {
           const fetchServiceData = async () => {
             try {
               const qTickets = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
-              const snapTickets = await getDocs(qTickets);
+              const qCust = query(collection(db, 'customers'), where('storeId', '==', storeId));
+              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+
+              // 1. Instantly load cached tickets from disk (0ms) so data displays immediately after force close!
+              try {
+                const snapCache = await getDocsFromCache(qTickets);
+                if (!snapCache.empty) {
+                  const cachedDocs: any[] = [];
+                  snapCache.forEach((doc) => cachedDocs.push({ id: doc.id, ...doc.data() }));
+                  cachedDocs.sort((a, b) => {
+                    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return timeB - timeA;
+                  });
+                  setServiceTickets(cachedDocs);
+                  setLoading(false);
+                }
+              } catch (cacheErr) {
+                // Ignore cache miss
+              }
+
+              // 2. Fetch fresh data in PARALLEL via Promise.all (1x network round-trip instead of 3x)
+              const [snapTickets, snapCust, snapProds] = await Promise.all([
+                getDocs(qTickets),
+                getDocs(qCust),
+                getDocs(qProds)
+              ]);
+
               const docs: any[] = [];
               snapTickets.forEach((doc) => {
                 docs.push({ id: doc.id, ...doc.data() });
@@ -894,16 +921,12 @@ export default function FeatureScreen({ route, navigation }: any) {
               });
               setServiceTickets(docs);
 
-              const qCust = query(collection(db, 'customers'), where('storeId', '==', storeId));
-              const snapCust = await getDocs(qCust);
               const custs: any[] = [];
               snapCust.forEach((doc) => {
                 custs.push({ id: doc.id, ...doc.data() });
               });
               setCustomers(custs);
 
-              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
-              const snapProds = await getDocs(qProds);
               const prods: any[] = [];
               const cats = new Set<string>();
               snapProds.forEach((doc) => {
@@ -1982,6 +2005,17 @@ export default function FeatureScreen({ route, navigation }: any) {
         setFlashFormEndTime(item.endTime || new Date(Date.now() + 3600000).toISOString());
         setFlashFormProducts(item.products || []);
         setFlashFormIsActive(item.isActive ?? true);
+      } else if (featureId === 'service_elektronik') {
+        setFormCustomer(item.customerName || '');
+        setFormPhone(item.customerPhone || '');
+        setFormName(item.deviceModel || '');
+        setServiceFormCategory(item.deviceCategory || 'HP');
+        setServiceFormSerial(item.serialNumber || '');
+        setServiceFormDamage(item.damageDescription || '');
+        setServiceFormCost(item.estimatedCost ? item.estimatedCost.toString() : '');
+        setServiceFormNotes(item.notes || '');
+        setServiceFormWarrantyDuration(item.warrantyDuration ? item.warrantyDuration.toString() : '');
+        setServiceFormWarrantyUnit(item.warrantyUnit || 'days');
       } else {
         setFormBaseCost(item.baseCost?.toString() || '');
         setFormPrice(item.price?.toString() || '');
@@ -2050,6 +2084,17 @@ export default function FeatureScreen({ route, navigation }: any) {
       setFlashFormName('');
       setFlashFormStartTime(new Date().toISOString());
       setFlashFormEndTime(new Date(Date.now() + 3600000).toISOString());
+      setFlashFormProducts([]);
+      setFlashFormIsActive(true);
+
+      // Service defaults
+      setServiceFormSerial('');
+      setServiceFormDamage('');
+      setServiceFormCost('');
+      setServiceFormNotes('');
+      setServiceFormWarrantyDuration('');
+      setServiceFormWarrantyUnit('days');
+      setServiceFormCategory('HP');
       setFlashFormProducts([]);
       setFlashFormIsActive(true);
     }
@@ -2506,7 +2551,6 @@ export default function FeatureScreen({ route, navigation }: any) {
             return;
           }
           const nowStr = new Date().toISOString();
-          const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
           const estPrice = parseFloat(serviceFormCost) || 0;
           const warrantyDur = parseInt(serviceFormWarrantyDuration) || 0;
           
@@ -2528,48 +2572,85 @@ export default function FeatureScreen({ route, navigation }: any) {
             });
           }
 
-          await addDoc(collection(db, 'service_tickets'), {
-            storeId,
-            ticketNo,
-            customerName: formCustomer,
-            customerPhone: formPhone || '-',
-            deviceModel: formName,
-            deviceCategory: serviceFormCategory || 'HP',
-            serialNumber: serviceFormSerial || '-',
-            damageDescription: serviceFormDamage,
-            estimatedCost: estPrice,
-            status: 'received',
-            notes: serviceFormNotes || '',
-            warrantyDuration: warrantyDur,
-            warrantyUnit: serviceFormWarrantyUnit,
-            timestamp: nowStr,
-            updatedAt: nowStr,
-            history: [
-              {
-                status: 'received',
-                notes: 'Tiket servis dibuat. Perangkat diterima oleh kasir.',
-                timestamp: nowStr
-              }
-            ]
-          });
+          if (editId) {
+            await updateDoc(doc(db, 'service_tickets', editId), {
+              customerName: formCustomer,
+              customerPhone: formPhone || '-',
+              deviceModel: formName,
+              deviceCategory: serviceFormCategory || 'HP',
+              serialNumber: serviceFormSerial || '-',
+              damageDescription: serviceFormDamage,
+              estimatedCost: estPrice,
+              notes: serviceFormNotes || '',
+              warrantyDuration: warrantyDur,
+              warrantyUnit: serviceFormWarrantyUnit,
+              updatedAt: nowStr
+            });
 
-          // Auto-create linked estimation so it can be loaded directly from POS cashier
-          await addDoc(collection(db, 'estimations'), {
-            storeId,
-            customerName: formCustomer,
-            total: estPrice,
-            status: 'active',
-            validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            timestamp: nowStr,
-            serviceTicketNo: ticketNo,
-            items: [{
-              productName: `Servis: ${formName} (${ticketNo})`,
-              qty: 1,
-              price: estPrice,
-              baseCost: 0,
-              subtotal: estPrice
-            }]
-          });
+            if (selectedServiceTicket && selectedServiceTicket.id === editId) {
+              setSelectedServiceTicket((prev: any) => ({
+                ...prev,
+                customerName: formCustomer,
+                customerPhone: formPhone || '-',
+                deviceModel: formName,
+                deviceCategory: serviceFormCategory || 'HP',
+                serialNumber: serviceFormSerial || '-',
+                damageDescription: serviceFormDamage,
+                estimatedCost: estPrice,
+                notes: serviceFormNotes || '',
+                warrantyDuration: warrantyDur,
+                warrantyUnit: serviceFormWarrantyUnit,
+                updatedAt: nowStr
+              }));
+            }
+
+            Alert.alert("Sukses", "Data tiket servis berhasil diperbarui!");
+          } else {
+            const ticketNo = 'ST-' + Math.floor(100000 + Math.random() * 900000);
+
+            await addDoc(collection(db, 'service_tickets'), {
+              storeId,
+              ticketNo,
+              customerName: formCustomer,
+              customerPhone: formPhone || '-',
+              deviceModel: formName,
+              deviceCategory: serviceFormCategory || 'HP',
+              serialNumber: serviceFormSerial || '-',
+              damageDescription: serviceFormDamage,
+              estimatedCost: estPrice,
+              status: 'received',
+              notes: serviceFormNotes || '',
+              warrantyDuration: warrantyDur,
+              warrantyUnit: serviceFormWarrantyUnit,
+              timestamp: nowStr,
+              updatedAt: nowStr,
+              history: [
+                {
+                  status: 'received',
+                  notes: 'Tiket servis dibuat. Perangkat diterima oleh kasir.',
+                  timestamp: nowStr
+                }
+              ]
+            });
+
+            // Auto-create linked estimation so it can be loaded directly from POS cashier
+            await addDoc(collection(db, 'estimations'), {
+              storeId,
+              customerName: formCustomer,
+              total: estPrice,
+              status: 'active',
+              validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              timestamp: nowStr,
+              serviceTicketNo: ticketNo,
+              items: [{
+                productName: `Servis: ${formName} (${ticketNo})`,
+                qty: 1,
+                price: estPrice,
+                baseCost: 0,
+                subtotal: estPrice
+              }]
+            });
+          }
 
           setServiceFormSerial('');
           setServiceFormDamage('');
@@ -4373,14 +4454,24 @@ export default function FeatureScreen({ route, navigation }: any) {
                             Rp {item.estimatedCost?.toLocaleString('id-ID')}
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            const ticketIdentifier = item.ticketNo 
-                              ? `no=${item.ticketNo}` 
-                              : `id=${item.id}`;
-                            const ticketDisplayNo = item.ticketNo || `ST-${item.id.substring(0,8).toUpperCase()}`;
+                        <View className="flex-row items-center gap-2">
+                          <TouchableOpacity
+                            onPress={() => {
+                              openFormModal(item);
+                            }}
+                            className="p-2 bg-accent/10 rounded-xl border border-accent/20 flex-row items-center gap-1"
+                          >
+                            <Edit2 size={12} color={colors.accent} />
+                            <Text className="text-[9px] font-black uppercase" style={{ color: colors.accent }}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => {
+                              const ticketIdentifier = item.ticketNo 
+                                ? `no=${item.ticketNo}` 
+                                : `id=${item.id}`;
+                              const ticketDisplayNo = item.ticketNo || `ST-${item.id.substring(0,8).toUpperCase()}`;
 
-                            const receiptText = `*IKASIR PRO - Tanda Terima Servis*
+                              const receiptText = `*IKASIR PRO - Tanda Terima Servis*
 
 No. Tiket: ${ticketDisplayNo}
 Pelanggan: ${item.customerName}
@@ -4391,12 +4482,13 @@ Status: ${STATUS_LABELS[item.status]}
 
 Lacak status perbaikan Anda secara real-time di sini:
 https://ikasir.my.id/tr/service?${ticketIdentifier}`;
-                            Share.share({ message: receiptText });
-                          }}
-                          className="p-2 bg-black/5 rounded-xl"
-                        >
-                          <Share2 size={14} color={colors.text} />
-                        </TouchableOpacity>
+                              Share.share({ message: receiptText });
+                            }}
+                            className="p-2 bg-black/5 rounded-xl"
+                          >
+                            <Share2 size={14} color={colors.text} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </TouchableOpacity>
                   );
@@ -8813,12 +8905,27 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity
-                onPress={() => setIsServiceDetailVisible(false)}
-                className="w-10 h-10 rounded-full bg-black/10 items-center justify-center"
-              >
-                <X color={colors.text} size={20} />
-              </TouchableOpacity>
+              <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  onPress={() => {
+                    const t = selectedServiceTicket;
+                    setIsServiceDetailVisible(false);
+                    setTimeout(() => {
+                      openFormModal(t);
+                    }, 250);
+                  }}
+                  className="px-3 py-1.5 rounded-full bg-accent/15 flex-row items-center gap-1.5"
+                >
+                  <Edit2 color={colors.accent} size={14} />
+                  <Text className="text-xs font-black" style={{ color: colors.accent }}>Edit Tiket</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setIsServiceDetailVisible(false)}
+                  className="w-10 h-10 rounded-full bg-black/10 items-center justify-center"
+                >
+                  <X color={colors.text} size={20} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {selectedServiceTicket && (
@@ -9135,6 +9242,20 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 >
                   <Text className="font-black text-xs uppercase tracking-widest text-accent">
                     Bagikan
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    const t = selectedServiceTicket;
+                    setIsServiceDetailVisible(false);
+                    setTimeout(() => {
+                      openFormModal(t);
+                    }, 250);
+                  }}
+                  className="flex-1 py-4 rounded-2xl items-center justify-center bg-blue-500/10 border border-blue-500/20"
+                >
+                  <Text className="font-black text-xs uppercase tracking-widest text-blue-500">
+                    Edit Tiket
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
