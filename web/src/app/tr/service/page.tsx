@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { doc, collection, query, where, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc, collection, query, where, getDocs, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
+import { db, primaryDb, getTenantDb } from '@/lib/firebase';
 import { Phone, Calendar, AlertTriangle, Shield, CheckCircle, Clock, Camera, Wrench, X } from 'lucide-react';
 import Link from 'next/link';
 
@@ -39,10 +39,9 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; 
 
 function TrackingContent() {
   const searchParams = useSearchParams();
-  const ticketNo = searchParams.get('no');
-  const ticketId = searchParams.get('id');
 
   const [ticket, setTicket] = useState<any>(null);
+  const [activeDb, setActiveDb] = useState<any>(db);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -62,7 +61,7 @@ function TrackingContent() {
     }
     setIsSubmittingPickup(true);
     try {
-      const docRef = doc(db, 'service_tickets', ticket.id);
+      const docRef = doc(activeDb || db, 'service_tickets', ticket.id);
       await updateDoc(docRef, {
         pickupSchedule: {
           date: pickupDate,
@@ -81,6 +80,10 @@ function TrackingContent() {
   };
 
   useEffect(() => {
+    const ticketNo = searchParams.get('no');
+    const ticketId = searchParams.get('id');
+    const storeIdParam = searchParams.get('s') || searchParams.get('storeId');
+
     if (!ticketNo && !ticketId) {
       setLoading(false);
       setError('Nomor tiket atau ID tidak boleh kosong.');
@@ -90,35 +93,90 @@ function TrackingContent() {
     let unsubscribe: () => void = () => {};
 
     const loadTicket = async () => {
+      setLoading(true);
       try {
-        if (ticketId) {
-          const docRef = doc(db, 'service_tickets', ticketId);
-          unsubscribe = onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists()) {
-              setTicket({ id: docSnap.id, ...docSnap.data() });
-              setError('');
-            } else {
-              setError('Tiket servis tidak ditemukan.');
+        const candidateDbs: { name: string; dbInst: any }[] = [];
+
+        // 1. If storeId is provided in URL, resolve its tenant DB first
+        if (storeIdParam) {
+          try {
+            const storeSnap = await getDoc(doc(primaryDb, 'stores', storeIdParam));
+            if (storeSnap.exists() && storeSnap.data().infraConfig) {
+              candidateDbs.push({ name: 'store_tenant', dbInst: getTenantDb(storeSnap.data().infraConfig) });
             }
-            setLoading(false);
-          });
-        } else if (ticketNo) {
-          const q = query(collection(db, 'service_tickets'), where('ticketNo', '==', ticketNo));
-          const querySnap = await getDocs(q);
-          if (!querySnap.empty) {
-            const docSnap = querySnap.docs[0];
-            const targetDocRef = doc(db, 'service_tickets', docSnap.id);
-            unsubscribe = onSnapshot(targetDocRef, (realSnap) => {
-              if (realSnap.exists()) {
-                setTicket({ id: realSnap.id, ...realSnap.data() });
-                setError('');
+          } catch (e) {}
+        }
+
+        // 2. Add default db and primaryDb
+        candidateDbs.push({ name: 'db', dbInst: db });
+        if (primaryDb !== db) {
+          candidateDbs.push({ name: 'primaryDb', dbInst: primaryDb });
+        }
+
+        // 3. Add all registered tenant DBs from database_projects
+        try {
+          const projectsSnap = await getDocs(collection(primaryDb, 'database_projects'));
+          projectsSnap.forEach(pDoc => {
+            const projData = pDoc.data();
+            if (projData.apiKey && projData.projectId) {
+              const tDb = getTenantDb({
+                apiKey: projData.apiKey,
+                authDomain: projData.authDomain || `${projData.projectId}.firebaseapp.com`,
+                projectId: projData.projectId,
+                storageBucket: projData.storageBucket || `${projData.projectId}.firebasestorage.app`,
+                messagingSenderId: projData.messagingSenderId || '',
+                appId: projData.appId || ''
+              });
+              if (!candidateDbs.some(c => c.dbInst === tDb)) {
+                candidateDbs.push({ name: projData.projectId, dbInst: tDb });
               }
-              setLoading(false);
-            });
-          } else {
-            setError('Tiket servis dengan nomor tersebut tidak ditemukan.');
-            setLoading(false);
-          }
+            }
+          });
+        } catch (e) {}
+
+        let matchedDoc: any = null;
+        let matchedDb: any = null;
+        let matchedDocRef: any = null;
+
+        for (const item of candidateDbs) {
+          try {
+            if (ticketId) {
+              const docRef = doc(item.dbInst, 'service_tickets', ticketId);
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists()) {
+                matchedDoc = { id: docSnap.id, ...docSnap.data() };
+                matchedDb = item.dbInst;
+                matchedDocRef = docRef;
+                break;
+              }
+            } else if (ticketNo) {
+              const q = query(collection(item.dbInst, 'service_tickets'), where('ticketNo', '==', ticketNo.trim()));
+              const querySnap = await getDocs(q);
+              if (!querySnap.empty) {
+                const docSnap = querySnap.docs[0];
+                matchedDoc = { id: docSnap.id, ...docSnap.data() };
+                matchedDb = item.dbInst;
+                matchedDocRef = doc(item.dbInst, 'service_tickets', docSnap.id);
+                break;
+              }
+            }
+          } catch (err) {}
+        }
+
+        if (matchedDoc && matchedDocRef) {
+          setTicket(matchedDoc);
+          setActiveDb(matchedDb);
+          setError('');
+          setLoading(false);
+
+          unsubscribe = onSnapshot(matchedDocRef, (realSnap: any) => {
+            if (realSnap.exists()) {
+              setTicket({ id: realSnap.id, ...realSnap.data() });
+            }
+          });
+        } else {
+          setError('Tiket servis tidak ditemukan. Silakan periksa kembali nomor tiket Anda.');
+          setLoading(false);
         }
       } catch (err: any) {
         console.error(err);
@@ -129,7 +187,7 @@ function TrackingContent() {
 
     loadTicket();
     return () => unsubscribe();
-  }, [ticketNo, ticketId]);
+  }, [searchParams]);
 
   if (loading) {
     return (

@@ -4512,9 +4512,9 @@ export default function FeatureScreen({ route, navigation }: any) {
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => {
-                              const ticketIdentifier = item.ticketNo 
+                              const ticketIdentifier = (item.ticketNo 
                                 ? `no=${item.ticketNo}` 
-                                : `id=${item.id}`;
+                                : `id=${item.id}`) + (storeId ? `&s=${storeId}` : '');
                               const ticketDisplayNo = item.ticketNo || `ST-${item.id.substring(0,8).toUpperCase()}`;
 
                               const receiptText = `*IKASIR PRO - Tanda Terima Servis*
@@ -9266,9 +9266,9 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
               <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={() => {
-                    const ticketIdentifier = selectedServiceTicket.ticketNo 
+                    const ticketIdentifier = (selectedServiceTicket.ticketNo 
                       ? `no=${selectedServiceTicket.ticketNo}` 
-                      : `id=${selectedServiceTicket.id}`;
+                      : `id=${selectedServiceTicket.id}`) + (storeId ? `&s=${storeId}` : '');
                     const ticketDisplayNo = selectedServiceTicket.ticketNo || `ST-${selectedServiceTicket.id.substring(0,8).toUpperCase()}`;
 
                     const receiptText = `*IKASIR PRO - Tanda Terima Servis*
