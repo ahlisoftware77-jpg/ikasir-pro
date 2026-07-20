@@ -865,7 +865,22 @@ export default function FeatureScreen({ route, navigation }: any) {
   useEffect(() => {
     if (!storeId) return;
 
-    setLoading(true);
+    // Smart loading: Only trigger full screen loading skeleton if we don't already have data in state for this feature!
+    const hasDataAlready = (
+      (featureId === 'service_elektronik' && serviceTickets.length > 0) ||
+      (featureId === 'estimasi' && estimations.length > 0) ||
+      (featureId === 'piutang' && debts.length > 0) ||
+      (featureId === 'gudang' && warehouses.length > 0) ||
+      (featureId === 'ekstra' && extras.length > 0) ||
+      (featureId === 'diskon' && discounts.length > 0) ||
+      (featureId === 'flashsale' && flashSales.length > 0) ||
+      (featureId === 'pelanggan' && customers.length > 0)
+    );
+
+    if (!hasDataAlready) {
+      setLoading(true);
+    }
+
     let q;
     let unsubscribe = () => {};
 
@@ -879,119 +894,72 @@ export default function FeatureScreen({ route, navigation }: any) {
             }
           });
 
-          const fetchServiceData = async () => {
-            try {
-              const qTickets = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
-              const qCust = query(collection(db, 'customers'), where('storeId', '==', storeId));
-              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const qTickets = query(collection(db, 'service_tickets'), where('storeId', '==', storeId));
+          const unsubTickets = onSnapshot(qTickets, (snapshot) => {
+            const docs: any[] = [];
+            snapshot.forEach((doc) => {
+              docs.push({ id: doc.id, ...doc.data() });
+            });
+            docs.sort((a, b) => {
+              const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+              const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+              return timeB - timeA;
+            });
+            setServiceTickets(docs);
+            setLoading(false);
+          }, (err) => {
+            console.error("Error loading service tickets:", err);
+            setLoading(false);
+          });
 
-              // 1. Instantly load cached tickets from disk (0ms) so data displays immediately after force close!
-              try {
-                const snapCache = await getDocsFromCache(qTickets);
-                if (!snapCache.empty) {
-                  const cachedDocs: any[] = [];
-                  snapCache.forEach((doc) => cachedDocs.push({ id: doc.id, ...doc.data() }));
-                  cachedDocs.sort((a, b) => {
-                    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                    return timeB - timeA;
-                  });
-                  setServiceTickets(cachedDocs);
-                  setLoading(false);
-                }
-              } catch (cacheErr) {
-                // Ignore cache miss
-              }
+          const qCust = query(collection(db, 'customers'), where('storeId', '==', storeId));
+          const unsubCust = onSnapshot(qCust, (snapshot) => {
+            const custs: any[] = [];
+            snapshot.forEach((doc) => {
+              custs.push({ id: doc.id, ...doc.data() });
+            });
+            setCustomers(custs);
+          });
 
-              // 2. Fetch fresh data in PARALLEL via Promise.all (1x network round-trip instead of 3x)
-              const [snapTickets, snapCust, snapProds] = await Promise.all([
-                getDocs(qTickets),
-                getDocs(qCust),
-                getDocs(qProds)
-              ]);
+          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const unsubProds = onSnapshot(qProds, (snapshot) => {
+            const prods: any[] = [];
+            const cats = new Set<string>();
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              prods.push({ id: doc.id, ...data });
+              if (data.category) cats.add(data.category);
+            });
+            setAllProducts(prods);
+            setAllCategories(Array.from(cats).sort());
+          });
 
-              const docs: any[] = [];
-              snapTickets.forEach((doc) => {
-                docs.push({ id: doc.id, ...doc.data() });
-              });
-              docs.sort((a, b) => {
-                const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                return timeB - timeA;
-              });
-              setServiceTickets(docs);
-
-              const custs: any[] = [];
-              snapCust.forEach((doc) => {
-                custs.push({ id: doc.id, ...doc.data() });
-              });
-              setCustomers(custs);
-
-              const prods: any[] = [];
-              const cats = new Set<string>();
-              snapProds.forEach((doc) => {
-                const data = doc.data();
-                prods.push({ id: doc.id, ...data });
-                if (data.category) cats.add(data.category);
-              });
-              setAllProducts(prods);
-              setAllCategories(Array.from(cats).sort());
-            } catch (err) {
-              console.error("Error fetching service data:", err);
-            } finally {
-              setLoading(false);
-            }
+          unsubscribe = () => {
+            unsubTickets();
+            unsubCust();
+            unsubProds();
           };
-
-          fetchServiceData();
-          unsubscribe = () => {};
           break;
         }
 
         case 'estimasi': {
-          const fetchEstimations = async () => {
-            try {
-              const qEstimations = query(collection(db, 'estimations'), where('storeId', '==', storeId));
-
-              // 1. Instant cache load
-              try {
-                const snapCache = await getDocsFromCache(qEstimations);
-                if (!snapCache.empty) {
-                  const cachedDocs: any[] = [];
-                  snapCache.forEach((doc) => {
-                    cachedDocs.push({ id: doc.id, ...doc.data() });
-                  });
-                  cachedDocs.sort((a, b) => {
-                    const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-                    const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-                    return timeB - timeA;
-                  });
-                  setEstimations(cachedDocs);
-                  setLoading(false);
-                }
-              } catch (e) {}
-
-              // 2. Fetch fresh from server
-              const snapEstimations = await getDocs(qEstimations);
-              const docs: any[] = [];
-              snapEstimations.forEach((doc) => {
-                docs.push({ id: doc.id, ...doc.data() });
-              });
-              docs.sort((a, b) => {
-                const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-                const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-                return timeB - timeA;
-              });
-              setEstimations(docs);
-            } catch (err) {
-              console.error("Error fetching estimations:", err);
-            } finally {
-              setLoading(false);
-            }
-          };
-
-          fetchEstimations();
-          unsubscribe = () => {};
+          const qEstimations = query(collection(db, 'estimations'), where('storeId', '==', storeId));
+          unsubscribe = onSnapshot(qEstimations, (snapshot) => {
+            const docs: any[] = [];
+            snapshot.forEach((doc) => {
+              docs.push({ id: doc.id, ...doc.data() });
+            });
+            docs.sort((a, b) => {
+              const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+              const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+              return timeB - timeA;
+            });
+            setEstimations(docs);
+            setLoading(false);
+          }, (err) => {
+            console.error("Error loading estimations:", err);
+            setLoading(false);
+          });
           break;
         }
 
@@ -1003,70 +971,44 @@ export default function FeatureScreen({ route, navigation }: any) {
             }
           });
 
-          const fetchPiutangData = async () => {
-            try {
-              const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
-              const qDebts = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
+          const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+          const unsubProds = onSnapshot(qProds, (snapshot) => {
+            const pMap: Record<string, any> = {};
+            snapshot.forEach(d => {
+              const data = d.data();
+              pMap[d.id] = data;
+              if (data.name) {
+                pMap[data.name] = data;
+              }
+            });
+            setProductsMap(pMap);
+          });
 
-              // 1. Instant cache load
-              try {
-                const snapCache = await getDocsFromCache(qDebts);
-                if (!snapCache.empty) {
-                  const cachedDocs: any[] = [];
-                  snapCache.forEach((doc) => {
-                    const data = doc.data();
-                    if (data.paymentStatus !== 'cancelled' && data.orderStatus !== 'cancelled') {
-                      cachedDocs.push({ id: doc.id, ...data });
-                    }
-                  });
-                  cachedDocs.sort((a, b) => {
-                    const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-                    const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-                    return timeB - timeA;
-                  });
-                  setDebts(cachedDocs);
-                  setLoading(false);
-                }
-              } catch (e) {}
+          const qDebts = query(collection(db, 'transactions'), where('storeId', '==', storeId), where('paymentCategory', '==', 'debt'));
+          const unsubDebts = onSnapshot(qDebts, (snapshot) => {
+            const docs: any[] = [];
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              if (data.paymentStatus !== 'cancelled' && data.orderStatus !== 'cancelled') {
+                docs.push({ id: doc.id, ...data });
+              }
+            });
+            docs.sort((a, b) => {
+              const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+              const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+              return timeB - timeA;
+            });
+            setDebts(docs);
+            setLoading(false);
+          }, (err) => {
+            console.error("Error loading debts:", err);
+            setLoading(false);
+          });
 
-              // 2. Fetch fresh in parallel via Promise.all
-              const [snapProds, snapDebts] = await Promise.all([
-                getDocs(qProds),
-                getDocs(qDebts)
-              ]);
-
-              const pMap: Record<string, any> = {};
-              snapProds.forEach(d => {
-                const data = d.data();
-                pMap[d.id] = data;
-                if (data.name) {
-                  pMap[data.name] = data;
-                }
-              });
-              setProductsMap(pMap);
-
-              const docs: any[] = [];
-              snapDebts.forEach((doc) => {
-                const data = doc.data();
-                if (data.paymentStatus !== 'cancelled' && data.orderStatus !== 'cancelled') {
-                  docs.push({ id: doc.id, ...data });
-                }
-              });
-              docs.sort((a, b) => {
-                const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-                const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-                return timeB - timeA;
-              });
-              setDebts(docs);
-            } catch (err) {
-              console.error("Error fetching debts:", err);
-            } finally {
-              setLoading(false);
-            }
+          unsubscribe = () => {
+            unsubProds();
+            unsubDebts();
           };
-
-          fetchPiutangData();
-          unsubscribe = () => {};
           break;
         }
 
