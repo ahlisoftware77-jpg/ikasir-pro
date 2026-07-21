@@ -1340,7 +1340,7 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                     <button
                       type="button"
                       onClick={handleUpdateStatus}
-                      disabled={isUpdatingStatus || !newStatus || newStatus === selectedTicket.status}
+                      disabled={isUpdatingStatus || !newStatus}
                       className="w-full py-3 bg-accent hover:bg-accent-hover disabled:bg-app-border text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
                     >
                       {isUpdatingStatus && <Loader2 className="animate-spin" size={12} />}

@@ -9079,9 +9079,9 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
 
                     <TouchableOpacity
                       onPress={handleUpdateServiceStatus}
-                      disabled={isUpdatingServiceStatus || !newServiceStatus || newServiceStatus === selectedServiceTicket.status}
+                      disabled={isUpdatingServiceStatus || !newServiceStatus}
                       className="py-3 rounded-xl items-center justify-center"
-                      style={{ backgroundColor: colors.accent, opacity: (!newServiceStatus || newServiceStatus === selectedServiceTicket.status) ? 0.5 : 1 }}
+                      style={{ backgroundColor: colors.accent, opacity: !newServiceStatus ? 0.5 : 1 }}
                     >
                       <Text className="text-[10px] font-black uppercase text-white tracking-wider">
                         {isUpdatingServiceStatus ? 'Memproses...' : 'Simpan Pembaruan Status'}
