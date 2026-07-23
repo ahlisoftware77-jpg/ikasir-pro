@@ -108,6 +108,7 @@ export default function TransactionsScreen({ navigation }: any) {
   const [searchText, setSearchText] = useState('');
   const [viewingReceipt, setViewingReceipt] = useState<Transaction | null>(null);
   const [infraData, setInfraData] = useState<any>({});
+  const [productsMap, setProductsMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const unsubInfra = onSnapshot(doc(primaryDb, 'system_settings', 'infrastructure'), (docSnap) => {
@@ -232,6 +233,11 @@ export default function TransactionsScreen({ navigation }: any) {
     let totalSisaPiutang = 0;
     
     filteredTransactions.forEach(trx => {
+      // Exclude cancelled/void transactions from sales and profit metrics
+      if ((trx as any).paymentStatus === 'cancelled' || (trx as any).orderStatus === 'cancelled') {
+        return;
+      }
+
       const omzetVal = trx.total || 0;
       totalOmzet += omzetVal;
 
@@ -239,10 +245,15 @@ export default function TransactionsScreen({ navigation }: any) {
       trx.items?.forEach((item: any) => {
         const qty = item.qty || 0;
         totalQtyTerjual += qty;
-        trxHpp += qty * (item.purchasePrice || 0);
+        const pPrice = (item.purchasePrice !== undefined && item.purchasePrice > 0)
+          ? item.purchasePrice
+          : (productsMap[item.productId]?.purchasePrice || productsMap[item.productName]?.purchasePrice || 0);
+        trxHpp += qty * pPrice;
       });
 
-      totalProfit += (omzetVal - trxHpp);
+      // Net revenue (subtotal excluding tax) for gross profit calculation
+      const trxSubtotal = trx.subtotal !== undefined ? trx.subtotal : ((trx.total || 0) - (trx.tax || 0));
+      totalProfit += (trxSubtotal - trxHpp);
       
       // Calculate Piutang metrics
       let dp = trx.downPayment || 0;
@@ -261,7 +272,7 @@ export default function TransactionsScreen({ navigation }: any) {
       piutangTerbayar: totalPiutangTerbayar,
       sisaPiutang: totalSisaPiutang
     };
-  }, [filteredTransactions]);
+  }, [filteredTransactions, productsMap]);
 
   const exportTransactionsToExcel = async () => {
     if (sortedTransactions.length === 0) {
@@ -627,6 +638,19 @@ export default function TransactionsScreen({ navigation }: any) {
       setLoading(false);
     });
 
+    const qProds = query(collection(db, 'products'), where('storeId', '==', storeId));
+    const unsubProds = onSnapshot(qProds, (snap) => {
+      const pMap: Record<string, any> = {};
+      snap.forEach(d => {
+        const data = d.data();
+        pMap[d.id] = data;
+        if (data.name) {
+          pMap[data.name] = data;
+        }
+      });
+      setProductsMap(pMap);
+    });
+
     const fetchSettings = async () => {
       try {
         const docSnap = await getDoc(doc(db, 'settings', `store_${storeId}`));
@@ -639,7 +663,10 @@ export default function TransactionsScreen({ navigation }: any) {
     };
     fetchSettings();
     
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubProds();
+    };
   }, [storeId, filterTab === 'estimation']);
 
   const formatDate = (timestamp: any) => {

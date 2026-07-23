@@ -230,6 +230,11 @@ export default function TransactionsPage() {
     let totalSisaPiutang = 0;
     
     filtered.forEach(trx => {
+      // Exclude cancelled/void transactions from sales and profit metrics
+      if ((trx as any).paymentStatus === 'cancelled' || (trx as any).orderStatus === 'cancelled') {
+        return;
+      }
+
       const omzetVal = trx.total || 0;
       totalOmzet += omzetVal;
 
@@ -237,10 +242,15 @@ export default function TransactionsPage() {
       trx.items?.forEach((item: any) => {
         const qty = item.qty || 0;
         totalQtyTerjual += qty;
-        trxHpp += qty * (item.purchasePrice || 0);
+        const pPrice = (item.purchasePrice !== undefined && item.purchasePrice > 0)
+          ? item.purchasePrice
+          : (productsMap[item.productId]?.purchasePrice || productsMap[item.productName]?.purchasePrice || 0);
+        trxHpp += qty * pPrice;
       });
 
-      totalProfit += (omzetVal - trxHpp);
+      // Net revenue (subtotal excluding tax) for gross profit calculation
+      const trxSubtotal = trx.subtotal !== undefined ? trx.subtotal : ((trx.total || 0) - (trx.tax || 0));
+      totalProfit += (trxSubtotal - trxHpp);
       
       const dp = trx.downPayment || 0;
       const paid = trx.paidAmount || 0;
@@ -258,7 +268,7 @@ export default function TransactionsPage() {
       piutangTerbayar: totalPiutangTerbayar,
       sisaPiutang: totalSisaPiutang
     };
-  }, [filtered]);
+  }, [filtered, productsMap]);
 
   const handleSendWA = async (trx: any) => {
     if (!trx.customerId) {
