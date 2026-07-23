@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, 
   TextInput, Switch, ActivityIndicator, Alert, Image, Linking, 
-  KeyboardAvoidingView, Platform, Dimensions, BackHandler
+  KeyboardAvoidingView, Platform, Dimensions, BackHandler, Clipboard
 } from 'react-native';
 import styled from 'styled-components/native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -14,7 +14,7 @@ import {
   Check, X, Home, Tag, CalendarRange, FileText, Users, Lock, UserCheck, 
   Receipt, Trash2, Database, Download, CheckCircle2, Pencil, Power, Plus, 
   History, ArrowRight, ArrowLeft, Camera, Sparkles, AlertCircle, Upload, Bell,
-  Wrench, ExternalLink, MessageSquare, Landmark, UserPlus, ShieldCheck
+  Wrench, ExternalLink, MessageSquare, Landmark, UserPlus, ShieldCheck, AlertTriangle
 } from 'lucide-react-native';
 import { db, primaryDb } from '../lib/firebase';
 import { 
@@ -171,6 +171,12 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const [restoreProgress, setRestoreProgress] = useState(0);
   const [showDatePicker, setShowDatePicker] = useState<{visible: boolean, field: 'createdAt' | 'validUntil' | null}>({visible: false, field: null});
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [summaryReportData, setSummaryReportData] = useState<{
+    title: string;
+    subtitle?: string;
+    successItems: { name: string; info: string }[];
+    failedItems: { name: string; reason: string }[];
+  } | null>(null);
 
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -303,10 +309,25 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
               const data = await res.json();
               if (data.success) {
-                Alert.alert(
-                  'Sukses',
-                  `Broadcast Berhasil Dikirim!\n\nSukses: ${data.successCount} perangkat\nGagal: ${data.failureCount} perangkat`
-                );
+                const successList = data.details?.successList || [];
+                const failedList = data.details?.failedList || [];
+
+                const successItems = successList.length > 0 
+                  ? successList.map((s: any) => ({ name: `Target: ${s.target}`, info: `${s.count} perangkat berhasil terkirim` }))
+                  : [{ name: 'Perangkat Terdaftar', info: `${data.successCount || 0} notifikasi berhasil terkirim` }];
+
+                const failedItems = failedList.map((f: any) => ({ 
+                  name: `Target: ${f.target}`, 
+                  reason: `${f.count} perangkat gagal (${f.reason || 'Token tidak aktif / kadaluarsa'})` 
+                }));
+
+                setSummaryReportData({
+                  title: '📢 Laporan Broadcast Notifikasi Massal',
+                  subtitle: `Judul: "${broadcastTitle}" | Sukses: ${data.successCount || 0} | Gagal: ${data.failureCount || 0}`,
+                  successItems,
+                  failedItems
+                });
+
                 setBroadcastTitle('');
                 setBroadcastMessage('');
                 setBroadcastLink('');
@@ -839,85 +860,132 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                     appId: targetProj.fb_app_id
                   }, `target-store-${Date.now()}`));
 
-              // 3. Migrate Store Document
-              const storeRef = fDoc(sourceDb, 'stores', storeToMigrate.id);
-              const storeSnap = await fGet(storeRef);
-              if (storeSnap.exists()) {
-                await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), storeSnap.data());
-              } else {
-                const { id, ...rest } = storeToMigrate;
-                await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), rest);
-              }
-
-              // 4. Migrate Store Settings Document
-              const settingsRefSrc = fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`);
-              const settingsSnap = await fGet(settingsRefSrc);
-              if (settingsSnap.exists()) {
-                await fSet(fDoc(targetDb, 'settings', `store_${storeToMigrate.id}`), settingsSnap.data());
-              }
-
               const collectionsToMigrate = [
                  'products', 'categories', 'product_extras', 'discounts', 'transactions', 
                  'customers', 'expenses', 'estimations', 'shifts', 'cashier_sessions', 
                  'cash_flow', 'stock_history', 'activity_logs', 'service_tickets'
               ];
+              const collectionLabels: Record<string, string> = {
+                products: 'Produk',
+                categories: 'Kategori Produk',
+                product_extras: 'Ekstra Produk',
+                discounts: 'Diskon & Promo',
+                transactions: 'Transaksi Penjualan',
+                customers: 'Data Pelanggan',
+                expenses: 'Pengeluaran Kas',
+                estimations: 'Estimasi Biaya',
+                shifts: 'Shift Kasir',
+                cashier_sessions: 'Sesi Kasir',
+                cash_flow: 'Arus Kas',
+                stock_history: 'Riwayat Stok',
+                activity_logs: 'Log Aktivitas',
+                service_tickets: 'Tiket Servis Elektronik'
+              };
+
               let totalDocsMigrated = 0;
+              const successItems: { name: string; info: string }[] = [];
+              const failedItems: { name: string; reason: string }[] = [];
+
+              // 3. Migrate Store Document & Settings
+              try {
+                const storeRef = fDoc(sourceDb, 'stores', storeToMigrate.id);
+                const storeSnap = await fGet(storeRef);
+                if (storeSnap.exists()) {
+                  await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), storeSnap.data());
+                } else {
+                  const { id, ...rest } = storeToMigrate;
+                  await fSet(fDoc(targetDb, 'stores', storeToMigrate.id), rest);
+                }
+
+                const settingsRefSrc = fDoc(sourceDb, 'settings', `store_${storeToMigrate.id}`);
+                const settingsSnap = await fGet(settingsRefSrc);
+                if (settingsSnap.exists()) {
+                  await fSet(fDoc(targetDb, 'settings', `store_${storeToMigrate.id}`), settingsSnap.data());
+                }
+                successItems.push({ name: 'Profil & Pengaturan Toko', info: `Toko "${storeToMigrate.name}" (${storeToMigrate.id})` });
+              } catch (sErr: any) {
+                failedItems.push({ name: 'Profil & Pengaturan Toko', reason: sErr.message || 'Gagal menyalin profil toko' });
+              }
 
               for (const collName of collectionsToMigrate) {
-                 const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', storeToMigrate.id));
-                 const snap = await fGetDocs(q);
-                 
-                 if (!snap.empty) {
-                    let batch = writeBatch(targetDb);
-                    let count = 0;
-                    for (const docSnap of snap.docs) {
-                       batch.set(fDoc(targetDb, collName, docSnap.id), docSnap.data());
-                       count++;
-                       totalDocsMigrated++;
-                       if (count === 400) {
-                          await batch.commit();
-                          batch = writeBatch(targetDb);
-                          count = 0;
-                       }
-                     }
-                     if (count > 0) {
-                        await batch.commit();
-                     }
+                 const label = collectionLabels[collName] || collName;
+                 try {
+                   const q = fQuery(fColl(sourceDb, collName), fWhere('storeId', '==', storeToMigrate.id));
+                   const snap = await fGetDocs(q);
+                   
+                   if (!snap.empty) {
+                      let batch = writeBatch(targetDb);
+                      let count = 0;
+                      for (const docSnap of snap.docs) {
+                         batch.set(fDoc(targetDb, collName, docSnap.id), docSnap.data());
+                         count++;
+                         totalDocsMigrated++;
+                         if (count === 400) {
+                            await batch.commit();
+                            batch = writeBatch(targetDb);
+                            count = 0;
+                         }
+                      }
+                      if (count > 0) {
+                         await batch.commit();
+                      }
+                      successItems.push({ name: label, info: `${snap.size} dokumen berhasil dipindahkan` });
+                   } else {
+                      successItems.push({ name: label, info: `0 dokumen (koleksi kosong)` });
+                   }
+                 } catch (cErr: any) {
+                   failedItems.push({ name: label, reason: cErr.message || 'Gagal membaca/menulis koleksi ini' });
                  }
               }
 
               // 6. Migrate Users
-              const primaryBatch = writeBatch(primaryDb);
-              
-              for (const u of associatedUsers) {
-                 const userDocSnap = await fGet(fDoc(sourceDb, 'users', u.id));
-                 const userData = userDocSnap.exists() ? userDocSnap.data() : u;
+              try {
+                const primaryBatch = writeBatch(primaryDb);
+                let userSuccessCount = 0;
+                for (const u of associatedUsers) {
+                   const userDocSnap = await fGet(fDoc(sourceDb, 'users', u.id));
+                   const userData = userDocSnap.exists() ? userDocSnap.data() : u;
 
-                 const updatedUserData = {
-                    ...userData,
-                    targetProjectId: isResetting ? null : targetProj.fb_project_id,
-                    infraConfig: isResetting ? null : targetProj,
-                    lastMigration: new Date().toISOString()
-                  };
+                   const updatedUserData = {
+                      ...userData,
+                      targetProjectId: isResetting ? null : targetProj.fb_project_id,
+                      infraConfig: isResetting ? null : targetProj,
+                      lastMigration: new Date().toISOString()
+                    };
 
-                 await fSet(fDoc(targetDb, 'users', u.id), updatedUserData);
+                   await fSet(fDoc(targetDb, 'users', u.id), updatedUserData);
 
-                 primaryBatch.update(fDoc(primaryDb, 'users', u.id), {
-                    targetProjectId: isResetting ? null : targetProj.fb_project_id,
-                    infraConfig: isResetting ? null : targetProj,
-                    lastMigration: new Date().toISOString()
-                 });
+                   primaryBatch.update(fDoc(primaryDb, 'users', u.id), {
+                      targetProjectId: isResetting ? null : targetProj.fb_project_id,
+                      infraConfig: isResetting ? null : targetProj,
+                      lastMigration: new Date().toISOString()
+                   });
+                   userSuccessCount++;
+                }
+
+                primaryBatch.update(fDoc(primaryDb, 'stores', storeToMigrate.id), {
+                   targetProjectId: isResetting ? null : targetProj.fb_project_id,
+                   infraConfig: isResetting ? null : targetProj,
+                   lastMigration: new Date().toISOString()
+                });
+
+                await primaryBatch.commit();
+                successItems.push({ 
+                  name: 'Pengguna & Akses Staf', 
+                  info: `${userSuccessCount} pengguna dialihkan: ${associatedUsers.map(u => u.email).join(', ') || '-'}` 
+                });
+              } catch (uErr: any) {
+                failedItems.push({ name: 'Pengguna & Akses Staf', reason: uErr.message || 'Gagal mengalihkan akun pengguna' });
               }
 
-              // 7. Update Store in Primary DB
-              primaryBatch.update(fDoc(primaryDb, 'stores', storeToMigrate.id), {
-                 targetProjectId: isResetting ? null : targetProj.fb_project_id,
-                 infraConfig: isResetting ? null : targetProj,
-                 lastMigration: new Date().toISOString()
+              // Set modal report data
+              setSummaryReportData({
+                title: `🔄 Laporan Migrasi Toko "${storeToMigrate.name}"`,
+                subtitle: `Target: ${targetId} | Total ${totalDocsMigrated} Dokumen | ${associatedUsers.length} Pengguna`,
+                successItems,
+                failedItems
               });
 
-              await primaryBatch.commit();
-              
               Alert.alert(
                 'Migrasi Berhasil',
                 `Toko "${storeToMigrate.name}" telah dipindahkan ke ${targetId}.\nTotal ${totalDocsMigrated} dokumen dipindahkan.\nTotal ${associatedUsers.length} pengguna dialihkan.\n\nApakah Anda ingin menghapus database/data lama toko ini di proyek asal (${sourceInfra ? sourceInfra.fb_project_id : 'DEFAULT (Internal)'}) secara PERMANEN?`,
@@ -4406,6 +4474,127 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             >
               <X color="#ffffff" size={24} />
             </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
+
+      {/* 8. DETAILED SUMMARY REPORT MODAL (MIGRATIONS & NOTIFICATIONS) */}
+      {summaryReportData && (
+        <Modal 
+          visible={!!summaryReportData} 
+          transparent 
+          animationType="slide" 
+          onRequestClose={() => setSummaryReportData(null)}
+        >
+          <View className="flex-1 bg-black/75 justify-center items-center p-4">
+            <View className="w-full max-w-lg rounded-3xl border overflow-hidden shadow-2xl" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+              
+              {/* Header */}
+              <View className="p-5 border-b flex-row justify-between items-center bg-slate-900/50" style={{ borderColor: colors.border }}>
+                <View className="flex-1 pr-3">
+                  <Text className="text-sm font-black uppercase tracking-wider" style={{ color: colors.text }}>
+                    {summaryReportData.title}
+                  </Text>
+                  {summaryReportData.subtitle ? (
+                    <Text className="text-[10px] font-bold text-slate-400 mt-1" numberOfLines={2}>
+                      {summaryReportData.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setSummaryReportData(null)}
+                  className="w-9 h-9 rounded-full items-center justify-center bg-black/20 border"
+                  style={{ borderColor: colors.border }}
+                >
+                  <X color={colors.text} size={18} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Stats Summary Badge Bar */}
+              <View className="flex-row p-4 gap-3 bg-black/10 border-b" style={{ borderColor: colors.border }}>
+                <View className="flex-1 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center">
+                  <Text className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Total Berhasil</Text>
+                  <Text className="text-lg font-black text-emerald-400 mt-0.5">{summaryReportData.successItems.length}</Text>
+                </View>
+                <View className="flex-1 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 items-center">
+                  <Text className="text-[9px] font-black uppercase tracking-wider text-rose-400">Total Gagal</Text>
+                  <Text className="text-lg font-black text-rose-400 mt-0.5">{summaryReportData.failedItems.length}</Text>
+                </View>
+              </View>
+
+              {/* Scrollable Content Details */}
+              <ScrollView className="max-h-[380px] p-5 space-y-4" showsVerticalScrollIndicator={true}>
+                {/* Section Berhasil */}
+                <View className="space-y-2">
+                  <Text className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                    ✅ Data Berhasil ({summaryReportData.successItems.length})
+                  </Text>
+                  {summaryReportData.successItems.length > 0 ? (
+                    summaryReportData.successItems.map((item, idx) => (
+                      <View key={idx} className="p-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 flex-row items-center justify-between mb-1.5">
+                        <View className="flex-1 pr-2">
+                          <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.name}</Text>
+                          <Text className="text-[9px] font-medium text-emerald-400/90 mt-0.5">{item.info}</Text>
+                        </View>
+                        <CheckCircle2 size={16} color="#10b981" />
+                      </View>
+                    ))
+                  ) : (
+                    <Text className="text-xs italic text-slate-500 pl-2">Tidak ada item yang berhasil.</Text>
+                  )}
+                </View>
+
+                {/* Section Gagal */}
+                <View className="space-y-2 pt-2">
+                  <Text className="text-[10px] font-black uppercase tracking-widest text-rose-400">
+                    ❌ Data Gagal / Bermasalah ({summaryReportData.failedItems.length})
+                  </Text>
+                  {summaryReportData.failedItems.length > 0 ? (
+                    summaryReportData.failedItems.map((item, idx) => (
+                      <View key={idx} className="p-3 rounded-2xl bg-rose-500/5 border border-rose-500/20 flex-row items-center justify-between mb-1.5">
+                        <View className="flex-1 pr-2">
+                          <Text className="text-xs font-bold" style={{ color: colors.text }}>{item.name}</Text>
+                          <Text className="text-[9px] font-semibold text-rose-400 mt-0.5">Alasan: {item.reason}</Text>
+                        </View>
+                        <AlertTriangle size={16} color="#f43f5e" />
+                      </View>
+                    ))
+                  ) : (
+                    <View className="p-3 rounded-2xl bg-slate-500/5 border border-slate-500/10 flex-row items-center gap-2">
+                      <CheckCircle2 size={14} color="#10b981" />
+                      <Text className="text-xs font-bold text-emerald-400">Semua data berhasil diproses tanpa ada error!</Text>
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+
+              {/* Action Footer */}
+              <View className="p-4 border-t flex-row gap-3" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    const textReport = `LAPORAN RINCIAN - ${summaryReportData.title}\n${summaryReportData.subtitle || ''}\n\nBERHASIL (${summaryReportData.successItems.length}):\n` +
+                      summaryReportData.successItems.map(i => `- ${i.name}: ${i.info}`).join('\n') +
+                      `\n\nGAGAL (${summaryReportData.failedItems.length}):\n` +
+                      (summaryReportData.failedItems.length > 0 ? summaryReportData.failedItems.map(i => `- ${i.name}: ${i.reason}`).join('\n') : '- Nihil (Semua Berhasil)');
+                    Clipboard.setString(textReport);
+                    Vibration.vibrate(10);
+                    Alert.alert('Sukses', 'Laporan rincian berhasil disalin ke clipboard.');
+                  }}
+                  className="flex-1 py-3 rounded-xl border bg-black/20 items-center justify-center"
+                  style={{ borderColor: colors.border }}
+                >
+                  <Text className="text-[10px] font-black uppercase tracking-wider" style={{ color: colors.text }}>Salin Laporan</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setSummaryReportData(null)}
+                  className="flex-1 py-3 rounded-xl bg-accent items-center justify-center"
+                >
+                  <Text className="text-[10px] font-black uppercase tracking-wider text-white">Tutup Laporan</Text>
+                </TouchableOpacity>
+              </View>
+
+            </View>
           </View>
         </Modal>
       )}

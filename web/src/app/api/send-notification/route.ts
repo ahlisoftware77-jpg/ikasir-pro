@@ -63,6 +63,8 @@ export async function POST(req: Request) {
     let successCount = 0;
     let failureCount = 0;
     const chunkSize = 500;
+    const successTargetsMap: { [docId: string]: number } = {};
+    const failedTargetsMap: { [docId: string]: { count: number; reasons: string[] } } = {};
 
     for (let i = 0; i < tokens.length; i += chunkSize) {
       const chunk = tokens.slice(i, i + chunkSize);
@@ -78,6 +80,23 @@ export async function POST(req: Request) {
       const response = await adminMessaging.sendEachForMulticast(payload);
       successCount += response.successCount;
       failureCount += response.failureCount;
+
+      response.responses.forEach((resp, idx) => {
+        const tok = chunk[idx];
+        const docId = tokenToDocMap[tok] || 'Toko Default';
+        if (resp.success) {
+          successTargetsMap[docId] = (successTargetsMap[docId] || 0) + 1;
+        } else {
+          if (!failedTargetsMap[docId]) {
+            failedTargetsMap[docId] = { count: 0, reasons: [] };
+          }
+          failedTargetsMap[docId].count += 1;
+          const errMsg = resp.error?.message || resp.error?.code || 'Token tidak valid / kadaluarsa';
+          if (!failedTargetsMap[docId].reasons.includes(errMsg)) {
+            failedTargetsMap[docId].reasons.push(errMsg);
+          }
+        }
+      });
       
       // Clean up invalid tokens
       if (response.failureCount > 0) {
@@ -107,10 +126,21 @@ export async function POST(req: Request) {
       }
     }
 
+    const successList = Object.entries(successTargetsMap).map(([target, count]) => ({ target, count }));
+    const failedList = Object.entries(failedTargetsMap).map(([target, info]) => ({ 
+      target, 
+      count: info.count, 
+      reason: info.reasons.join(', ') 
+    }));
+
     return NextResponse.json({ 
       success: true, 
       successCount: successCount,
-      failureCount: failureCount 
+      failureCount: failureCount,
+      details: {
+        successList,
+        failedList
+      }
     });
 
   } catch (error: any) {
