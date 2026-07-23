@@ -492,7 +492,11 @@ export default function StoreSettingsScreen({ navigation }: any) {
                 settingsSnap.forEach(d => settingsList.push({ id: d.id, ...d.data() }));
                 backupData.data['settings'] = settingsList;
 
-                const collectionsToExport = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras'];
+                const collectionsToExport = [
+                  'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+                  'customers', 'users', 'expenses', 'service_tickets', 'estimations', 
+                  'shifts', 'cashier_sessions', 'cash_flow', 'stock_history', 'activity_logs'
+                ];
                 for (const collName of collectionsToExport) {
                   const snap = await getDocs(collection(db, collName));
                   const docs: any[] = [];
@@ -512,7 +516,11 @@ export default function StoreSettingsScreen({ navigation }: any) {
                   backupData.data['settings'] = [{ id: specificSettings.id, ...specificSettings.data() }];
                 }
 
-                const collectionsToExport = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras'];
+                const collectionsToExport = [
+                  'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+                  'customers', 'users', 'expenses', 'service_tickets', 'estimations', 
+                  'shifts', 'cashier_sessions', 'cash_flow', 'stock_history', 'activity_logs'
+                ];
                 for (const collName of collectionsToExport) {
                   const q = query(collection(db, collName), where('storeId', '==', storeId));
                   const snap = await getDocs(q);
@@ -982,13 +990,20 @@ export default function StoreSettingsScreen({ navigation }: any) {
     try {
       const collectionsToExport = [
         'products', 
+        'categories',
+        'product_extras',
+        'discounts',
         'transactions', 
         'customers', 
         'users', 
         'expenses', 
-        'discounts', 
-        'categories',
-        'product_extras'
+        'service_tickets',
+        'estimations',
+        'shifts',
+        'cashier_sessions',
+        'cash_flow',
+        'stock_history',
+        'activity_logs'
       ];
       
       const backupData: any = {

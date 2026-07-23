@@ -1466,8 +1466,21 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 transactions: 'Transaksi Penjualan',
                 customers: 'Data Pelanggan',
                 users: 'Pengguna System',
-                expenses: 'Pengeluaran Kas'
+                expenses: 'Pengeluaran Kas',
+                service_tickets: 'Tiket Servis Perbaikan',
+                estimations: 'Estimasi Biaya',
+                shifts: 'Shift Kasir',
+                cashier_sessions: 'Sesi Kasir',
+                cash_flow: 'Arus Kas',
+                stock_history: 'Riwayat Stok',
+                activity_logs: 'Log Aktivitas'
               };
+
+              const collectionsToExport = [
+                'products', 'categories', 'product_extras', 'discounts', 'transactions', 
+                'customers', 'users', 'expenses', 'service_tickets', 'estimations', 
+                'shifts', 'cashier_sessions', 'cash_flow', 'stock_history', 'activity_logs'
+              ];
 
               if (storeId === 'GLOBAL') {
                 try {
@@ -1490,7 +1503,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   failedItems.push({ name: 'Pengaturan Toko (settings)', reason: err.message || 'Gagal membaca pengaturan' });
                 }
 
-                const collectionsToExport = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras'];
                 for (const collName of collectionsToExport) {
                   const label = collectionLabels[collName] || collName;
                   try {
@@ -1526,7 +1538,6 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                   failedItems.push({ name: 'Pengaturan Toko (settings)', reason: err.message });
                 }
 
-                const collectionsToExport = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras'];
                 for (const collName of collectionsToExport) {
                   const label = collectionLabels[collName] || collName;
                   try {

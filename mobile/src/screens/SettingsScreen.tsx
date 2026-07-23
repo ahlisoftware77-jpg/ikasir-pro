@@ -988,13 +988,20 @@ export default function SettingsScreen({ navigation, route }: any) {
     try {
       const collectionsToExport = [
         'products', 
+        'categories',
+        'product_extras',
+        'discounts',
         'transactions', 
         'customers', 
         'users', 
         'expenses', 
-        'discounts', 
-        'categories',
-        'product_extras'
+        'service_tickets',
+        'estimations',
+        'shifts',
+        'cashier_sessions',
+        'cash_flow',
+        'stock_history',
+        'activity_logs'
       ];
       
       const backupData: any = {
