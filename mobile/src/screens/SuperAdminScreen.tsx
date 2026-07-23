@@ -1077,7 +1077,15 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 lastMigration: new Date().toISOString()
               });
 
-              Alert.alert('Sukses', `Berhasil! Data ${userToMigrate.email} telah dipetakan ke ${targetId}.`);
+              setSummaryReportData({
+                title: '🔄 Laporan Migrasi Akun Pengguna',
+                subtitle: `Pengguna: ${userToMigrate.email} (${userToMigrate.name || 'User'})`,
+                successItems: [
+                  { name: 'Pemetaan Database Firestore', info: `Dialihkan ke ${targetId}` },
+                  { name: 'Timestamp Migrasi Terakhir', info: new Date().toLocaleString('id-ID') }
+                ],
+                failedItems: []
+              });
               setMigratingUser(null);
             } catch (err: any) {
               console.error(err);
@@ -1446,49 +1454,104 @@ export default function SuperAdminScreen({ route, navigation }: any) {
                 data: {}
               };
 
-              if (storeId === 'GLOBAL') {
-                const storesSnap = await getDocs(collection(primaryDb, 'stores'));
-                const storesList: any[] = [];
-                storesSnap.forEach(d => storesList.push({ id: d.id, ...d.data() }));
-                backupData.data['stores'] = storesList;
+              const successItems: { name: string; info: string }[] = [];
+              const failedItems: { name: string; reason: string }[] = [];
+              const collectionLabels: Record<string, string> = {
+                stores: 'Data Toko',
+                settings: 'Pengaturan Toko',
+                products: 'Produk',
+                categories: 'Kategori Produk',
+                product_extras: 'Ekstra Produk',
+                discounts: 'Diskon & Promo',
+                transactions: 'Transaksi Penjualan',
+                customers: 'Data Pelanggan',
+                users: 'Pengguna System',
+                expenses: 'Pengeluaran Kas'
+              };
 
-                const settingsSnap = await getDocs(collection(db, 'settings'));
-                const settingsList: any[] = [];
-                settingsSnap.forEach(d => settingsList.push({ id: d.id, ...d.data() }));
-                backupData.data['settings'] = settingsList;
+              if (storeId === 'GLOBAL') {
+                try {
+                  const storesSnap = await getDocs(collection(primaryDb, 'stores'));
+                  const storesList: any[] = [];
+                  storesSnap.forEach(d => storesList.push({ id: d.id, ...d.data() }));
+                  backupData.data['stores'] = storesList;
+                  successItems.push({ name: 'Data Toko (stores)', info: `${storesList.length} dokumen toko di-backup` });
+                } catch (err: any) {
+                  failedItems.push({ name: 'Data Toko (stores)', reason: err.message || 'Gagal membaca koleksi toko' });
+                }
+
+                try {
+                  const settingsSnap = await getDocs(collection(db, 'settings'));
+                  const settingsList: any[] = [];
+                  settingsSnap.forEach(d => settingsList.push({ id: d.id, ...d.data() }));
+                  backupData.data['settings'] = settingsList;
+                  successItems.push({ name: 'Pengaturan Toko (settings)', info: `${settingsList.length} dokumen pengaturan di-backup` });
+                } catch (err: any) {
+                  failedItems.push({ name: 'Pengaturan Toko (settings)', reason: err.message || 'Gagal membaca pengaturan' });
+                }
 
                 const collectionsToExport = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras'];
                 for (const collName of collectionsToExport) {
-                  const snap = await getDocs(collection(db, collName));
-                  const docs: any[] = [];
-                  snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
-                  backupData.data[collName] = docs;
+                  const label = collectionLabels[collName] || collName;
+                  try {
+                    const snap = await getDocs(collection(db, collName));
+                    const docs: any[] = [];
+                    snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+                    backupData.data[collName] = docs;
+                    successItems.push({ name: `${label} (${collName})`, info: `${docs.length} dokumen di-backup` });
+                  } catch (err: any) {
+                    failedItems.push({ name: `${label} (${collName})`, reason: err.message || 'Gagal ekspor koleksi' });
+                  }
                 }
               } else {
-                const storeRef = doc(primaryDb, 'stores', storeId);
-                const storeSnap = await getDoc(storeRef);
-                if (storeSnap.exists()) {
-                  backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
+                try {
+                  const storeRef = doc(primaryDb, 'stores', storeId);
+                  const storeSnap = await getDoc(storeRef);
+                  if (storeSnap.exists()) {
+                    backupData.data['stores'] = [{ id: storeSnap.id, ...storeSnap.data() }];
+                    successItems.push({ name: 'Data Toko (stores)', info: `1 dokumen toko di-backup` });
+                  }
+                } catch (err: any) {
+                  failedItems.push({ name: 'Data Toko (stores)', reason: err.message });
                 }
 
-                const specSettingsRef = doc(db, 'settings', `store_${storeId}`);
-                const specificSettings = await getDoc(specSettingsRef);
-                if (specificSettings.exists()) {
-                  backupData.data['settings'] = [{ id: specificSettings.id, ...specificSettings.data() }];
+                try {
+                  const specSettingsRef = doc(db, 'settings', `store_${storeId}`);
+                  const specificSettings = await getDoc(specSettingsRef);
+                  if (specificSettings.exists()) {
+                    backupData.data['settings'] = [{ id: specificSettings.id, ...specificSettings.data() }];
+                    successItems.push({ name: 'Pengaturan Toko (settings)', info: `1 dokumen pengaturan di-backup` });
+                  }
+                } catch (err: any) {
+                  failedItems.push({ name: 'Pengaturan Toko (settings)', reason: err.message });
                 }
 
                 const collectionsToExport = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories', 'product_extras'];
                 for (const collName of collectionsToExport) {
-                  const q = query(collection(db, collName), where('storeId', '==', storeId));
-                  const snap = await getDocs(q);
-                  const docs: any[] = [];
-                  snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
-                  backupData.data[collName] = docs;
+                  const label = collectionLabels[collName] || collName;
+                  try {
+                    const q = query(collection(db, collName), where('storeId', '==', storeId));
+                    const snap = await getDocs(q);
+                    const docs: any[] = [];
+                    snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+                    backupData.data[collName] = docs;
+                    successItems.push({ name: `${label} (${collName})`, info: `${docs.length} dokumen di-backup` });
+                  } catch (err: any) {
+                    failedItems.push({ name: `${label} (${collName})`, reason: err.message });
+                  }
                 }
               }
 
-              const fileUri = `${FileSystem.documentDirectory}backup_${storeId}_${new Date().toISOString().split('T')[0]}.json`;
+              const fileName = `backup_${storeId}_${new Date().toISOString().split('T')[0]}.json`;
+              const fileUri = `${FileSystem.documentDirectory}${fileName}`;
               await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(backupData, null, 2), { encoding: FileSystem.EncodingType.UTF8 });
+
+              setSummaryReportData({
+                title: '📥 Laporan Backup Data Selesai',
+                subtitle: `Target: ${storeId === 'GLOBAL' ? 'Seluruh Sistem (GLOBAL)' : `Toko ID: ${storeId}`} | File: ${fileName}`,
+                successItems,
+                failedItems
+              });
 
               const isSharingAvailable = await Sharing.isAvailableAsync();
               if (isSharingAvailable) {
@@ -1530,6 +1593,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               }
 
               const localUri = pickerResult.assets[0].uri;
+              const fileName = pickerResult.assets[0].name || localUri.split('/').pop() || 'backup.json';
               const fileContent = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.UTF8 });
               const backupData = JSON.parse(fileContent);
 
@@ -1542,27 +1606,40 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               collections.forEach(c => totalDocs += backupData.data[c].length);
               let processedDocs = 0;
 
+              const successItems: { name: string; info: string }[] = [];
+              const failedItems: { name: string; reason: string }[] = [];
+
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
-                for (let i = 0; i < docs.length; i += 400) {
-                  const batch = writeBatch(db);
-                  const chunk = docs.slice(i, i + 400);
+                try {
+                  for (let i = 0; i < docs.length; i += 400) {
+                    const batch = writeBatch(db);
+                    const chunk = docs.slice(i, i + 400);
 
-                  chunk.forEach((d: any) => {
-                    const { id, ...data } = d;
-                    const ref = doc(db, collName, id);
-                    batch.set(ref, data, { merge: true });
-                  });
+                    chunk.forEach((d: any) => {
+                      const { id, ...data } = d;
+                      const ref = doc(db, collName, id);
+                      batch.set(ref, data, { merge: true });
+                    });
 
-                  await batch.commit();
-                  processedDocs += chunk.length;
-                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
+                    await batch.commit();
+                    processedDocs += chunk.length;
+                    setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
+                  }
+                  successItems.push({ name: `Koleksi "${collName}"`, info: `${docs.length} dokumen dipulihkan` });
+                } catch (err: any) {
+                  failedItems.push({ name: `Koleksi "${collName}"`, reason: err.message || 'Gagal memulihkan dokumen' });
                 }
               }
 
-              Alert.alert('Sukses', `✅ RESTORE BERHASIL!\nTotal ${processedDocs} dokumen dipulihkan.`);
+              setSummaryReportData({
+                title: '📤 Laporan Restore Data Global Selesai',
+                subtitle: `File: ${fileName} | Total ${processedDocs} Dokumen Dipulihkan`,
+                successItems,
+                failedItems
+              });
             } catch (err: any) {
               console.error(err);
               Alert.alert('Gagal', 'Restore Gagal: ' + err.message);
@@ -1598,6 +1675,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               }
 
               const localUri = pickerResult.assets[0].uri;
+              const fileName = pickerResult.assets[0].name || localUri.split('/').pop() || 'backup.json';
               const fileContent = await FileSystem.readAsStringAsync(localUri, { encoding: FileSystem.EncodingType.UTF8 });
               const backupData = JSON.parse(fileContent);
 
@@ -1634,42 +1712,55 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               collections.forEach(c => totalDocs += backupData.data[c].length);
               let processedDocs = 0;
 
+              const successItems: { name: string; info: string }[] = [];
+              const failedItems: { name: string; reason: string }[] = [];
+
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
-                for (let i = 0; i < docs.length; i += 400) {
-                  const batch = writeBatch(db);
-                  const chunk = docs.slice(i, i + 400);
+                try {
+                  for (let i = 0; i < docs.length; i += 400) {
+                    const batch = writeBatch(db);
+                    const chunk = docs.slice(i, i + 400);
 
-                  chunk.forEach((d: any) => {
-                    const { id, ...data } = d;
-                    let targetDocId = id;
+                    chunk.forEach((d: any) => {
+                      const { id, ...data } = d;
+                      let targetDocId = id;
 
-                    if (needsMapping && collName === 'settings' && id === `store_${sourceStoreId}`) {
-                      targetDocId = `store_${targetStoreId}`;
-                    } else if (needsMapping && collName === 'stores' && id === sourceStoreId) {
-                      targetDocId = targetStoreId;
-                    }
-
-                    const dataToSave = { ...data };
-                    if (needsMapping) {
-                      if ('storeId' in dataToSave) {
-                        dataToSave.storeId = targetStoreId;
+                      if (needsMapping && collName === 'settings' && id === `store_${sourceStoreId}`) {
+                        targetDocId = `store_${targetStoreId}`;
+                      } else if (needsMapping && collName === 'stores' && id === sourceStoreId) {
+                        targetDocId = targetStoreId;
                       }
-                    }
 
-                    const ref = doc(db, collName, targetDocId);
-                    batch.set(ref, dataToSave, { merge: true });
-                  });
+                      const dataToSave = { ...data };
+                      if (needsMapping) {
+                        if ('storeId' in dataToSave) {
+                          dataToSave.storeId = targetStoreId;
+                        }
+                      }
 
-                  await batch.commit();
-                  processedDocs += chunk.length;
-                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
+                      const ref = doc(db, collName, targetDocId);
+                      batch.set(ref, dataToSave, { merge: true });
+                    });
+
+                    await batch.commit();
+                    processedDocs += chunk.length;
+                    setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
+                  }
+                  successItems.push({ name: `Koleksi "${collName}"`, info: `${docs.length} dokumen dipulihkan ke Toko ${targetStoreId}` });
+                } catch (err: any) {
+                  failedItems.push({ name: `Koleksi "${collName}"`, reason: err.message || 'Gagal memulihkan dokumen' });
                 }
               }
 
-              Alert.alert('Sukses', `✅ RESTORE TOKO BERHASIL!\nTotal ${processedDocs} dokumen dipulihkan.`);
+              setSummaryReportData({
+                title: `📤 Laporan Restore Toko (${targetStoreId}) Selesai`,
+                subtitle: `File: ${fileName} (Asal: ${sourceStoreId}) | Total ${processedDocs} Dokumen Dipulihkan`,
+                successItems,
+                failedItems
+              });
             } catch (err: any) {
               console.error(err);
               Alert.alert('Gagal', 'Restore Gagal: ' + err.message);
@@ -1696,25 +1787,40 @@ export default function SuperAdminScreen({ route, navigation }: any) {
             try {
               const collections = ['products', 'transactions', 'customers', 'users', 'expenses', 'discounts', 'categories'];
               let totalPatched = 0;
+              const successItems: { name: string; info: string }[] = [];
+              const failedItems: { name: string; reason: string }[] = [];
 
               for (const collName of collections) {
-                const snap = await getDocs(collection(db, collName));
-                const batch = writeBatch(db);
-                let count = 0;
-                
-                snap.forEach((d) => {
-                  if (!d.data().storeId) {
-                    batch.update(d.ref, { storeId: 'default-store' });
-                    count++;
-                  }
-                });
+                try {
+                  const snap = await getDocs(collection(db, collName));
+                  const batch = writeBatch(db);
+                  let count = 0;
+                  
+                  snap.forEach((d) => {
+                    if (!d.data().storeId) {
+                      batch.update(d.ref, { storeId: 'default-store' });
+                      count++;
+                    }
+                  });
 
-                if (count > 0) {
-                  await batch.commit();
-                  totalPatched += count;
+                  if (count > 0) {
+                    await batch.commit();
+                    totalPatched += count;
+                    successItems.push({ name: `Koleksi ${collName}`, info: `${count} dokumen berhasil dihubungkan ke Toko Utama` });
+                  } else {
+                    successItems.push({ name: `Koleksi ${collName}`, info: `0 dokumen (semua sudah terhubung)` });
+                  }
+                } catch (cErr: any) {
+                  failedItems.push({ name: `Koleksi ${collName}`, reason: cErr.message || 'Gagal memigrasikan dokumen' });
                 }
               }
-              Alert.alert('Sukses', `Berhasil memigrasikan ${totalPatched} dokumen ke Toko Utama.`);
+
+              setSummaryReportData({
+                title: '🔄 Laporan Migrasi Data Tanpa Toko',
+                subtitle: `Total ${totalPatched} dokumen dipetakan ke Toko Utama (default-store)`,
+                successItems,
+                failedItems
+              });
             } catch (err: any) {
               Alert.alert('Gagal', 'Migrasi gagal: ' + err.message);
             } finally {
@@ -1740,6 +1846,8 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               const snap = await getDocs(collection(db, 'discounts'));
               const batch = writeBatch(db);
               let count = 0;
+              const successItems: { name: string; info: string }[] = [];
+              const failedItems: { name: string; reason: string }[] = [];
 
               snap.forEach((d) => {
                 const data = d.data();
@@ -1754,10 +1862,17 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
               if (count > 0) {
                 await batch.commit();
-                Alert.alert('Sukses', `Berhasil diperbarui ${count} diskon.`);
+                successItems.push({ name: 'Struktur Diskon (appliedProductIds)', info: `${count} promo/diskon berhasil diperbarui ke format baru` });
               } else {
-                Alert.alert('Info', 'Tidak ada data diskon lama.');
+                successItems.push({ name: 'Struktur Diskon (appliedProductIds)', info: '0 diskon (semua diskon sudah format baru)' });
               }
+
+              setSummaryReportData({
+                title: '🔄 Laporan Migrasi Struktur Diskon',
+                subtitle: `Total ${count} dokumen diskon disesuaikan`,
+                successItems,
+                failedItems
+              });
             } catch (err: any) {
               Alert.alert('Gagal', 'Migrasi gagal: ' + err.message);
             } finally {
