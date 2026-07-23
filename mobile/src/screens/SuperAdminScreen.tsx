@@ -1743,7 +1743,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
               const newValidUntil = new Date(baseDate.getTime());
               newValidUntil.setDate(newValidUntil.getDate() + (months * 30));
 
-              const batch = writeBatch(db);
+              const batch = writeBatch(primaryDb);
               batch.update(doc(primaryDb, 'subscription_requests', req.id), {
                 status: 'approved',
                 approvedAt: now.toISOString()
