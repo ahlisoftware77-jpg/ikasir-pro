@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Linking, RefreshControl, Vibration, Pressable, Image, Platform, PermissionsAndroid, Dimensions, NativeModules } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, Linking, RefreshControl, Vibration, Pressable, Image, Platform, PermissionsAndroid, Dimensions, NativeModules, KeyboardAvoidingView } from 'react-native';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, writeBatch, increment, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -1283,9 +1283,9 @@ export default function OrdersScreen() {
 
       {/* DEBT MODAL (CICILAN PIUTANG / DP) */}
       <Modal visible={showPiutangModal && selectedPiutangOrder !== null} animationType="slide" transparent onRequestClose={() => setShowPiutangModal(false)}>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="h-[70%] rounded-t-[40px] p-6" style={{ backgroundColor: colors.bg }}>
-            <View className="flex-row justify-between items-center mb-6">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 bg-black/60 justify-end">
+          <View className="h-[80%] max-h-[80%] rounded-t-[40px] p-6 flex-col" style={{ backgroundColor: colors.bg }}>
+            <View className="flex-row justify-between items-center mb-5">
               <View>
                 <Text className="text-xl font-black" style={{ color: colors.text }}>Bayar / DP Piutang</Text>
                 <Text className="text-xs font-bold" style={{ color: colors.textMuted }}>Customer: {selectedPiutangOrder?.customerName}</Text>
@@ -1295,46 +1295,53 @@ export default function OrdersScreen() {
               </TouchableOpacity>
             </View>
 
-            <View className="p-4 rounded-2xl bg-black/10 border mb-6" style={{ borderColor: colors.border }}>
-              <View className="flex-row justify-between mb-2">
-                <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>TOTAL TAGIHAN</Text>
-                <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {selectedPiutangOrder?.total?.toLocaleString('id-ID')}</Text>
-              </View>
-              <View className="flex-row justify-between">
-                <Text className="text-[10px] font-bold text-rose-400">SISA PIUTANG AKTIF</Text>
-                <Text className="text-sm font-black text-rose-500">
-                  Rp {(selectedPiutangOrder?.total - (selectedPiutangOrder?.paidAmount || 0)).toLocaleString('id-ID')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="mb-6 gap-2">
-              <Text className="text-[10px] font-black uppercase tracking-widest ml-1" style={{ color: colors.textMuted }}>
-                Nominal Pembayaran / Angsuran
-              </Text>
-              <View className="relative justify-center">
-                <Text className="absolute left-4 font-black text-xs" style={{ color: colors.textMuted }}>Rp</Text>
-                <TextInput
-                  placeholder="Jumlah bayar..."
-                  placeholderTextColor={colors.textMuted + '80'}
-                  keyboardType="numeric"
-                  value={downPaymentAmount}
-                  onChangeText={setDownPaymentAmount}
-                  className="h-14 rounded-2xl border font-bold pl-10 pr-4"
-                  style={{ color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={confirmPiutang}
-              className="h-16 rounded-[24px] items-center justify-center mt-auto"
-              style={{ backgroundColor: colors.accent }}
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 150, gap: 16 }}
+              className="flex-1"
             >
-              <Text className="text-base font-black text-white uppercase tracking-wider">SIMPAN PEMBAYARAN</Text>
-            </TouchableOpacity>
+              <View className="p-4 rounded-2xl bg-black/10 border" style={{ borderColor: colors.border }}>
+                <View className="flex-row justify-between mb-2">
+                  <Text className="text-[10px] font-bold" style={{ color: colors.textMuted }}>TOTAL TAGIHAN</Text>
+                  <Text className="text-xs font-black" style={{ color: colors.text }}>Rp {selectedPiutangOrder?.total?.toLocaleString('id-ID')}</Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-[10px] font-bold text-rose-400">SISA PIUTANG AKTIF</Text>
+                  <Text className="text-sm font-black text-rose-500">
+                    Rp {(selectedPiutangOrder?.total - (selectedPiutangOrder?.paidAmount || 0)).toLocaleString('id-ID')}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="gap-2">
+                <Text className="text-[10px] font-black uppercase tracking-widest ml-1" style={{ color: colors.textMuted }}>
+                  Nominal Pembayaran / Angsuran
+                </Text>
+                <View className="relative justify-center">
+                  <Text className="absolute left-4 font-black text-xs" style={{ color: colors.textMuted }}>Rp</Text>
+                  <TextInput
+                    placeholder="Jumlah bayar..."
+                    placeholderTextColor={colors.textMuted + '80'}
+                    keyboardType="numeric"
+                    value={downPaymentAmount}
+                    onChangeText={setDownPaymentAmount}
+                    className="h-14 rounded-2xl border font-bold pl-10 pr-4"
+                    style={{ color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={confirmPiutang}
+                className="h-16 rounded-[24px] items-center justify-center mt-4"
+                style={{ backgroundColor: colors.accent }}
+              >
+                <Text className="text-base font-black text-white uppercase tracking-wider">SIMPAN PEMBAYARAN</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modal Bluetooth Printer Manager */}

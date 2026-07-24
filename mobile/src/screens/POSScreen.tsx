@@ -20,7 +20,8 @@ import {
   Platform,
   PermissionsAndroid,
   Animated,
-  Switch
+  Switch,
+  KeyboardAvoidingView
 } from 'react-native';
 import { 
   collection, 
@@ -3362,15 +3363,16 @@ export default function POSScreen({ route, navigation }: any) {
 
         {/* RIGHT SIDE / TABLET OR MODAL CHECKOUT */}
         {(isTabletOrLandscape || showCheckout) && (
-          <View 
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             className={isTabletOrLandscape ? "flex-[1.2] z-10" : "absolute inset-0 z-50 bg-black/60 justify-end"}
             style={isTabletOrLandscape ? { backgroundColor: colors.surface } : undefined}
           >
             <View 
-              className={isTabletOrLandscape ? "flex-1 px-5 pt-7 pb-2" : "h-[85%] rounded-t-[36px] px-6 pt-7 pb-2"}
+              className={isTabletOrLandscape ? "flex-1 px-5 pt-7 pb-2" : "h-[90%] max-h-[90%] rounded-t-[36px] px-6 pt-6 pb-4 flex-col"}
               style={{ backgroundColor: colors.bg }}
             >
-            <View className="flex-row items-center justify-between mb-5">
+            <View className="flex-row items-center justify-between mb-4">
               <View>
                 <Text className="text-2xl font-black tracking-tight" style={{ color: colors.text }}>Checkout</Text>
                 <Text className="text-[10px] font-bold text-slate-400 mt-0.5">Selesaikan pesanan pelanggan</Text>
@@ -3385,7 +3387,12 @@ export default function POSScreen({ route, navigation }: any) {
               )}
             </View>
 
-            <ScrollView className="flex-1 space-y-5" showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              className="flex-1 space-y-5" 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 220, gap: 16 }}
+            >
               
               {/* Product Cart List */}
               <View className="space-y-2">
@@ -3915,7 +3922,7 @@ export default function POSScreen({ route, navigation }: any) {
               </TouchableOpacity>
             </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         )}
       </View>
 

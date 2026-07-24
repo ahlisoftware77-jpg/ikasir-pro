@@ -7843,7 +7843,12 @@ https://ikasir.my.id/tr/service?${ticketIdentifier}`;
                 </TouchableOpacity>
               </View>
 
-              <ScrollView className="max-h-[450px] mb-6" showsVerticalScrollIndicator={false}>
+              <ScrollView 
+                className="max-h-[500px] mb-4" 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 160 }}
+              >
                 {selectedDebt && (
                   <View className="flex gap-5">
                     {/* Top Summary Balance Cards */}
