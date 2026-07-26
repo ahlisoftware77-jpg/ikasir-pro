@@ -28,6 +28,7 @@ import { EmailAuthProvider, reauthenticateWithCredential, updatePassword, update
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import * as ImagePicker from 'expo-image-picker';
+import { smartRestoreCollection } from '../utils/restoreHelper';
 import * as Sharing from 'expo-sharing';
 import * as ExpoLocation from 'expo-location';
 import * as DocumentPicker from 'expo-document-picker';
@@ -585,28 +586,23 @@ export default function StoreSettingsScreen({ navigation }: any) {
               collections.forEach(c => totalDocs += backupData.data[c].length);
               
               let processedDocs = 0;
+              let totalInserted = 0;
+              let totalUpdated = 0;
+              let totalSkipped = 0;
 
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
-                for (let i = 0; i < docs.length; i += 400) {
-                  const batch = writeBatch(db);
-                  const chunk = docs.slice(i, i + 400);
-
-                  chunk.forEach((d: any) => {
-                    const { id, ...data } = d;
-                    const ref = doc(db, collName, id);
-                    batch.set(ref, data, { merge: true });
-                  });
-
-                  await batch.commit();
-                  processedDocs += chunk.length;
-                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
-                }
+                const res = await smartRestoreCollection(db, collName, docs);
+                totalInserted += res.inserted;
+                totalUpdated += res.updated;
+                totalSkipped += res.skipped;
+                processedDocs += docs.length;
+                setRestoreProgress(Math.round((processedDocs / Math.max(1, totalDocs)) * 100));
               }
 
-              Alert.alert('Sukses', `✅ RESTORE BERHASIL!\nTotal ${processedDocs} dokumen dipulihkan.`);
+              Alert.alert('Sukses', `✅ RESTORE PINTAR BERHASIL!\n\n• ${totalInserted} dokumen baru ditambahkan\n• ${totalUpdated} dokumen diperbarui\n• ${totalSkipped} dokumen dilewati (sama/terbaru)`);
             } catch (err: any) {
               console.error(err);
               Alert.alert('Gagal', 'Restore Gagal: ' + err.message);
@@ -1107,30 +1103,32 @@ export default function StoreSettingsScreen({ navigation }: any) {
               collections.forEach(c => totalDocs += backupData.data[c].length);
               
               let processedDocs = 0;
+              let totalInserted = 0;
+              let totalUpdated = 0;
+              let totalSkipped = 0;
 
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
-                // Split into batches of 400
-                for (let i = 0; i < docs.length; i += 400) {
-                  const batch = writeBatch(db);
-                  const chunk = docs.slice(i, i + 400);
+                const res = await smartRestoreCollection(
+                  db, 
+                  collName, 
+                  docs,
+                  (docId, docData) => {
+                    const payload = { ...docData, storeId };
+                    return { targetId: docId, payload };
+                  }
+                );
 
-                  chunk.forEach((d: any) => {
-                    const { id, ...data } = d;
-                    data.storeId = storeId;
-                    const ref = doc(db, collName, id);
-                    batch.set(ref, data, { merge: true });
-                  });
-
-                  await batch.commit();
-                  processedDocs += chunk.length;
-                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
-                }
+                totalInserted += res.inserted;
+                totalUpdated += res.updated;
+                totalSkipped += res.skipped;
+                processedDocs += docs.length;
+                setRestoreProgress(Math.round((processedDocs / Math.max(1, totalDocs)) * 100));
               }
 
-              Alert.alert('Berhasil', 'Data toko berhasil dipulihkan!');
+              Alert.alert('Berhasil', `Data toko berhasil dipulihkan!\n\n• ${totalInserted} baru ditambahkan\n• ${totalUpdated} diperbarui\n• ${totalSkipped} dilewati (sama/terbaru)`);
             } catch (err: any) {
               console.error("Restore error on mobile:", err);
               Alert.alert('Gagal', 'Gagal memulihkan data: ' + err.message);

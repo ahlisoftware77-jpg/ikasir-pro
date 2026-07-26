@@ -25,6 +25,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { smartRestoreCollection } from '../utils/restoreHelper';
 
 LocaleConfig.locales['id'] = {
   monthNames: ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'],
@@ -1619,35 +1620,34 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
               const successItems: { name: string; info: string }[] = [];
               const failedItems: { name: string; reason: string }[] = [];
+              let totalInserted = 0;
+              let totalUpdated = 0;
+              let totalSkipped = 0;
 
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
                 try {
-                  for (let i = 0; i < docs.length; i += 400) {
-                    const batch = writeBatch(db);
-                    const chunk = docs.slice(i, i + 400);
+                  const res = await smartRestoreCollection(db, collName, docs);
+                  totalInserted += res.inserted;
+                  totalUpdated += res.updated;
+                  totalSkipped += res.skipped;
+                  processedDocs += docs.length;
+                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
 
-                    chunk.forEach((d: any) => {
-                      const { id, ...data } = d;
-                      const ref = doc(db, collName, id);
-                      batch.set(ref, data, { merge: true });
-                    });
-
-                    await batch.commit();
-                    processedDocs += chunk.length;
-                    setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
-                  }
-                  successItems.push({ name: `Koleksi "${collName}"`, info: `${docs.length} dokumen dipulihkan` });
+                  successItems.push({
+                    name: `Koleksi "${collName}"`,
+                    info: `${res.inserted} baru, ${res.updated} diubah, ${res.skipped} dilewati (sama/terbaru)`
+                  });
                 } catch (err: any) {
                   failedItems.push({ name: `Koleksi "${collName}"`, reason: err.message || 'Gagal memulihkan dokumen' });
                 }
               }
 
               setSummaryReportData({
-                title: '📤 Laporan Restore Data Global Selesai',
-                subtitle: `File: ${fileName} | Total ${processedDocs} Dokumen Dipulihkan`,
+                title: '📤 Laporan Restore Data Global (Pintar)',
+                subtitle: `File: ${fileName} | ${totalInserted} Baru Ditambah | ${totalUpdated} Diubah | ${totalSkipped} Dilewati (Sama)`,
                 successItems,
                 failedItems
               });
@@ -1666,7 +1666,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
   const onFileRestoreStore = async (targetStoreId: string) => {
     Alert.alert(
       'Konfirmasi Restore Toko',
-      'Apakah Anda yakin ingin mengimpor data backup ke toko ini?',
+      'Apakah Anda yakin ingin mengimpor data backup ke toko ini?\n\n(Catatan: Data yang sama akan dilewati, data baru akan ditambah, dan data lama tidak akan menimpa data terbaru di database).',
       [
         { text: 'Batal', style: 'cancel' },
         {
@@ -1725,42 +1725,45 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
               const successItems: { name: string; info: string }[] = [];
               const failedItems: { name: string; reason: string }[] = [];
+              let totalInserted = 0;
+              let totalUpdated = 0;
+              let totalSkipped = 0;
 
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
                 try {
-                  for (let i = 0; i < docs.length; i += 400) {
-                    const batch = writeBatch(db);
-                    const chunk = docs.slice(i, i + 400);
-
-                    chunk.forEach((d: any) => {
-                      const { id, ...data } = d;
-                      let targetDocId = id;
-
-                      if (needsMapping && collName === 'settings' && id === `store_${sourceStoreId}`) {
+                  const res = await smartRestoreCollection(
+                    db, 
+                    collName, 
+                    docs,
+                    (docId, docData) => {
+                      let targetDocId = docId;
+                      if (needsMapping && collName === 'settings' && docId === `store_${sourceStoreId}`) {
                         targetDocId = `store_${targetStoreId}`;
-                      } else if (needsMapping && collName === 'stores' && id === sourceStoreId) {
+                      } else if (needsMapping && collName === 'stores' && docId === sourceStoreId) {
                         targetDocId = targetStoreId;
                       }
 
-                      const dataToSave = { ...data };
-                      if (needsMapping) {
-                        if ('storeId' in dataToSave) {
-                          dataToSave.storeId = targetStoreId;
-                        }
+                      const payload = { ...docData };
+                      if (needsMapping && 'storeId' in payload) {
+                        payload.storeId = targetStoreId;
                       }
+                      return { targetId: targetDocId, payload };
+                    }
+                  );
 
-                      const ref = doc(db, collName, targetDocId);
-                      batch.set(ref, dataToSave, { merge: true });
-                    });
+                  totalInserted += res.inserted;
+                  totalUpdated += res.updated;
+                  totalSkipped += res.skipped;
+                  processedDocs += docs.length;
+                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
 
-                    await batch.commit();
-                    processedDocs += chunk.length;
-                    setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
-                  }
-                  successItems.push({ name: `Koleksi "${collName}"`, info: `${docs.length} dokumen dipulihkan ke Toko ${targetStoreId}` });
+                  successItems.push({
+                    name: `Koleksi "${collName}"`,
+                    info: `${res.inserted} baru, ${res.updated} diubah, ${res.skipped} dilewati (sama/terbaru)`
+                  });
                 } catch (err: any) {
                   failedItems.push({ name: `Koleksi "${collName}"`, reason: err.message || 'Gagal memulihkan dokumen' });
                 }
@@ -1768,7 +1771,7 @@ export default function SuperAdminScreen({ route, navigation }: any) {
 
               setSummaryReportData({
                 title: `📤 Laporan Restore Toko (${targetStoreId}) Selesai`,
-                subtitle: `File: ${fileName} (Asal: ${sourceStoreId}) | Total ${processedDocs} Dokumen Dipulihkan`,
+                subtitle: `File: ${fileName} (Asal: ${sourceStoreId}) | ${totalInserted} Baru | ${totalUpdated} Diubah | ${totalSkipped} Dilewati`,
                 successItems,
                 failedItems
               });

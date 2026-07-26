@@ -33,6 +33,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { smartRestoreCollection } from '../utils/restoreHelper';
 import SignaturePad from '../components/SignaturePad';
 import * as Updates from 'expo-updates';
 import { RefreshCw, Bluetooth, BluetoothSearching, BluetoothConnected } from 'lucide-react-native';
@@ -1105,30 +1106,32 @@ export default function SettingsScreen({ navigation, route }: any) {
               collections.forEach(c => totalDocs += backupData.data[c].length);
               
               let processedDocs = 0;
+              let totalInserted = 0;
+              let totalUpdated = 0;
+              let totalSkipped = 0;
 
               for (const collName of collections) {
                 const docs = backupData.data[collName];
                 if (!Array.isArray(docs)) continue;
 
-                // Split into batches of 400
-                for (let i = 0; i < docs.length; i += 400) {
-                  const batch = writeBatch(db);
-                  const chunk = docs.slice(i, i + 400);
+                const res = await smartRestoreCollection(
+                  db, 
+                  collName, 
+                  docs,
+                  (docId, docData) => {
+                    const payload = { ...docData, storeId };
+                    return { targetId: docId, payload };
+                  }
+                );
 
-                  chunk.forEach((d: any) => {
-                    const { id, ...data } = d;
-                    data.storeId = storeId;
-                    const ref = doc(db, collName, id);
-                    batch.set(ref, data, { merge: true });
-                  });
-
-                  await batch.commit();
-                  processedDocs += chunk.length;
-                  setRestoreProgress(Math.round((processedDocs / totalDocs) * 100));
-                }
+                totalInserted += res.inserted;
+                totalUpdated += res.updated;
+                totalSkipped += res.skipped;
+                processedDocs += docs.length;
+                setRestoreProgress(Math.round((processedDocs / Math.max(1, totalDocs)) * 100));
               }
 
-              Alert.alert('Berhasil', 'Data toko berhasil dipulihkan!');
+              Alert.alert('Berhasil', `Data toko berhasil dipulihkan!\n\n• ${totalInserted} baru ditambahkan\n• ${totalUpdated} diperbarui\n• ${totalSkipped} dilewati (sama/terbaru)`);
             } catch (err: any) {
               console.error("Restore error on mobile:", err);
               Alert.alert('Gagal', 'Gagal memulihkan data: ' + err.message);
