@@ -19,7 +19,7 @@ import {
   Tag, BadgePercent, Layers, CalendarRange, FileText, TrendingUp, Flame, Coins, 
   Users, Lock, Clock, UserCheck, ClipboardList, User, Settings, AlertCircle, Receipt, Trash2,
   Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save, Landmark, Wallet,
-  Printer, MapPin, QrCode, Utensils, Copy, ExternalLink, Share2 } from 'lucide-react-native';
+  Printer, MapPin, QrCode, Utensils, Copy, ExternalLink, Share2, MessageCircle } from 'lucide-react-native';
 import { printReceipt } from '../utils/ReceiptHelper';
 import { db, auth, storage , primaryDb} from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
@@ -2399,14 +2399,17 @@ export default function StoreSettingsScreen({ navigation }: any) {
                         </View>
 
                         {qrTableInput.trim() !== '' && (() => {
-                          const tableUrl = `https://ikasir.my.id/tr?s=${storeId}&t=${encodeURIComponent(qrTableInput.trim())}`;
+                          const activeStoreId = user?.storeId || (typeof storeId === 'string' ? storeId : '') || user?.uid || '';
+                          const tableNum = qrTableInput.trim();
+                          const tableUrl = `https://ikasir.my.id/tr?s=${activeStoreId}&t=${encodeURIComponent(tableNum)}`;
                           const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(tableUrl)}&size=300x300&ecc=M&margin=10`;
+
                           return (
                             <View className="p-5 rounded-3xl border items-center space-y-3 mt-2" style={{ backgroundColor: colors.background, borderColor: '#a855f740' }}>
                               {/* Header Info Toko & Petunjuk */}
                               <View className="items-center space-y-1">
                                 <Text className="text-sm font-black uppercase text-center" style={{ color: colors.text }}>
-                                  {storeSettings.storeName || 'Toko Kami'}
+                                  {storeSettings?.storeName || 'Toko Kami'}
                                 </Text>
                                 <View className="bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
                                   <Text className="text-[9px] font-black text-purple-500 uppercase tracking-widest text-center">
@@ -2426,7 +2429,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                               {/* Table Badge */}
                               <View className="px-5 py-2 bg-purple-500/10 rounded-full border border-purple-500/30 items-center">
                                 <Text className="text-base font-black text-purple-500 uppercase tracking-widest">
-                                  MEJA {qrTableInput.trim()}
+                                  MEJA {tableNum}
                                 </Text>
                               </View>
 
@@ -2440,7 +2443,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                 <TouchableOpacity
                                   onPress={() => {
                                     Clipboard.setString(tableUrl);
-                                    Alert.alert("Berhasil", `Link Meja ${qrTableInput.trim()} berhasil disalin!`);
+                                    Alert.alert("Berhasil", `Link Meja ${tableNum} berhasil disalin!`);
                                   }}
                                   className="flex-1 min-w-[45%] py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500/10 border border-purple-500/30"
                                 >
@@ -2451,8 +2454,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                 {/* Button 2: Bagikan Teks & Petunjuk */}
                                 <TouchableOpacity
                                   onPress={() => {
-                                    const tableNum = qrTableInput.trim();
-                                    const msg = `📱 *PETUNJUK MAKAN DI TEMPAT (DINE-IN)*\n🏪 *${storeSettings.storeName || 'Toko Kami'}*\n🪑 *MEJA ${tableNum}*\n\nPetunjuk Pelanggan:\n1. Scan QR Code Meja atau klik link di bawah ini\n2. Pilih menu pesanan Anda\n3. Isi nama & kirim pesanan (tanpa perlu login!)\n\n👉 *Link Pesanan:* ${tableUrl}`;
+                                    const msg = `📱 *PETUNJUK MAKAN DI TEMPAT (DINE-IN)*\n🏪 *${storeSettings?.storeName || 'Toko Kami'}*\n🪑 *MEJA ${tableNum}*\n\nPetunjuk Pelanggan:\n1. Scan QR Code Meja atau klik link di bawah ini\n2. Pilih menu pesanan Anda\n3. Isi nama & kirim pesanan (tanpa perlu login!)\n\n👉 *Link Pesanan:* ${tableUrl}`;
                                     Share.share({ message: msg });
                                   }}
                                   className="flex-1 min-w-[45%] py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500"
@@ -2465,7 +2467,6 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                 <TouchableOpacity
                                   onPress={async () => {
                                     try {
-                                      const tableNum = qrTableInput.trim();
                                       const fileUri = `${FileSystem.cacheDirectory}QR_Meja_${tableNum}.png`;
                                       await FileSystem.downloadAsync(qrImageUrl, fileUri);
                                       if (await Sharing.isAvailableAsync()) {
@@ -2492,14 +2493,13 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                 <TouchableOpacity
                                   onPress={async () => {
                                     try {
-                                      const tableNum = qrTableInput.trim();
                                       const html = `<!DOCTYPE html><html><head><title>QR Meja ${tableNum}</title>
                                       <style>
                                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
                                         *{margin:0;padding:0;box-sizing:border-box;}
                                         body{font-family:'Inter',sans-serif;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;}
                                         .card{width:320px;border:2px solid #e5e7eb;border-radius:24px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.1);}
-                                        .top{background:${storeSettings.themeColorHex||'#10b981'};padding:24px 16px 16px;text-align:center;}
+                                        .top{background:${storeSettings?.themeColorHex||'#10b981'};padding:24px 16px 16px;text-align:center;}
                                         .top .store{font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.05em;}
                                         .top .tagline{font-size:10px;color:rgba(255,255,255,.75);font-weight:700;text-transform:uppercase;letter-spacing:.15em;margin-top:4px;}
                                         .body{background:#fff;padding:20px;text-align:center;}
@@ -2514,7 +2514,7 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                       </style></head><body>
                                       <div class="card">
                                         <div class="top">
-                                          <div class="store">${storeSettings.storeName||'Nama Toko'}</div>
+                                          <div class="store">${storeSettings?.storeName||'Nama Toko'}</div>
                                           <div class="tagline">Scan untuk memesan</div>
                                         </div>
                                         <div class="body">
