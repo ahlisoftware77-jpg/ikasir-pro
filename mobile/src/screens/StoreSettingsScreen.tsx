@@ -2421,29 +2421,47 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                     Clipboard.setString(tableUrl);
                                     Alert.alert("Berhasil", "Link Meja berhasil disalin ke clipboard!");
                                   }}
-                                  className="flex-1 py-2.5 px-3 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500/10 border border-purple-500/30"
+                                  className="flex-1 py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1 bg-purple-500/10 border border-purple-500/30"
                                 >
-                                  <Copy size={14} color="#a855f7" />
-                                  <Text className="text-[10px] font-black text-purple-500 uppercase">Salin Link</Text>
+                                  <Copy size={13} color="#a855f7" />
+                                  <Text className="text-[9px] font-black text-purple-500 uppercase">Salin Link</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                  onPress={() => {
-                                    Share.share({
-                                      message: `Menu Pesanan Meja ${qrTableInput.trim()} (${storeSettings.storeName || 'Toko Kami'}):\n${tableUrl}`
-                                    });
+                                  onPress={async () => {
+                                    try {
+                                      const tableNum = qrTableInput.trim();
+                                      const fileUri = `${FileSystem.cacheDirectory}QR_Meja_${tableNum}.png`;
+                                      await FileSystem.downloadAsync(qrImageUrl, fileUri);
+                                      if (await Sharing.isAvailableAsync()) {
+                                        await Sharing.shareAsync(fileUri, {
+                                          mimeType: 'image/png',
+                                          dialogTitle: `Bagikan QR Code Meja ${tableNum}`,
+                                          UTI: 'public.png'
+                                        });
+                                      } else {
+                                        Share.share({
+                                          message: `Menu Pesanan Meja ${tableNum} (${storeSettings.storeName || 'Toko Kami'}):\n${tableUrl}`
+                                        });
+                                      }
+                                    } catch (err: any) {
+                                      console.error("Error sharing QR image:", err);
+                                      Share.share({
+                                        message: `Menu Pesanan Meja ${qrTableInput.trim()} (${storeSettings.storeName || 'Toko Kami'}):\n${tableUrl}`
+                                      });
+                                    }
                                   }}
-                                  className="flex-1 py-2.5 px-3 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500"
+                                  className="flex-1 py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1 bg-purple-500"
                                 >
-                                  <Share2 size={14} color="white" />
-                                  <Text className="text-[10px] font-black text-white uppercase">Bagikan QR</Text>
+                                  <Share2 size={13} color="white" />
+                                  <Text className="text-[9px] font-black text-white uppercase">Bagikan QR</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
                                   onPress={() => Linking.openURL(tableUrl)}
                                   className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 justify-center items-center"
                                 >
-                                  <ExternalLink size={14} color="#a855f7" />
+                                  <ExternalLink size={13} color="#a855f7" />
                                 </TouchableOpacity>
                               </View>
                             </View>

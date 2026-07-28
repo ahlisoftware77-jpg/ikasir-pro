@@ -1935,6 +1935,27 @@ export default function SettingsPage() {
                                    </button>
                                    <button
                                      type="button"
+                                     onClick={async () => {
+                                       try {
+                                         const res = await fetch(qrImageUrl);
+                                         const blob = await res.blob();
+                                         const blobUrl = URL.createObjectURL(blob);
+                                         const a = document.createElement('a');
+                                         a.href = blobUrl;
+                                         a.download = `QR_Meja_${qrTableInput.trim()}.png`;
+                                         a.click();
+                                         URL.revokeObjectURL(blobUrl);
+                                         toast.success('Gambar QR Code berhasil diunduh!');
+                                       } catch {
+                                         toast.error('Gagal mengunduh gambar QR Code');
+                                       }
+                                     }}
+                                     className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border border-emerald-500/20"
+                                   >
+                                     <Download size={12} /> Unduh QR PNG
+                                   </button>
+                                   <button
+                                     type="button"
                                      onClick={() => {
                                        const printWin = window.open('', '_blank', 'width=450,height=650');
                                        if (!printWin) return;
