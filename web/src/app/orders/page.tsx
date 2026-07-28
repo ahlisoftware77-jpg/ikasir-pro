@@ -40,7 +40,8 @@ import {
   MapPin,
   Truck,
   ExternalLink,
-  QrCode
+  QrCode,
+  Utensils
 } from 'lucide-react';
 import { printReceipt } from '@/lib/printReceipt';
 import { useAuthStore } from '@/store/auth';
@@ -573,11 +574,13 @@ export default function OrdersPage() {
                        </span>
 
                        {order.deliveryType && (
-                         <span className={"text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 " + (
-                           order.deliveryType === 'delivery' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-slate-500/10 text-slate-500'
-                         )}>
-                           {order.deliveryType === 'delivery' ? <><Truck size={10}/> DIKIRIM</> : <><Package size={10}/> AMBIL</>}
-                         </span>
+                          <span className={"text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 " + (
+                            order.deliveryType === 'dine_in' ? 'bg-purple-500/20 text-purple-500 border border-purple-500/20' :
+                            order.deliveryType === 'delivery' ? 'bg-amber-500/20 text-amber-500 border border-amber-500/20' : 'bg-slate-500/10 text-slate-500'
+                          )}>
+                            {order.deliveryType === 'dine_in' ? <><Utensils size={10}/> MEJA {order.tableNumber || '-'}</> :
+                             order.deliveryType === 'delivery' ? <><Truck size={10}/> DIKIRIM</> : <><Package size={10}/> AMBIL</>}
+                          </span>
                        )}
 
                        {/* PAYMENT METHOD BADGE FOR ONLINE ORDERS */}
@@ -646,6 +649,26 @@ export default function OrdersPage() {
                         ))}
                      </div>
                   </div>
+
+                  {/* DINE-IN TABLE INFO */}
+                  {order.deliveryType === 'dine_in' && (
+                    <div className="mt-4 pt-4 border-t border-app-border animate-in fade-in slide-in-from-top-2 duration-300">
+                      <p className="text-[10px] text-app-text-muted font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <Utensils size={12} className="text-purple-500" /> Makan di Tempat
+                      </p>
+                      <div className="bg-purple-500/5 border border-purple-500/10 p-4 rounded-2xl">
+                         <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                             <Utensils size={18} className="text-purple-500" />
+                           </div>
+                           <div>
+                             <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Nomor Meja</p>
+                             <p className="text-xl font-black text-foreground">{order.tableNumber || '-'}</p>
+                           </div>
+                         </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* DELIVERY ADDRESS */}
                   {order.deliveryType === 'delivery' && order.deliveryAddress && (

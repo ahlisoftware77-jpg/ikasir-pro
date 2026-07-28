@@ -51,7 +51,8 @@ import {
   Store,
   Camera,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Utensils
 } from 'lucide-react';
 
 interface Product {
@@ -176,6 +177,7 @@ function PublicOrderContent() {
   const storeId = searchParams.get('s') || '';
   const catParam = searchParams.get('c') || searchParams.get('cat') || '';
   const prodParam = searchParams.get('p') || '';
+  const tableParam = searchParams.get('t') || searchParams.get('table') || '';
   
   const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'account'>('menu');
   const [products, setProducts] = useState<Product[]>([]);
@@ -183,6 +185,7 @@ function PublicOrderContent() {
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
+  const [tableNumber, setTableNumber] = useState(tableParam);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(catParam || 'Semua');
   const [expandedProducts, setExpandedProducts] = useState<Record<string, boolean>>({});
@@ -260,7 +263,7 @@ function PublicOrderContent() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isConfirmingCheckout, setIsConfirmingCheckout] = useState(false);
-  const [fulfillmentType, setFulfillmentType] = useState<'pickup' | 'delivery'>('pickup');
+  const [fulfillmentType, setFulfillmentType] = useState<'pickup' | 'delivery' | 'dine_in'>(tableParam ? 'dine_in' : 'pickup');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer' | 'qris' | 'debt'>('cash');
   const [downPayment, setDownPayment] = useState<number>(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -405,7 +408,9 @@ function PublicOrderContent() {
           const data = docSnap.data();
           setStoreSettings(data);
           
-          if (data.allowPickup === false && data.allowDelivery !== false) {
+          if (tableParam) {
+            setFulfillmentType('dine_in');
+          } else if (data.allowPickup === false && data.allowDelivery !== false) {
             setFulfillmentType('delivery');
           } else if (data.allowDelivery === false && data.allowPickup !== false) {
             setFulfillmentType('pickup');
@@ -839,21 +844,18 @@ function PublicOrderContent() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
-    // Check if logged in
-    if (!authUser) {
-       toast.error("Harap masuk atau daftar akun terlebih dahulu");
-       router.push(`/tr/auth?s=${storeId}&redirect=checkout`);
-       return;
-    }
-
     if (!customerName.trim()) {
-      toast.error("Harap lengkapi Nama Anda di tab Akun");
-      setActiveTab('account');
+      toast.error("Harap isi Nama Pemesan terlebih dahulu");
       return;
     }
 
     if (fulfillmentType === 'delivery' && !deliveryAddress.trim()) {
       toast.error("Harap isi alamat pengiriman");
+      return;
+    }
+
+    if (fulfillmentType === 'dine_in' && !tableNumber.trim()) {
+      toast.error("Harap isi Nomor Meja");
       return;
     }
 
@@ -876,9 +878,15 @@ function PublicOrderContent() {
       const taxAmount = storeSettings?.useTax ? Math.round((sub * taxRate) / 100) : 0;
       const finalTotal = sub + taxAmount + fee;
 
+      // Save guest name/phone to localStorage for next time
+      if (!authUser) {
+        localStorage.setItem('customer_name', customerName.trim());
+        localStorage.setItem('customer_phone', customerPhone.trim());
+      }
+
       const orderData: any = {
         storeId,
-        customerName: customerName.trim() || 'Pelanggan Toko',
+        customerName: customerName.trim() || 'Tamu',
         customerPhone: customerPhone.trim() || '-',
         guestId: authUser?.uid || guestId,
         items: cart.map(item => ({
@@ -909,6 +917,7 @@ function PublicOrderContent() {
         paymentCategory: paymentMethod === 'debt' ? 'debt' : 'order',
         deliveryType: fulfillmentType,
         deliveryAddress: fulfillmentType === 'delivery' ? deliveryAddress : '',
+        tableNumber: fulfillmentType === 'dine_in' ? tableNumber.trim() : '',
         orderType: 'online',
         cashierName: 'Online (Sistem)',
         cashierId: 'online',
@@ -1046,6 +1055,7 @@ function PublicOrderContent() {
   const deliveryFee = (fulfillmentType === 'delivery' && storeSettings?.allowDelivery !== false) ? (storeSettings?.deliveryFee || 0) : 0;
   const taxAmount = storeSettings?.useTax ? Math.round((subtotalSum * (storeSettings.taxRate || 0)) / 100) : 0;
   const totalWithFulfillment = subtotalSum + taxAmount + deliveryFee;
+  const isDineIn = fulfillmentType === 'dine_in';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col max-w-md mx-auto shadow-2xl relative overflow-hidden font-sans">
@@ -1375,11 +1385,13 @@ function PublicOrderContent() {
                              {order.orderStatus === 'new' ? 'Baru' :
                               order.orderStatus === 'processing' ? 'Diproses' :
                               order.orderStatus === 'ready' ? 
-                                (order.deliveryType === 'delivery' 
+                                (order.deliveryType === 'dine_in' ? 'Siap Disajikan' :
+                                 order.deliveryType === 'delivery' 
                                   ? (order.paymentStatus === 'paid' || (order.debtAmount || 0) <= 0 ? 'Terkirim & Lunas' : 'Siap Dikirim') 
                                   : (order.paymentStatus === 'paid' || (order.debtAmount || 0) <= 0 ? 'Sudah Diambil & Lunas' : 'Siap Diambil')) :
                               order.orderStatus === 'completed' ? 
-                                (order.deliveryType === 'delivery' 
+                                (order.deliveryType === 'dine_in' ? 'Selesai Disajikan' :
+                                 order.deliveryType === 'delivery' 
                                   ? 'Terkirim & Lunas' 
                                   : 'Sudah Diambil & Lunas') : 'Dibatalkan'}
                           </div>
@@ -1757,7 +1769,7 @@ function PublicOrderContent() {
                     <div className="flex justify-between"><span>Nomor TRX</span><span className="font-bold text-slate-900">#{(viewingReceipt.id || "").toUpperCase()}</span></div>
                     <div className="flex justify-between"><span>Tanggal</span><span className="font-bold text-slate-900">{viewingReceipt.timestamp?.toDate ? viewingReceipt.timestamp.toDate().toLocaleString('id-ID').replace(/\./g, ':') : 'Baru saja'}</span></div>
                     <div className="flex justify-between"><span>Pelanggan</span><span className="font-bold text-slate-900">{viewingReceipt.customerName}</span></div>
-                    <div className="flex justify-between"><span>Metode</span><span className="font-bold text-slate-900">{viewingReceipt.deliveryType === 'delivery' ? 'KIRIM' : 'AMBIL'}</span></div>
+                    <div className="flex justify-between"><span>Metode</span><span className="font-bold text-slate-900">{viewingReceipt.deliveryType === 'dine_in' ? `MAKAN DI TEMPAT${viewingReceipt.tableNumber ? ` - MEJA ${viewingReceipt.tableNumber}` : ''}` : viewingReceipt.deliveryType === 'delivery' ? 'KIRIM' : 'AMBIL'}</span></div>
                     <div className="border-b border-dashed border-slate-300 pt-2"></div>
                  </div>
 
@@ -1938,36 +1950,91 @@ function PublicOrderContent() {
                    </>
                  ) : (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                       {/* Customer Name & Phone for Guest (No Login) */}
+                       {!authUser && (
+                         <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl animate-in fade-in zoom-in-95 duration-300">
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Informasi Pemesan</p>
+                           <div className="space-y-2">
+                             <div className="relative">
+                               <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                               <input
+                                 type="text"
+                                 placeholder="Nama Pemesan *"
+                                 value={customerName}
+                                 onChange={e => setCustomerName(e.target.value)}
+                                 className="w-full bg-white border border-slate-200 rounded-xl p-3 pl-10 text-sm font-bold focus:outline-none focus:border-tr transition-all text-slate-900"
+                               />
+                             </div>
+                             <div className="relative">
+                               <MessageCircle className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                               <input
+                                 type="tel"
+                                 placeholder="Nomor WhatsApp (opsional)"
+                                 value={customerPhone}
+                                 onChange={e => setCustomerPhone(e.target.value)}
+                                 className="w-full bg-white border border-slate-200 rounded-xl p-3 pl-10 text-sm font-bold focus:outline-none focus:border-tr transition-all text-slate-900"
+                               />
+                             </div>
+                           </div>
+                         </div>
+                       )}
+
                        {/* Fulfillment Selection */}
                        <div className="space-y-4">
                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metode Pengambilan</p>
-                           <div className={`grid gap-4 ${storeSettings?.allowPickup !== false && storeSettings?.allowDelivery !== false ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                           <div className={`grid gap-3 ${[storeSettings?.allowDineIn !== false, storeSettings?.allowPickup !== false, storeSettings?.allowDelivery !== false].filter(Boolean).length >= 3 ? 'grid-cols-3' : [storeSettings?.allowDineIn !== false, storeSettings?.allowPickup !== false, storeSettings?.allowDelivery !== false].filter(Boolean).length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                              {storeSettings?.allowDineIn !== false && (
+                                <button 
+                                  onClick={() => setFulfillmentType('dine_in')}
+                                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1.5 active:scale-[0.98] ${fulfillmentType === 'dine_in' ? 'border-tr bg-tr/10 text-slate-950 shadow-md shadow-tr/10 font-black' : 'border-slate-100 bg-white text-slate-400'}`}
+                                >
+                                   <Utensils size={22} className={fulfillmentType === 'dine_in' ? 'animate-bounce' : ''} />
+                                   <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">Makan di Tempat</span>
+                                </button>
+                              )}
                               {storeSettings?.allowPickup !== false && (
                                 <button 
                                   onClick={() => setFulfillmentType('pickup')}
-                                  className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 active:scale-[0.98] ${fulfillmentType === 'pickup' ? 'border-tr bg-tr/10 text-slate-950 shadow-md shadow-tr/10 font-black' : 'border-slate-100 bg-white text-slate-400'}`}
+                                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1.5 active:scale-[0.98] ${fulfillmentType === 'pickup' ? 'border-tr bg-tr/10 text-slate-950 shadow-md shadow-tr/10 font-black' : 'border-slate-100 bg-white text-slate-400'}`}
                                 >
-                                   <Store size={24} className={fulfillmentType === 'pickup' ? 'animate-bounce' : ''} />
-                                   <span className="text-[10px] font-black uppercase tracking-wider">Ambil di Tempat</span>
+                                   <Store size={22} className={fulfillmentType === 'pickup' ? 'animate-bounce' : ''} />
+                                   <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">Ambil di Tempat</span>
                                 </button>
                               )}
                               {storeSettings?.allowDelivery !== false && (
                                 <button 
                                   onClick={() => setFulfillmentType('delivery')}
-                                  className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 active:scale-[0.98] ${fulfillmentType === 'delivery' ? 'border-tr bg-tr/10 text-slate-950 shadow-md shadow-tr/10 font-black' : 'border-slate-100 bg-white text-slate-400'}`}
+                                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1.5 active:scale-[0.98] ${fulfillmentType === 'delivery' ? 'border-tr bg-tr/10 text-slate-950 shadow-md shadow-tr/10 font-black' : 'border-slate-100 bg-white text-slate-400'}`}
                                 >
-                                   <Truck size={24} className={fulfillmentType === 'delivery' ? 'animate-bounce' : ''} />
-                                   <span className="text-[10px] font-black uppercase tracking-wider">Dikirim</span>
+                                   <Truck size={22} className={fulfillmentType === 'delivery' ? 'animate-bounce' : ''} />
+                                   <span className="text-[9px] font-black uppercase tracking-wider text-center leading-tight">Dikirim</span>
                                 </button>
                               )}
                            </div>
-                           {storeSettings?.allowPickup === false && storeSettings?.allowDelivery === false && (
+                           {storeSettings?.allowPickup === false && storeSettings?.allowDelivery === false && storeSettings?.allowDineIn === false && (
                              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-500">
                                <AlertTriangle size={18} />
                                <p className="text-[10px] font-black uppercase">Metode pemesanan sedang dinonaktifkan sementara.</p>
                              </div>
                            )}
                         </div>
+
+                        {/* Table Number Input for Dine-In */}
+                        {fulfillmentType === 'dine_in' && (
+                          <div className="space-y-2 animate-in fade-in zoom-in-95 duration-300">
+                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Meja *</label>
+                             <div className="relative">
+                                <Utensils className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input 
+                                  type="text"
+                                  value={tableNumber}
+                                  onChange={e => setTableNumber(e.target.value)}
+                                  placeholder="Contoh: 5, A1, VIP..."
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 pl-12 text-sm font-bold focus:outline-none focus:border-tr transition-all text-slate-900"
+                                />
+                              </div>
+                           </div>
+                        )}
 
                        {/* Address Input */}
                        {fulfillmentType === 'delivery' && (
@@ -2271,7 +2338,7 @@ function PublicOrderContent() {
                                 <div className="flex justify-between items-center bg-white border border-slate-200 rounded-2xl p-3 shadow-sm">
                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sisa Piutang</span>
                                   <span className="text-sm font-black text-rose-500">
-                                    Rp {Math.max(0, (subtotalSum + (fulfillmentType === 'delivery' ? (storeSettings?.deliveryFee || 0) : 0) + (storeSettings?.useTax ? Math.round((subtotalSum * (storeSettings?.taxRate || 0)) / 100) : 0)) - downPayment).toLocaleString('id-ID')}
+                                    Rp {Math.max(0, (subtotalSum + deliveryFee + taxAmount) - downPayment).toLocaleString('id-ID')}
                                   </span>
                                 </div>
                               </div>
@@ -2333,9 +2400,8 @@ function PublicOrderContent() {
                     ) : (
                        <button
                          onClick={() => {
-                           if (!authUser) {
-                             toast.error("Harap masuk atau daftar akun terlebih dahulu sebelum melanjutkan checkout");
-                             router.push(`/tr/auth?s=${storeId}&redirect=checkout`);
+                           if (!customerName.trim()) {
+                             toast.error("Harap isi Nama Pemesan terlebih dahulu");
                              return;
                            }
                            setIsConfirmingCheckout(true);

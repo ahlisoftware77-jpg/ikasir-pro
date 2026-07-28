@@ -28,7 +28,8 @@ import {
   Ban, 
   Banknote, 
   Check, 
-  ExternalLink 
+  ExternalLink,
+  Utensils
 } from 'lucide-react-native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -783,11 +784,12 @@ export default function OrdersScreen() {
         );
       case 'ready': 
         const isDelivery = order.deliveryType === 'delivery';
+        const isDineIn = order.deliveryType === 'dine_in';
         return (
           <View className="bg-emerald-500/10 px-2 py-0.5 rounded-full flex-row items-center border border-emerald-500/20">
-            {isDelivery ? <Truck size={10} color="#10b981"/> : <ShoppingBag size={10} color="#10b981"/>}
+            {isDelivery ? <Truck size={10} color="#10b981"/> : isDineIn ? <Utensils size={10} color="#10b981"/> : <ShoppingBag size={10} color="#10b981"/>}
             <Text className="text-[9px] font-black text-emerald-500 uppercase ml-1">
-              {isDelivery ? 'Siap Kirim' : 'Siap Ambil'}
+              {isDelivery ? 'Siap Kirim' : isDineIn ? 'Siap Sajikan' : 'Siap Ambil'}
             </Text>
           </View>
         );
@@ -1021,6 +1023,18 @@ export default function OrdersScreen() {
                         ))}
                       </View>
 
+                      {/* Dine-In Table Info */}
+                      {order.deliveryType === 'dine_in' && (
+                        <View className="mb-4 p-4 rounded-2xl border bg-purple-500/5 border-purple-500/20">
+                          <Text className="text-[10px] font-black text-purple-500 uppercase tracking-widest mb-1.5">
+                            🍽️ Makan di Tempat
+                          </Text>
+                          <Text className="text-2xl font-black" style={{ color: colors.text }}>
+                            Meja {order.tableNumber || '-'}
+                          </Text>
+                        </View>
+                      )}
+
                       {/* Delivery Address */}
                       {order.deliveryType === 'delivery' && order.deliveryAddress && (
                         <View className="mb-4 p-4 rounded-2xl border bg-amber-500/5 border-amber-500/20">
@@ -1112,7 +1126,7 @@ export default function OrdersScreen() {
                                 onPress={() => handleUpdateStatus(order, 'ready')}
                                 className="flex-1 bg-emerald-500 h-12 rounded-xl items-center justify-center flex-row gap-1.5"
                               >
-                                {order.deliveryType === 'delivery' ? <Truck size={16} color="white" /> : <ShoppingBag size={16} color="white" />}
+                                {order.deliveryType === 'delivery' ? <Truck size={16} color="white" /> : order.deliveryType === 'dine_in' ? <Utensils size={16} color="white" /> : <ShoppingBag size={16} color="white" />}
                                 <Text className="text-xs font-black text-white">PESANAN SIAP</Text>
                               </TouchableOpacity>
                             )}

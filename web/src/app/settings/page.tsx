@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History, Plus, Wallet, Landmark } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Loader2, Receipt, Check, Database, Download, UploadCloud, AlertTriangle, Smartphone, ShoppingBag, Trash2, Key, Bell, List, RotateCcw, Printer, History, Plus, Wallet, Landmark, Utensils, QrCode, X, Copy } from 'lucide-react';
 import { getInfraConfig } from '@/lib/infraConfig';
 import { doc, getDoc, getDocs, setDoc, writeBatch, updateDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, auth, primaryDb } from '@/lib/firebase';
@@ -144,7 +144,8 @@ export default function SettingsPage() {
     storeBanks: [] as any[],
     storeEwallets: [] as any[],
     hideBackupRestore: false,
-    joinMarketplace: false
+    joinMarketplace: false,
+    allowDineIn: true
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -152,6 +153,7 @@ export default function SettingsPage() {
   const [thermalLogoPreview, setThermalLogoPreview] = useState<string | null>(null);
   const [qrisFile, setQrisFile] = useState<File | null>(null);
   const [qrisPreview, setQrisPreview] = useState<string | null>(null);
+  const [qrTableInput, setQrTableInput] = useState('');
   
   const [passwordState, setPasswordState] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -211,7 +213,8 @@ export default function SettingsPage() {
             storeBanks: data.storeBanks || [],
             storeEwallets: data.storeEwallets || [],
             hideBackupRestore: data.hideBackupRestore === true,
-            joinMarketplace: data.joinMarketplace === true
+            joinMarketplace: data.joinMarketplace === true,
+            allowDineIn: data.allowDineIn !== false
           });
           setLogoPreview(data.logoUrl || null);
           setLogoUrl(data.logoUrl || null);
@@ -265,6 +268,7 @@ export default function SettingsPage() {
             storeEwallets: [],
             hideBackupRestore: false,
             joinMarketplace: false,
+            allowDineIn: true,
           });
         }
       } catch (err) {
@@ -1553,6 +1557,19 @@ export default function SettingsPage() {
                       <p className="text-[10px] text-app-text-muted font-medium">Pelanggan bisa memesan untuk dikirim ke rumah.</p>
                     </div>
                   </div>
+
+                  <div 
+                    className="flex items-center gap-4 p-4 bg-background border border-app-border rounded-2xl hover:border-purple-500/30 transition-all group cursor-pointer" 
+                    onClick={() => setSettings((prev: any) => ({ ...prev, allowDineIn: !prev.allowDineIn }))}
+                  >
+                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${settings.allowDineIn ? 'bg-purple-500 border-purple-500 text-white' : 'bg-transparent border-app-border text-transparent'}`}>
+                      <Check size={14} className="stroke-[4]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground cursor-pointer select-none">Aktifkan Makan di Tempat (Dine-In)</p>
+                      <p className="text-[10px] text-app-text-muted font-medium">Pelanggan scan QR meja, pesan tanpa login. Cocok untuk cafe & resto.</p>
+                    </div>
+                  </div>
                </div>
 
                {settings.allowDelivery && (
@@ -1859,6 +1876,118 @@ export default function SettingsPage() {
                       </div>
                    ) : (
                       <p className="text-[10px] font-bold text-app-text-muted italic">Tidak ada kategori produk yang ditemukan. Daftarkan produk dengan kategori terlebih dahulu.</p>
+                   )}
+                   {/* QR Code Generator for Dine-In Tables */}
+                   {settings.allowDineIn !== false && (
+                     <div className="pt-4 border-t border-app-border/50 space-y-4">
+                       <div>
+                         <h4 className="text-xs font-black text-purple-500 uppercase tracking-widest flex items-center gap-2 mb-1">
+                           <QrCode size={14} /> Generator QR Code Meja (Dine-In)
+                         </h4>
+                         <p className="text-[10px] font-medium text-app-text-muted leading-relaxed">
+                           Masukkan nomor/kode meja untuk membuat link khusus. Pelanggan scan QR, langsung ke menu dengan meja terisi otomatis — tanpa perlu login.
+                         </p>
+                       </div>
+                       <div className="flex gap-2">
+                         <div className="relative flex-1">
+                           <Utensils className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" size={14} />
+                           <input
+                             type="text"
+                             placeholder="Nomor / Kode Meja (mis: 5, A1, VIP)"
+                             value={qrTableInput}
+                             onChange={e => setQrTableInput(e.target.value)}
+                             className="w-full pl-9 pr-3 py-2.5 bg-background border border-app-border rounded-xl text-xs font-bold text-foreground focus:outline-none focus:border-purple-500 transition-all"
+                           />
+                         </div>
+                       </div>
+
+                       {qrTableInput.trim() && (() => {
+                         const tableUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/tr?s=${storeId}&t=${encodeURIComponent(qrTableInput.trim())}`;
+                         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(tableUrl)}&size=220x220&ecc=M&margin=10`;
+                         return (
+                           <div className="bg-background border border-purple-500/20 rounded-2xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                             <div className="flex flex-col sm:flex-row gap-6 items-center">
+                               {/* QR Code Image */}
+                               <div className="flex flex-col items-center gap-2 shrink-0">
+                                 <div className="p-3 bg-white rounded-2xl shadow-lg border border-purple-500/10">
+                                   <img
+                                     src={qrImageUrl}
+                                     alt={`QR Meja ${qrTableInput.trim()}`}
+                                     className="w-[140px] h-[140px] object-contain"
+                                   />
+                                 </div>
+                                 <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">MEJA {qrTableInput.trim()}</p>
+                               </div>
+
+                               {/* Info & Actions */}
+                               <div className="flex-1 space-y-3 w-full">
+                                 <div>
+                                   <p className="text-[9px] font-black text-app-text-muted uppercase tracking-widest mb-1">URL Pesanan Meja</p>
+                                   <code className="text-[9px] font-bold text-purple-500 break-all leading-relaxed">{tableUrl}</code>
+                                 </div>
+                                 <div className="flex flex-wrap gap-2">
+                                   <button
+                                     type="button"
+                                     onClick={() => { navigator.clipboard.writeText(tableUrl); toast.success('Link berhasil disalin!'); }}
+                                     className="flex items-center gap-1.5 px-3 py-2 bg-purple-500/10 hover:bg-purple-500 text-purple-500 hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border border-purple-500/20"
+                                   >
+                                     <Copy size={12} /> Salin Link
+                                   </button>
+                                   <button
+                                     type="button"
+                                     onClick={() => {
+                                       const printWin = window.open('', '_blank', 'width=450,height=650');
+                                       if (!printWin) return;
+                                       printWin.document.write(`<!DOCTYPE html><html><head><title>QR Meja ${qrTableInput.trim()}</title>
+                                       <style>
+                                         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                                         *{margin:0;padding:0;box-sizing:border-box;}
+                                         body{font-family:'Inter',sans-serif;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+                                         .card{width:320px;border:2px solid #e5e7eb;border-radius:24px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.1);}
+                                         .top{background:${settings.themeColorHex||'#10b981'};padding:24px 16px 16px;text-align:center;}
+                                         .top .store{font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.05em;}
+                                         .top .tagline{font-size:10px;color:rgba(255,255,255,.75);font-weight:700;text-transform:uppercase;letter-spacing:.15em;margin-top:4px;}
+                                         .body{background:#fff;padding:20px;text-align:center;}
+                                         .instruction{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;}
+                                         .qr-wrap{display:inline-block;padding:12px;background:#fff;border:2px solid #f3f4f6;border-radius:16px;}
+                                         .qr-wrap img{width:160px;height:160px;display:block;}
+                                         .table-badge{margin-top:14px;display:inline-block;background:#f3f4f6;border-radius:999px;padding:6px 24px;}
+                                         .table-num{font-size:28px;font-weight:900;color:#111;}
+                                         .table-label{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.15em;margin-top:2px;}
+                                         .footer{background:#f9fafb;padding:10px;text-align:center;border-top:1px solid #f3f4f6;}
+                                         .footer p{font-size:8px;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:.1em;}
+                                         @media print{body{margin:0;}.card{box-shadow:none;border:2px solid #e5e7eb;}}
+                                       </style></head><body>
+                                       <div class="card">
+                                         <div class="top">
+                                           <div class="store">${settings.storeName||'Nama Toko'}</div>
+                                           <div class="tagline">Scan untuk memesan</div>
+                                         </div>
+                                         <div class="body">
+                                           <div class="instruction">📱 Scan QR Code di bawah ini</div>
+                                           <div class="qr-wrap"><img src="${qrImageUrl}" /></div>
+                                           <div class="table-badge">
+                                             <div class="table-num">Meja ${qrTableInput.trim()}</div>
+                                             <div class="table-label">Table Number</div>
+                                           </div>
+                                         </div>
+                                         <div class="footer"><p>Pesan mudah • Tanpa antri • Tanpa login</p></div>
+                                       </div>
+                                       <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>
+                                       </body></html>`);
+                                       printWin.document.close();
+                                     }}
+                                     className="flex items-center gap-1.5 px-3 py-2 bg-accent/10 hover:bg-accent text-accent hover:text-white rounded-xl font-black text-[9px] uppercase tracking-widest transition-all border border-accent/20"
+                                   >
+                                     <Printer size={12} /> Cetak QR Meja
+                                   </button>
+                                 </div>
+                               </div>
+                             </div>
+                           </div>
+                         );
+                       })()}
+                     </div>
                    )}
                 </div>
              </div>
