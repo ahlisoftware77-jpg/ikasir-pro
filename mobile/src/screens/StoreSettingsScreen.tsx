@@ -32,6 +32,7 @@ import * as Sharing from 'expo-sharing';
 import * as ExpoLocation from 'expo-location';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Print from 'expo-print';
 import SignaturePad from '../components/SignaturePad';
 
 const FONT_OPTIONS = [
@@ -2401,32 +2402,66 @@ export default function StoreSettingsScreen({ navigation }: any) {
                           const tableUrl = `https://ikasir.my.id/tr?s=${storeId}&t=${encodeURIComponent(qrTableInput.trim())}`;
                           const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(tableUrl)}&size=300x300&ecc=M&margin=10`;
                           return (
-                            <View className="p-4 rounded-xl border items-center space-y-3 mt-2" style={{ backgroundColor: colors.background, borderColor: '#a855f730' }}>
+                            <View className="p-5 rounded-3xl border items-center space-y-3 mt-2" style={{ backgroundColor: colors.background, borderColor: '#a855f740' }}>
+                              {/* Header Info Toko & Petunjuk */}
+                              <View className="items-center space-y-1">
+                                <Text className="text-sm font-black uppercase text-center" style={{ color: colors.text }}>
+                                  {storeSettings.storeName || 'Toko Kami'}
+                                </Text>
+                                <View className="bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+                                  <Text className="text-[9px] font-black text-purple-500 uppercase tracking-widest text-center">
+                                    📱 Scan untuk Pesan (Tanpa Login)
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* QR Code Image */}
                               <View className="p-3 bg-white rounded-2xl border border-purple-500/20 shadow-md">
                                 <Image
                                   source={{ uri: qrImageUrl }}
                                   style={{ width: 160, height: 160, resizeMode: 'contain' }}
                                 />
                               </View>
-                              <Text className="text-xs font-black text-purple-500 uppercase tracking-widest">
-                                MEJA {qrTableInput.trim()}
-                              </Text>
-                              <Text className="text-[9px] font-bold text-center px-2 text-purple-400" numberOfLines={2}>
+
+                              {/* Table Badge */}
+                              <View className="px-5 py-2 bg-purple-500/10 rounded-full border border-purple-500/30 items-center">
+                                <Text className="text-base font-black text-purple-500 uppercase tracking-widest">
+                                  MEJA {qrTableInput.trim()}
+                                </Text>
+                              </View>
+
+                              <Text className="text-[9px] font-bold text-center px-2 text-purple-400" numberOfLines={1}>
                                 {tableUrl}
                               </Text>
 
-                              <View className="flex-row gap-2 mt-2 w-full">
+                              {/* Action Buttons Grid */}
+                              <View className="flex-row flex-wrap gap-2 mt-2 w-full">
+                                {/* Button 1: Salin Link */}
                                 <TouchableOpacity
                                   onPress={() => {
                                     Clipboard.setString(tableUrl);
-                                    Alert.alert("Berhasil", "Link Meja berhasil disalin ke clipboard!");
+                                    Alert.alert("Berhasil", `Link Meja ${qrTableInput.trim()} berhasil disalin!`);
                                   }}
-                                  className="flex-1 py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1 bg-purple-500/10 border border-purple-500/30"
+                                  className="flex-1 min-w-[45%] py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500/10 border border-purple-500/30"
                                 >
                                   <Copy size={13} color="#a855f7" />
                                   <Text className="text-[9px] font-black text-purple-500 uppercase">Salin Link</Text>
                                 </TouchableOpacity>
 
+                                {/* Button 2: Bagikan Teks & Petunjuk */}
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    const tableNum = qrTableInput.trim();
+                                    const msg = `📱 *PETUNJUK MAKAN DI TEMPAT (DINE-IN)*\n🏪 *${storeSettings.storeName || 'Toko Kami'}*\n🪑 *MEJA ${tableNum}*\n\nPetunjuk Pelanggan:\n1. Scan QR Code Meja atau klik link di bawah ini\n2. Pilih menu pesanan Anda\n3. Isi nama & kirim pesanan (tanpa perlu login!)\n\n👉 *Link Pesanan:* ${tableUrl}`;
+                                    Share.share({ message: msg });
+                                  }}
+                                  className="flex-1 min-w-[45%] py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500"
+                                >
+                                  <MessageCircle size={13} color="white" />
+                                  <Text className="text-[9px] font-black text-white uppercase">Bagikan Teks</Text>
+                                </TouchableOpacity>
+
+                                {/* Button 3: Bagikan Gambar QR */}
                                 <TouchableOpacity
                                   onPress={async () => {
                                     try {
@@ -2436,32 +2471,72 @@ export default function StoreSettingsScreen({ navigation }: any) {
                                       if (await Sharing.isAvailableAsync()) {
                                         await Sharing.shareAsync(fileUri, {
                                           mimeType: 'image/png',
-                                          dialogTitle: `Bagikan QR Code Meja ${tableNum}`,
+                                          dialogTitle: `Gambar QR Code Meja ${tableNum}`,
                                           UTI: 'public.png'
                                         });
                                       } else {
-                                        Share.share({
-                                          message: `Menu Pesanan Meja ${tableNum} (${storeSettings.storeName || 'Toko Kami'}):\n${tableUrl}`
-                                        });
+                                        const msg = `📱 *PESANAN MEJA ${tableNum}*\n👉 ${tableUrl}`;
+                                        Share.share({ message: msg });
                                       }
                                     } catch (err: any) {
                                       console.error("Error sharing QR image:", err);
-                                      Share.share({
-                                        message: `Menu Pesanan Meja ${qrTableInput.trim()} (${storeSettings.storeName || 'Toko Kami'}):\n${tableUrl}`
-                                      });
                                     }
                                   }}
-                                  className="flex-1 py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1 bg-purple-500"
+                                  className="flex-1 min-w-[45%] py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500/10 border border-purple-500/30"
                                 >
-                                  <Share2 size={13} color="white" />
-                                  <Text className="text-[9px] font-black text-white uppercase">Bagikan QR</Text>
+                                  <Share2 size={13} color="#a855f7" />
+                                  <Text className="text-[9px] font-black text-purple-500 uppercase">Gambar QR</Text>
                                 </TouchableOpacity>
 
+                                {/* Button 4: Cetak Kartu Meja */}
                                 <TouchableOpacity
-                                  onPress={() => Linking.openURL(tableUrl)}
-                                  className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 justify-center items-center"
+                                  onPress={async () => {
+                                    try {
+                                      const tableNum = qrTableInput.trim();
+                                      const html = `<!DOCTYPE html><html><head><title>QR Meja ${tableNum}</title>
+                                      <style>
+                                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+                                        *{margin:0;padding:0;box-sizing:border-box;}
+                                        body{font-family:'Inter',sans-serif;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+                                        .card{width:320px;border:2px solid #e5e7eb;border-radius:24px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.1);}
+                                        .top{background:${storeSettings.themeColorHex||'#10b981'};padding:24px 16px 16px;text-align:center;}
+                                        .top .store{font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:.05em;}
+                                        .top .tagline{font-size:10px;color:rgba(255,255,255,.75);font-weight:700;text-transform:uppercase;letter-spacing:.15em;margin-top:4px;}
+                                        .body{background:#fff;padding:20px;text-align:center;}
+                                        .instruction{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;}
+                                        .qr-wrap{display:inline-block;padding:12px;background:#fff;border:2px solid #f3f4f6;border-radius:16px;}
+                                        .qr-wrap img{width:160px;height:160px;display:block;}
+                                        .table-badge{margin-top:14px;display:inline-block;background:#f3f4f6;border-radius:999px;padding:6px 24px;}
+                                        .table-num{font-size:28px;font-weight:900;color:#111;}
+                                        .table-label{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.15em;margin-top:2px;}
+                                        .footer{background:#f9fafb;padding:10px;text-align:center;border-top:1px solid #f3f4f6;}
+                                        .footer p{font-size:8px;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:.1em;}
+                                      </style></head><body>
+                                      <div class="card">
+                                        <div class="top">
+                                          <div class="store">${storeSettings.storeName||'Nama Toko'}</div>
+                                          <div class="tagline">Scan untuk memesan</div>
+                                        </div>
+                                        <div class="body">
+                                          <div class="instruction">📱 Scan QR Code di bawah ini</div>
+                                          <div class="qr-wrap"><img src="${qrImageUrl}" /></div>
+                                          <div class="table-badge">
+                                            <div class="table-num">MEJA ${tableNum}</div>
+                                            <div class="table-label">Table Number</div>
+                                          </div>
+                                        </div>
+                                        <div class="footer"><p>Pesan mudah • Tanpa antri • Tanpa login</p></div>
+                                      </div>
+                                      </body></html>`;
+                                      await Print.printAsync({ html });
+                                    } catch (err) {
+                                      console.error("Error printing QR card:", err);
+                                    }
+                                  }}
+                                  className="flex-1 min-w-[45%] py-2.5 px-2 rounded-xl flex-row items-center justify-center gap-1.5 bg-emerald-500"
                                 >
-                                  <ExternalLink size={13} color="#a855f7" />
+                                  <Printer size={13} color="white" />
+                                  <Text className="text-[9px] font-black text-white uppercase">Cetak Kartu</Text>
                                 </TouchableOpacity>
                               </View>
                             </View>
