@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing, Clipboard, NativeModules, PermissionsAndroid, ToastAndroid } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Pressable, Vibration, TextInput, Switch, ActivityIndicator, Alert, Image, Linking, KeyboardAvoidingView, Platform, Animated, Easing, Clipboard, NativeModules, PermissionsAndroid, ToastAndroid, Share } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 
 LocaleConfig.locales['id'] = {
@@ -21,7 +21,7 @@ import {
   Key, Database, Download, UploadCloud, ShieldAlert, CheckCircle2, Pencil, Power, Plus, Server, Edit2, ArrowRight, ArrowLeft, ShieldCheck, Mail, Palette, Sparkles, Bell, Camera, Save,
   MessageCircle, QrCode, Landmark, Wallet, HelpCircle, MessageSquare, UserPlus,
   Warehouse, BookOpen, ShoppingBag, BarChart3, Star, ArrowRightLeft, Archive, Store,
-  Printer
+  Printer, Utensils, Copy, ExternalLink, Share2
 } from 'lucide-react-native';
 import { printReceipt } from '../utils/ReceiptHelper';
 import { db, auth, storage , primaryDb} from '../lib/firebase';
@@ -581,6 +581,7 @@ export default function SettingsScreen({ navigation, route }: any) {
     themeColorHex: '#10b981',
     allowPickup: true,
     allowDelivery: true,
+    allowDineIn: true,
     deliveryFee: 0,
     joinMarketplace: false,
     
@@ -614,6 +615,7 @@ export default function SettingsScreen({ navigation, route }: any) {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingThermalLogo, setIsUploadingThermalLogo] = useState(false);
+  const [qrTableInput, setQrTableInput] = useState('');
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [isUploadingQris, setIsUploadingQris] = useState(false);
   const [showSignaturePadMobile, setShowSignaturePadMobile] = useState(false);
@@ -1345,6 +1347,7 @@ export default function SettingsScreen({ navigation, route }: any) {
               themeColorHex: data.themeColorHex || '#10b981',
               allowPickup: data.allowPickup !== false,
               allowDelivery: data.allowDelivery !== false,
+              allowDineIn: data.allowDineIn !== false,
               deliveryFee: data.deliveryFee || 0,
               joinMarketplace: data.joinMarketplace === true,
               
@@ -2669,6 +2672,100 @@ export default function SettingsScreen({ navigation, route }: any) {
                         thumbColor="#ffffff"
                       />
                     </View>
+
+                    {/* allowDineIn Toggle */}
+                    <View 
+                      className="p-4 rounded-2xl border flex-row items-center justify-between"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+                    >
+                      <View className="flex-row items-center gap-2">
+                        <Utensils size={16} color="#a855f7" />
+                        <Text className="text-xs font-bold" style={{ color: colors.text }}>Aktifkan Makan di Tempat (Dine-In)</Text>
+                      </View>
+                      <Switch
+                        value={storeSettings.allowDineIn !== false}
+                        onValueChange={(val) => setStoreSettings(prev => ({ ...prev, allowDineIn: val }))}
+                        trackColor={{ false: colors.border, true: '#a855f7' }}
+                        thumbColor="#ffffff"
+                      />
+                    </View>
+
+                    {/* Generator QR Code Meja (Dine-In) */}
+                    {storeSettings.allowDineIn !== false && (
+                      <View className="p-4 rounded-2xl border space-y-3" style={{ backgroundColor: colors.surface, borderColor: '#a855f740' }}>
+                        <View className="flex-row items-center gap-2">
+                          <QrCode size={18} color="#a855f7" />
+                          <Text className="text-xs font-black uppercase tracking-wider text-purple-500">Generator QR Code Meja</Text>
+                        </View>
+                        <Text className="text-[10px] leading-relaxed" style={{ color: colors.textMuted }}>
+                          Ketik nomor meja untuk membuat link & QR Code dine-in. Pelanggan cukup scan QR meja lalu pesan tanpa login.
+                        </Text>
+                        
+                        <View className="relative flex-row items-center">
+                          <TextInput
+                            value={qrTableInput}
+                            onChangeText={setQrTableInput}
+                            placeholder="Nomor / Kode Meja (mis: 5, A1, VIP)"
+                            placeholderTextColor={colors.textMuted}
+                            className="flex-1 p-3.5 rounded-xl border font-bold text-xs"
+                            style={{ backgroundColor: colors.background, borderColor: colors.border, color: colors.text }}
+                          />
+                        </View>
+
+                        {qrTableInput.trim() !== '' && (() => {
+                          const tableUrl = `https://ikasir.my.id/tr?s=${storeId}&t=${encodeURIComponent(qrTableInput.trim())}`;
+                          const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(tableUrl)}&size=300x300&ecc=M&margin=10`;
+                          return (
+                            <View className="p-4 rounded-xl border items-center space-y-3 mt-2" style={{ backgroundColor: colors.background, borderColor: '#a855f730' }}>
+                              <View className="p-3 bg-white rounded-2xl border border-purple-500/20 shadow-md">
+                                <Image
+                                  source={{ uri: qrImageUrl }}
+                                  style={{ width: 160, height: 160, resizeMode: 'contain' }}
+                                />
+                              </View>
+                              <Text className="text-xs font-black text-purple-500 uppercase tracking-widest">
+                                MEJA {qrTableInput.trim()}
+                              </Text>
+                              <Text className="text-[9px] font-bold text-center px-2 text-purple-400" numberOfLines={2}>
+                                {tableUrl}
+                              </Text>
+
+                              <View className="flex-row gap-2 mt-2 w-full">
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    Clipboard.setString(tableUrl);
+                                    Alert.alert("Berhasil", "Link Meja berhasil disalin ke clipboard!");
+                                  }}
+                                  className="flex-1 py-2.5 px-3 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500/10 border border-purple-500/30"
+                                >
+                                  <Copy size={14} color="#a855f7" />
+                                  <Text className="text-[10px] font-black text-purple-500 uppercase">Salin Link</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    Share.share({
+                                      message: `Menu Pesanan Meja ${qrTableInput.trim()} (${storeSettings.storeName || 'Toko Kami'}):\n${tableUrl}`
+                                    });
+                                  }}
+                                  className="flex-1 py-2.5 px-3 rounded-xl flex-row items-center justify-center gap-1.5 bg-purple-500"
+                                >
+                                  <Share2 size={14} color="white" />
+                                  <Text className="text-[10px] font-black text-white uppercase">Bagikan QR</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                  onPress={() => Linking.openURL(tableUrl)}
+                                  className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 justify-center items-center"
+                                >
+                                  <ExternalLink size={14} color="#a855f7" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        })()}
+                      </View>
+                    )}
 
                     {/* deliveryFee Input */}
                     {storeSettings.allowDelivery && (
