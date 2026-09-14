@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { logActivity } from '@/lib/activity';
 import { useEffect } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -36,6 +37,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const router = useRouter();
 
   const [showGoogleModal, setShowGoogleModal] = useState(false);
@@ -205,6 +207,11 @@ export default function RegisterPage() {
 
     if (formData.password.length < 6) {
       setError('Kata sandi minimal harus 6 karakter.');
+      return;
+    }
+
+    if (!turnstileToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+      setError('Silakan selesaikan validasi keamanan terlebih dahulu.');
       return;
     }
 
@@ -542,9 +549,19 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            <div className="flex justify-center mt-2 mb-2">
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onError={() => setTurnstileToken(null)}
+                onExpire={() => setTurnstileToken(null)}
+                options={{ theme: 'auto' }}
+              />
+            </div>
+
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || (!turnstileToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
               className="w-full flex justify-center items-center py-4 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all duration-300 active:scale-[0.98] disabled:opacity-70 disabled:scale-100 mt-4"
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Buat Akun Toko Sekarang'}

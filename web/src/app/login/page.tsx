@@ -15,6 +15,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useBranding } from '@/context/BrandingContext';
 import toast from 'react-hot-toast';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function LoginPage() {
   const { branding } = useBranding();
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const router = useRouter();
   const isDemoTriggered = useRef(false);
 
@@ -92,6 +94,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setResetSent(false);
+
+    if (!turnstileToken && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) {
+      setError('Silakan selesaikan validasi keamanan terlebih dahulu.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -387,9 +395,19 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="flex justify-center mt-2 mb-2">
+              <Turnstile
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onError={() => setTurnstileToken(null)}
+                onExpire={() => setTurnstileToken(null)}
+                options={{ theme: 'auto' }}
+              />
+            </div>
+
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || (!turnstileToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
               className="w-full flex justify-center items-center py-4 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/30 transition-all duration-300 active:scale-[0.98] disabled:opacity-70 disabled:scale-100 mt-2"
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Masuk Sekarang'}

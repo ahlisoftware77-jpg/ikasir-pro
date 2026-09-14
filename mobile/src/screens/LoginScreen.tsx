@@ -10,6 +10,7 @@ import { Mail, Lock, ShoppingBag, Eye, EyeOff, User, Store, Phone } from 'lucide
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import Svg, { Path, G } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Turnstile from 'react-native-turnstile';
 
 // TODO: Anda wajib mengganti webClientId ini dengan Web Client ID dari Firebase Console (Authentication -> Google)
 GoogleSignin.configure({
@@ -31,6 +32,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   // Google Registration State
   const [showGoogleModal, setShowGoogleModal] = useState(false);
@@ -40,6 +42,10 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!email || !password) {
       setError('Harap isi email dan kata sandi.');
+      return;
+    }
+    if (!turnstileToken && process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY) {
+      setError('Silakan selesaikan validasi keamanan terlebih dahulu.');
       return;
     }
     setError('');
@@ -121,6 +127,10 @@ export default function LoginScreen() {
     }
     if (password.length < 6) {
       setError('Kata sandi minimal 6 karakter.');
+      return;
+    }
+    if (!turnstileToken && process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY) {
+      setError('Silakan selesaikan validasi keamanan terlebih dahulu.');
       return;
     }
     setError('');
@@ -536,11 +546,19 @@ export default function LoginScreen() {
             </TouchableOpacity>
           )}
 
+          <View className="mt-4 items-center justify-center min-h-[65px] bg-white rounded-lg overflow-hidden w-[300px] self-center">
+             <Turnstile
+                siteKey={process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                onMessage={(msg: any) => setTurnstileToken(msg)} // fallback onMessage for generic
+                onSuccess={(token: string) => setTurnstileToken(token)}
+             />
+          </View>
+
           <TouchableOpacity
             onPress={mode === 'login' ? handleLogin : handleRegister}
-            disabled={isLoading}
+            disabled={isLoading || (!turnstileToken && !!process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY)}
             activeOpacity={0.8}
-            className="mt-6 h-14 rounded-2xl items-center justify-center shadow-lg"
+            className="mt-4 h-14 rounded-2xl items-center justify-center shadow-lg"
             style={{ backgroundColor: colors.accent, shadowColor: colors.accent }}
           >
             {isLoading ? (
